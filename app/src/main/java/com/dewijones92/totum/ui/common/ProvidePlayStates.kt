@@ -46,6 +46,7 @@ internal fun ProvidePlayStates(
     CompositionLocalProvider(
         LocalPlayStates provides states,
         LocalExploreMode provides container.exploreMode,
+        LocalActiveModes provides container.activeModes,
         LocalAppPreferences provides container.appPreferences,
         LocalTranscripts provides container.transcripts,
         LocalListeningSwitch provides listeningSwitchUi(container),

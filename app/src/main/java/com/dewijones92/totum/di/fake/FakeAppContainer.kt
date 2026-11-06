@@ -103,6 +103,7 @@ import com.dewijones92.totum.pins.InMemoryPinStore
 import com.dewijones92.totum.pins.PinPlayer
 import com.dewijones92.totum.pins.PinStore
 import com.dewijones92.totum.pins.RecentActions
+import com.dewijones92.totum.playback.ActiveMode
 import com.dewijones92.totum.playback.ExploreMode
 import com.dewijones92.totum.playback.NoOpPlaybackProgressStore
 import com.dewijones92.totum.playback.PlaybackController
@@ -141,6 +142,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 
 /** In-memory [AppContainer] for previews and UI tests. */
@@ -310,6 +313,7 @@ class FakeAppContainer(
     override val pinStore: PinStore = InMemoryPinStore()
 
     override val recentActions: RecentActions = RecentActions()
+    override val activeModes: StateFlow<List<ActiveMode>> = MutableStateFlow(emptyList())
     override val exploreMode: ExploreMode = ExploreMode(
         initiallyOn = false,
         related = { null },

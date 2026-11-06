@@ -46,9 +46,9 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [TV volume from the phone; the strip says what is cast](tv-volume-and-cast-strip.md) | casting | medium | decided 2026-11-06, Batch A |
 | [Search results as tabs](search-results-tabs.md) | search | medium | built 2026-11-06, Batch A; tests to follow |
 | [Subtitles off stays off until turned on](subtitles-off-stays-off.md) | player | medium | built 2026-11-06, Batch A (ADR 123); tests to follow |
-| [A group page shows its last list while refreshing](group-page-last-list.md) | video | medium | decided 2026-11-06, Batch A |
+| [A group page shows its last list while refreshing](group-page-last-list.md) | video | medium | built 2026-11-06, Batch A; tests to follow |
 | [The queue tidies itself](queue-tidy-up.md) | queue | medium | decided 2026-11-06, Batch A |
-| [The mini player shows every mode that is on](sticky-modes-row.md) | player | high | decided 2026-11-06, Batch A |
+| [The mini player shows every mode that is on](sticky-modes-row.md) | player | high | built 2026-11-06, Batch A (ADR 125); tests to follow |
 | [Why is this playing?](why-is-this-playing.md) | player | medium | decided 2026-11-06, Batch A |
 | [What's new after an update](whats-new-card.md) | app | medium | decided 2026-11-06, Batch A |
 | [A Quick Settings tile sends a Totum report](send-report-tile.md) | diagnostics | medium | decided 2026-11-06, Batch A |

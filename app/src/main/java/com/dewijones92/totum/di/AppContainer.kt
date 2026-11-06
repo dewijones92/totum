@@ -204,6 +204,7 @@ import com.dewijones92.totum.pins.SharedPrefsPinStore
 import com.dewijones92.totum.pins.SharedPrefsRecentActions
 import com.dewijones92.totum.pins.withPins
 import com.dewijones92.totum.pins.withRecent
+import com.dewijones92.totum.playback.ActiveMode
 import com.dewijones92.totum.playback.AutoAdvancer
 import com.dewijones92.totum.playback.Chosen
 import com.dewijones92.totum.playback.ExploreMode
@@ -213,10 +214,12 @@ import com.dewijones92.totum.playback.PlaybackController
 import com.dewijones92.totum.playback.PlaybackProgressStore
 import com.dewijones92.totum.playback.SleepTimer
 import com.dewijones92.totum.playback.StallWatchdog
+import com.dewijones92.totum.playback.activeModesFor
 import com.dewijones92.totum.playback.cast.LocalManifests
 import com.dewijones92.totum.playback.exploreModeFor
 import com.dewijones92.totum.playback.handOverFinishedDownloads
 import com.dewijones92.totum.playback.preloadableUrl
+import com.dewijones92.totum.playback.startActiveModes
 import com.dewijones92.totum.playback.startStreamRecovery
 import com.dewijones92.totum.polite.PoliteInterceptor
 import com.dewijones92.totum.polite.PoliteYtDlpEngine
@@ -295,6 +298,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
@@ -555,6 +559,7 @@ interface AppContainer {
 
     val recentActions: RecentActions
     val exploreMode: ExploreMode
+    val activeModes: StateFlow<List<ActiveMode>>
     val queueSkips: QueueSkips
     val episodeDownloads: EpisodeDownloads
     val audiobookSearchSource: SearchSource
@@ -1207,6 +1212,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                 screen = { screenReadiness?.diagnostics().orEmpty() },
                 groupDownloads = { groupDownloads },
                 repeat = ::repeatNow,
+                modes = { activeModes.value },
             ),
         )
     }
@@ -1238,6 +1244,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         startHomeAhead(this)
         trail.start()
         KidMode(kidLock, playbackController, applicationScope).start()
+        startActiveModes(this)
     }
 
     override val readyAhead: ReadyAhead by lazy {
@@ -1318,6 +1325,8 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                 ),
                 podcast = PodcastSourceItems(podcastRepository),
             ),
+            File(context.filesDir, "group-feed.json"),
+            Dispatchers.IO,
         )
     }
 
@@ -1667,6 +1676,9 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
 
     override val recentActions: RecentActions by lazy { SharedPrefsRecentActions(context) }
     override val exploreMode: ExploreMode by lazy { exploreModeFor(this) }
+    override val activeModes: StateFlow<List<ActiveMode>> by lazy {
+        activeModesFor(this).stateIn(applicationScope, SharingStarted.Eagerly, emptyList())
+    }
 
     override val episodeDownloads: EpisodeDownloads by lazy {
         EpisodeDownloads(downloadManager, applicationScope, operations, homeDownloads)

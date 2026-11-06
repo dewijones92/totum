@@ -140,3 +140,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 122 | [A cast sends the best picture the target can show, and steps down itself](0122-a-cast-sends-the-best-rung-and-steps-down-itself.md) | Accepted |
 | 123 | [Subtitles off stays off until turned on](0123-subtitles-off-stays-off.md) | Accepted |
 | 124 | [Work apps are snoozed outside work hours, by a notification listener](0124-work-apps-are-snoozed-outside-work-hours.md) | Accepted |
+| 125 | [Modes that are quietly on are one flow](0125-active-modes-are-one-flow.md) | Accepted |

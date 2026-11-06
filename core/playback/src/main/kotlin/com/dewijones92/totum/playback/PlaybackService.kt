@@ -22,7 +22,6 @@ import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.MergingMediaSource
 import androidx.media3.exoplayer.upstream.DefaultBandwidthMeter
 import androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy
-import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import androidx.media3.session.SessionCommand
@@ -58,6 +57,9 @@ public class PlaybackService : MediaSessionService() {
     private var mediaSession: MediaSession? = null
     private val queueSkip by lazy { QueueSkipButtons(this) }
     private val switchButton by lazy { ListeningSwitchButton(this, queueSkip::buttons) }
+
+    @UnstableApi
+    private var notificationProvider: ContextualNotificationProvider? = null
 
     /** The user's skip-silences intent. Applies to both pillars now. */
     @Volatile
@@ -111,8 +113,9 @@ public class PlaybackService : MediaSessionService() {
     @androidx.annotation.OptIn(markerClass = [UnstableApi::class])
     override fun onCreate() {
         super.onCreate()
-        val notificationProvider = DefaultMediaNotificationProvider.Builder(this).build()
-        setMediaNotificationProvider(RefusalTolerantNotificationProvider(notificationProvider))
+        val contextual = ContextualNotificationProvider(this, ::triggerNotificationUpdate)
+        notificationProvider = contextual
+        setMediaNotificationProvider(RefusalTolerantNotificationProvider(contextual))
         // A custom audio sink whose processor chain carries the silence skipper
         // (Sonic stays for speed/pitch); skipping is off until the user turns it on.
         silenceCutter.speechWeights = { BundledSpeechModel.get() }
@@ -232,6 +235,7 @@ public class PlaybackService : MediaSessionService() {
                         .add(SessionCommand(ACTION_USER_SPEED, Bundle.EMPTY))
                         .add(SessionCommand(ACTION_SWITCH_BUTTON, Bundle.EMPTY))
                         .add(SessionCommand(ACTION_SWITCH_LISTENING, Bundle.EMPTY))
+                        .add(SessionCommand(ACTION_PLAYBACK_CONTEXT, Bundle.EMPTY))
                         .add(SessionCommand(ACTION_QUEUE_PREVIOUS, Bundle.EMPTY))
                         .add(SessionCommand(ACTION_QUEUE_NEXT, Bundle.EMPTY))
                         .add(SessionCommand(ACTION_PLAY_ON_SCREEN, Bundle.EMPTY))
@@ -313,7 +317,7 @@ public class PlaybackService : MediaSessionService() {
                 switchButton.onCommand(session, controller, customCommand.customAction, args)
                 return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
             }
-            if (screenCommand(customCommand.customAction, args)) {
+            if (appStateCommand(customCommand.customAction, args)) {
                 return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
             }
             if (customCommand.customAction == ACTION_PRELOAD_NEXT) {
@@ -478,6 +482,14 @@ public class PlaybackService : MediaSessionService() {
     ).also { pc ->
         pc.observe(localPlayer)
         pc.observe(pc.player)
+    }
+
+    @UnstableApi
+    private fun appStateCommand(action: String, args: Bundle): Boolean {
+        if (screenCommand(action, args)) return true
+        val provider = notificationProvider?.takeIf { it.handles(action) } ?: return false
+        provider.onCommand(args)
+        return true
     }
 
     @UnstableApi

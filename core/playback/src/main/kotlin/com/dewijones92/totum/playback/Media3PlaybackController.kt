@@ -808,6 +808,13 @@ public class Media3PlaybackController(
         }
     }
 
+    override fun setPlaybackContext(context: PlaybackContext) {
+        Diag.log("playback", "dewidebug telling the session: $context (connected=${controller != null})")
+        withController {
+            it.sendCustomCommand(SessionCommand(ACTION_PLAYBACK_CONTEXT, Bundle.EMPTY), context.toBundle())
+        }
+    }
+
     private fun applySessionExtras(controller: MediaController, extras: Bundle) {
         castDeviceName = extras.getString(CastStatus.EXTRA_CAST_DEVICE)
         _castDevice.value = castDeviceName

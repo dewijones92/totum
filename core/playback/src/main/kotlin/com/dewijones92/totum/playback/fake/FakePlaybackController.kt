@@ -8,6 +8,7 @@ import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.SkipSegment
+import com.dewijones92.totum.playback.PlaybackContext
 import com.dewijones92.totum.playback.PlaybackController
 import com.dewijones92.totum.playback.PlaybackEvent
 import com.dewijones92.totum.playback.PlaybackState
@@ -39,6 +40,13 @@ public class FakePlaybackController(override val player: Player? = null) : Playb
 
     override fun showSwitchButton(to: Listening?) {
         switchButton = to
+    }
+
+    public var playbackContext: PlaybackContext = PlaybackContext()
+        private set
+
+    override fun setPlaybackContext(context: PlaybackContext) {
+        playbackContext = context
     }
 
     public fun tapSwitchInNotification() {

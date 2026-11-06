@@ -7,9 +7,11 @@ import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.OfflineReadiness
 import com.dewijones92.totum.downloads.DownloadKeepAliveService
+import com.dewijones92.totum.playback.ActiveMode
 import com.dewijones92.totum.playback.PlaybackCacheReport
 import com.dewijones92.totum.playback.PlaybackController
 import com.dewijones92.totum.playback.PlaybackState
+import com.dewijones92.totum.playback.describe
 import com.dewijones92.totum.playback.pathTaken
 import com.dewijones92.totum.queue.GroupDownloads
 import com.dewijones92.totum.queue.PlaybackQueue
@@ -49,6 +51,7 @@ internal class DiagnosticSnapshot(
         val screen: () -> Map<String, String> = { emptyMap() },
         val groupDownloads: () -> GroupDownloads? = { null },
         val repeat: () -> RepeatMode = { RepeatMode.OFF },
+        val modes: () -> List<ActiveMode> = { emptyList() },
     )
 
     fun capture(): Map<String, String> = buildMap {
@@ -97,6 +100,7 @@ internal class DiagnosticSnapshot(
         runCatching { putSettings(live.settings()) }
         runCatching { putAccountState(entries) }
         runCatching { put("playback.repeatNow", live.repeat().name) }
+        runCatching { put("playback.activeModes", live.modes().describe()) }
         runCatching { put("network.metered", live.isMetered().toString()) }
         runCatching { putAll(live.exsurge()) }
         runCatching { putAll(live.appUpdate()) }

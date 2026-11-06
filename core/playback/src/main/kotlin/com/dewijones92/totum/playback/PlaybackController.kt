@@ -134,6 +134,8 @@ public interface PlaybackController {
 
     public fun showSwitchButton(to: Listening?)
 
+    public fun setPlaybackContext(context: PlaybackContext)
+
     /**
      * Asks the service to hold the first seconds of [url], so the next track change is not a wait.
      *

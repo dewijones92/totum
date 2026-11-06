@@ -4,4 +4,5 @@
     <string name="playback_switch_to_talk">Switch to talk</string>
     <string name="playback_queue_previous">Previous in the queue</string>
     <string name="playback_queue_next">Next in the queue</string>
+    <string name="playback_notification_repeat_one">🔂 Repeating this one</string>
 </resources>

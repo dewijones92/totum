@@ -904,6 +904,15 @@
     <string name="explore_on">🧭 Explore on: related videos play next, your queue waits</string>
     <string name="explore_off">📋 Explore off: back to your queue</string>
     <string name="explore_toggle">Explore: play related videos next</string>
+    <string name="mode_repeat_one">🔂 Repeating this one</string>
+    <string name="mode_repeat_group">🔁 Repeating the group</string>
+    <string name="mode_repeat_queue">🔁 Repeating the queue</string>
+    <string name="mode_shuffle">🔀 Shuffled</string>
+    <string name="mode_explore">🧭 Explore on</string>
+    <string name="mode_speed">⏩ Playing at %1$s</string>
+    <string name="mode_kid_lock">👶 Kid lock</string>
+    <string name="mode_quiet_hours">🔕 Work apps quiet</string>
+    <string name="mode_sleep_timer">⏰ Sleep timer on</string>
     <string name="player_tab_up_next">Up next</string>
     <string name="player_tab_related">Related</string>
     <string name="player_tab_comments">Comments</string>
