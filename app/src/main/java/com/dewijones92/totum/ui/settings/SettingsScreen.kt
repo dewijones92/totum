@@ -45,6 +45,7 @@ import com.dewijones92.totum.settings.AppPreferences
 import com.dewijones92.totum.ui.common.BackHeader
 import com.dewijones92.totum.ui.common.ListThenDetail
 import com.dewijones92.totum.ui.importexport.ImportExportScreen
+import com.dewijones92.totum.workapps.WorkAppsQuietScreen
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
@@ -100,6 +101,10 @@ fun SettingsScreen(container: AppContainer, onBack: () -> Unit, modifier: Modifi
                     label = stringResource(R.string.dailyalarm_settings_row),
                     onClick = { open(SettingsSubPage.DAILY_ALARMS) }
                 )
+                NavRow(
+                    label = stringResource(R.string.work_apps_name),
+                    onClick = { open(SettingsSubPage.WORK_APPS) }
+                )
                 Text(
                     text = stringResource(R.string.settings_subscriptions_section),
                     style = MaterialTheme.typography.titleMedium,
@@ -140,6 +145,8 @@ fun SettingsScreen(container: AppContainer, onBack: () -> Unit, modifier: Modifi
                 ExsurgeSettingsScreen(container.exsurge, onBack = close, modifier = modifier)
             SettingsSubPage.DAILY_ALARMS ->
                 DailyAlarmsScreen(container.dailyAlarms, onBack = close, modifier = modifier)
+            SettingsSubPage.WORK_APPS ->
+                WorkAppsQuietScreen(container.workApps, onBack = close, modifier = modifier)
             SettingsSubPage.DIAGNOSTICS -> DiagnosticsScreen(onBack = close, modifier = modifier)
         }
     }
@@ -464,4 +471,4 @@ private fun QualityRow(label: String, current: Int, onSelect: (Int) -> Unit) {
     }
 }
 
-private enum class SettingsSubPage { IMPORT_EXPORT, EXSURGE, DAILY_ALARMS, DIAGNOSTICS }
+private enum class SettingsSubPage { IMPORT_EXPORT, EXSURGE, DAILY_ALARMS, WORK_APPS, DIAGNOSTICS }

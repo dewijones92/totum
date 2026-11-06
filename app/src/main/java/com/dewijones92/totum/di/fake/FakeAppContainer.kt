@@ -132,6 +132,8 @@ import com.dewijones92.totum.video.ReadyAhead
 import com.dewijones92.totum.video.UpcomingLives
 import com.dewijones92.totum.video.VideoPlaybackLauncher
 import com.dewijones92.totum.video.VideoResolver
+import com.dewijones92.totum.workapps.InMemoryWorkAppsStore
+import com.dewijones92.totum.workapps.WorkAppsQuiet
 import com.dewijones92.totum.ytdlp.YtDlpEngine
 import com.dewijones92.totum.ytdlp.fake.FakeYtDlpEngine
 import kotlinx.coroutines.CoroutineScope
@@ -199,6 +201,9 @@ class FakeAppContainer(
         notify = { _, _ -> false }
     ),
     override val dailyAlarms: DailyAlarmController = DailyAlarmController(InMemoryDailyAlarmStore(), NoDailyAlarmPorts),
+    override val workApps: WorkAppsQuiet = WorkAppsQuiet(InMemoryWorkAppsStore(), accessGranted = {
+        false
+    }, onChanged = {}),
     override val exsurge: ExsurgeController = ExsurgeController(
         InMemoryExsurgeStore(),
         NoExsurgePorts,

@@ -50,6 +50,7 @@ public data class AlarmBoard(
     val today: LocalDate,
     val heading: BoardHeading,
     val refreshAt: Instant,
+    val workApps: WorkAppsStatus? = null,
 ) {
     public val nextToRing: BoardRow?
         get() = (heading as? BoardHeading.Next)?.row
@@ -63,7 +64,13 @@ public data class AlarmBoard(
         get() = rows.firstOrNull { it.status is RowStatus.Skipped }
 }
 
-public fun alarmBoard(alarms: List<DailyAlarm>, states: Map<String, DayState>, now: Instant, zone: ZoneId): AlarmBoard {
+public fun alarmBoard(
+    alarms: List<DailyAlarm>,
+    states: Map<String, DayState>,
+    now: Instant,
+    zone: ZoneId,
+    workApps: WorkAppsStatus? = null,
+): AlarmBoard {
     val today = now.atZone(zone).toLocalDate()
     val rows = alarms
         .filter { it.enabled }
@@ -72,8 +79,8 @@ public fun alarmBoard(alarms: List<DailyAlarm>, states: Map<String, DayState>, n
     val heading = heading(alarms, rows, today)
     val herald = (heading as? BoardHeading.Next)?.row
         ?.takeIf { it.kind == AlarmKind.ALARM }?.at?.minus(HERALD)?.takeIf { it.isAfter(now) }
-    val refreshAt = listOfNotNull(today.plusDays(1).atStartOfDay(zone).toInstant(), herald).min()
-    return AlarmBoard(rows, today, heading, refreshAt)
+    val refreshAt = listOfNotNull(today.plusDays(1).atStartOfDay(zone).toInstant(), herald, workApps?.refreshAt).min()
+    return AlarmBoard(rows, today, heading, refreshAt, workApps)
 }
 
 public data class NextRing(val date: LocalDate, val time: LocalTime, val setForToday: Boolean)

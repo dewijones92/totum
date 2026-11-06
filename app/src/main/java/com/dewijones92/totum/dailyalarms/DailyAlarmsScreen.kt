@@ -24,6 +24,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -32,6 +33,8 @@ import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.reminders.kit.KeepScreenAwake
 import com.dewijones92.totum.ui.common.BackHeader
+import com.dewijones92.totum.ui.settings.NavRow
+import com.dewijones92.totum.workapps.WorkAppsQuietActivity
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -46,6 +49,7 @@ fun DailyAlarmsScreen(
     newAlarmAsks: Int = 0,
 ) {
     KeepScreenAwake("dailyalarm settings")
+    val context = LocalContext.current
     val view by alarms.view.collectAsStateWithLifecycle()
     val now by produceState(alarms.localNow(), alarms) {
         while (true) {
@@ -77,6 +81,9 @@ fun DailyAlarmsScreen(
                     val state = view.state(alarm.id)
                     val next = remember(alarm, state, now) { alarms.nextRing(alarm, state) }
                     AlarmCard(alarm, state, next, alarms, now) { delete(alarm) }
+                }
+                NavRow(stringResource(R.string.work_apps_open_row)) {
+                    context.startActivity(WorkAppsQuietActivity.intent(context, "alarms page"))
                 }
             }
             SnackbarHost(snackbar, modifier = Modifier.align(Alignment.BottomCenter))

@@ -12,6 +12,7 @@ import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.reminders.kit.LiveUpdate
 import com.dewijones92.totum.reminders.kit.PinnedChannel
+import com.dewijones92.totum.workapps.workAppsLine
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
@@ -149,11 +150,12 @@ class DailyAlarmNotifications(private val context: Context) {
         ensureChannels()
         val next = board.nextToRing
         val lines = board.rows.map { context.boardLine(it, board.today) }
+        val workAppsLine = board.workApps?.let { context.workAppsLine(it) }
         val herald = heraldOnce(board)
         val builder = Notification.Builder(context, BOARD_CHANNEL)
             .setSmallIcon(context.alarmIcon())
             .setContentTitle(context.boardTitle(board.heading))
-            .setContentText(lines.firstOrNull())
+            .setContentText(lines.firstOrNull() ?: workAppsLine)
             .setStyle(Notification.BigTextStyle().bigText(lines.joinToString("\n")))
             .setOngoing(true)
             .setOnlyAlertOnce(!herald)
@@ -161,6 +163,7 @@ class DailyAlarmNotifications(private val context: Context) {
             .setVisibility(Notification.VISIBILITY_PUBLIC)
             .setContentIntent(context.openAlarmSettings())
             .setDeleteIntent(DailyAlarmReceiver.pending(context, DailyAlarmReceiver.REPOST, DailyAlarmReceiver.BOARD))
+        workAppsLine?.let(builder::setSubText)
         val actions = context.boardActions(board)
         val open = context.alarmAction(context.getString(R.string.dailyalarm_open), context.openAlarmSettings())
         (actions + open).take(MAX_ACTIONS_SHOWN).forEach(builder::addAction)

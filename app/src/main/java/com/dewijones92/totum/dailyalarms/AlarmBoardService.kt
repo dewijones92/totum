@@ -94,7 +94,8 @@ class AlarmBoardService : Service() {
         private fun log(board: AlarmBoard) {
             val next = board.nextToRing?.let { "${it.label} ${it.time}" } ?: "none"
             val rows = board.rows.joinToString(" | ") { "${it.time} ${it.label} ${it.date} ${it.status}" }
-            val line = "heading=${board.heading} next=$next refreshAt=${board.refreshAt} rows=$rows"
+            val line = "heading=${board.heading} next=$next refreshAt=${board.refreshAt} " +
+                "workApps=${board.workApps} rows=$rows"
             if (line == lastLogged) return
             lastLogged = line
             Diag.log(TAG, "dewidebug dailyalarm board $line")

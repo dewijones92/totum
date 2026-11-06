@@ -103,6 +103,7 @@ class DailyAlarmController(
     private val zone: () -> ZoneId = ZoneId::systemDefault,
     private val record: (StatEvent) -> Unit = {},
     seeds: List<DailyAlarm> = emptyList(),
+    private val workApps: () -> WorkAppsStatus? = { null },
 ) {
     private var alarms = seeded(store.loadAlarms().ifEmpty { listOf(DailyAlarm(id = PICKUP_ID)) }, seeds)
     private var states = store.loadStates()
@@ -338,7 +339,7 @@ class DailyAlarmController(
         ports.refreshBoardAt(board.refreshAt)
     }
 
-    fun board(): AlarmBoard = alarmBoard(alarms, states, clock(), zone())
+    fun board(): AlarmBoard = alarmBoard(alarms, states, clock(), zone(), workApps())
 
     fun localNow(): LocalDateTime = LocalDateTime.ofInstant(clock(), zone())
 

@@ -1,7 +1,7 @@
 ---
 title: Slack, Outlook and Teams stay quiet outside work hours
 kind: todo
-status: decided
+status: built 2026-11-06 — code first; tests and an on-phone check still to come
 batch: A (2026-11)
 priority: high
 updated: 2026-11-06
@@ -16,3 +16,10 @@ turning those apps' sound off. Configurable per day, editable app list, a pause 
 `DailyAlarmNotifications.board()` (BOARD_ID 7398), `NextTime.nextOccurrence`. None exists today.
 
 Whole-batch review: the window is a per-day `WeeklyWindow` extracted from `ExsurgeSettings.isActiveAt/nextActiveStart` into `:lib:reminders`, shared with the bedtime timer.
+
+## Built 2026-11-06
+
+Done as [features/work-apps-quiet-hours](../features/work-apps-quiet-hours.md), decided in
+[ADR 124](../adr/0124-work-apps-are-snoozed-outside-work-hours.md). Dewi's batch rule: code first, so the tests are
+listed in the feature doc under "Tests still to write". Not yet seen on a phone: the board sub-text on Android 16, and
+whether an Obtainium install needs "Allow restricted settings" before Notification access can be switched on.

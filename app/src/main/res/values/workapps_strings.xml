@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="work_apps_name">🔕 Work apps quiet hours</string>
+    <string name="work_apps_intro">Slack, Outlook and Teams stay silent outside your work hours. Totum snoozes their notifications and brings them back when work starts.</string>
+    <string name="work_apps_switch">Quiet outside work hours</string>
+    <string name="work_apps_switch_summary">Snooze the chosen apps until work starts</string>
+    <string name="work_apps_status_title">Status</string>
+    <string name="work_apps_status_off">💤 Quiet hours are off</string>
+    <string name="work_apps_generic">Work apps</string>
+    <string name="work_apps_names_more">%1$s +%2$d</string>
+    <string name="work_apps_line_quiet">🔕 %1$s quiet until %2$s</string>
+    <string name="work_apps_line_quiet_no_days">🔕 %1$s quiet (no work days set)</string>
+    <string name="work_apps_line_on">💼 Work apps on until %1$s</string>
+    <string name="work_apps_line_paused">⏸️ Work apps let through until %1$s</string>
+    <string name="work_apps_line_needs_access">⚠️ Work apps quiet hours need notification access</string>
+
+    <string name="work_apps_access_title">Notification access</string>
+    <string name="work_apps_access_on">✅ Notification access is on</string>
+    <string name="work_apps_access_off">⚠️ Notification access is off</string>
+    <string name="work_apps_access_why">Android only lets an app snooze other apps\' notifications once you allow this, once. Totum looks at which app sent each one and whether it is ongoing; it does not read or keep what they say.</string>
+    <string name="work_apps_access_open">Open notification access</string>
+    <string name="work_apps_access_restricted">ℹ️ If Android greys the switch out: Settings → Apps → Totum → ⋮ → Allow restricted settings, then try again.</string>
+
+    <string name="work_apps_hours_title">Work hours</string>
+    <string name="work_apps_hours_hint">💼 Notifications come through inside these hours. A day switched off is quiet all day.</string>
+    <string name="work_apps_day_off">🌙 Day off</string>
+    <string name="work_apps_hours_to">to</string>
+    <string name="work_apps_hours_start_title">Work starts</string>
+    <string name="work_apps_hours_end_title">Work ends</string>
+
+    <string name="work_apps_apps_title">Apps</string>
+    <string name="work_apps_apps_none">📭 No apps chosen</string>
+    <string name="work_apps_remove">Remove %1$s</string>
+    <string name="work_apps_add">➕ Add an app</string>
+    <string name="work_apps_sound_tip">🔊 A split second of sound can leak before an app is snoozed. Turn these apps\' own notification sound off to be sure.</string>
+
+    <string name="work_apps_picker_title">Add an app</string>
+    <string name="work_apps_picker_filter">Filter apps</string>
+    <string name="work_apps_picker_package">Or type a package name</string>
+    <string name="work_apps_picker_add_package">Add</string>
+    <string name="work_apps_picker_every_app">Show every app</string>
+    <string name="work_apps_picker_none">📭 No apps match</string>
+    <string name="work_apps_picker_loading">⏳ Looking at your apps</string>
+    <string name="work_apps_picker_close">Close</string>
+
+    <string name="work_apps_pause_title">Pause</string>
+    <string name="work_apps_pause_summary">Let everything through for a while, such as when you are on call.</string>
+    <plurals name="work_apps_pause_hours">
+        <item quantity="one">⏸️ %1$d hour</item>
+        <item quantity="other">⏸️ %1$d hours</item>
+    </plurals>
+    <string name="work_apps_pause_next_day">⏸️ Until the next work day</string>
+    <string name="work_apps_paused">⏸️ Letting everything through until %1$s</string>
+    <string name="work_apps_resume">Back to quiet</string>
+    <string name="work_apps_open_row">🔕 Work apps quiet hours</string>
+</resources>

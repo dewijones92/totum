@@ -283,6 +283,8 @@ import com.dewijones92.totum.video.WatchHistorySync
 import com.dewijones92.totum.video.decodesTenBitHevc
 import com.dewijones92.totum.video.solvingChallenges
 import com.dewijones92.totum.video.videoAndPodcastDownloads
+import com.dewijones92.totum.workapps.SharedPrefsWorkAppsStore
+import com.dewijones92.totum.workapps.WorkAppsQuiet
 import com.dewijones92.totum.ytdlp.InteractiveFirstEngine
 import com.dewijones92.totum.ytdlp.YtDlpEngine
 import com.dewijones92.totum.ytdlp.chaquopy.ChaquopyYtDlpEngine
@@ -403,6 +405,7 @@ interface AppContainer {
 
     val exsurge: ExsurgeController
     val dailyAlarms: DailyAlarmController
+    val workApps: WorkAppsQuiet
 
     /** The unified up-next queue (what plays after the current item), both pillars. */
     val playbackQueue: PlaybackQueue
@@ -980,7 +983,14 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         exsurgeController(context, playbackController, applicationScope, record = statsLog::record)
     }
     override val dailyAlarms by lazy {
-        dailyAlarmController(context, playbackController, applicationScope, statsLog::record)
+        dailyAlarmController(context, playbackController, applicationScope, statsLog::record) { workApps.status() }
+    }
+    override val workApps: WorkAppsQuiet by lazy {
+        WorkAppsQuiet(
+            SharedPrefsWorkAppsStore(context),
+            accessGranted = { WorkAppsQuiet.accessGranted(context) },
+            onChanged = { source -> dailyAlarms.tickAll(source) },
+        )
     }
 
     override val queueStore: QueueStore by lazy { RoomQueueStore(database.queueDao()) }
@@ -1187,7 +1197,10 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                 reconciledAccountProgress = accountReportValues::actedOn,
                 stuckAccountUpdates = accountReportValues::stuckUpdates,
                 isMetered = networkStatus::isMetered,
-                exsurge = { exsurge.diagnostics + ExsurgeLiveUpdate.diagnostics(context) + dailyAlarms.diagnostics },
+                exsurge = {
+                    exsurge.diagnostics + ExsurgeLiveUpdate.diagnostics(context) + dailyAlarms.diagnostics +
+                        workApps.diagnostics
+                },
                 appUpdate = appUpdate::diagnostics,
                 polite = { polite.diagnostics() + ("explore.on" to exploreMode.on.value.toString()) },
                 backup = { driveBackup.diagnostics() + groupNews.diagnostics() },

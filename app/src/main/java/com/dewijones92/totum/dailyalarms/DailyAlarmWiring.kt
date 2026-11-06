@@ -13,6 +13,7 @@ fun dailyAlarmController(
     playback: PlaybackController,
     scope: CoroutineScope,
     record: (StatEvent) -> Unit = {},
+    workApps: () -> WorkAppsStatus? = { null },
 ): DailyAlarmController {
     val interruption by lazy {
         PlaybackInterruption(playback, DailyAlarmController.TAG).also { interruption ->
@@ -25,5 +26,6 @@ fun dailyAlarmController(
         AndroidDailyAlarmPorts(context) { interruption },
         record = record,
         seeds = listOf(DailyAlarm.FRIDGE),
+        workApps = workApps,
     )
 }
