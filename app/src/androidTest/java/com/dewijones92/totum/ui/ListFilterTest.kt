@@ -28,6 +28,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.unit.dp
@@ -300,7 +301,7 @@ class ListFilterTest {
         composeTestRule.onAllNodesWithText("Alpha show").assertCountEquals(0)
         composeTestRule.onAllNodesWithContentDescription(context.getString(R.string.queue_reorder)).assertCountEquals(0)
         composeTestRule.onAllNodesWithContentDescription(context.getString(R.string.queue_menu))[0].performClick()
-        composeTestRule.onNodeWithText(context.getString(R.string.queue_remove)).performClick()
+        composeTestRule.onNodeWithText(context.getString(R.string.queue_remove)).performScrollTo().performClick()
         composeTestRule.waitUntil(TIMEOUT_MS) { container.playbackQueue.state.value.entries.size == 2 }
 
         assertEquals(
@@ -329,7 +330,7 @@ class ListFilterTest {
             }.getOrDefault(false)
         }
         composeTestRule.onAllNodesWithContentDescription(context.getString(R.string.queue_menu))[0].performClick()
-        composeTestRule.onNodeWithText(context.getString(R.string.queue_move_to_top)).performClick()
+        composeTestRule.onNodeWithText(context.getString(R.string.queue_move_to_top)).performScrollTo().performClick()
         composeTestRule.waitUntil(TIMEOUT_MS) {
             container.playbackQueue.state.value.entries.first().item.item.id.value == "e2"
         }
