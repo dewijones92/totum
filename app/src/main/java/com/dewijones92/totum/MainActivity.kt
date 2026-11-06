@@ -21,6 +21,7 @@ import com.dewijones92.totum.downloads.DownloadsRequests
 import com.dewijones92.totum.kidlock.KidLockWindow
 import com.dewijones92.totum.pins.HomeScreenShortcuts
 import com.dewijones92.totum.pins.PinPlayed
+import com.dewijones92.totum.recorder.TapCircles
 import com.dewijones92.totum.theme.TotumTheme
 import com.dewijones92.totum.ui.AppShell
 import com.dewijones92.totum.ui.ask.AskRequests
@@ -71,16 +72,18 @@ class MainActivity : FragmentActivity() {
         setContent {
             TotumTheme {
                 CompositionLocalProvider(LocalNow provides rememberTickingNow()) {
-                    AppShell(
-                        container,
-                        openPlayerRequest = openPlayerRequest.intValue,
-                        openMusicPage = openMusicPage.value,
-                        askForNotifications = if (mayAsk.value) {
-                            { RequestNotificationPermissionOnce() }
-                        } else {
-                            {}
-                        },
-                    )
+                    TapCircles {
+                        AppShell(
+                            container,
+                            openPlayerRequest = openPlayerRequest.intValue,
+                            openMusicPage = openMusicPage.value,
+                            askForNotifications = if (mayAsk.value) {
+                                { RequestNotificationPermissionOnce() }
+                            } else {
+                                {}
+                            },
+                        )
+                    }
                 }
             }
         }

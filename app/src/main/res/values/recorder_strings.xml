@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="recorder_shortcut_short">🎥 Record screen</string>
+    <string name="recorder_shortcut_long">🎥 Totum recorder</string>
+    <string name="recorder_tile_label">🎥 Record screen</string>
+    <string name="recorder_tile_recording">🔴 Recording, tap to stop</string>
+    <string name="recorder_tile_ready">⏺️ Ready</string>
+    <string name="recorder_channel_name">🎥 Totum recorder</string>
+    <string name="recorder_channel_description">🎥 Shows while the screen is being recorded, and when a recording is saved</string>
+
+    <string name="recorder_dialog_title">🎥 Totum recorder</string>
+    <string name="recorder_dialog_intro">🎥 Records the screen as a video in Movies/Totum. Android asks you to allow it each time.</string>
+    <string name="recorder_voice_title">🎙️ My voice</string>
+    <string name="recorder_voice_note">🎙️ Whatever the microphone hears, including Totum from the speaker.</string>
+    <string name="recorder_face_title">🙂 Face in a corner</string>
+    <string name="recorder_face_note">🙂 The front camera in a small circle you can drag. It records the whole screen, not one app.</string>
+    <string name="recorder_face_needs_overlay">⚠️ Needs permission to display over other apps.</string>
+    <string name="recorder_face_allow">Allow</string>
+    <string name="recorder_taps_title">👆 Show my taps</string>
+    <string name="recorder_taps_system">👆 Every tap is shown, in every app.</string>
+    <string name="recorder_taps_in_totum">⚠️ Taps are shown inside Totum only. For every app, run on a computer: adb shell pm grant com.dewijones92.totum android.permission.WRITE_SECURE_SETTINGS</string>
+    <string name="recorder_start">⏺️ Start recording</string>
+    <string name="recorder_stop">⏹️ Stop recording</string>
+    <string name="recorder_recording_now">🔴 Recording the screen now.</string>
+    <string name="recorder_cancel">Not now</string>
+
+    <string name="recorder_mic_refused">⚠️ No microphone permission, so the recording has no voice.</string>
+    <string name="recorder_camera_refused">⚠️ No camera permission, so the recording has no face.</string>
+    <string name="recorder_overlay_missing">⚠️ Not allowed to display over other apps, so the recording has no face.</string>
+    <string name="recorder_consent_refused">⏹️ Screen recording was not allowed, so nothing was recorded.</string>
+
+    <string name="recorder_notification_title">🔴 Recording the screen</string>
+    <string name="recorder_notification_stop">⏹️ Stop</string>
+    <string name="recorder_notification_with_voice">🎙️ voice</string>
+    <string name="recorder_notification_with_face">🙂 face</string>
+    <string name="recorder_notification_with_taps">👆 taps</string>
+    <string name="recorder_notification_screen_only">🖥️ screen only</string>
+    <string name="recorder_saving">Saving the screen recording</string>
+    <string name="recorder_saved_title">✅ Recording saved</string>
+    <string name="recorder_saved_text">📁 Movies/Totum · %1$s · %2$s</string>
+    <string name="recorder_saved_share">📤 Share</string>
+    <string name="recorder_saved_open">▶️ Open</string>
+    <string name="recorder_share_title">📤 Share the recording</string>
+    <string name="recorder_failed_title">❌ Recording failed</string>
+    <string name="recorder_failed_text">❌ %1$s</string>
+    <string name="recorder_empty">📭 The recording was too short to keep.</string>
+</resources>

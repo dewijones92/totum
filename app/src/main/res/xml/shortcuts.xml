@@ -33,4 +33,15 @@
             android:targetPackage="com.dewijones92.totum"
             android:targetClass="com.dewijones92.totum.diagnostics.SendReportActivity" />
     </shortcut>
+    <shortcut
+        android:shortcutId="record_screen"
+        android:enabled="true"
+        android:icon="@drawable/ic_recorder"
+        android:shortcutShortLabel="@string/recorder_shortcut_short"
+        android:shortcutLongLabel="@string/recorder_shortcut_long">
+        <intent
+            android:action="com.dewijones92.totum.RECORD_SCREEN"
+            android:targetPackage="com.dewijones92.totum"
+            android:targetClass="com.dewijones92.totum.recorder.RecorderActivity" />
+    </shortcut>
 </shortcuts>
