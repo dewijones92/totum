@@ -15,7 +15,10 @@ import kotlinx.coroutines.flow.first
 
 internal fun exploreModeFor(c: AppContainer) = ExploreMode(
     initiallyOn = c.appPreferences.settings.value.exploreByDefault,
-    related = { item -> relatedForExplore(c, item) },
+    related = { item ->
+        relatedForExplore(c, item)?.let { c.notForMe.without(it, "explore after \"${item.title}\"") }
+            ?.takeIf { it.isNotEmpty() }
+    },
     peek = { c.playbackQueue.peek(it) },
     nowPlaying = { c.playbackQueue.nowPlaying.value },
     onTurnedOn = { c.playbackController.disarmNext("Explore turned on: a related video follows instead") },

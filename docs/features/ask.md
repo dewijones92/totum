@@ -60,3 +60,8 @@ a scored report to `tools/finder-eval/out/`. `tools/finder-eval/fake-claude` sta
 
 The ✕ on an earlier chat forgets it and offers Undo on the shell's snackbar (`AskViewModel.forget` returns the chat,
 `unforget` puts it back in its place by date).
+
+## Not for me (2026-11-06)
+
+Items marked 🙅 Not for me are sent to the AI with the titles it should not suggest, and any suggestion whose label
+matches one is dropped before searching (`AskViewModel`, logged as "left out: not for me").

@@ -99,6 +99,7 @@ fun SettingsScreen(container: AppContainer, onBack: () -> Unit, modifier: Modifi
             SettingsSubPage.WORK_APPS ->
                 WorkAppsQuietScreen(container.workApps, onBack = close, modifier = modifier)
             SettingsSubPage.DIAGNOSTICS -> DiagnosticsScreen(onBack = close, modifier = modifier)
+            SettingsSubPage.NOT_FOR_ME -> NotForMeScreen(container.notForMe, onBack = close, modifier = modifier)
         }
     }
 }
@@ -133,6 +134,12 @@ private fun MainSettings(
             NavRow(
                 label = stringResource(R.string.work_apps_name),
                 onClick = { open(SettingsSubPage.WORK_APPS) }
+            )
+        }
+        AnchoredRow(SettingsRow.NOT_FOR_ME) {
+            NavRow(
+                label = stringResource(R.string.not_for_me_settings_row),
+                onClick = { open(SettingsSubPage.NOT_FOR_ME) }
             )
         }
         Text(

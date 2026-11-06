@@ -52,6 +52,8 @@ internal interface ItemActions {
     fun switchMode(item: MediaItem)
 
     fun watch(item: MediaItem) {}
+
+    fun notForMe(item: MediaItem): (() -> Unit)? = null
 }
 
 /** Null only in previews and tests, where a row legitimately has nothing behind it. */

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="not_for_me">🙅 Not for me</string>
+    <string name="not_for_me_done">🙅 “%1$s” will not be suggested again</string>
+    <string name="not_for_me_settings_row">🙅 Not for me</string>
+    <string name="not_for_me_intro">Things you said were not for you. Explore, new uploads, group news and ✨ Ask leave them out.</string>
+    <string name="not_for_me_empty">📭 Nothing here yet. Use 🙅 Not for me in an item’s menu.</string>
+    <string name="not_for_me_allow">Allow again</string>
+    <string name="not_for_me_allowed">✅ “%1$s” can be suggested again</string>
+</resources>

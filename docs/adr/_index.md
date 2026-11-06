@@ -145,3 +145,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 126 | [A move to the Pi sends the file, and every download says what moves where](0126-a-move-to-the-pi-sends-the-file-and-every-download-says-where.md) | Accepted |
 | 130 | [The banner can install the update, and the first launch after one says what changed](0130-update-from-the-banner-and-say-whats-new.md) | Accepted |
 | 129 | [Periodic jobs remember their last run, and mobile data is counted from the app's own byte counters](0129-periodic-jobs-remember-their-last-run-and-data-is-counted-from-the-uid.md) | Accepted |
+| 128 | [Undo, already-queued prompts and not-for-me share one snackbar and one queue seam](0128-undo-already-queued-and-not-for-me-share-the-queue-entry-seam.md) | Accepted |

@@ -51,6 +51,8 @@ import com.dewijones92.totum.data.home.HomeJobsClient
 import com.dewijones92.totum.data.importexport.OpmlExporter
 import com.dewijones92.totum.data.importexport.SubscriptionImportParser
 import com.dewijones92.totum.data.net.OkHttpTextFetcher
+import com.dewijones92.totum.data.notforme.FileNotForMeStore
+import com.dewijones92.totum.data.notforme.NotForMe
 import com.dewijones92.totum.data.playlist.LocalPlaylistStore
 import com.dewijones92.totum.data.podcast.DefaultPodcastRepository
 import com.dewijones92.totum.data.podcast.PodcastRepository
@@ -201,6 +203,7 @@ import com.dewijones92.totum.music.KeptArtistSongs
 import com.dewijones92.totum.music.MusicFavourites
 import com.dewijones92.totum.music.MusicRadio
 import com.dewijones92.totum.music.artistShuffle
+import com.dewijones92.totum.notforme.withNotForMe
 import com.dewijones92.totum.notifications.DataSaverNotifier
 import com.dewijones92.totum.notifications.DownloadNotifier
 import com.dewijones92.totum.notifications.SharedPrefsSeenItemsTracker
@@ -592,6 +595,7 @@ interface AppContainer {
     val homeAhead: HomeAhead
     val askLatest: AskLatest
     val askChats: AskChatStore
+    val notForMe: NotForMe
     val randomStarts: RandomStarts
     val albumYears: AlbumYears
 }
@@ -776,7 +780,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     private val publishDays by lazy {
         PublishDays(File(context.filesDir, "publish_days.json"), PublishDays.asking(innerTubeClient))
     }
-    val latestUploads: LatestUploads by lazy { LatestUploads(textFetcher, podcastRepository, shufflePages) }
+    val latestUploads: LatestUploads by lazy { LatestUploads(textFetcher, podcastRepository, shufflePages, notForMe) }
 
     override val podcastSearchSource: SearchSource by lazy {
         ItunesPodcastSearchSource(textFetcher)
@@ -916,9 +920,15 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             playlists = localPlaylistStore,
             queueStore = queueStore,
             progress = playbackProgressStore,
-            settings = appPreferences.asBackupSettings().withPins(pinStore).withRecent(recentActions),
+            settings = appPreferences.asBackupSettings().withPins(
+                pinStore
+            ).withRecent(recentActions).withNotForMe(notForMe),
             appVersion = BuildConfig.VERSION_NAME,
-            extras = BackupService.Extras(groups = sourceGroupStore, history = playHistoryStore),
+            extras = BackupService.Extras(
+                groups = sourceGroupStore,
+                history = playHistoryStore,
+                others = listOf("not-for-me" to notForMe.items),
+            ),
         )
     }
 
@@ -1786,6 +1796,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         )
     }
     override val askChats: AskChatStore by lazy { FileAskChats(File(context.filesDir, "ask-chats.json")) }
+    override val notForMe: NotForMe by lazy { NotForMe(FileNotForMeStore(File(context.filesDir, "not-for-me.json"))) }
 
     override val askLatest: AskLatest by lazy {
         AskLatest({ subscribedSources(podcastRepository, accountSubscriptions.channels).first() }, latestUploads::of)

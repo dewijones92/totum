@@ -4,6 +4,7 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.channel.ChannelFeedParser
 import com.dewijones92.totum.data.net.FetchResult
 import com.dewijones92.totum.data.net.HttpTextFetcher
+import com.dewijones92.totum.data.notforme.NotForMe
 import com.dewijones92.totum.data.podcast.PodcastRepository
 import com.dewijones92.totum.data.podcast.PreviewResult
 import com.dewijones92.totum.data.podcast.subscribedSources
@@ -29,8 +30,13 @@ class LatestUploads(
     private val fetcher: HttpTextFetcher,
     private val podcasts: PodcastRepository,
     private val pages: SourcePages,
+    private val notForMe: NotForMe = NotForMe(),
 ) {
-    suspend fun of(source: MediaSource): List<MediaItem>? = when (source) {
+    suspend fun of(
+        source: MediaSource
+    ): List<MediaItem>? = listed(source)?.let { notForMe.without(it, "latest of \"${source.title}\"") }
+
+    private suspend fun listed(source: MediaSource): List<MediaItem>? = when (source) {
         is MediaSource.VideoChannel -> feedOf(source) ?: pages.page(source, SourcePart.UPLOADS, after = null)?.items
         is MediaSource.PodcastFeed -> when (val preview = podcasts.preview(source.feedUrl)) {
             is PreviewResult.Loaded -> preview.episodes

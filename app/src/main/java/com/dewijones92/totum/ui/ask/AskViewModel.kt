@@ -20,6 +20,7 @@ import com.dewijones92.totum.data.ask.SavedTurn
 import com.dewijones92.totum.data.ask.Taste
 import com.dewijones92.totum.data.ask.keeping
 import com.dewijones92.totum.data.ask.vetRequest
+import com.dewijones92.totum.data.notforme.NotForMe
 import com.dewijones92.totum.data.podcast.subscribedSources
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.PlayableItem
@@ -45,6 +46,7 @@ class AskViewModel(
     private val taste: suspend () -> Taste = { Taste() },
     private val latest: suspend (String) -> List<PlayableItem> = { emptyList() },
     private val chats: AskChatStore = InMemoryAskChats(),
+    private val notForMe: NotForMe = NotForMe(),
     private val now: () -> Long = System::currentTimeMillis,
 ) : ViewModel() {
 
@@ -162,7 +164,7 @@ class AskViewModel(
             val turns = earlier.map { turn ->
                 AskTurn(turn.request, turn.cards.map { it.suggestion.label }, turn.reply)
             } + AskTurn(request)
-            val owned = runCatching { have() }.getOrDefault(emptyList())
+            val owned = (notForMe.titles() + runCatching { have() }.getOrDefault(emptyList())).distinct()
             val known = runCatching { taste() }.getOrElse {
                 Diag.warn("ask", "taste not gathered, asking without it: $it")
                 Taste()
@@ -187,11 +189,14 @@ class AskViewModel(
                         "\"$request\" answered in ${answer.elapsedMs}ms, ${owned.size} owned title(s) sent: $picks",
                     )
                     Diag.log("ask", "reply: \"${answer.value.reply}\"")
+                    val wanted = answer.value.suggestions.filterNot { notForMe.mentions(it.label) }
+                    val dropped = answer.value.suggestions.size - wanted.size
+                    if (dropped > 0) Diag.log("ask", "dewidebug $dropped suggestion(s) left out: not for me")
                     updateLast {
                         it.copy(
                             stage = Stage.SEARCHING,
                             reply = answer.value.reply,
-                            cards = answer.value.suggestions.map(::AskCard),
+                            cards = wanted.map(::AskCard),
                             tookMs = answer.elapsedMs
                         )
                     }
@@ -303,6 +308,7 @@ class AskViewModel(
                     taste = { tasteFor(container) },
                     latest = container.askLatest::find,
                     chats = container.askChats,
+                    notForMe = container.notForMe,
                 )
             }
         }

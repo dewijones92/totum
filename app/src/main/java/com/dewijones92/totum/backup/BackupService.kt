@@ -55,6 +55,7 @@ class BackupService(
     data class Extras(
         val groups: SourceGroupStore? = null,
         val history: PlayHistoryStore? = null,
+        val others: List<Pair<String, Flow<*>>> = emptyList(),
     )
 
     /** Reads and writes the settings a backup carries, without knowing what they mean. */
@@ -69,7 +70,7 @@ class BackupService(
         "progress" to progress.observeStates(),
         extras.groups?.let { "groups" to it.observeGroups() },
         extras.history?.let { "history" to it.observe() },
-    )
+    ) + extras.others
 
     suspend fun create(includeQueue: Boolean = true): Backup = Backup(
         createdAtEpochMs = now(),

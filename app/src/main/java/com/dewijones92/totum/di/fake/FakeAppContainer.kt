@@ -283,6 +283,7 @@ class FakeAppContainer(
 
     override val askChats: com.dewijones92.totum.data.ask.AskChatStore =
         com.dewijones92.totum.data.ask.InMemoryAskChats()
+    override val notForMe: com.dewijones92.totum.data.notforme.NotForMe = com.dewijones92.totum.data.notforme.NotForMe()
     override val askLatest: com.dewijones92.totum.ui.ask.AskLatest =
         com.dewijones92.totum.ui.ask.AskLatest({ emptyList() }, { null })
     override val homeAhead: com.dewijones92.totum.downloads.home.HomeAhead by lazy {

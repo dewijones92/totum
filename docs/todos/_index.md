@@ -65,7 +65,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [Already queued? Say so](no-duplicate-queueing.md) | queue | medium | built 2026-11-06, Batch A; tests to follow |
 | [Time left per queue group](group-time-left.md) | queue | low | decided 2026-11-06, Batch A |
 | [What's next, in the notification](next-in-notification.md) | player | low | decided 2026-11-06, Batch A |
-| [Not for me](not-for-me.md) | queue | medium | decided 2026-11-06, Batch A |
+| [Not for me](not-for-me.md) | queue | medium | built 2026-11-06, Batch A; tests to follow |
 | [✨ Ask can answer about your own app](ask-sees-the-app.md) | ai | high | decided 2026-11-06, Batch A |
 | [Torrent results say whether they look trustworthy](torrent-trust-badges.md) | torrents | high | ✅ shipped 2026-10-30 (ADR 101) |
 | [Work still done on the main thread](main-thread-work.md) | performance | medium | ⏳ partly fixed 2026-10-30 (parsing, Room maps, diagnostics send) |

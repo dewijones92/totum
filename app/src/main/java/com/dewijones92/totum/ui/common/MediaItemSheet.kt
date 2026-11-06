@@ -29,6 +29,7 @@ import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.Radio
 import androidx.compose.material.icons.outlined.RadioButtonUnchecked
 import androidx.compose.material.icons.outlined.SmartDisplay
+import androidx.compose.material.icons.outlined.ThumbDown
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -122,6 +123,12 @@ internal fun ActionSheet(
             SheetAction(onPeek, Icons.Outlined.Visibility, R.string.queue_peek, onDismiss)
             SheetAction(extras.onStartRadio, Icons.Outlined.Radio, R.string.music_start_radio, onDismiss)
             StarAction(extras.item, onDismiss)
+            SheetAction(
+                extras.item?.let { LocalItemActions.current?.notForMe(it) },
+                Icons.Outlined.ThumbDown,
+                R.string.not_for_me,
+                onDismiss,
+            )
             PinSheetActions(pins, extras.pin, onDismiss)
             extras.item?.let { DetailsSection(it) }
             SheetAction(

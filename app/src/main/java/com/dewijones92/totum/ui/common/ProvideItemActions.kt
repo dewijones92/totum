@@ -1,5 +1,7 @@
 package com.dewijones92.totum.ui.common
 
+import android.content.res.Resources
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
@@ -14,6 +16,7 @@ import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.MediaSource
+import com.dewijones92.totum.domain.canonicalItemId
 import com.dewijones92.totum.domain.pillar
 import com.dewijones92.totum.domain.toPlayableOrNull
 import com.dewijones92.totum.innertube.music.RadioSeed
@@ -39,10 +42,9 @@ internal fun ProvideItemActions(
     val scope = rememberCoroutineScope()
     val openMusicPage = LocalOpenMusicPage.current
     val resources = LocalResources.current
-    val actions = remember(container, rowActions, scope, onOpenSource, openMusicPage) {
-        ContainerItemActions(container, rowActions, scope, onOpenSource, openMusicPage) { title ->
-            resources.getString(R.string.finding_artists, title)
-        }
+    val offers = LocalSnackbarOffers.current
+    val actions = remember(container, rowActions, scope, onOpenSource, openMusicPage, offers, resources) {
+        ContainerItemActions(container, rowActions, scope, onOpenSource, openMusicPage, offers, resources)
     }
     val openSource: (MediaSource) -> Unit = remember(onOpenSource) {
         {
@@ -82,16 +84,19 @@ internal fun ProvideItemActions(
     )
 }
 
-@Suppress("TooManyFunctions")
+@Suppress("TooManyFunctions", "LongParameterList")
 private class ContainerItemActions(
     private val container: AppContainer,
     private val rows: MediaItemActions,
     private val scope: CoroutineScope,
     private val onOpenSource: (MediaSource) -> Unit,
     private val openMusicPage: ((MusicPage) -> Unit)?,
-    findingArtists: (String) -> String = { it },
+    private val offers: SnackbarOffers?,
+    private val resources: Resources,
 ) : ItemActions {
-    private val credits = ArtistCredits(container.musicCatalogue, container.operations, findingArtists)
+    private val credits = ArtistCredits(container.musicCatalogue, container.operations) { title ->
+        resources.getString(R.string.finding_artists, title)
+    }
 
     override fun queue(items: List<MediaItem>, next: Boolean) = rows.queueAll(items, next)
     override fun addToPlaylist(items: List<MediaItem>) = rows.addToPlaylist(items)
@@ -152,6 +157,27 @@ private class ContainerItemActions(
     }
 
     override val audioMode: Boolean get() = rows.audioMode
+
+    override fun notForMe(item: MediaItem): () -> Unit = {
+        val queue = container.playbackQueue
+        val entry = queue.state.value.entries.firstOrNull { it.item.item.id == item.id }
+        val index = entry?.let(queue::remove)
+        val queued = if (index != null) "left the queue from #${index + 1}" else "was not queued"
+        container.notForMe.suppress(item, "the item menu; $queued")
+        if (offers == null) {
+            Diag.log("notforme", "dewidebug no snackbar host here, so no undo is offered for \"${item.title}\"")
+        } else {
+            offers.offer(
+                resources.getString(R.string.not_for_me_done, item.title),
+                resources.getString(R.string.undo),
+                "notforme",
+                SnackbarDuration.Long,
+            ) {
+                container.notForMe.allow(canonicalItemId(item.id.value), "undo")
+                if (entry != null && index != null) queue.restoreAt(index, entry)
+            }
+        }
+    }
 
     override fun watch(item: MediaItem) {
         rows.switchMode(item, toAudio = false, audioOnMessage = "", videoOnMessage = "", from = "player")
