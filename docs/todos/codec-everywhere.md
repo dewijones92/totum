@@ -29,3 +29,7 @@ Tests owed: selector cases in `EngineDownloadStrategyTest` (no avoid list unchan
 variants), `codecsToAvoid` for a hardware-AV1, a software-AV1 and a no-VP9 phone, label cases in the quality ladder
 tests (`VideoQuality.label`), `DownloadChooser.qualityFor` (cap, no ladder). Device check: a download on a phone without
 hardware AV1 never lands AV1 (read the `[download] ... yt-dlp selector` line, then the file's codec).
+
+Consistency sweep 2026-11-06: the episode picker's quality chips (queue groups, torrent packs, books) take the same
+`QualityLabel` as the single-item question, through one `videoChoiceText`; the codec shows when the resolver holds a
+ladder for one of the first five items, else the bare height (codec unknown).

@@ -237,7 +237,8 @@ passed to every strategy. Tests: `DownloadChooserTest`.
 Since 2026-11-06 ([ADR 127](../adr/0127-downloads-honour-the-phones-decoders-and-qualities-name-their-codec.md)) the
 choice names the codec when the resolver still holds the video's ladder ("The video, 1080p · VP9"), and yt-dlp is told
 to skip codecs the phone cannot decode and software AV1 (`[download] <id> yt-dlp selector ...` logs the result); the
-tallest height is still taken first.
+tallest height is still taken first. The episode picker (queue groups, torrent packs, books) labels its quality chips
+the same way, from the first of its items whose ladder is held.
 
 ## An upgrade keeps the old copy until it lands (2026-10-23)
 

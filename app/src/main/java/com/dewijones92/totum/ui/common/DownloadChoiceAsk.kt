@@ -17,6 +17,7 @@ import androidx.compose.ui.res.stringResource
 import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.domain.MediaItem
+import com.dewijones92.totum.domain.QualityLabel
 import com.dewijones92.totum.domain.pillar
 import com.dewijones92.totum.downloads.DownloadChooser
 import com.dewijones92.totum.settings.DownloadChoice
@@ -61,18 +62,7 @@ internal fun DownloadChoiceAsk(chooser: DownloadChooser) {
                             onClick = { pick(DownloadChoice.Video(height)) },
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            val known = known[height]
-                            Text(
-                                when {
-                                    known != null && height != null ->
-                                        stringResource(R.string.download_choice_video_label, known.text)
-                                    known != null ->
-                                        stringResource(R.string.download_choice_video_best_label, known.text)
-                                    height != null -> stringResource(R.string.download_choice_video_height, height)
-                                    else -> stringResource(R.string.download_choice_video_best)
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                            )
+                            Text(videoChoiceText(height, known[height]), modifier = Modifier.fillMaxWidth())
                         }
                     }
                 }
@@ -82,6 +72,14 @@ internal fun DownloadChoiceAsk(chooser: DownloadChooser) {
         confirmButton = {},
         dismissButton = { TextButton(onClick = { asking = null }) { Text(stringResource(R.string.cancel)) } },
     )
+}
+
+@Composable
+internal fun videoChoiceText(height: Int?, known: QualityLabel?): String = when {
+    known != null && height != null -> stringResource(R.string.download_choice_video_label, known.text)
+    known != null -> stringResource(R.string.download_choice_video_best_label, known.text)
+    height != null -> stringResource(R.string.download_choice_video_height, height)
+    else -> stringResource(R.string.download_choice_video_best)
 }
 
 @Composable

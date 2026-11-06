@@ -27,7 +27,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dewijones92.totum.R
 import com.dewijones92.totum.data.download.DownloadManager
 import com.dewijones92.totum.domain.DownloadState
+import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.PlayState
+import com.dewijones92.totum.domain.QualityLabel
 import com.dewijones92.totum.downloads.EpisodeDownloads
 import com.dewijones92.totum.downloads.startsTicked
 import com.dewijones92.totum.settings.DownloadChoice
@@ -41,6 +43,7 @@ internal fun EpisodePicker(
     downloads: DownloadManager,
     remembered: DownloadChoice?,
     suggestedPlace: DownloadPlace? = null,
+    qualityFor: (MediaItem, Int?) -> QualityLabel? = { _, _ -> null },
 ) {
     val ask by episodes.asking.collectAsStateWithLifecycle()
     val current = ask ?: return
@@ -48,6 +51,11 @@ internal fun EpisodePicker(
     val known = states ?: return
     var choice by remember(current) { mutableStateOf(remembered ?: DownloadChoice.Video(null)) }
     var place by remember(current) { mutableStateOf(suggestedPlace ?: DownloadPlace.PHONE) }
+    val qualities = remember(current) {
+        DownloadChoice.heights.associateWith { height ->
+            current.items.take(QUALITY_PROBE).firstNotNullOfOrNull { qualityFor(it.item, height) }
+        }
+    }
     var ticked by remember(current) {
         mutableStateOf(current.items.filter { startsTicked(it, known[it.item.id], choice) }.map { it.item.id }.toSet())
     }
@@ -61,7 +69,7 @@ internal fun EpisodePicker(
             Column {
                 Text(stringResource(R.string.episodes_on_phone, onPhone, current.items.size))
                 if (suggestedPlace != null && episodes.homeAvailable) PlaceChips(place) { place = it }
-                if (current.offersAChoice) ChoiceChips(choice) { choice = it }
+                if (current.offersAChoice) ChoiceChips(choice, qualities) { choice = it }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     TextButton(onClick = { ticked = current.items.mapTo(mutableSetOf()) { it.item.id } }) {
                         Text(stringResource(R.string.episodes_all))
@@ -95,7 +103,11 @@ internal fun EpisodePicker(
 }
 
 @Composable
-private fun ChoiceChips(choice: DownloadChoice, onChoose: (DownloadChoice) -> Unit) {
+private fun ChoiceChips(
+    choice: DownloadChoice,
+    qualities: Map<Int?, QualityLabel?>,
+    onChoose: (DownloadChoice) -> Unit,
+) {
     val options = listOf(DownloadChoice.Sound) + DownloadChoice.heights.map { DownloadChoice.Video(it) }
     Column(Modifier.padding(vertical = 4.dp)) {
         options.forEach { option ->
@@ -106,9 +118,7 @@ private fun ChoiceChips(choice: DownloadChoice, onChoose: (DownloadChoice) -> Un
                     Text(
                         when (option) {
                             DownloadChoice.Sound -> stringResource(R.string.download_choice_sound)
-                            is DownloadChoice.Video -> option.maxHeight?.let {
-                                stringResource(R.string.download_choice_video_height, it)
-                            } ?: stringResource(R.string.download_choice_video_best)
+                            is DownloadChoice.Video -> videoChoiceText(option.maxHeight, qualities[option.maxHeight])
                         },
                     )
                 },
@@ -136,4 +146,5 @@ private fun playNote(state: PlayState?): String? = when (state) {
 }
 
 private const val MS_PER_MINUTE = 60_000L
+private const val QUALITY_PROBE = 5
 private val LIST_MAX_HEIGHT = 320.dp
