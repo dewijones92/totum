@@ -141,16 +141,14 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 123 | [Subtitles off stays off until turned on](0123-subtitles-off-stays-off.md) | Accepted |
 | 124 | [Work apps are snoozed outside work hours, by a notification listener](0124-work-apps-are-snoozed-outside-work-hours.md) | Accepted, amended 2026-11-06 (groups, change notifications) |
 | 125 | [Modes that are quietly on are one flow](0125-active-modes-are-one-flow.md) | Accepted |
-| 127 | [Downloads honour the phone's decoders, and every quality names its codec](0127-downloads-honour-the-phones-decoders-and-qualities-name-their-codec.md) | Accepted |
 | 126 | [A move to the Pi sends the file, and every download says what moves where](0126-a-move-to-the-pi-sends-the-file-and-every-download-says-where.md) | Accepted |
+| 127 | [Downloads honour the phone's decoders, and every quality names its codec](0127-downloads-honour-the-phones-decoders-and-qualities-name-their-codec.md) | Accepted |
+| 128 | [Undo, already-queued prompts and not-for-me share one snackbar and one queue seam](0128-undo-already-queued-and-not-for-me-share-the-queue-entry-seam.md) | Accepted |
+| 129 | [Periodic jobs remember their last run, and mobile data is counted from the app's own byte counters](0129-periodic-jobs-remember-their-last-run-and-data-is-counted-from-the-uid.md) | Accepted |
 | 130 | [The banner can install the update, and the first launch after one says what changed](0130-update-from-the-banner-and-say-whats-new.md) | Accepted |
 | 131 | [A play carries its reason, and the notification says what is next](0131-a-play-carries-its-reason-and-the-notification-says-whats-next.md) | Accepted |
-| 129 | [Periodic jobs remember their last run, and mobile data is counted from the app's own byte counters](0129-periodic-jobs-remember-their-last-run-and-data-is-counted-from-the-uid.md) | Accepted |
 | 132 | [The live tag is read from one registry and kept true](0132-the-live-tag-is-read-from-one-registry-and-kept-true.md) | Accepted |
-| 128 | [Undo, already-queued prompts and not-for-me share one snackbar and one queue seam](0128-undo-already-queued-and-not-for-me-share-the-queue-entry-seam.md) | Accepted |
 | 133 | [Bedtime arms the one sleep timer, and every sleep timer fades out](0133-bedtime-arms-the-sleep-timer-and-every-sleep-timer-fades.md) | Accepted |
-| 131 | [Share and copy link are on every item menu, and a group shares its titles](0131-share-and-copy-link-are-on-every-item-menu.md) | Accepted |
-| 132 | [Offline playable is whatever routeNow plays from the device](0132-offline-playable-is-whatever-routenow-plays-from-the-device.md) | Accepted |
 | 134 | [Share and copy link are on every item menu, and a group shares its titles](0134-share-and-copy-link-are-on-every-item-menu.md) | Accepted |
 | 136 | [Offline playable is whatever routeNow plays from the device](0136-offline-playable-is-whatever-routenow-plays-from-the-device.md) | Accepted |
 | 137 | [Carry on is play history joined to progress](0137-carry-on-is-play-history-joined-to-progress.md) | Accepted |
