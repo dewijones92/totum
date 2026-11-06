@@ -146,5 +146,5 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 130 | [The banner can install the update, and the first launch after one says what changed](0130-update-from-the-banner-and-say-whats-new.md) | Accepted |
 | 131 | [A play carries its reason, and the notification says what is next](0131-a-play-carries-its-reason-and-the-notification-says-whats-next.md) | Accepted |
 | 129 | [Periodic jobs remember their last run, and mobile data is counted from the app's own byte counters](0129-periodic-jobs-remember-their-last-run-and-data-is-counted-from-the-uid.md) | Accepted |
-| 131 | [The live tag is read from one registry and kept true](0131-the-live-tag-is-read-from-one-registry-and-kept-true.md) | Accepted |
+| 132 | [The live tag is read from one registry and kept true](0132-the-live-tag-is-read-from-one-registry-and-kept-true.md) | Accepted |
 | 128 | [Undo, already-queued prompts and not-for-me share one snackbar and one queue seam](0128-undo-already-queued-and-not-for-me-share-the-queue-entry-seam.md) | Accepted |

@@ -24,7 +24,7 @@ normally (speed and silence cutting allowed again); the sort-and-filter sheet (A
 
 ## Built 2026-11-06 (code first; tests owed)
 
-See [live-streams.md](../features/live-streams.md) and [ADR 131](../adr/0131-the-live-tag-is-read-from-one-registry-and-kept-true.md).
+See [live-streams.md](../features/live-streams.md) and [ADR 132](../adr/0132-the-live-tag-is-read-from-one-registry-and-kept-true.md).
 Everything in "Decided" is built except the point below. The seam is `LiveStates` + `liveTagOf` (`:core:video`), the
 old `UpcomingLives` widened; the ended state is the new `MediaContentKind.WAS_LIVE` (no schema change); the refresher
 re-asks only what is tagged and on screen or queued.

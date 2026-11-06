@@ -41,7 +41,7 @@ Not covered: the waiting lives in the app process (no WorkManager), so a killed 
 with the anonymous player bot-blocked can only say "could not tell" until it gives up; the player has no page for an
 item that never started, so "starts soon" shows on rows, the toast and the strip.
 
-## The tag is the same everywhere and kept true (2026-11-06, ADR 131)
+## The tag is the same everywhere and kept true (2026-11-06, ADR 132)
 
 One registry (`LiveStates`: upcoming, live, ended by video id) and one rule (`liveTagOf(kind, state)`) decide what an
 item says; the registry beats the kind saved on the item because it is newer.

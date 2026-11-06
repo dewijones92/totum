@@ -5,7 +5,7 @@ status: accepted
 updated: 2026-11-06
 ---
 
-# 131. The live tag is read from one registry and kept true
+# 132. The live tag is read from one registry and kept true
 
 - Status: Accepted
 - Date: 2026-11-06

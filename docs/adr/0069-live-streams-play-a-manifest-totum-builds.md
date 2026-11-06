@@ -85,4 +85,4 @@ manifest as "a live manifest Totum built" instead of "the torrent server", which
 ## Amended 2026-11-06: the tag follows the stream
 
 `UpcomingLives` became `LiveStates` (upcoming, live, ended) and every surface reads the tag through one function; a stream
-that has ended is `MediaContentKind.WAS_LIVE` and plays as an ordinary video. See [ADR 131](0131-the-live-tag-is-read-from-one-registry-and-kept-true.md).
+that has ended is `MediaContentKind.WAS_LIVE` and plays as an ordinary video. See [ADR 132](0132-the-live-tag-is-read-from-one-registry-and-kept-true.md).
