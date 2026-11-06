@@ -164,7 +164,7 @@ private fun EarlierChats(chats: List<SavedChat>, onOpen: (String) -> Unit, onFor
     )
     if (!showAll && chats.size > EARLIER_CHATS_SHOWN) {
         TextButton(onClick = { showAll = true }, modifier = Modifier.padding(horizontal = 8.dp)) {
-            Text(stringResource(R.string.ask_show_all_chats, chats.size))
+            Text(pluralStringResource(R.plurals.ask_show_all_chats, chats.size, chats.size))
         }
     }
 }
