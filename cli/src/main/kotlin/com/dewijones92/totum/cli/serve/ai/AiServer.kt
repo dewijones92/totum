@@ -20,6 +20,7 @@ internal class AiServer(
     private val completer: Completer,
     private val usage: UsageLog,
     private val model: String,
+    private val callers: CallerTools = CallerTools.STANDARD,
     private val clock: () -> Long = System::currentTimeMillis,
     concurrent: Int = CONCURRENT,
     hasCredentials: Boolean = true,
@@ -60,6 +61,10 @@ internal class AiServer(
             Diag.warn("ai", "refused a completion: $problem")
             return exchange.reply(BAD_REQUEST, error(problem))
         }
+        callers.refusal(completion.caller, completion.tools)?.let { refusal ->
+            refuse(completion, refusal)
+            return exchange.reply(FORBIDDEN, error(refusal))
+        }
         Diag.log(
             "ai",
             "${completion.caller} ${completion.version ?: "(no version)"} asks for ${completion.what} " +
@@ -80,6 +85,29 @@ internal class AiServer(
             }
         }
         exchange.reply(code, body)
+    }
+
+    private fun refuse(completion: Completion, refusal: String) {
+        val allowed = callers.allowedFor(completion.caller)
+        Diag.warn(
+            "ai",
+            "refused ${completion.caller} for ${completion.what} [request ${completion.requestId ?: "-"}]: " +
+                "asked tools=\"${completion.tools}\" " +
+                "allowed=${allowed?.let(CallerTools::describe) ?: "(unknown caller)"}",
+        )
+        usage.record(
+            UsageRecord(
+                clock(),
+                completion.caller,
+                completion.what,
+                ok = false,
+                tookMs = 0,
+                error = refusal,
+                version = completion.version,
+                requestId = completion.requestId,
+                meta = completion.meta,
+            ),
+        )
     }
 
     private fun report(exchange: HttpExchange) {
@@ -112,6 +140,7 @@ internal class AiServer(
     private companion object {
         const val OK = 200
         const val BAD_REQUEST = 400
+        const val FORBIDDEN = RemoteCompleter.FORBIDDEN
         const val NOT_FOUND = 404
         const val FAILED = 502
         const val NOT_SIGNED_IN = RemoteCompleter.NOT_SIGNED_IN

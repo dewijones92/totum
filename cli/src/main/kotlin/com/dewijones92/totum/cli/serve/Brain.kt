@@ -16,4 +16,8 @@ internal interface Brain {
 
 internal open class BrainFailure(message: String, cause: Throwable? = null) : Exception(message, cause)
 
-internal class NotSignedIn : BrainFailure("The home server isn't signed in to Claude yet")
+internal open class NotRetried(message: String) : BrainFailure(message)
+
+internal class CallerRefused(message: String) : NotRetried(message)
+
+internal class NotSignedIn : NotRetried("The home server isn't signed in to Claude yet")

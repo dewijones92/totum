@@ -1,11 +1,14 @@
 package com.dewijones92.totum.cli.serve.ai
 
 import com.dewijones92.totum.cli.serve.BrainFailure
+import com.dewijones92.totum.cli.serve.CallerRefused
 import com.dewijones92.totum.cli.serve.NotSignedIn
 import com.dewijones92.totum.data.ask.AskJson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -28,6 +31,7 @@ internal class RemoteCompleter(private val base: String, private val http: OkHtt
             OK -> runCatching { AskJson.decodeFromString(Completed.serializer(), body).structured }
                 .getOrElse { throw BrainFailure("the AI service answered something unreadable") }
             NOT_SIGNED_IN -> throw NotSignedIn()
+            FORBIDDEN -> throw CallerRefused(refusalIn(body))
             else -> throw BrainFailure("the AI service said $code: ${body.take(LOGGED)}")
         }
     }
@@ -42,9 +46,14 @@ internal class RemoteCompleter(private val base: String, private val http: OkHtt
         }
     }
 
+    private fun refusalIn(body: String): String =
+        runCatching { AskJson.parseToJsonElement(body).jsonObject["error"]?.jsonPrimitive?.content }.getOrNull()
+            ?: "🚫 the AI service refused this caller: ${body.take(LOGGED)}"
+
     internal companion object {
         const val OK = 200
         const val NOT_SIGNED_IN = 503
+        const val FORBIDDEN = 403
         private const val LOGGED = 300
         private val JSON = "application/json".toMediaType()
     }

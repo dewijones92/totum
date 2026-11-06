@@ -3,7 +3,7 @@ title: ✨ Ask (a chat that finds anything to play or download, knowing your tas
 kind: feature
 status: refining
 area: search
-updated: 2026-11-01
+updated: 2026-11-06
 ---
 
 # ✨ Ask
@@ -42,6 +42,12 @@ Built and tested against a fake brain and once against Haiku on the laptop. Wait
 account for the Pi (`claude setup-token`); until then the service answers "❌ …" and nothing else changes.
 
 Chats are kept: Ask reopens the last one, and "🕘 Earlier chats" offers the others (newest 20).
+
+## Tools
+
+Ask's three jobs call the AI service as `ask` (web search and fetch), `vet` (no tools) and `file` (web search); the
+service refuses any tool outside that caller's row, so Ask reading the app's own state later runs as `ask-state`
+with jq only. ADR 121.
 
 ## Measuring it
 

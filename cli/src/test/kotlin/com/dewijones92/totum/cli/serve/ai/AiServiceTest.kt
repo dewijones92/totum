@@ -57,11 +57,11 @@ class AiServiceTest {
 
     @Test
     fun `a completion asked over HTTP comes back as the structured answer and is counted`() = runBlocking {
-        val brain = PromptBrain(remote, caller = "test")
+        val brain = PromptBrain(remote)
         val got = brain.suggest(AskRequest(listOf(AskTurn("a Gruffalo film"))))
         assertEquals("The Gruffalo", got.suggestions.single().title)
         val record = usage.read().single()
-        assertEquals("test", record.caller)
+        assertEquals("ask", record.caller)
         assertEquals("suggest", record.what)
         assertEquals(150L, record.inputTokens)
         assertEquals(20L, record.outputTokens)
@@ -85,7 +85,7 @@ class AiServiceTest {
 
     @Test
     fun `the caller's version, request id and metadata are kept with the call`() = runBlocking {
-        val brain = PromptBrain(remote, caller = "test")
+        val brain = PromptBrain(remote)
         brain.suggest(AskRequest(listOf(AskTurn("a Gruffalo film"))))
         val record = usage.read().single()
         assertTrue(record.version!!.isNotBlank())
@@ -99,7 +99,7 @@ class AiServiceTest {
     fun `not signed in travels to the caller as not signed in`() = runBlocking {
         signedIn = false
         try {
-            remote.complete(Completion("test", "file", "s", "m", "{}"))
+            remote.complete(Completion("file", "file", "s", "m", "{}"))
             fail("expected NotSignedIn")
         } catch (expected: NotSignedIn) {
             assertEquals("false", get("/health")["signedIn"]!!.jsonPrimitive.content)
@@ -109,7 +109,7 @@ class AiServiceTest {
     @Test
     fun `a service that cannot be reached is a failure, not a hang`() = runBlocking {
         try {
-            RemoteCompleter("http://127.0.0.1:1", OkHttpClient()).complete(Completion("test", "file", "s", "m", "{}"))
+            RemoteCompleter("http://127.0.0.1:1", OkHttpClient()).complete(Completion("file", "file", "s", "m", "{}"))
             fail("expected a failure")
         } catch (expected: BrainFailure) {
             assertTrue(expected.message!!, "could not be reached" in expected.message!!)
@@ -159,7 +159,7 @@ class AiServiceTest {
     @Test
     fun `an answer that does not fit Totum's shape is reported back to the service`() = runBlocking {
         signedIn = true
-        val brain = PromptBrain(remote, caller = "test")
+        val brain = PromptBrain(remote)
         runCatching { brain.vet(com.dewijones92.totum.data.ask.VetRequest(emptyList())) }
         assertTrue(usage.read().any { !it.ok && it.error.orEmpty().startsWith("reported: answer did not fit") })
     }

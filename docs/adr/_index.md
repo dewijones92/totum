@@ -134,3 +134,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 116 | [A speaker's queue plays on the Pi, on the shared queue model](0116-speaker-queues-play-on-the-pi.md) | Accepted |
 | 117 | [A restarted clock can run for its own length, for that sitting only](0117-a-restarted-clock-can-run-for-its-own-length.md) | Accepted |
 | 118 | [Every new-content notification can be switched off, per group and per kind](0118-every-new-content-notification-can-be-switched-off.md) | Accepted |
+| 121 | [The AI service decides each caller's tools](0121-the-ai-service-decides-each-callers-tools.md) | Accepted |

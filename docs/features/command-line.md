@@ -3,7 +3,7 @@ title: Totum on the command line
 kind: feature
 status: shipped
 area: cli
-updated: 2026-10-31
+updated: 2026-11-06
 ---
 
 # `totum "jazz live stream"`
@@ -62,6 +62,11 @@ With `TOTUM_LIBRARY_MOVIES` and `TOTUM_LIBRARY_SERIES` set it files each finishe
 
 The home server's AI service on port 8780 (`--port=N`): `POST /complete`, `GET /health`, `GET /usage?days=N`, Claude
 Code with `TOTUM_AI_MODEL` (Haiku). `totum serve` uses it when `TOTUM_AI_URL` is set. ADR 113.
+
+It holds the one table of which tools each caller may use (`ask`, `vet`, `file`, `ask-state`, `for-you`, `digest`,
+`transcript`, `spoiler`): a call may ask for fewer tools, never more, and a tool or caller outside the table is
+refused with 403 and a 🚫 message, logged and counted as a failure on `/usage`. A new AI job adds its row to
+`CallerTools` in the same change. ADR 121.
 
 ### `totum sidecars <file…>`
 

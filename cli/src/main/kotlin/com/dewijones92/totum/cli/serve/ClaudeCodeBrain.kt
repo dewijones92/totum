@@ -1,6 +1,7 @@
 package com.dewijones92.totum.cli.serve
 
 import com.dewijones92.totum.cli.BuildInfo
+import com.dewijones92.totum.cli.serve.ai.CallerTools
 import com.dewijones92.totum.cli.serve.ai.ClaudeCodeCompleter
 import com.dewijones92.totum.cli.serve.ai.Completer
 import com.dewijones92.totum.cli.serve.ai.Completion
@@ -29,9 +30,10 @@ internal fun claudeCodeBrain(
 
 internal class AnswerDidNotFit(message: String, cause: Throwable) : BrainFailure(message, cause)
 
-internal class PromptBrain(private val completer: Completer, private val caller: String = "totum-fetch") : Brain {
+internal class PromptBrain(private val completer: Completer, private val service: String = "totum-fetch") : Brain {
 
     override suspend fun suggest(request: AskRequest): AskAnswer = ask(
+        CallerTools.ASK,
         "suggest",
         Prompts.SUGGEST_SYSTEM,
         Prompts.suggestMessage(request),
@@ -41,6 +43,7 @@ internal class PromptBrain(private val completer: Completer, private val caller:
     ).tidied(request.taste)
 
     override suspend fun vet(request: VetRequest): VetAnswer = ask(
+        CallerTools.VET,
         "vet",
         Prompts.VET_SYSTEM,
         Prompts.vetMessage(request),
@@ -49,9 +52,12 @@ internal class PromptBrain(private val completer: Completer, private val caller:
         VetAnswer.serializer(),
     )
 
-    override suspend fun refused(what: String, why: String) = completer.report(ProblemReport(caller, what, why))
+    override suspend fun refused(what: String, why: String) = completer.report(
+        ProblemReport(callerFor(what), what, why)
+    )
 
     override suspend fun file(request: FileRequest): FilePlan = ask(
+        CallerTools.FILE,
         "file",
         Prompts.FILE_SYSTEM,
         Prompts.fileMessage(request),
@@ -62,6 +68,7 @@ internal class PromptBrain(private val completer: Completer, private val caller:
 
     @Suppress("LongParameterList")
     private suspend fun <T> ask(
+        caller: String,
         what: String,
         system: String,
         message: String,
@@ -81,11 +88,11 @@ internal class PromptBrain(private val completer: Completer, private val caller:
                     tools,
                     version = BuildInfo.VERSION,
                     requestId = UUID.randomUUID().toString(),
-                    meta = mapOf("attempt" to "${attempt + 1}"),
+                    meta = mapOf("attempt" to "${attempt + 1}", "service" to service),
                 )
                 return decoded(serializer, completer.complete(call))
-            } catch (e: NotSignedIn) {
-                Diag.warn("ask", "$what: claude is not signed in on this machine; not retrying")
+            } catch (e: NotRetried) {
+                Diag.warn("ask", "$what as $caller: not retrying: ${e.message}")
                 throw e
             } catch (e: AnswerDidNotFit) {
                 Diag.warn("ask", "$what attempt ${attempt + 1} of $ATTEMPTS did not fit: ${e.message}")
@@ -98,6 +105,8 @@ internal class PromptBrain(private val completer: Completer, private val caller:
         }
         throw last ?: BrainFailure("no answer")
     }
+
+    private fun callerFor(what: String) = if (what == "suggest") CallerTools.ASK else what
 
     private fun <T> decoded(serializer: KSerializer<T>, structured: JsonObject): T =
         runCatching { AskJson.decodeFromJsonElement(serializer, structured) }
