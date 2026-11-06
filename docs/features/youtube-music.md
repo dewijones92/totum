@@ -3,7 +3,7 @@ title: YouTube Music
 kind: feature
 status: shipped
 area: music
-updated: 2026-10-28
+updated: 2026-11-06
 ---
 
 # YouTube Music: a Music tab, albums, artists, radio and your library
@@ -17,7 +17,7 @@ and [27](../adr/0027-radio-repeat-and-shuffle-are-queue-features.md); this page 
 |---|---|---|
 | Music tab | `ui/music/MusicScreen.kt` | `SearchViewModel` in `SearchScope.MUSIC`: Songs, Albums, Artists. Idle: songs played here, then your YouTube Music recent albums, albums, playlists and artists (signed in) |
 | Search everywhere | `ui/common/ShellNavigation.kt`, `ui/TabNavigation.kt` | 🔍 in every tab header; opens over the tab with the dock visible |
-| Album page | `ui/music/MusicAlbumScreen.kt` | Play / Shuffle insert after what is playing as a group; Add to end; Download (audio); Radio; "N of M songs on this phone" |
+| Album page | `ui/music/MusicAlbumScreen.kt` | Play / Shuffle insert after what is playing as a group (and switch Repeat one off, saying so: [ADR 27](../adr/0027-radio-repeat-and-shuffle-are-queue-features.md)); Add to end; Download (audio); Radio; "N of M songs on this phone". Every track carries its artist (the album's when its own row has none), and `SharedMetadataRepair` fills it in on stored queue and download rows |
 | Artist page | `ui/music/MusicArtistScreen.kt` | Top songs, albums, singles, fans also like; **Shuffle all songs** walks every page of the artist's song list into one shuffled group (`music/ArtistShuffle.kt`, also the All songs page's Shuffle, and a Recently entry); **Shuffle radio** and **Mix** are YouTube Music's own stations, the Shuffle one now sent with its button's `params` |
 | Radio | `music/MusicRadio.kt` | Tops itself up from the continuation when ≤3 left; `[radio]` log lines say every decision |
 | Plays as sound | `queue/PictureChoices.kt` | `MediaContentKind.MUSIC`; Watch asks for the picture |

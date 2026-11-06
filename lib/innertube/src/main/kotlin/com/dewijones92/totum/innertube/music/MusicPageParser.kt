@@ -23,6 +23,7 @@ internal object MusicPageParser {
                     tracks.putIfAbsent(
                         song.videoId,
                         song.copy(
+                            artist = song.artist ?: strapline.text(),
                             album = song.album ?: title,
                             albumId = browseId,
                             artistId = song.artistId ?: artistId,
@@ -66,7 +67,9 @@ internal object MusicPageParser {
         val name = header.obj("title").text() ?: return null
         val topShelf = root.firstObject("musicShelfRenderer")
         val topSongs = LinkedHashMap<String, MusicSong>()
-        topShelf?.collectEach(ROW) { row -> row.toSongOrNull()?.let { topSongs.putIfAbsent(it.videoId, it) } }
+        topShelf?.collectEach(ROW) { row ->
+            row.toSongOrNull()?.let { topSongs.putIfAbsent(it.videoId, it.copy(artist = it.artist ?: name)) }
+        }
         val shelves = ArtistShelves(name)
         root.collectEach("musicCarouselShelfRenderer", shelves::add)
         return MusicArtist(

@@ -10,6 +10,7 @@ import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.PublishedAge
 import com.dewijones92.totum.domain.hasPlaceholderTitle
+import com.dewijones92.totum.innertube.music.YouTubeMusicCatalogue
 import com.dewijones92.totum.innertube.related.RelatedResult
 import com.dewijones92.totum.innertube.related.YouTubeRelated
 import com.dewijones92.totum.settings.NetworkStatus
@@ -37,6 +38,7 @@ internal class SharedMetadataRepair(
     private val retryDelayMs: Long = 30_000,
     private val now: () -> Long = System::currentTimeMillis,
     private val dateOf: suspend (MediaItemId) -> Instant? = { null },
+    private val artistOf: suspend (PlayableItem) -> String? = { null },
 ) {
     private class Tries(val count: Int, val nextAt: Long)
 
@@ -51,7 +53,8 @@ internal class SharedMetadataRepair(
                 val titles = (snapshot.entries.map { it.item } + records.map { it.item })
                     .filter { it.item.hasPlaceholderTitle && it.handle is PlayHandle.Video }
                 val dates = (near + records.map { it.item }).filter { it.needsADate }
-                (titles + dates).distinctBy { it.item.id }
+                val artists = (snapshot.entries.map { it.item } + records.map { it.item }).filter { it.needsAnArtist }
+                (titles + dates + artists).distinctBy { it.item.id }
             }.distinctUntilChanged().collectLatest { candidates -> repairAll(candidates) }
         }
     }
@@ -80,7 +83,7 @@ internal class SharedMetadataRepair(
 
     private fun failed(item: PlayableItem) {
         val id = item.item.id
-        val what = if (item.item.hasPlaceholderTitle) "title" else "date"
+        val what = item.need.label
         val count = (tries[id]?.count ?: 0) + 1
         val gap = retryDelayMs * BACK_OFF.pow(count - 1).toLong()
         tries[id] = Tries(count, now() + gap)
@@ -99,13 +102,19 @@ internal class SharedMetadataRepair(
         return item.item.copy(publishedAt = day)
     }
 
+    private suspend fun learnArtist(item: PlayableItem): MediaItem? {
+        val artist = artistOf(item) ?: return null
+        return item.item.copy(author = artist)
+    }
+
     @Suppress("TooGenericExceptionCaught")
     private suspend fun repair(item: PlayableItem): Boolean {
         return try {
-            val resolved = if (item.item.hasPlaceholderTitle) {
-                resolve(item)?.takeIf { it.id == item.item.id && it.title.isNotBlank() && !it.hasPlaceholderTitle }
-            } else {
-                learnDate(item)
+            val resolved = when (item.need) {
+                Need.TITLE ->
+                    resolve(item)?.takeIf { it.id == item.item.id && it.title.isNotBlank() && !it.hasPlaceholderTitle }
+                Need.ARTIST -> learnArtist(item)
+                Need.DATE -> learnDate(item)
             }
             currentCoroutineContext().ensureActive()
             if (resolved == null) {
@@ -116,7 +125,7 @@ internal class SharedMetadataRepair(
                 Diag.log(
                     "metadata",
                     "${item.item.id.value}: queue and download learned title=\"${resolved.title}\" " +
-                        "published=${resolved.publishedAt ?: "-"}",
+                        "published=${resolved.publishedAt ?: "-"} artist=${resolved.author ?: "-"}",
                 )
                 true
             }
@@ -129,7 +138,11 @@ internal class SharedMetadataRepair(
     }
 }
 
-internal class MetadataLookups(val launcher: VideoPlaybackLauncher, val related: YouTubeRelated)
+internal class MetadataLookups(
+    val launcher: VideoPlaybackLauncher,
+    val related: YouTubeRelated,
+    val music: YouTubeMusicCatalogue,
+)
 
 internal fun startSharedMetadataRepair(
     queue: PlaybackQueue,
@@ -150,6 +163,7 @@ internal fun startSharedMetadataRepair(
         dateOf = { id ->
             (lookups.related.relatedTo(id.value) as? RelatedResult.Success)?.publishedOn?.let(PublishedAge::ofDay)
         },
+        artistOf = ArtistLookup(lookups.music)::of,
     ).start()
 }
 
@@ -159,7 +173,22 @@ internal val MediaItem.saysNoDate: Boolean
 private val PlayableItem.needsADate: Boolean
     get() = handle is PlayHandle.Video && item.saysNoDate && !item.hasPlaceholderTitle
 
-private val PlayableItem.maxTries: Int get() = if (item.hasPlaceholderTitle) MAX_TRIES else DATE_TRIES
+private val MediaItem.saysNoArtist: Boolean
+    get() = author == null && (contentKind == MediaContentKind.MUSIC || sourceId.value.startsWith("music:"))
+
+private val PlayableItem.needsAnArtist: Boolean
+    get() = item.saysNoArtist && !item.hasPlaceholderTitle
+
+private enum class Need(val label: String) { TITLE("title"), DATE("date"), ARTIST("artist") }
+
+private val PlayableItem.need: Need
+    get() = when {
+        item.hasPlaceholderTitle -> Need.TITLE
+        needsAnArtist -> Need.ARTIST
+        else -> Need.DATE
+    }
+
+private val PlayableItem.maxTries: Int get() = if (need == Need.TITLE) MAX_TRIES else DATE_TRIES
 
 private val NEAR = -5..30
 private const val MAX_TRIES = 5

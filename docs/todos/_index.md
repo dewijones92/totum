@@ -13,7 +13,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 |---|---|---|---|
 | [Batch A, November 2026: the plan and its order](batch-a-2026-11.md) | batch | high | decided 2026-11-06 |
 | [Stored links no longer carry the old shared token](scrub-old-token-from-links.md) | pi/security | medium | decided 2026-11-06, Batch A |
-| [Queued tracks keep their artist](queued-tracks-keep-their-artist.md) | music/queue | medium | decided 2026-11-06, Batch A |
+| [Queued tracks keep their artist](queued-tracks-keep-their-artist.md) | music/queue | medium | built 2026-11-06, Batch A (tests owed) |
 | [A live stream that hasn't started says so](live-starts-soon.md) | playback | medium | decided 2026-11-06, Batch A |
 | [📡 The Pi plays to any TV, browser or speaker](pi-plays-everywhere.md) | casting/pi | high | decided 2026-11-06, Batch A phase 7 |
 | [A daily 🤖 For you feed](for-you-feed.md) | ai | medium | decided 2026-11-06, Batch A phase 6 |
@@ -28,14 +28,14 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [Ready for other people: licence and reports](publish-licence-and-reports.md) | publishing | medium | decided 2026-11-06, Batch A phase 6 |
 | [A ❤️ Sponsor button](sponsor-button.md) | publishing | low | decided 2026-11-06, Batch A phase 6 |
 | [A post and video script for an AI subreddit](subreddit-video-draft.md) | publishing | low | decided 2026-11-06, Batch A phase 6 |
-| [Live streams play at 1x with no silence skipping](live-plays-at-1x.md) | playback | high | decided 2026-11-06, Batch A |
+| [Live streams play at 1x with no silence skipping](live-plays-at-1x.md) | playback | high | built 2026-11-06, Batch A (tests owed) |
 | [✨ Ask: the restore crash, and a chat list that hides the input](ask-restore-race-and-chat-list.md) | ai | high | decided 2026-11-06, Batch A |
 | [Playing or queueing a Pi item never copies it to the phone](pi-files-never-copied-by-playing.md) | downloads/home | high | decided 2026-11-06, Batch A |
 | [A Pi copy casts with its picture](cast-home-copy-picture.md) | casting | high | decided 2026-11-06, Batch A |
 | [Cast the best quality only; Totum steps down itself](cast-best-quality-only.md) | casting | high | decided 2026-11-06, Batch A |
 | [Casting keeps your place and notices the end](cast-progress-and-end.md) | casting | high | decided 2026-11-06, Batch A |
 | [A channel's Videos reload when reopened](channel-videos-reload.md) | video | medium | decided 2026-11-06, Batch A |
-| [Starting an album or group switches Repeat one off](repeat-one-off-on-group-play.md) | queue | high | decided 2026-11-06, Batch A |
+| [Starting an album or group switches Repeat one off](repeat-one-off-on-group-play.md) | queue | high | built 2026-11-06, Batch A (tests owed) |
 | [Resuming a paused item takes YouTube's newer place](resume-from-account-position.md) | sync | high | decided 2026-11-06, Batch A |
 | [Every pause and cast drop says why; a flight recorder](pause-and-cast-drop-reasons.md) | diagnostics | high | built 2026-11-06, Batch A (ADR 120); tests and device checks to follow |
 | [The PC screen knows both phones](pc-screen-two-phones.md) | casting/pi | high | decided 2026-11-06, Batch A |

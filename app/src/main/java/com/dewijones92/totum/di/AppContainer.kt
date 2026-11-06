@@ -1207,7 +1207,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             downloadManager,
             networkStatus,
             applicationScope,
-            MetadataLookups(videoPlaybackLauncher, youTubeRelated),
+            MetadataLookups(videoPlaybackLauncher, youTubeRelated, musicCatalogue),
         )
         startQueueAutoDownloader(this)
         startHomeAhead(this)
