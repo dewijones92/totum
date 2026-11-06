@@ -2,8 +2,9 @@
 title: 🔈 A second queue on the Pi's speakers
 kind: todo
 status: in progress
+batch: A (2026-11), phase 6: deploy the Pi side and build the phone side
 area: playback
-updated: 2026-11-01
+updated: 2026-11-06
 ---
 
 # 🔈 Speaker queues on the Pi

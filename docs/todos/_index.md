@@ -1,7 +1,7 @@
 ---
 title: Backlog
 kind: index
-updated: 2026-10-30
+updated: 2026-11-06
 ---
 
 # Backlog
@@ -11,6 +11,60 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 
 | Item | Area | Priority | Status |
 |---|---|---|---|
+| [Batch A, November 2026: the plan and its order](batch-a-2026-11.md) | batch | high | decided 2026-11-06 |
+| [Stored links no longer carry the old shared token](scrub-old-token-from-links.md) | pi/security | medium | decided 2026-11-06, Batch A |
+| [Queued tracks keep their artist](queued-tracks-keep-their-artist.md) | music/queue | medium | decided 2026-11-06, Batch A |
+| [A live stream that hasn't started says so](live-starts-soon.md) | playback | medium | decided 2026-11-06, Batch A |
+| [📡 The Pi plays to any TV, browser or speaker](pi-plays-everywhere.md) | casting/pi | high | decided 2026-11-06, Batch A phase 7 |
+| [A daily 🤖 For you feed](for-you-feed.md) | ai | medium | decided 2026-11-06, Batch A phase 6 |
+| [TL;DR and chapters for long items](tldr-and-chapters.md) | ai | medium | decided 2026-11-06, Batch A phase 6 |
+| [Ask about this video](ask-about-this-video.md) | ai | medium | decided 2026-11-06, Batch A phase 6 |
+| [A morning digest of what's new](morning-digest.md) | ai | low | decided 2026-11-06, Batch A phase 6 |
+| [A spoiler shield for sport](tennis-spoiler-shield.md) | ai/video | medium | decided 2026-11-06, Batch A phase 6 |
+| [Jellyfin's films and series inside Totum](jellyfin-in-totum.md) | home | medium | decided 2026-11-06, Batch A phase 6 |
+| [Trip mode](trip-mode.md) | downloads | low | decided 2026-11-06, Batch A phase 6 |
+| [One tap puts the kid playlist on the TV](kid-tv-button.md) | casting/kids | low | decided 2026-11-06, Batch A phase 6 |
+| [A bedtime sleep timer](bedtime-sleep-timer.md) | player | low | decided 2026-11-06, Batch A phase 6 |
+| [Ready for other people: licence and reports](publish-licence-and-reports.md) | publishing | medium | decided 2026-11-06, Batch A phase 6 |
+| [A ❤️ Sponsor button](sponsor-button.md) | publishing | low | decided 2026-11-06, Batch A phase 6 |
+| [A post and video script for an AI subreddit](subreddit-video-draft.md) | publishing | low | decided 2026-11-06, Batch A phase 6 |
+| [Live streams play at 1x with no silence skipping](live-plays-at-1x.md) | playback | high | decided 2026-11-06, Batch A |
+| [✨ Ask: the restore crash, and a chat list that hides the input](ask-restore-race-and-chat-list.md) | ai | high | decided 2026-11-06, Batch A |
+| [Playing or queueing a Pi item never copies it to the phone](pi-files-never-copied-by-playing.md) | downloads/home | high | decided 2026-11-06, Batch A |
+| [A Pi copy casts with its picture](cast-home-copy-picture.md) | casting | high | decided 2026-11-06, Batch A |
+| [Cast the best quality only; Totum steps down itself](cast-best-quality-only.md) | casting | high | decided 2026-11-06, Batch A |
+| [Casting keeps your place and notices the end](cast-progress-and-end.md) | casting | high | decided 2026-11-06, Batch A |
+| [A channel's Videos reload when reopened](channel-videos-reload.md) | video | medium | decided 2026-11-06, Batch A |
+| [Starting an album or group switches Repeat one off](repeat-one-off-on-group-play.md) | queue | high | decided 2026-11-06, Batch A |
+| [Resuming a paused item takes YouTube's newer place](resume-from-account-position.md) | sync | high | decided 2026-11-06, Batch A |
+| [Every pause and cast drop says why; a flight recorder](pause-and-cast-drop-reasons.md) | diagnostics | high | decided 2026-11-06, Batch A |
+| [The PC screen knows both phones](pc-screen-two-phones.md) | casting/pi | high | decided 2026-11-06, Batch A |
+| [The AI service decides which tools a caller may use](ai-service-tool-allowlist.md) | pi/security | high | decided 2026-11-06, Batch A |
+| [Slack, Outlook and Teams stay quiet outside work hours](work-apps-quiet-hours.md) | side-quest | high | decided 2026-11-06, Batch A |
+| [Every download says what, from where, to where; Move to Pi moves the file](download-wording-and-moves.md) | downloads | high | decided 2026-11-06, Batch A |
+| [The codec beside every quality; AV1 first when the hardware decodes it](codec-everywhere.md) | video | high | decided 2026-11-06, Batch A |
+| [TV volume from the phone; the strip says what is cast](tv-volume-and-cast-strip.md) | casting | medium | decided 2026-11-06, Batch A |
+| [Search results as tabs](search-results-tabs.md) | search | medium | decided 2026-11-06, Batch A |
+| [Subtitles off stays off until turned on](subtitles-off-stays-off.md) | player | medium | decided 2026-11-06, Batch A |
+| [A group page shows its last list while refreshing](group-page-last-list.md) | video | medium | decided 2026-11-06, Batch A |
+| [The queue tidies itself](queue-tidy-up.md) | queue | medium | decided 2026-11-06, Batch A |
+| [The mini player shows every mode that is on](sticky-modes-row.md) | player | high | decided 2026-11-06, Batch A |
+| [Why is this playing?](why-is-this-playing.md) | player | medium | decided 2026-11-06, Batch A |
+| [What's new after an update](whats-new-card.md) | app | medium | decided 2026-11-06, Batch A |
+| [A Quick Settings tile sends a Totum report](send-report-tile.md) | diagnostics | medium | decided 2026-11-06, Batch A |
+| [Search in Settings](settings-search.md) | settings | low | decided 2026-11-06, Batch A |
+| [Update straight from the banner](in-app-updater.md) | app | high | decided 2026-11-06, Batch A |
+| [Undo after every remove](undo-everywhere.md) | app | medium | decided 2026-11-06, Batch A |
+| [Offline at a glance](offline-playable-chip.md) | queue | medium | decided 2026-11-06, Batch A |
+| [A daily mobile-data budget](mobile-data-budget.md) | playback | medium | decided 2026-11-06, Batch A |
+| [Backups are test-read weekly](backup-checked.md) | backup | medium | decided 2026-11-06, Batch A |
+| [Share and copy link on every item](share-link-everywhere.md) | app | medium | decided 2026-11-06, Batch A |
+| [A Carry on row in Library](carry-on-row.md) | library | medium | decided 2026-11-06, Batch A |
+| [Already queued? Say so](no-duplicate-queueing.md) | queue | medium | decided 2026-11-06, Batch A |
+| [Time left per queue group](group-time-left.md) | queue | low | decided 2026-11-06, Batch A |
+| [What's next, in the notification](next-in-notification.md) | player | low | decided 2026-11-06, Batch A |
+| [Not for me](not-for-me.md) | queue | medium | decided 2026-11-06, Batch A |
+| [✨ Ask can answer about your own app](ask-sees-the-app.md) | ai | high | decided 2026-11-06, Batch A |
 | [Torrent results say whether they look trustworthy](torrent-trust-badges.md) | torrents | high | ✅ shipped 2026-10-30 (ADR 101) |
 | [Work still done on the main thread](main-thread-work.md) | performance | medium | ⏳ partly fixed 2026-10-30 (parsing, Room maps, diagnostics send) |
 | [Shuffle all across several sources at once](multi-source-shuffle.md) | queue/shuffle | high | ⏳ partly done 2026-10-22 (Subscriptions, queue groups) |
