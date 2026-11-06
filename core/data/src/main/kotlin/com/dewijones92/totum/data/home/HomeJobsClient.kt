@@ -1,11 +1,7 @@
 package com.dewijones92.totum.data.home
 
-import com.dewijones92.totum.common.Diag
-import com.dewijones92.totum.common.HomeServerAuth
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.data.ask.AskJson
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -14,7 +10,6 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
-import java.io.IOException
 import java.net.URLEncoder
 
 public sealed interface HomeAnswer<out T> {
@@ -38,6 +33,8 @@ public class HomeJobsClient(
     private val base: String,
     private val token: () -> String,
 ) : HomeJobsApi {
+    private val pi = HomePiCall(client, token)
+
     override suspend fun start(job: HomeJobRequest): HomeAnswer<String> =
         call("POST /jobs", post("jobs", AskJson.encodeToString(HomeJobRequest.serializer(), job))) { text ->
             AskJson.parseToJsonElement(text).jsonObject["id"]?.jsonPrimitive?.content ?: job.item.itemId
@@ -67,32 +64,10 @@ public class HomeJobsClient(
     private fun post(path: String, body: String) = Request.Builder().url("$base/$path").post(body.json())
 
     private suspend fun <T> call(what: String, builder: Request.Builder, serializer: KSerializer<T>): HomeAnswer<T> =
-        call(what, builder) { AskJson.decodeFromString(serializer, it) }
+        pi.call(what, builder, serializer)
 
     private suspend fun <T> call(what: String, builder: Request.Builder, read: (String) -> T): HomeAnswer<T> =
-        withContext(Dispatchers.IO) {
-            if (token().isBlank()) return@withContext HomeAnswer.No("❌ Not signed in to the home server")
-            try {
-                client.newCall(builder.header(HomeServerAuth.HEADER, token()).build()).execute().use { response ->
-                    val text = response.body.string()
-                    if (response.isSuccessful) {
-                        runCatching { HomeAnswer.Ok(read(text)) }.getOrElse {
-                            Diag.warn("home", "$what -> unreadable answer: ${text.take(LOGGED)}", it)
-                            HomeAnswer.No("❌ The home server's answer made no sense")
-                        }
-                    } else {
-                        Diag.warn("home", "$what -> HTTP ${response.code}: ${text.take(LOGGED)}")
-                        HomeAnswer.No(errorOf(text) ?: "❌ The home server said no (HTTP ${response.code})")
-                    }
-                }
-            } catch (e: IOException) {
-                Diag.warn("home", "$what failed", e)
-                HomeAnswer.No("❌ The home server didn't answer")
-            }
-        }
-
-    private fun errorOf(text: String): String? =
-        runCatching { AskJson.parseToJsonElement(text).jsonObject["error"]?.jsonPrimitive?.content }.getOrNull()
+        pi.call(what, builder, read)
 
     private fun encoded(id: String) = URLEncoder.encode(id, Charsets.UTF_8).replace("+", "%20")
 
@@ -100,6 +75,5 @@ public class HomeJobsClient(
 
     private companion object {
         val JSON = "application/json".toMediaType()
-        const val LOGGED = 200
     }
 }

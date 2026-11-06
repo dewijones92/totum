@@ -1,15 +1,13 @@
 package com.dewijones92.totum.data.ask
 
 import com.dewijones92.totum.common.Diag
-import com.dewijones92.totum.common.HomeServerAuth
-import kotlinx.coroutines.Dispatchers
+import com.dewijones92.totum.data.home.HomeAnswer
+import com.dewijones92.totum.data.home.HomePiCall
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import java.io.IOException
 
 public interface AskService {
     public suspend fun ask(request: AskRequest, progress: (elapsedMs: Long) -> Unit = {}): AskOutcome<AskAnswer>
@@ -29,6 +27,7 @@ public class HttpAskService(
     private val giveUpMs: Long = GIVE_UP_MS,
     private val clock: () -> Long = System::currentTimeMillis,
 ) : AskService {
+    private val pi = HomePiCall(client, token, "ask")
 
     override suspend fun ask(request: AskRequest, progress: (Long) -> Unit): AskOutcome<AskAnswer> =
         run("ask", AskJson.encodeToString(AskRequest.serializer(), request), progress) { it.ask }
@@ -42,8 +41,10 @@ public class HttpAskService(
         progress: (Long) -> Unit,
         answer: (AskJob) -> T?,
     ): AskOutcome<T> {
-        if (token().isBlank()) return AskOutcome.Failed("❌ Not signed in to the home server")
-        val started = post(path, body) ?: return AskOutcome.Failed("❌ The home server didn't answer")
+        val started = when (val answer = post(path, body)) {
+            is HomeAnswer.Ok -> answer.value
+            is HomeAnswer.No -> return AskOutcome.Failed(answer.reason)
+        }
         Diag.log("ask", "$path job ${started.id} started")
         var job = started
         val began = clock()
@@ -67,37 +68,19 @@ public class HttpAskService(
         }
     }
 
-    private suspend fun post(path: String, body: String): AskJob? = call(
-        Request.Builder().url("$base/$path").post(body.toRequestBody(JSON)),
+    private suspend fun post(path: String, body: String): HomeAnswer<AskJob> = pi.call(
         "POST /$path",
+        Request.Builder().url("$base/$path").post(body.toRequestBody(JSON)),
+        AskJob.serializer(),
     )
 
-    private suspend fun poll(id: String): AskJob? = call(Request.Builder().url("$base/job/$id").get(), "GET /job/$id")
-
-    private suspend fun call(builder: Request.Builder, what: String): AskJob? = withContext(Dispatchers.IO) {
-        val request = builder.header(HomeServerAuth.HEADER, token()).build()
-        try {
-            client.newCall(request).execute().use { response ->
-                val text = response.body.string()
-                if (!response.isSuccessful) {
-                    Diag.warn("ask", "$what -> HTTP ${response.code}: ${text.take(LOGGED_CHARS)}")
-                    null
-                } else {
-                    runCatching { AskJson.decodeFromString(AskJob.serializer(), text) }
-                        .onFailure { Diag.warn("ask", "$what -> unreadable answer: ${text.take(LOGGED_CHARS)}", it) }
-                        .getOrNull()
-                }
-            }
-        } catch (e: IOException) {
-            Diag.warn("ask", "$what failed", e)
-            null
-        }
-    }
+    private suspend fun poll(id: String): AskJob? =
+        (pi.call("GET /job/$id", Request.Builder().url("$base/job/$id").get(), AskJob.serializer()) as? HomeAnswer.Ok)
+            ?.value
 
     private companion object {
         val JSON = "application/json".toMediaType()
         const val POLL_MS = 1_500L
         const val GIVE_UP_MS = 330_000L
-        const val LOGGED_CHARS = 200
     }
 }
