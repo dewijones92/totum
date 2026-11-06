@@ -3,8 +3,10 @@ package com.dewijones92.totum.ui
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.hasScrollToIndexAction
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.longClick
@@ -79,6 +81,12 @@ class MultiSelectTest {
     private fun longPress(title: String) {
         composeTestRule.onNodeWithText(title).performTouchInput { longClick() }
         composeTestRule.waitForIdle()
+    }
+
+    private fun reveal(title: String): SemanticsNodeInteraction {
+        composeTestRule.onAllNodes(hasScrollToIndexAction() and !hasTestTag(SELECTION_ACTIONS_TAG)).onFirst()
+            .performScrollToNode(hasText(title))
+        return composeTestRule.onNodeWithText(title)
     }
 
     private fun count(n: Int) = activity.resources.getQuantityString(R.plurals.selected_count, n, n)
@@ -172,13 +180,14 @@ class MultiSelectTest {
         fun order() = container.playbackQueue.state.value.entries.map { it.item.item.title }
 
         longPress("Two")
-        composeTestRule.onNodeWithText("Four").performClick()
+        reveal("Four").performClick()
         composeTestRule.onNodeWithText(activity.getString(R.string.queue_move_to_top)).performClick()
         composeTestRule.waitUntil(TIMEOUT_MS) { order().first() == "Two" }
         assertEquals(listOf("Two", "Four", "One", "Three"), order())
 
+        reveal("One")
         longPress("One")
-        composeTestRule.onNodeWithText("Three").performClick()
+        reveal("Three").performClick()
         composeTestRule.onNodeWithText(activity.getString(R.string.queue_remove)).performClick()
         composeTestRule.waitForIdle()
         composeTestRule.onAllNodesWithText(activity.getString(R.string.queue_remove)).onLast().performClick()

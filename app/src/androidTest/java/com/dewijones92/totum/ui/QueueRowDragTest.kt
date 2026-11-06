@@ -3,11 +3,15 @@ package com.dewijones92.totum.ui
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.down
+import androidx.compose.ui.test.hasScrollToNodeAction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.moveBy
 import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.up
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -59,9 +63,13 @@ class QueueRowDragTest {
 
     private fun SemanticsNodeInteraction.top() = fetchSemanticsNode().boundsInRoot.top
 
-    private fun show() {
-        composeTestRule.mainClock.autoAdvance = false
+    private fun gripTop(id: String) =
+        composeTestRule.onNodeWithTag(queueRowGripTag(id), useUnmergedTree = true).top()
+
+    private fun show(scrollTo: String? = null) {
         composeTestRule.setContent { TotumTheme { QueueScreen(container) } }
+        scrollTo?.let { composeTestRule.onAllNodes(hasScrollToNodeAction()).onFirst().performScrollToNode(hasText(it)) }
+        composeTestRule.mainClock.autoAdvance = false
         composeTestRule.mainClock.advanceTimeBy(FRAME_MS * SETTLE_FRAMES)
     }
 
@@ -105,16 +113,17 @@ class QueueRowDragTest {
     @Test
     fun theDraggedRowStaysUnderTheFingerAcrossGroupHeaders() {
         queue.playAll(listOf(playable("first")))
-        queue.enqueueAll(listOf("g1", "g2").map(::playable), QueueGroup("album:g", "Group G"))
-        queue.enqueueAll(listOf("h1", "h2").map(::playable), QueueGroup("album:h", "Group H"))
+        queue.enqueueAll(listOf(playable("g1")), QueueGroup("album:g", "Group G"))
+        queue.enqueueAll(listOf(playable("h1")), QueueGroup("album:h", "Group H"))
         queue.enqueueAll(listOf("last1", "last2").map(::playable))
         show()
         val density = composeTestRule.density.density
         val node = { composeTestRule.onNodeWithTag(queueRowGripTag("first"), useUnmergedTree = true) }
         val startTop = node().top()
+        val travel = gripTop("g1") - startTop + PAST_NEIGHBOUR_DP * density
         val worst = mutableListOf<Float>()
 
-        drag(node, ROW_DP * 4 * density, STEPS * 2, framesPerStep = 1) { travelled ->
+        drag(node, travel, STEPS * 2, framesPerStep = 1) { travelled ->
             worst += abs(node().top() - (startTop + travelled))
         }
         release(node)
@@ -126,20 +135,21 @@ class QueueRowDragTest {
                 "(tolerance $SLOP_DP dp): ${worst.map { (it / density).toInt() }} -> ${ids()}",
             worst.max() <= tolerance,
         )
-        assertTrue("four rows of travel should move it past the first group: ${ids()}", ids().indexOf("first") >= 2)
+        assertTrue("it should have moved past the first group: ${ids()}", ids().indexOf("first") > ids().indexOf("g1"))
     }
 
     @Test
     fun aRowOfYourOwnDraggedIntoAGroupStaysUnderTheFinger() {
         queue.playAll(listOf("g1", "g2", "g3").map(::playable), QueueGroup("album:g", "Group G"))
         queue.enqueueAll(listOf(playable("mine")))
-        show()
+        show(scrollTo = "mine")
         val density = composeTestRule.density.density
         val node = { composeTestRule.onNodeWithTag(queueRowGripTag("mine"), useUnmergedTree = true) }
         val startTop = node().top()
+        val travel = gripTop("g3") - startTop - PAST_NEIGHBOUR_DP * density
         val worst = mutableListOf<Float>()
 
-        drag(node, -ROW_DP * 2 * density, STEPS * 2, framesPerStep = 1) { travelled ->
+        drag(node, travel, STEPS * 2, framesPerStep = 1) { travelled ->
             worst += abs(node().top() - (startTop + travelled))
         }
         release(node)
@@ -150,7 +160,7 @@ class QueueRowDragTest {
                 "(tolerance $SLOP_DP dp): ${worst.map { (it / density).toInt() }} -> ${ids()}",
             worst.max() <= tolerance,
         )
-        assertTrue("two rows up should put it inside the group: ${ids()}", ids().indexOf("mine") < ids().indexOf("g3"))
+        assertTrue("it should have moved up inside the group: ${ids()}", ids().indexOf("mine") < ids().indexOf("g3"))
     }
 
     @Test
@@ -209,6 +219,7 @@ class QueueRowDragTest {
         const val STEPS = 20
         const val ROW_DP = 85f
         const val SLOP_DP = 24f
+        const val PAST_NEIGHBOUR_DP = 30f
         const val EDGE_PX = 20f
         const val HOLD_FRAMES = 300
         const val LONG_QUEUE = 34

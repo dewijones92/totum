@@ -1,9 +1,13 @@
 package com.dewijones92.totum.ui
 
+import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.hasScrollToNodeAction
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToNode
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.dewijones92.totum.R
@@ -54,12 +58,17 @@ class QueueGroupMenuTest {
         composeTestRule.setContent { TotumTheme { QueueScreen(container) } }
     }
 
+    private fun openGroupMenu(group: String) {
+        val menu = hasContentDescription(context.getString(R.string.queue_group_menu, group))
+        composeTestRule.onAllNodes(hasScrollToNodeAction()).onFirst().performScrollToNode(menu)
+        composeTestRule.onNode(menu).performClick()
+    }
+
     @Test
     fun theGroupMenuMovesTheWholeGroupToTheTop() {
         showGroups()
 
-        composeTestRule.onNodeWithContentDescription(context.getString(R.string.queue_group_menu, "Album B"))
-            .performClick()
+        openGroupMenu("Album B")
         composeTestRule.onNodeWithText(context.getString(R.string.queue_move_to_top)).performClick()
         composeTestRule.waitForIdle()
 
@@ -71,8 +80,7 @@ class QueueGroupMenuTest {
     fun theGroupMenuPlaysTheGroupNext() {
         showGroups()
 
-        composeTestRule.onNodeWithContentDescription(context.getString(R.string.queue_group_menu, "Album B"))
-            .performClick()
+        openGroupMenu("Album B")
         composeTestRule.onNodeWithText(context.getString(R.string.queue_play_next)).performClick()
         composeTestRule.waitForIdle()
 

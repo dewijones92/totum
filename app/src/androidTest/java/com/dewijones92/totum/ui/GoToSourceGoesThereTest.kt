@@ -9,6 +9,7 @@ import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.dewijones92.totum.R
@@ -90,7 +91,7 @@ class GoToSourceGoesThereTest {
         }
 
         composeTestRule.onNodeWithContentDescription(context.getString(R.string.queue_menu)).performClick()
-        composeTestRule.onNodeWithText(context.getString(R.string.go_to_podcast)).performClick()
+        composeTestRule.onNodeWithText(context.getString(R.string.go_to_podcast)).performScrollTo().performClick()
         composeTestRule.waitUntil(TIMEOUT_MS) { opened != null }
 
         assertEquals(feed.id, opened?.id)
@@ -109,7 +110,7 @@ class GoToSourceGoesThereTest {
         }
 
         composeTestRule.onNodeWithContentDescription(context.getString(R.string.queue_menu)).performClick()
-        composeTestRule.onNodeWithText(context.getString(R.string.go_to_podcast)).performClick()
+        composeTestRule.onNodeWithText(context.getString(R.string.go_to_podcast)).performScrollTo().performClick()
         composeTestRule.waitUntil(TIMEOUT_MS) { opened != null }
 
         assertEquals(feedUrl, (opened as MediaSource.PodcastFeed).feedUrl)
