@@ -1113,6 +1113,7 @@
     <string name="group_no_members">📭 No channels in this group yet.</string>
     <string name="group_add_channels">➕ Add channels</string>
     <string name="group_loading">⏳ Loading %1$s…</string>
+    <string name="group_refreshing">⏳ Refreshing… showing the last list meanwhile</string>
     <string name="group_loading_strip">Loading %1$s</string>
     <string name="group_new_since">🆕 New since you last looked (%1$d)</string>
     <string name="group_earlier">Earlier</string>

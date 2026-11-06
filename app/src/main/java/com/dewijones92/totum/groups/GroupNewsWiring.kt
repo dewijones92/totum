@@ -22,6 +22,7 @@ import com.dewijones92.totum.MainActivity
 import com.dewijones92.totum.R
 import com.dewijones92.totum.TotumApplication
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.common.writeTextReplacing
 import com.dewijones92.totum.common.youTubeVideoId
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.SourceGroup
@@ -40,10 +41,10 @@ class FileGroupNewsStore(private val file: File) : GroupNewsStore {
         if (!file.exists()) emptyMap() else json.decodeFromString(serializer, file.readText())
     }
 
-    override suspend fun save(states: Map<String, GroupNewsState>) = withContext(Dispatchers.IO) {
-        val temp = File(file.parentFile, "${file.name}.tmp")
-        temp.writeText(json.encodeToString(serializer, states))
-        if (!temp.renameTo(file)) Diag.warn(TAG, "group news could not be moved into place; kept the old one")
+    override suspend fun save(states: Map<String, GroupNewsState>): Unit = withContext(Dispatchers.IO) {
+        runCatching { file.writeTextReplacing(json.encodeToString(serializer, states)) }
+            .onFailure { Diag.warn(TAG, "group news could not be saved; kept the old one", it) }
+        Unit
     }
 
     private companion object {

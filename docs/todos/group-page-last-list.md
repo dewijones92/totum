@@ -1,7 +1,7 @@
 ---
 title: A group page shows its last list while refreshing
 kind: todo
-status: decided
+status: built 2026-11-06 (code first; tests to follow)
 batch: A (2026-11)
 priority: medium
 updated: 2026-11-06
@@ -14,3 +14,7 @@ persist them (the `GroupNewsWiring` temp-file-and-rename pattern), show them und
 current members (`lastKnown`).
 
 Whole-batch review: write with `File.writeTextReplacing` (`lib/common/ReplaceFile.kt`), and move `GroupNewsWiring` off its private temp-file copy at the same time.
+
+## Built (2026-11-06)
+
+See [group-page](../features/group-page.md). Also changed, because it would have wiped the persisted list on the first offline refresh: a source that cannot be read keeps its items from the last list.

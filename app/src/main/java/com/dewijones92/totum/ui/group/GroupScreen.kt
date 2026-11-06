@@ -65,6 +65,7 @@ internal fun GroupScreen(container: AppContainer, groupId: String, onBack: () ->
     val kept by container.groupFeed.keptLists.collectAsStateWithLifecycle()
     val items = container.groupFeed.lastKnown(group, kept)
     var loads by remember { mutableIntStateOf(0) }
+    var refreshing by remember { mutableStateOf(false) }
     var editing by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(groupId) {
         if (openedHere) return@LaunchedEffect
@@ -75,7 +76,7 @@ internal fun GroupScreen(container: AppContainer, groupId: String, onBack: () ->
             "\"${group.name}\" page opened; new since ${sinceMs?.let(Instant::ofEpochMilli) ?: "never looked"}"
         )
     }
-    RefreshGroup(container, group, loads)
+    RefreshGroup(container, group, loads) { refreshing = it }
     val shape = rememberListShape("group ${group.id.value}")
     Surface(modifier = modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
@@ -96,7 +97,12 @@ internal fun GroupScreen(container: AppContainer, groupId: String, onBack: () ->
                     stringResource(R.string.group_loading, group.name),
                     modifier = Modifier.padding(16.dp),
                 )
-                else -> GroupList(container, shown.shapedBy(shape) { it }, sinceMs?.let(Instant::ofEpochMilli))
+                else -> GroupList(
+                    container,
+                    shown.shapedBy(shape) { it },
+                    sinceMs?.let(Instant::ofEpochMilli),
+                    refreshing,
+                )
             }
         }
     }
@@ -104,7 +110,7 @@ internal fun GroupScreen(container: AppContainer, groupId: String, onBack: () ->
 }
 
 @Composable
-private fun RefreshGroup(container: AppContainer, group: SourceGroup, loads: Int) {
+private fun RefreshGroup(container: AppContainer, group: SourceGroup, loads: Int, onRefreshing: (Boolean) -> Unit) {
     val resources = LocalResources.current
     LaunchedEffect(group.id, group.members, loads) {
         if (group.members.isEmpty()) return@LaunchedEffect
@@ -115,8 +121,13 @@ private fun RefreshGroup(container: AppContainer, group: SourceGroup, loads: Int
             "\"${group.name}\" refreshing (kept even if the page closes); " +
                 (kept?.let { "showing the $it kept item(s) meanwhile" } ?: "nothing kept yet"),
         )
-        container.operations.showing("group:${group.id.value}", label) {
-            container.groupFeed.refresh(group, container.applicationScope).await()
+        onRefreshing(true)
+        try {
+            container.operations.showing("group:${group.id.value}", label) {
+                container.groupFeed.refresh(group, container.applicationScope).await()
+            }
+        } finally {
+            onRefreshing(false)
         }
     }
 }
@@ -132,10 +143,11 @@ private fun NoMembers(onEdit: () -> Unit) {
 }
 
 @Composable
-private fun GroupList(container: AppContainer, items: List<MediaItem>, since: Instant?) {
+private fun GroupList(container: AppContainer, items: List<MediaItem>, since: Instant?, refreshing: Boolean) {
     val fresh = since?.let { s -> items.filter { it.publishedAt?.isAfter(s) == true } }.orEmpty()
     val older = items - fresh.toSet()
     LazyColumn(Modifier.fillMaxSize().testTag("group-list")) {
+        if (refreshing) item { Divider(stringResource(R.string.group_refreshing), "group-refreshing-divider") }
         if (fresh.isNotEmpty()) {
             item { Divider(stringResource(R.string.group_new_since, fresh.size), "group-new-divider") }
             items(fresh, key = { "new:" + it.id.value }) { GroupRow(container, it, isNew = true) }
