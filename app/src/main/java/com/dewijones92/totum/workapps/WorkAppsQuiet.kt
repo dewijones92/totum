@@ -13,8 +13,11 @@ import com.dewijones92.totum.dailyalarms.WorkAppsCodec
 import com.dewijones92.totum.dailyalarms.WorkAppsSettings
 import com.dewijones92.totum.dailyalarms.WorkAppsStatus
 import com.dewijones92.totum.reminders.kit.JsonPrefs
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.time.Duration
 import java.time.Instant
@@ -70,6 +73,8 @@ class SharedPrefsWorkAppsStore(context: Context) : WorkAppsStore {
     }
 }
 
+data class QuietEnded(val packages: Set<String>, val source: String)
+
 data class RemovedGroup(val group: QuietGroup, val index: Int)
 
 data class RemovedApp(val groupId: String, val packageName: String, val index: Int)
@@ -78,24 +83,57 @@ class WorkAppsQuiet(
     private val store: WorkAppsStore,
     private val accessGranted: () -> Boolean,
     private val onChanged: (String) -> Unit,
-    private val announce: (GroupState) -> Unit = {},
+    private val announce: (GroupState) -> String? = { null },
     private val clock: () -> Instant = Instant::now,
     private val zone: () -> ZoneId = ZoneId::systemDefault,
 ) {
     private val _settings = MutableStateFlow(store.load())
     val settings: StateFlow<WorkAppsSettings> = _settings.asStateFlow()
 
+    private val _quietEnded = MutableSharedFlow<QuietEnded>(extraBufferCapacity = QUIET_ENDED_BUFFER)
+    val quietEnded: SharedFlow<QuietEnded> = _quietEnded.asSharedFlow()
+
     private val snoozed = Tally()
     private val letThrough = Tally()
+    private val noticesNotShown = Tally()
 
     @Volatile
     private var lastDecision = "none yet"
 
+    @Volatile
+    private var lastNoticeNotShown = "none"
+
     private val kindsLock = Any()
     private var knownKinds: Map<String, QuietKind> = store.loadKinds()
+    private var quietPackages: Set<String> = quietNow()
 
     init {
         Diag.log(TAG, "dewidebug workapps loaded: ${_settings.value}")
+    }
+
+    fun isQuietNow(packageName: String): Boolean = packageName in quietNow()
+
+    private fun quietNow(): Set<String> {
+        val settings = _settings.value
+        val now = clock()
+        val zone = zone()
+        return settings.packages.filterTo(mutableSetOf()) { packageName ->
+            settings.decide(PostedNotification(packageName, ongoing = false, category = null), now, zone) is
+                QuietDecision.Snooze
+        }
+    }
+
+    private fun releaseWhatStoppedBeingQuiet(source: String) {
+        val quiet = quietNow()
+        val ended = quietPackages - quiet
+        quietPackages = quiet
+        if (ended.isEmpty()) return
+        Diag.log(
+            TAG,
+            "dewidebug workapps ${ended.sorted()} stopped being quiet ($source at ${clock()}): " +
+                "asking the listener to hand back what it snoozed",
+        )
+        _quietEnded.tryEmit(QuietEnded(ended, source))
     }
 
     fun hasAccess(): Boolean = accessGranted()
@@ -128,33 +166,62 @@ class WorkAppsQuiet(
         _settings.value = after
         store.save(after)
         Diag.log(TAG, "dewidebug workapps settings from=$source: $before -> $after")
-        rememberKinds("settings: $source")
+        val edited = editedGroups(before, after)
+        noteBoundaries("settings: $source", silentFor = edited)
         onChanged("work apps settings: $source")
     }
 
-    fun noteBoundaries(source: String) = synchronized(kindsLock) {
+    private fun editedGroups(before: WorkAppsSettings, after: WorkAppsSettings): Set<String> =
+        if (before.enabled != after.enabled) {
+            (before.groups + after.groups).mapTo(mutableSetOf()) { it.id }
+        } else {
+            (before.groups.map { it.id } + after.groups.map { it.id }).filterTo(mutableSetOf()) { id ->
+                before.group(id) != after.group(id)
+            }
+        }
+
+    fun noteBoundaries(source: String, silentFor: Set<String> = emptySet()) = synchronized(kindsLock) {
         val now = clock()
         val states = (status() as? WorkAppsStatus.Groups)?.states.orEmpty()
         val before = knownKinds
-        states.forEach { state ->
-            val was = before[state.group.id]
-            if (state.changedFrom(was)) {
+        states.forEach { state -> noteGroup(state, before[state.group.id], source, now, state.group.id in silentFor) }
+        rememberKinds(source, states)
+        releaseWhatStoppedBeingQuiet(source)
+    }
+
+    private fun noteGroup(state: GroupState, was: QuietKind?, source: String, now: Instant, edited: Boolean) {
+        val name = state.group.name
+        when {
+            state.changedFrom(was) && !edited -> {
                 Diag.log(
                     TAG,
-                    "dewidebug workapps ${state.group.name} went $was -> ${state.kind} until ${state.until} " +
+                    "dewidebug workapps $name went $was -> ${state.kind} until ${state.until} " +
                         "($source at $now): telling the person",
                 )
-                announce(state)
-            } else if (was != state.kind) {
-                Diag.log(
-                    TAG,
-                    "dewidebug workapps ${state.group.name} is now ${state.kind} (was $was) ($source at $now): " +
-                        "not telling the person, " +
-                        if (was == null) "nothing recorded to compare with" else "that change is silent by rule",
-                )
+                announce(state)?.let { reason -> noticeNotShown(state, reason) }
             }
+            was != state.kind -> Diag.log(
+                TAG,
+                "dewidebug workapps $name is now ${state.kind} (was $was) ($source at $now): not telling the person, " +
+                    when {
+                        edited -> "that group was changed by the edit that just ran"
+                        was == null -> "nothing recorded to compare with"
+                        else -> "that change is silent by rule"
+                    },
+            )
         }
-        rememberKinds(source, states)
+    }
+
+    private fun noticeNotShown(state: GroupState, reason: String) {
+        val count = noticesNotShown.record("${state.group.name} ${state.kind}: $reason")
+        lastNoticeNotShown = "${state.group.name} ${state.kind}: $reason at ${clock()}"
+        if (Tally.shouldLog(count)) {
+            Diag.log(
+                TAG,
+                "dewidebug workapps notice not shown: $reason (${state.group.name} went ${state.kind}; " +
+                    "#$count of this kind; the change is not retried; all: ${noticesNotShown.summary()})",
+            )
+        }
     }
 
     private fun rememberKinds(source: String, states: List<GroupState>? = null) = synchronized(kindsLock) {
@@ -226,11 +293,14 @@ class WorkAppsQuiet(
             put("workApps.status", status()?.toString() ?: "off")
             put("workApps.snoozed", snoozed.summary())
             put("workApps.letThrough", letThrough.summary())
+            put("workApps.noticesNotShown", noticesNotShown.summary())
+            put("workApps.lastNoticeNotShown", lastNoticeNotShown)
             put("workApps.lastDecision", lastDecision)
         }
 
     companion object {
         const val TAG = "workapps"
+        private const val QUIET_ENDED_BUFFER = 8
 
         fun accessGranted(context: Context): Boolean =
             context.packageName in NotificationManagerCompat.getEnabledListenerPackages(context)

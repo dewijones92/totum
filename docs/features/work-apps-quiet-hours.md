@@ -70,7 +70,10 @@ board's own refresh time. The same tick (`DailyAlarmController.tickAll`) is what
 
 A split second of sound can still leak before the snooze lands, which is why each group's Apps section suggests turning
 those apps' own notification sound off. Notifications already in the shade when a group's hours end are left where they
-are, and switching a pause on does not bring back what was snoozed earlier; they return when the hours start. The board
+are. Starting a pause (or turning a group or the switch off, removing an app, or a group's hours ending) hands back what
+this listener had snoozed for the apps that stopped being quiet: Android has no public "unsnooze", so the listener
+re-snoozes each one for one second and writes how many were still snoozed 5 s later (unverified on a phone; the keys it
+snoozed are kept in `work_apps_snoozed`, so a user's own snoozes are left alone). The board
 line cannot show app icons (Live Update text only), so each group's emoji stands in. A change notification is late when
 the phone was off at the boundary.
 
@@ -93,7 +96,16 @@ Settings changes, access changes and listener connect/disconnect each log, as do
 the old list. Every group state change is logged with whether it was announced and why not (`… went QUIET -> ON …:
 telling the person`, or `not telling the person, that change is silent by rule`), and so is each notification posted.
 Reports carry `workApps.enabled`, `.accessGranted`, `.groups` (name, apps, window and pause of each), `.knownKinds`,
-`.status`, `.snoozed`, `.letThrough` and `.lastDecision`.
+`.status`, `.snoozed`, `.letThrough`, `.lastDecision`, `.noticesNotShown` and `.lastNoticeNotShown` (a change notice
+that was not shown, for example `notifications not allowed`, is counted and logged once, never retried: the change
+stays consumed). Handing back is logged as `hand back (<why>): N snoozed in all, M by this listener, K due back` and
+`K asked, L still snoozed 5000ms later`.
+
+## Change notices and edits
+
+A settings edit announces nothing for the groups the edit itself changed (or any group when the master switch moved),
+but a boundary that had been crossed for an untouched group is still announced, as the edit now runs the same boundary
+check as the tick, with the edited groups silent. Before, the edit remembered every group's new state and swallowed it.
 
 ## Tests still to write (code first, 2026-11-06)
 

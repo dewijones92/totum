@@ -53,3 +53,11 @@ Beyond the first-build list in the feature doc ("Tests still to write"):
   made through `update`, and a pause ending by itself is announced; `removeGroup` and `restoreGroup`, `removeApp` and
   `restoreApp` keep their slot.
 - A device check of the page with two groups, the combined board line and the notification.
+
+Sweep fixes (2026-11-06), owed as tests: `WorkAppsQuiet` hub: an edit to one group does not swallow the boundary a
+second, untouched group crossed (announced once), and announces nothing for the edited group or when the switch moves;
+`quietEnded` emits the packages that stopped being quiet on a pause, a group switched off, an app removed, a group
+deleted, the switch turned off and a boundary (and nothing for an app that stays quiet); a refused notice
+(`announce` returns a reason) is counted in `diagnostics` and not retried by a later `noteBoundaries`; the listener's
+`SnoozedKeys` (add, keepOnly, remove) and a device check that re-snoozing for one second really brings a snoozed
+notification back.

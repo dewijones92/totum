@@ -18,18 +18,15 @@ import java.time.ZoneId
 class WorkAppsNotifier(private val context: Context) {
     private val manager = NotificationManagerCompat.from(context)
 
-    fun announce(state: GroupState, now: Instant = Instant.now(), zone: ZoneId = ZoneId.systemDefault()) {
+    fun announce(state: GroupState, now: Instant = Instant.now(), zone: ZoneId = ZoneId.systemDefault()): String? {
         val group = state.group
         val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
             PackageManager.PERMISSION_GRANTED
         val until = state.until?.let { whenText(it, now, zone) }
         if (!granted || until == null) {
-            Diag.log(
-                WorkAppsQuiet.TAG,
-                "dewidebug workapps not announcing ${group.name} ${state.kind}: " +
-                    if (!granted) "notifications are not permitted" else "there is no time to say",
-            )
-            return
+            val reason = if (!granted) "notifications not allowed" else "there is no time to say"
+            Diag.log(WorkAppsQuiet.TAG, "dewidebug workapps notice not shown for ${group.name} ${state.kind}: $reason")
+            return reason
         }
         manager.createNotificationChannel(
             NotificationChannelCompat.Builder(CHANNEL_ID, NotificationManagerCompat.IMPORTANCE_LOW)
@@ -64,6 +61,7 @@ class WorkAppsNotifier(private val context: Context) {
             .onFailure { Diag.warn(WorkAppsQuiet.TAG, "dewidebug workapps notice \"$title\" could not be posted", it) }
             .isSuccess
         Diag.log(WorkAppsQuiet.TAG, "dewidebug workapps told the person \"$title\": $text [posted=$posted]")
+        return if (posted) null else "the notice could not be posted"
     }
 
     private companion object {

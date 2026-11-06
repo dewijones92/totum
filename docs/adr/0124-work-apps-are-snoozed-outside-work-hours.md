@@ -53,7 +53,8 @@ app, with one start and end for all days.
 
 - A split second of sound can still leak before the snooze; the page says to turn those apps' own sound off.
 - Snoozed notifications return at the window start, all at once; the status line says when.
-- Notifications already in the shade at 17:30, and ones snoozed before a pause began, are not touched.
+- Notifications already in the shade at 17:30 are not touched. Ones snoozed before a pause began are handed back
+  (amended below).
 - The manifest gains one service (`BIND_NOTIFICATION_LISTENER_SERVICE`) and one activity; no new `uses-permission`.
   The launcher-intent `<queries>` already present is what makes the app picker and the board's app names work.
 - Unverified until a phone run: that the sub-text shows on the Android 16 promoted board, and whether the restricted
@@ -91,3 +92,20 @@ emoji stands in.
 
 Consequences: a notification arrives late if the phone was off at a boundary (it is sent when the state is next read
 and says the state then). Unverified until a phone run, as before.
+
+## Amendment 2026-11-06: findings from the use-case sweep
+
+- **An app that stops being quiet gets back what was snoozed.** `WorkAppsQuiet` works out which chosen apps are quiet
+  now (the same `decide` a posted notification gets) and, on every settings edit and every boundary tick, emits
+  `quietEnded` for the apps that were quiet and no longer are (a pause, a group or the switch turned off, an app or a
+  group removed, hours starting). The listener hands back what it snoozed for them. Android's public listener API has no
+  unsnooze (`snoozeNotification` and `getSnoozedNotifications` only), so it re-snoozes each key for one second and logs
+  how many were still snoozed 5 s later. The keys it snoozed are kept in their own prefs file so the listener never
+  touches a snooze the person made, and it also reconciles when it connects. Unverified on a phone: that the platform
+  accepts a re-snooze of an already snoozed key.
+- **An edit announces only what the edit did not change.** The edit runs the boundary check with the edited groups
+  silent (or all of them when the switch moved), instead of remembering every group's new state and losing a boundary
+  an untouched group had crossed.
+- **A change notice that cannot be shown is recorded.** Without POST_NOTIFICATIONS the notice is not retried (the
+  change stays consumed, so no retry storm), but it is counted and logged with its reason (`notifications not allowed`)
+  and carried in reports (`workApps.noticesNotShown`, `.lastNoticeNotShown`).
