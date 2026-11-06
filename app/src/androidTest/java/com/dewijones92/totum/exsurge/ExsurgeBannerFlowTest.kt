@@ -4,8 +4,8 @@ import android.Manifest
 import android.app.Notification
 import android.app.NotificationManager
 import android.content.Intent
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
-import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ApplicationProvider
@@ -13,6 +13,7 @@ import androidx.test.ext.junit.rules.ActivityScenarioRule
 import androidx.test.platform.app.InstrumentationRegistry
 import com.dewijones92.totum.MainActivity
 import com.dewijones92.totum.TotumApplication
+import com.dewijones92.totum.ui.waitForNode
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -123,7 +124,7 @@ class ExsurgeBannerFlowTest {
 
     private fun restartClockFromTheBanner() {
         action("Restart clock").actionIntent.send()
-        compose.waitUntil(WAIT_MS) { compose.onAllNodesWithTag(RESTART_OK).fetchSemanticsNodes().isNotEmpty() }
+        compose.waitForNode(hasTestTag(RESTART_OK), WAIT_MS)
         compose.onNodeWithTag(RESTART_OK).performClick()
     }
 
