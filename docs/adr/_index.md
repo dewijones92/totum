@@ -148,3 +148,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 129 | [Periodic jobs remember their last run, and mobile data is counted from the app's own byte counters](0129-periodic-jobs-remember-their-last-run-and-data-is-counted-from-the-uid.md) | Accepted |
 | 132 | [The live tag is read from one registry and kept true](0132-the-live-tag-is-read-from-one-registry-and-kept-true.md) | Accepted |
 | 128 | [Undo, already-queued prompts and not-for-me share one snackbar and one queue seam](0128-undo-already-queued-and-not-for-me-share-the-queue-entry-seam.md) | Accepted |
+| 131 | [Bedtime arms the one sleep timer, and every sleep timer fades out](0131-bedtime-arms-the-sleep-timer-and-every-sleep-timer-fades.md) | Accepted |

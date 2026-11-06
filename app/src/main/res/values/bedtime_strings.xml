@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="bedtime_name">🌙 Bedtime sleep timer</string>
+    <string name="bedtime_intro">After bedtime, whatever you start playing stops when it ends and fades out, so you can drift off without setting a timer. It is the ordinary sleep timer, armed for you. Cancel it from the sleep timer button to keep listening for the rest of that night.</string>
+    <string name="bedtime_status_title">Status</string>
+    <string name="bedtime_switch">Arm the sleep timer at bedtime</string>
+    <string name="bedtime_switch_summary">Stop after the current item once bedtime has begun</string>
+    <string name="bedtime_status_off">💤 Bedtime timer is off</string>
+    <string name="bedtime_status_upcoming">🌙 Bedtime starts at %1$s</string>
+    <string name="bedtime_status_waiting">🌙 It is bedtime until %1$s: what you play next will stop when it ends</string>
+    <string name="bedtime_status_armed">😴 Stopping after this item, then fading out (bedtime until %1$s)</string>
+    <string name="bedtime_status_declined">🙅 Turned off for tonight (bedtime until %1$s)</string>
+    <string name="bedtime_when_title">When</string>
+    <string name="bedtime_when_hint">🌙 A night is the evening it starts: Friday covers Friday evening to Saturday morning.</string>
+    <string name="bedtime_starts">Bedtime starts</string>
+    <string name="bedtime_wakes">Bedtime ends</string>
+    <string name="bedtime_nights">Nights</string>
+    <string name="bedtime_start_title">Bedtime starts</string>
+    <string name="bedtime_wake_title">Bedtime ends</string>
+    <string name="bedtime_fade_title">Fade out</string>
+    <string name="bedtime_fade_hint">🔉 Every sleep timer fades the sound over its last moments before it stops.</string>
+    <string name="bedtime_fade_label">Fade length</string>
+    <string name="bedtime_fade_off">🔊 No fade</string>
+    <plurals name="bedtime_fade_seconds">
+        <item quantity="one">🔉 %d second</item>
+        <item quantity="other">🔉 %d seconds</item>
+    </plurals>
+    <string name="bedtime_menu_settings">🌙 Bedtime settings</string>
+</resources>

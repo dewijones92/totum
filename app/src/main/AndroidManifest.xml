@@ -147,6 +147,13 @@
             android:label="@string/work_apps_name"
             android:theme="@style/Theme.Totum" />
         <activity
+            android:name=".bedtime.BedtimeActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:taskAffinity="com.dewijones92.totum.bedtime.screen"
+            android:label="@string/bedtime_name"
+            android:theme="@style/Theme.Totum" />
+        <activity
             android:name=".dailyalarms.QuestionActivity"
             android:exported="false"
             android:excludeFromRecents="true"

@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dewijones92.totum.R
+import com.dewijones92.totum.bedtime.BedtimeScreen
 import com.dewijones92.totum.dailyalarms.DailyAlarmsScreen
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.diagnostics.diagnosticsNote
@@ -98,6 +99,8 @@ fun SettingsScreen(container: AppContainer, onBack: () -> Unit, modifier: Modifi
                 DailyAlarmsScreen(container.dailyAlarms, onBack = close, modifier = modifier)
             SettingsSubPage.WORK_APPS ->
                 WorkAppsQuietScreen(container.workApps, onBack = close, modifier = modifier)
+            SettingsSubPage.BEDTIME ->
+                BedtimeScreen(container.bedtime, onBack = close, modifier = modifier)
             SettingsSubPage.DIAGNOSTICS -> DiagnosticsScreen(onBack = close, modifier = modifier)
             SettingsSubPage.NOT_FOR_ME -> NotForMeScreen(container.notForMe, onBack = close, modifier = modifier)
         }
@@ -118,30 +121,7 @@ private fun MainSettings(
         SkipSilenceSection(container, settings.silenceMode, prefs::setSilenceMode)
         SpeechBoostSection(container, settings.speechGate, prefs::setSpeechGate)
         DownloadSettings(settings, prefs)
-        AnchoredRow(SettingsRow.EXSURGE) {
-            NavRow(
-                label = stringResource(R.string.exsurge_settings_row),
-                onClick = { open(SettingsSubPage.EXSURGE) }
-            )
-        }
-        AnchoredRow(SettingsRow.DAILY_ALARMS) {
-            NavRow(
-                label = stringResource(R.string.dailyalarm_settings_row),
-                onClick = { open(SettingsSubPage.DAILY_ALARMS) }
-            )
-        }
-        AnchoredRow(SettingsRow.WORK_APPS) {
-            NavRow(
-                label = stringResource(R.string.work_apps_name),
-                onClick = { open(SettingsSubPage.WORK_APPS) }
-            )
-        }
-        AnchoredRow(SettingsRow.NOT_FOR_ME) {
-            NavRow(
-                label = stringResource(R.string.not_for_me_settings_row),
-                onClick = { open(SettingsSubPage.NOT_FOR_ME) }
-            )
-        }
+        SideQuestRows(open)
         Text(
             text = stringResource(R.string.settings_subscriptions_section),
             style = MaterialTheme.typography.titleMedium,
@@ -182,6 +162,40 @@ private fun MainSettings(
         AnchoredRow(
             SettingsRow.DRIVE_BACKUP
         ) { DriveBackupRow(container.driveBackup, container.operations, container.lastRuns) }
+    }
+}
+
+@Composable
+private fun SideQuestRows(open: (SettingsSubPage?) -> Unit) {
+    AnchoredRow(SettingsRow.EXSURGE) {
+        NavRow(
+            label = stringResource(R.string.exsurge_settings_row),
+            onClick = { open(SettingsSubPage.EXSURGE) }
+        )
+    }
+    AnchoredRow(SettingsRow.DAILY_ALARMS) {
+        NavRow(
+            label = stringResource(R.string.dailyalarm_settings_row),
+            onClick = { open(SettingsSubPage.DAILY_ALARMS) }
+        )
+    }
+    AnchoredRow(SettingsRow.WORK_APPS) {
+        NavRow(
+            label = stringResource(R.string.work_apps_name),
+            onClick = { open(SettingsSubPage.WORK_APPS) }
+        )
+    }
+    AnchoredRow(SettingsRow.BEDTIME) {
+        NavRow(
+            label = stringResource(R.string.bedtime_name),
+            onClick = { open(SettingsSubPage.BEDTIME) }
+        )
+    }
+    AnchoredRow(SettingsRow.NOT_FOR_ME) {
+        NavRow(
+            label = stringResource(R.string.not_for_me_settings_row),
+            onClick = { open(SettingsSubPage.NOT_FOR_ME) }
+        )
     }
 }
 

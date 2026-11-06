@@ -46,6 +46,7 @@ alone until they need more.
 | Audiobooks: free books (LibriVox, Internet Archive) and audiobook torrents, chapters in order with resume | search | shipped | [audiobooks.md](audiobooks.md) |
 | [Daily alarms](daily-alarms.md) — asked each weekday morning, rung full screen (pickup 17:30 first) | side-quest | built 2026-10-07, ships off | — |
 | 🔕 Work apps quiet hours: groups of apps (Work: Slack, Outlook, Teams; others) each snoozed outside their own hours, one status line on the alarm board, a notification at each change | side-quest | built 2026-11-06 (groups and change notifications too), ships off, tests owed | [work-apps-quiet-hours.md](work-apps-quiet-hours.md) |
+| 🌙 Bedtime sleep timer: the sleep timer arms itself at night (stop after the current item), and every sleep timer fades out | player | built 2026-11-06, ships off, tests owed (ADR 131) | [bedtime-sleep-timer.md](bedtime-sleep-timer.md) |
 | Downloads (video merge, sponsors skipped live from the latest list (ADR 16) / podcast enclosure) | downloads | shipped | — |
 | Comments, related, like/dislike, Watch Later, subscribe | video | shipped | — |
 | Playlists (account) | video | shipped | — |

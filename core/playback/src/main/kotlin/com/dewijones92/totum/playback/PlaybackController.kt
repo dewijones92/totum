@@ -123,6 +123,8 @@ public interface PlaybackController {
 
     public fun setCastVolume(fraction: Float)
 
+    public fun setFadeLevel(level: Float)
+
     /** Toggles skipping of near-silent stretches (trims dead air, podcast-style). */
     public fun setSkipSilence(enabled: Boolean)
 

@@ -3,7 +3,15 @@ package com.dewijones92.totum.ui.settings
 import androidx.annotation.StringRes
 import com.dewijones92.totum.R
 
-internal enum class SettingsSubPage { IMPORT_EXPORT, EXSURGE, DAILY_ALARMS, WORK_APPS, DIAGNOSTICS, NOT_FOR_ME }
+internal enum class SettingsSubPage {
+    IMPORT_EXPORT,
+    EXSURGE,
+    DAILY_ALARMS,
+    WORK_APPS,
+    BEDTIME,
+    DIAGNOSTICS,
+    NOT_FOR_ME,
+}
 
 internal enum class SettingsRow(
     @StringRes val label: Int,
@@ -140,6 +148,13 @@ internal enum class SettingsRow(
         R.string.work_apps_intro,
         "slack outlook teams quiet notifications work hours snooze",
         SettingsSubPage.WORK_APPS,
+    ),
+    BEDTIME(
+        R.string.bedtime_name,
+        R.string.bedtime_name,
+        R.string.bedtime_intro,
+        "sleep timer night fade stop after item wake",
+        SettingsSubPage.BEDTIME,
     ),
     NOT_FOR_ME(
         R.string.not_for_me_settings_row,

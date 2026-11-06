@@ -267,6 +267,12 @@ public class FakePlaybackController(override val player: Player? = null) : Playb
         _state.update { it?.copy(speed = speed) }
     }
 
+    public val fadeLevels: MutableList<Float> = mutableListOf()
+
+    override fun setFadeLevel(level: Float) {
+        fadeLevels += level
+    }
+
     public var castVolumeAsked: Float? = null
 
     override fun setCastVolume(fraction: Float) {

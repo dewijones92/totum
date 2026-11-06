@@ -14,9 +14,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import com.dewijones92.totum.R
+import com.dewijones92.totum.bedtime.BedtimeActivity
 import com.dewijones92.totum.playback.SleepTimerState
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
@@ -35,6 +37,7 @@ internal fun SleepTimerControl(
     modifier: Modifier = Modifier,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
+    val context = LocalContext.current
     val armed = state != SleepTimerState.Off
     val value = when (state) {
         SleepTimerState.Off -> stringResource(R.string.control_off)
@@ -86,6 +89,13 @@ internal fun SleepTimerControl(
                     },
                 )
             }
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.bedtime_menu_settings)) },
+                onClick = {
+                    context.startActivity(BedtimeActivity.intent(context, "sleep timer menu"))
+                    menuOpen = false
+                },
+            )
         }
     }
 }

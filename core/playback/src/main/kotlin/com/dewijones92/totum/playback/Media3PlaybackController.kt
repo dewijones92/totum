@@ -617,6 +617,12 @@ public class Media3PlaybackController(
         }
     }
 
+    override fun setFadeLevel(level: Float) {
+        withController {
+            it.volume = level.coerceIn(0f, 1f)
+        }
+    }
+
     override fun setCastVolume(fraction: Float) {
         withController { controller ->
             val remote = controller.deviceInfo.playbackType == DeviceInfo.PLAYBACK_TYPE_REMOTE

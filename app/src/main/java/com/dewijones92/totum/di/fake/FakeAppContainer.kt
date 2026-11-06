@@ -2,6 +2,8 @@ package com.dewijones92.totum.di.fake
 
 import com.dewijones92.totum.audiobooks.BookPlayer
 import com.dewijones92.totum.backup.BackupService
+import com.dewijones92.totum.bedtime.Bedtime
+import com.dewijones92.totum.bedtime.InMemoryBedtimeStore
 import com.dewijones92.totum.common.Page
 import com.dewijones92.totum.dailyalarms.DailyAlarmController
 import com.dewijones92.totum.dailyalarms.InMemoryDailyAlarmStore
@@ -217,6 +219,13 @@ class FakeAppContainer(
     override val videoPlaybackLauncher: VideoPlaybackLauncher =
         VideoPlaybackLauncher(videoResolver, playbackController, FakeYouTubeWatchHistory(), playHistoryStore),
     override val sleepTimer: SleepTimer = SleepTimer(playbackController, CoroutineScope(SupervisorJob())),
+    override val bedtime: Bedtime = Bedtime(
+        InMemoryBedtimeStore(),
+        sleepTimer,
+        playbackController.state,
+        kidLocked = { false },
+        scope = CoroutineScope(SupervisorJob()),
+    ),
     override val groupNews: GroupNews = GroupNews(
         InMemoryGroupNewsStore(),
         latest = { null },

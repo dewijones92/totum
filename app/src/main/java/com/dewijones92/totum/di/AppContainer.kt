@@ -11,6 +11,8 @@ import com.dewijones92.totum.backup.asBackupSettings
 import com.dewijones92.totum.backup.drive.DriveBackup
 import com.dewijones92.totum.backup.drive.driveBackupFor
 import com.dewijones92.totum.backup.drive.startDriveBackups
+import com.dewijones92.totum.bedtime.Bedtime
+import com.dewijones92.totum.bedtime.SharedPrefsBedtimeStore
 import com.dewijones92.totum.busy.BusyInterceptor
 import com.dewijones92.totum.busy.BusyYtDlpEngine
 import com.dewijones92.totum.cast.CastTarget
@@ -431,6 +433,7 @@ interface AppContainer {
 
     /** Sleep timer that pauses playback after a chosen delay. */
     val sleepTimer: SleepTimer
+    val bedtime: Bedtime
 
     val exsurge: ExsurgeController
     val dailyAlarms: DailyAlarmController
@@ -1062,7 +1065,17 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     private val streamChoices by lazy { StreamChoices(::deviceLanguages) }
 
     override val sleepTimer: SleepTimer by lazy {
-        SleepTimer(playbackController, applicationScope)
+        SleepTimer(playbackController, applicationScope, fade = { bedtime.fade })
+    }
+
+    override val bedtime: Bedtime by lazy {
+        Bedtime(
+            SharedPrefsBedtimeStore(context),
+            sleepTimer,
+            playbackController.state,
+            kidLocked = { kidLock.locked.value },
+            scope = applicationScope,
+        )
     }
 
     override val exsurge: ExsurgeController by lazy {
@@ -1304,7 +1317,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                 isMetered = networkStatus::isMetered,
                 exsurge = {
                     exsurge.diagnostics + ExsurgeLiveUpdate.diagnostics(context) + dailyAlarms.diagnostics +
-                        workApps.diagnostics
+                        workApps.diagnostics + bedtime.diagnostics
                 },
                 appUpdate = { appUpdate.diagnostics() + appInstaller.diagnostics() + whatsNew.diagnostics() },
                 polite = { polite.diagnostics() + ("explore.on" to exploreMode.on.value.toString()) },
@@ -1345,6 +1358,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         startHomeAhead(this)
         trail.start()
         KidMode(kidLock, playbackController, applicationScope).start()
+        bedtime.start()
         startActiveModes(this)
         startPlaybackContext(this)
     }
