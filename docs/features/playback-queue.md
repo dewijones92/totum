@@ -3,7 +3,7 @@ title: Playback queue
 kind: feature
 area: playback
 status: shipped
-updated: 2026-10-31
+updated: 2026-11-06
 ---
 
 # Playback queue
@@ -215,3 +215,8 @@ Media keys, the notification and the app's ⏭/⏮ all go through `QueueSkips`, 
 than waiting for the previous item's lookup; the newest-play guards mean only the last press plays. Media-key skips used
 to run one at a time, so a burst of ⏭ marched through the queue one video every ~17 s with "Now playing" a step ahead
 of the player ([todo](../todos/now-playing-drifts-after-quick-skips.md)).
+
+## Repeat one and the Shorts reel (2026-11-06)
+
+Opening the Shorts reel switches "🔁 This one" off and says so, like starting an album or a group
+(`PlaybackQueue.playAll(endsRepeatOne = …)`; the reel is still not "by you" for the listen offers). Once per opening.

@@ -2,7 +2,7 @@
 title: Consistent everywhere, with its exceptions recorded
 kind: adr
 status: accepted
-updated: 2026-11-01
+updated: 2026-11-06
 ---
 
 # 108. Consistent everywhere, with its exceptions recorded
@@ -86,6 +86,11 @@ Decided, not yet built (next consistency batch):
   covers today and which must not fill the strip.
 - The audit's remaining items: stored queue/history rows lose show notes and chapters (a schema bump); private page
   spinners into the strip; six empty-state looks; three search-field designs.
+
+Consistency sweep, 2026-11-06 (done): one download wording on the strip and the Pi notices; the leftover "at home"
+words say "the Pi"; a bulk delete says "Delete from both" when a Pi copy exists; the episode picker names the codec; a
+reopened channel refreshes Shorts and Playlists by the Videos rule; the retired-token scrub covers channel-latest,
+cached feed and podcast episode rows; the Shorts reel switches Repeat one off like any other run (Dewi's decision).
 
 ## Consequences
 

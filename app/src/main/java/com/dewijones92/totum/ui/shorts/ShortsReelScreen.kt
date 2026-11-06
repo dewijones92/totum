@@ -139,14 +139,19 @@ private fun ReelQueueBinding(
     queue: PlaybackQueue,
     runTitle: String,
 ) {
+    var opening by remember { mutableStateOf(true) }
     LaunchedEffect(shorts) {
+        val run = shorts.mapNotNull { short ->
+            short.mediaUrl?.let { PlayableItem(short, PlayHandle.Video(it)) }
+        }
+        if (run.isEmpty()) return@LaunchedEffect
         queue.playAll(
-            shorts.mapNotNull { short ->
-                short.mediaUrl?.let { PlayableItem(short, PlayHandle.Video(it)) }
-            },
+            run,
             QueueGroup(id = "shorts:${shorts.firstOrNull()?.id?.value.orEmpty()}", title = runTitle),
             byYou = false,
+            endsRepeatOne = opening,
         )
+        opening = false
     }
 
     // A Shorts reel is inherently visual: show the picture even in audio mode, for these

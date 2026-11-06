@@ -339,9 +339,10 @@ class PlaybackQueue(
         group: QueueGroup? = null,
         byYou: Boolean = true,
         startAt: MediaItemId? = null,
+        endsRepeatOne: Boolean = byYou,
     ) {
         if (items.isEmpty()) return
-        if (group != null && byYou && repeatOneOffForRun(group.title)) {
+        if (group != null && endsRepeatOne && repeatOneOffForRun(group.title)) {
             _notices.tryEmit(QueueNotice.RepeatOneOff(group.title))
         }
         // Distinct within the run as well as against the queue: a caller can legitimately hand

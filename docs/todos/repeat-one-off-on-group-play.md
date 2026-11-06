@@ -19,9 +19,15 @@ state block.
 
 `RepeatOneRule` and `QueueNotice` (`app/…/queue/RepeatOneRule.kt`), the rule inside `PlaybackQueue.playAll` for a run of
 a group started by you, the toast in `ui/common/QueueNoticeToasts.kt`, and ADR 27's amendment. Shorts-reel re-binds
-(`byYou = false`) and the kid lock are left alone. The diagnostics state block already carried both `settings.repeatMode`
+(`byYou = false`, brought in by the sweep below) and the kid lock were left alone. The diagnostics state block already carried both `settings.repeatMode`
 and `playback.repeatNow`, so nothing was added there; the rule logs each decision under `[queue]`.
 
 Tests owed (testing stretch): `RepeatOneRuleTest` (ONE becomes OFF and says so; other modes and kid lock untouched);
 `PlaybackQueueTest`: `playAll` with a group and `byYou` switches it off and emits the notice, with no group or
 `byYou = false` does not (red against the old queue, where repeat stayed ONE); album and artist shuffle end to end.
+
+Consistency sweep 2026-11-06 (Dewi's decision): the Shorts reel is a run too. `PlaybackQueue.playAll` has its own
+`endsRepeatOne` flag (defaulting to `byYou`), so the reel, which stays "not by you" for the listen offers, still
+switches "This one" off and says so when it opens; it does so once per opening, not each time more shorts load, so
+choosing repeat-one while watching the reel is respected. Tests owed: `playAll` with `byYou = false, endsRepeatOne = true`
+switches it off and emits the notice.

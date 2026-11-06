@@ -86,9 +86,10 @@ Report 20261106T084701 (Pixel 4a): an album shuffle played its first track four 
 on from before. Repeat one is right for the song you are on and wrong the moment you ask for a whole album, channel,
 playlist or group. So `PlaybackQueue.playAll` (the one entry every run goes through: album, artist and channel
 shuffles, `ShuffleAll`, pins, playlists, search torrents, radio) switches "This one" to Off when it starts a run **of a
-group**, in a run **you** asked for (`byYou`, so the Shorts reel that re-binds itself does not), through
+group**, in a run **you** asked for (`byYou`; the Shorts reel, which re-binds itself, joined it on 2026-11-06 through its own flag, below), through
 `RepeatOneRule` (`queue/RepeatOneRule.kt`), and the queue emits a `QueueNotice.RepeatOneOff` that
 `QueueNoticeToasts` shows as "🔁 Repeat one is off for “<group>”, so it can play on". Repeat queue and repeat group
 stay as they were. Under the kid lock the rule leaves the chosen mode alone, because the lock sets repeat itself
 (`KidRules.repeat`) and saying "off" there would be false. A single tapped item (`playNow`) and a run with no group
-(history replay) are not runs and keep Repeat one. Every decision is logged under `[queue]`.
+(history replay) are not runs and keep Repeat one. The Shorts reel is a run too (2026-11-06, Dewi): it passes its own
+`endsRepeatOne` flag while staying "not by you" for the listen offers, once per opening. Every decision is logged under `[queue]`.
