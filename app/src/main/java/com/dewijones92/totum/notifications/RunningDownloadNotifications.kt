@@ -55,7 +55,7 @@ internal class RunningDownloadNotifications(
 
     private fun sizeText(download: RunningDownload): String {
         val soFar = formatBytes(download.downloadedBytes)
-        val total = download.totalBytes ?: return context.getString(R.string.download_bytes_soFar, soFar)
+        val total = download.totalBytes ?: return context.getString(R.string.download_bytes_so_far, soFar)
         return context.getString(R.string.download_bytes_of, soFar, formatBytes(total))
     }
 
