@@ -209,28 +209,36 @@ class PlaybackQueueTest {
     }
 
     @Test
-    fun `play next moves an already-queued item instead of duplicating it`() = runTest(dispatcher) {
-        val q = queue()
-        q.enqueue(podcast("a"))
-        q.enqueue(podcast("b"))
-        q.enqueue(podcast("c"))
+    fun `play next on an already-queued item leaves it where it is and moving it up is a separate step`() =
+        runTest(dispatcher) {
+            val q = queue()
+            q.enqueue(podcast("a"))
+            q.enqueue(podcast("b"))
+            q.enqueue(podcast("c"))
 
-        q.playNext(podcast("c"))
-        advanceUntilIdle()
+            val added = q.playNext(podcast("c"))
+            advanceUntilIdle()
 
-        assertEquals(listOf("c", "a", "b"), q.state.value.entries.map { it.item.item.id.value })
-    }
+            assertEquals(false, added)
+            assertEquals(listOf("a", "b", "c"), q.state.value.entries.map { it.item.item.id.value })
+
+            q.moveUp(podcast("c"))
+            advanceUntilIdle()
+
+            assertEquals(listOf("c", "a", "b"), q.state.value.entries.map { it.item.item.id.value })
+        }
 
     @Test
-    fun `add to queue moves an already-queued item to the end`() = runTest(dispatcher) {
+    fun `add to queue on an already-queued item leaves it where it is`() = runTest(dispatcher) {
         val q = queue()
         q.enqueue(podcast("a"))
         q.enqueue(podcast("b"))
 
-        q.enqueue(podcast("a"))
+        val added = q.enqueue(podcast("a"))
         advanceUntilIdle()
 
-        assertEquals(listOf("b", "a"), q.state.value.entries.map { it.item.item.id.value })
+        assertEquals(false, added)
+        assertEquals(listOf("a", "b"), q.state.value.entries.map { it.item.item.id.value })
     }
 
     /**

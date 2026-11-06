@@ -44,6 +44,22 @@ class QueueBulkEditsTest {
         clock = { 1_000L },
     )
 
+    private fun PlaybackQueue.dropCopyOf(item: PlayableItem) {
+        state.value.entries.firstOrNull { it.item.item.id == item.item.id }
+            ?.takeIf { state.value.current?.item?.item?.id != item.item.id }
+            ?.let(::remove)
+    }
+
+    private fun PlaybackQueue.enqueueMoving(item: PlayableItem, group: QueueGroup?) {
+        dropCopyOf(item)
+        enqueue(item, group)
+    }
+
+    private fun PlaybackQueue.playNextMoving(item: PlayableItem) {
+        dropCopyOf(item)
+        playNext(item)
+    }
+
     @Test
     fun `bulk add and bulk play next land exactly where adding one at a time would`() = runTest(dispatcher) {
         val random = kotlin.random.Random(7)
@@ -59,13 +75,17 @@ class QueueBulkEditsTest {
             advanceUntilIdle()
             if (random.nextBoolean()) {
                 bulk.enqueueAll(batch, group)
-                batch.forEach { single.enqueue(it, group) }
+                batch.forEach { single.enqueueMoving(it, group) }
             } else {
                 bulk.playNextAll(batch)
-                batch.asReversed().forEach { single.playNext(it) }
+                batch.asReversed().forEach { single.playNextMoving(it) }
             }
             advanceUntilIdle()
-            assertEquals("round $round: $seed then $batch", single.state.value.entries, bulk.state.value.entries)
+            assertEquals(
+                "round $round: $seed then $batch",
+                single.state.value.entries.map { it.copy(addedAt = null) },
+                bulk.state.value.entries.map { it.copy(addedAt = null) },
+            )
             assertEquals("round $round cursor", single.state.value.currentIndex, bulk.state.value.currentIndex)
         }
     }

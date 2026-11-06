@@ -230,38 +230,98 @@ class PlaybackQueue(
         }.launchIn(scope)
     }
 
-    /** Adds to the end of the queue, moving it there if it is already queued. */
-    fun enqueue(item: PlayableItem, group: QueueGroup? = null) {
-        mutate("add-to-end") { snapshot ->
-            snapshot.relocating(item) { without, kept ->
-                without.copy(entries = without.entries + QueueEntry(kept, group))
+    /** Adds to the end of the queue, unless it is already queued: then it says so ([QueueNotice.AlreadyQueued]). */
+    fun enqueue(item: PlayableItem, group: QueueGroup? = null): Boolean =
+        addingUnlessQueued("add-to-end", item) { snapshot, kept ->
+            snapshot.copy(entries = snapshot.entries + QueueEntry(kept, group))
+        }
+
+    /** Inserts so it plays immediately after the current entry, unless it is already queued: then it says so. */
+    fun playNext(item: PlayableItem, group: QueueGroup? = null): Boolean =
+        addingUnlessQueued("play-next", item) { snapshot, kept ->
+            snapshot.inserted(listOf(QueueEntry(kept, group)))
+        }
+
+    fun moveUp(item: PlayableItem): Boolean {
+        var moved = false
+        mutate("move-up") { snapshot ->
+            val old = snapshot.entries.firstOrNull { it.item.item.id == item.item.id }
+            if (old == null) {
+                Diag.log("queue", "dewidebug move-up: ${item.item.id.value} has left the queue, nothing moved")
+                snapshot
+            } else {
+                moved = snapshot.current?.item?.item?.id != item.item.id
+                snapshot.relocating(item) { without, kept -> without.inserted(listOf(QueueEntry(kept, old.group))) }
             }
         }
-        mirroring.mirror(item)
+        return moved
     }
 
-    /** Inserts so it plays immediately after the current entry, moving it if already queued. */
-    fun playNext(item: PlayableItem, group: QueueGroup? = null) {
-        mutate("play-next") { snapshot ->
-            snapshot.relocating(item) { without, kept ->
-                without.inserted(listOf(QueueEntry(kept, group)))
+    private fun addingUnlessQueued(
+        why: String,
+        item: PlayableItem,
+        place: (QueueSnapshot, PlayableItem) -> QueueSnapshot,
+    ): Boolean {
+        var notice: QueueNotice.AlreadyQueued? = null
+        mutate(why) { snapshot ->
+            val at = snapshot.entries.indexOfFirst { it.item.item.id == item.item.id }
+            if (at < 0) {
+                notice = null
+                place(snapshot, item)
+            } else {
+                notice = QueueNotice.AlreadyQueued(
+                    item = item,
+                    position = at + 1,
+                    playing = at == snapshot.currentIndex,
+                    next = at == snapshot.currentIndex + 1,
+                )
+                if (at == snapshot.currentIndex) snapshot.adoptingRoutesFrom(listOf(item)) else snapshot
             }
         }
-        mirroring.mirror(item)
+        val already = notice
+        if (already == null) {
+            mirroring.mirror(item)
+            return true
+        }
+        Diag.log(
+            "queue",
+            "dewidebug $why of ${item.item.id.value} not done: already queued at #${already.position} " +
+                "(playing=${already.playing} next=${already.next}); asking whether to move it up",
+        )
+        _notices.tryEmit(already)
+        return false
+    }
+
+    private fun noteAlreadyQueued(incoming: List<PlayableItem>, why: String) {
+        val queued = _state.value.entries.mapTo(HashSet()) { it.item.item.id }
+        val count = incoming.map { it.item.id }.distinct().count { it in queued }
+        if (count == 0) return
+        Diag.log(
+            "queue",
+            "dewidebug $why: $count of ${incoming.size} already queued, kept as the queue's own rule has it"
+        )
+        _notices.tryEmit(QueueNotice.SomeAlreadyQueued(count))
     }
 
     fun enqueueAll(items: List<PlayableItem>, group: QueueGroup? = null) {
         if (items.isEmpty()) return Diag.log("queue", "add-to-end of nothing: queue left untouched")
         val label = group?.let { " as \"${it.title}\"" }.orEmpty()
+        noteAlreadyQueued(items, "add-to-end x${items.size}$label")
         mutate("add-to-end x${items.size}$label") { it.appendingAll(items, group) }
         mirroring.mirrorAll(items)
     }
 
     fun shuffleUpNext(random: Random = Random.Default) = mutate("shuffle up next") { it.shuffledAfterCurrent(random) }
 
-    fun addToGroup(group: QueueGroup, items: List<PlayableItem>, spot: GroupSpot = GroupSpot.END): Int {
+    fun addToGroup(
+        group: QueueGroup,
+        items: List<PlayableItem>,
+        spot: GroupSpot = GroupSpot.END,
+        byYou: Boolean = true,
+    ): Int {
         val queued = _state.value.entries.mapTo(mutableSetOf()) { it.item.item.id }
         val fresh = items.distinctBy { it.item.id }.filterNot { it.item.id in queued }
+        if (byYou) noteAlreadyQueued(items, "add to \"${group.title}\" ($spot)")
         if (fresh.isEmpty()) {
             Diag.log("queue", "add to \"${group.title}\" ($spot): all ${items.size} already queued, nothing added")
             return 0
@@ -273,6 +333,7 @@ class PlaybackQueue(
     fun playNextAll(items: List<PlayableItem>, group: QueueGroup? = null) {
         if (items.isEmpty()) return Diag.log("queue", "play-next of nothing: queue left untouched")
         val label = group?.let { " as \"${it.title}\"" }.orEmpty()
+        noteAlreadyQueued(items, "play-next x${items.size}$label")
         mutate("play-next x${items.size}$label") { snapshot ->
             if (snapshot.anchor != null && items.any { it.item.id == snapshot.anchor }) {
                 items.asReversed().fold(snapshot) { acc, item ->
@@ -350,6 +411,12 @@ class PlaybackQueue(
         // shorts reel hands over the whole run again every time.
         val run = items.distinctBy { it.item.id }
         val ids = run.map { it.item.id }.toSet()
+        if (byYou) {
+            noteAlreadyQueued(
+                run.filterNot { it.item.id == _state.value.current?.item?.item?.id },
+                "play-all(${run.size})"
+            )
+        }
         val start = run.firstOrNull { it.item.id == startAt } ?: run.first()
         var index = NOTHING_PLAYING
         mutate("play-all(${run.size})") { snapshot ->

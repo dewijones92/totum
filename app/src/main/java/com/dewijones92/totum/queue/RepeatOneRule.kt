@@ -1,11 +1,21 @@
 package com.dewijones92.totum.queue
 
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.settings.RepeatMode
 
 sealed interface QueueNotice {
     data class RepeatOneOff(val groupTitle: String) : QueueNotice
     data class CarriedOn(val positionMs: Long) : QueueNotice
+    data class AlreadyQueued(
+        val item: PlayableItem,
+        val position: Int,
+        val playing: Boolean,
+        val next: Boolean,
+    ) : QueueNotice {
+        val canMoveUp: Boolean get() = !playing && !next
+    }
+    data class SomeAlreadyQueued(val count: Int) : QueueNotice
 }
 
 class RepeatOneRule(

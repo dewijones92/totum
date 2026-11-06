@@ -61,7 +61,7 @@ class QueueForUploads(private val queue: PlaybackQueue) : UploadsQueue {
         group: QueueGroup,
         items: List<PlayableItem>,
         spot: GroupSpot
-    ): Int = queue.addToGroup(group, items, spot)
+    ): Int = queue.addToGroup(group, items, spot, byYou = false)
 }
 
 class FileUploadsStore(private val file: File) : UploadsStore {

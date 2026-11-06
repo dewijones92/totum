@@ -229,3 +229,16 @@ back, and shows the Undo on a `SnackbarOffers`. The shell hosts one snackbar for
 (`LocalSnackbarOffers`); the Queue tab and the alarms page keep their own host and pass it in, because both are tested on
 their own. The same helper serves the alarms page, Ask's earlier chats and the downloads below. A group delete keeps its
 hold to confirm.
+
+## Adding something already queued asks first (2026-11-06)
+
+`PlaybackQueue.enqueue` and `playNext` read the queue before changing it. An item already queued is **not** moved:
+the queue leaves it where it is and emits `QueueNotice.AlreadyQueued` (position `#N`, whether it is playing or next).
+The one shared piece, `QueueNoticeToasts` (in the shell), turns that into "already queued at #N. Move it up?" on the
+shell snackbar with a **Move up** action (`PlaybackQueue.moveUp`: to play next, keeping the entry's group); "already
+playing" and "already next" are plain toasts with nothing to move. Callers (row menus, the podcast screens) do nothing:
+they call the same two methods. The playing entry still adopts a better route from the new copy.
+
+Bulk adds (`enqueueAll`, `playNextAll`, play-all, `addToGroup`) keep their dedup and say `N already queued` once
+(`QueueNotice.SomeAlreadyQueued`). `addToGroup` and play-all say it only for a person's request (`byYou`); the new-uploads
+check and radio top-ups pass `byYou = false`, so a background check never toasts.

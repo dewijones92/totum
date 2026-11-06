@@ -196,7 +196,7 @@ class MusicRadio(
         }
         val fresh = batch.songs.filterNot { it.videoId in from.offered }
         val source = MusicSources.radio(from.seed.playlistId)
-        val added = queue.addToGroup(from.group, fresh.map { it.toPlayable(source) })
+        val added = queue.addToGroup(from.group, fresh.map { it.toPlayable(source) }, byYou = false)
         val updated = from.copy(
             continuation = batch.continuation,
             offered = from.offered + batch.songs.map { it.videoId }
