@@ -18,7 +18,9 @@ Dewi, 2026-11-06. Tap the playing item's title in the full player, or long-press
 | `Chosen(TAP)` | ▶️ You tapped it. | `playNow`, `playAll` (the default), the queue's play-from-here |
 | `Chosen(PEEK)` | 👀 You peeked at it, so the queue kept its place. | `peek` |
 | `Chosen(LINK)` | 🔗 You opened a link to it. | a shared link |
-| `Chosen(PIN)` | 📌 You started it from a pinned shortcut. | `PinPlayer` (pinned row, home-screen shortcut) |
+| `Chosen(NOTIFICATION)` | 🔔 You played it from a notification. | the 🔔 list's rows, and the "is live" notification's Play (`MainActivity.EXTRA_FROM_NOTIFICATION`) |
+| `Chosen(SHUFFLE)` | 🔀 You started a shuffle and this was the first one picked. | shuffle all, an artist's shuffle, an album's shuffle, a queue group's "shuffle and play"; the rest of the run reads as next in its group |
+| `Chosen(PIN)` | 📌 You started it from a pinned shortcut. | `PinPlayer` (pinned row, home-screen shortcut) and the tile menu's Shuffle and "go to the song it started from" (`PinTileActions`) |
 | `Chosen(SHORTS_REEL)` | 📱 You swiped to it in the Shorts reel. | the reel's run and its swipes |
 | `Chosen(ASK_CARD)` | ✨ You picked it from an Ask card. | the Latest card |
 | `Chosen(QUEUE_ROW)` | 📋 You played it from the queue. | a queue row, the up-next list, play-instead |
@@ -46,8 +48,11 @@ keeps it too.
 ## Consistency
 
 Every way into playback names its reason: tap (every list, search, channel, podcast, playlist, history, library),
-link, pin, Shorts reel, Ask card, queue row, trail, the music/talk switch, the advance (⏭, ⏮, auto-advance, gapless),
-the repeat modes, Explore and the empty-queue fallback. `PlaybackQueue.playAt` requires a reason, so a new internal
+link, notification, pin, shuffle, Shorts reel, Ask card, queue row, trail, the music/talk switch, the advance (⏭, ⏮,
+auto-advance, gapless), the repeat modes, Explore and the empty-queue fallback. Callers that still read as a tap are
+ones where a tap is the truth (an album's or artist's Play, the history and Library rows, "play all" on a playlist,
+an audiobook's ▶️). Added 2026-11-06 (consistency sweep): the pinned tile menu said "tap" instead of pin, shuffles
+said "tap", and a notification's Play said "link". `PlaybackQueue.playAt` requires a reason, so a new internal
 caller has to choose one.
 
 ## Diagnostics
@@ -57,6 +62,8 @@ log line `dewidebug why <id> is playing: <reason>` at every start, and `dewidebu
 <full player|mini player> for <id>: <reason>` when the dialog opens.
 
 ## Tests still to write
+
+The reason set by the pinned tile menu's Shuffle and song-seed actions, by each shuffle, and by the notification paths.
 
 The reason set by each `PlaybackQueue` entry point and by `step` for a grouped, radio and New-group entry;
 `playReason` only for the current item and kept across a recovery replay; the dialog text for every reason; an

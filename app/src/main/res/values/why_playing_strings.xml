@@ -11,6 +11,8 @@
     <string name="why_chosen_queue_row">📋 You played it from the queue.</string>
     <string name="why_chosen_trail">⬅️ You went back or forward to it.</string>
     <string name="why_chosen_switch">🎵 You switched between music and talk, and it was the one you left off.</string>
+    <string name="why_chosen_shuffle">🔀 You started a shuffle and this was the first one picked.</string>
+    <string name="why_chosen_notification">🔔 You played it from a notification.</string>
     <string name="why_next_group">⏭️ Next in the %1$s group.</string>
     <string name="why_next_queue">⏭️ Next in your queue.</string>
     <string name="why_previous_group">⏮️ You went back to the one before it in the %1$s group.</string>

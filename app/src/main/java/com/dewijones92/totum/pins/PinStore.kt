@@ -8,12 +8,16 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
+data class PinSlot(val index: Int, val pin: Pin)
+
 interface PinStore {
     val pins: StateFlow<List<Pin>>
 
     fun pin(pin: Pin)
 
-    fun unpin(key: String)
+    fun unpin(key: String): PinSlot?
+
+    fun restore(slot: PinSlot)
 
     fun find(key: String): Pin? = canonicalPinKey(key).let { wanted -> pins.value.firstOrNull { it.key == wanted } }
 
@@ -30,10 +34,27 @@ open class InMemoryPinStore(initial: List<Pin> = emptyList()) : PinStore {
         saved(state.value)
     }
 
-    override fun unpin(key: String) {
+    override fun unpin(key: String): PinSlot? {
         val wanted = canonicalPinKey(key)
+        val index = state.value.indexOfFirst { it.key == wanted }
+        if (index < 0) {
+            Diag.log("pin", "unpin $key: it was not pinned, so nothing changed")
+            return null
+        }
+        val gone = state.value[index]
         state.update { current -> current.filterNot { it.key == wanted } }
-        Diag.log("pin", "unpinned $key; ${state.value.size} pinned")
+        Diag.log("pin", "unpinned $key from slot ${index + 1}; ${state.value.size} pinned")
+        saved(state.value)
+        return PinSlot(index, gone)
+    }
+
+    override fun restore(slot: PinSlot) {
+        state.update { current ->
+            current.filterNot { it.key == slot.pin.key }.let { rest ->
+                rest.take(slot.index) + slot.pin + rest.drop(slot.index)
+            }
+        }
+        Diag.log("pin", "restored ${slot.pin.key} to slot ${slot.index + 1}; ${state.value.size} pinned")
         saved(state.value)
     }
 

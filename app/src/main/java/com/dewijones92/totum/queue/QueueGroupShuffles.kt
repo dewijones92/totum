@@ -18,7 +18,7 @@ fun PlaybackQueue.shuffleAndPlayGroup(
     reorder("shuffle and play group ${state.value.groupLabel(id)}") { it.shufflingToPlay(id, random) }
     beforePlaying(state.value.entries.filter { it.group?.id == id })
     val start = state.value.entries.indexOfFirst { it.group?.id == id }
-    if (start >= 0) jumpTo(start, reason = PlayReason.Chosen(ChosenWay.TAP))
+    if (start >= 0) jumpTo(start, reason = PlayReason.Chosen(ChosenWay.SHUFFLE))
 }
 
 fun PlaybackQueue.shuffleGroupOrder(random: Random = Random.Default) =

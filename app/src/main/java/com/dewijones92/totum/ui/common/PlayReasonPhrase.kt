@@ -39,4 +39,6 @@ private fun ChosenWay.phraseRes(): Int = when (this) {
     ChosenWay.QUEUE_ROW -> R.string.why_chosen_queue_row
     ChosenWay.BACK_OR_FORWARD -> R.string.why_chosen_trail
     ChosenWay.SWITCH -> R.string.why_chosen_switch
+    ChosenWay.SHUFFLE -> R.string.why_chosen_shuffle
+    ChosenWay.NOTIFICATION -> R.string.why_chosen_notification
 }

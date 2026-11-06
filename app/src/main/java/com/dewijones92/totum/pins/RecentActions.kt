@@ -23,11 +23,27 @@ open class RecentActions(initial: List<Pin> = emptyList(), private val keep: Int
         saved(state.value)
     }
 
-    fun forget(key: String, from: String) {
+    fun forget(key: String, from: String): PinSlot? {
         val wanted = canonicalPinKey(key)
-        if (state.value.none { it.key == wanted }) return Diag.log(TAG, "forget $wanted from $from: not in Recently")
+        val index = state.value.indexOfFirst { it.key == wanted }
+        if (index < 0) {
+            Diag.log(TAG, "forget $wanted from $from: not in Recently")
+            return null
+        }
+        val gone = state.value[index]
         state.update { current -> current.filterNot { it.key == wanted } }
-        Diag.log(TAG, "forgot $wanted from $from; ${state.value.size} recent")
+        Diag.log(TAG, "forgot $wanted from $from, from slot ${index + 1}; ${state.value.size} recent")
+        saved(state.value)
+        return PinSlot(index, gone)
+    }
+
+    fun restore(slot: PinSlot) {
+        state.update { current ->
+            current.filterNot { it.key == slot.pin.key }.let { rest ->
+                (rest.take(slot.index) + slot.pin + rest.drop(slot.index)).take(keep)
+            }
+        }
+        Diag.log(TAG, "restored ${slot.pin.key} to slot ${slot.index + 1}; ${state.value.size} recent")
         saved(state.value)
     }
 

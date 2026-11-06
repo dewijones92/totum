@@ -10,6 +10,8 @@ public enum class ChosenWay(public val diagName: String) {
     QUEUE_ROW("queue-row"),
     BACK_OR_FORWARD("back-or-forward"),
     SWITCH("switch"),
+    SHUFFLE("shuffle"),
+    NOTIFICATION("notification"),
 }
 
 public sealed interface PlayReason {

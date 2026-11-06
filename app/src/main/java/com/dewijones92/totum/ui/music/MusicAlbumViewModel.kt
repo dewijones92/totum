@@ -9,8 +9,10 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.download.DownloadManager
 import com.dewijones92.totum.data.queue.QueueGroup
 import com.dewijones92.totum.di.AppContainer
+import com.dewijones92.totum.domain.ChosenWay
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.OfflineCount
+import com.dewijones92.totum.domain.PlayReason
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.offlineCount
 import com.dewijones92.totum.innertube.music.MusicAlbum
@@ -130,7 +132,7 @@ class MusicAlbumViewModel(
         Diag.log("music", "shuffle album \"${loaded.album.title}\": ${loaded.tracks.size} inserted after current")
         val shuffled = loaded.playables().shuffled()
         randomStarts?.assign(shuffled.map { it.item }, "album \"${loaded.album.title}\"", startAtRandom)
-        queue.playAll(shuffled, loaded.group())
+        queue.playAll(shuffled, loaded.group(), reason = PlayReason.Chosen(ChosenWay.SHUFFLE))
         stats?.use(UseKind.SHUFFLE, "album")
         loaded.remember(shuffled = true)
     }

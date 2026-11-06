@@ -603,6 +603,9 @@
     <string name="kid_lock_pinning_off">📌 Not pinned yet, so only Totum is locked. If Android asked, tap Got it; if App pinning is off, turn it on in Settings for a full lock. To unlock now, hold the top-left corner for 3 seconds.</string>
     <string name="pin_added">📌 Pinned \"%1$s\"</string>
     <string name="pin_removed">📍 Unpinned \"%1$s\"</string>
+    <string name="group_member_removed">🧹 Removed \"%1$s\" from the group</string>
+    <string name="recent_search_forgotten">🧹 Forgot the search \"%1$s\"</string>
+    <string name="recent_forgotten">🧹 Removed \"%1$s\" from Recently</string>
     <string name="pin_home_unsupported">⚠️ This home screen does not take shortcuts; \"%1$s\" is pinned in the app</string>
     <string name="pin_could_not_play">❌ Couldn\'t play \"%1$s\" right now</string>
     <string name="pinned_title">📌 Pinned</string>

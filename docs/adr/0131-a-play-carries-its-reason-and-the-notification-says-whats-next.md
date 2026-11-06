@@ -26,7 +26,8 @@ the playback notification should say what comes next, which `core/playback` cann
 - **One pure type, `PlayReason`, in `:core:domain`** (with `ChosenWay`): `Chosen(way)`, `Next(group)`,
   `Previous(group)`, `RepeatOne`, `RepeatGroup(group)`, `RepeatQueue`, `Explore(relatedTo)`,
   `RelatedAfterQueue(relatedTo)`, `Radio(station)`, `NewUpload`. A way is how you chose it: tap, peek, link, pin,
-  Shorts reel, Ask card, queue row, back or forward, the music/talk switch.
+  Shorts reel, Ask card, queue row, back or forward, the music/talk switch, a shuffle, a notification (the last two
+  added in the 2026-11-06 consistency sweep).
 - **The queue sets it, once, where a play starts.** `PlaybackQueue.becameCurrent` is the single place playback
   starts, so it is the single place that tells the controller (`PlaybackController.setPlayReason(itemId, reason)`).
   Every entry point names its reason: `playNow`, `playAll`, `peek` and `jumpTo` take one (a tap by default; the other

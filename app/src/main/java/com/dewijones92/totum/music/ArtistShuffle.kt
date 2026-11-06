@@ -7,7 +7,9 @@ import com.dewijones92.totum.common.PoliteGate
 import com.dewijones92.totum.data.notforme.NotForMe
 import com.dewijones92.totum.data.queue.QueueGroup
 import com.dewijones92.totum.di.AppContainer
+import com.dewijones92.totum.domain.ChosenWay
 import com.dewijones92.totum.domain.MediaItemId
+import com.dewijones92.totum.domain.PlayReason
 import com.dewijones92.totum.innertube.music.MusicAlbum
 import com.dewijones92.totum.innertube.music.MusicAlbumRef
 import com.dewijones92.totum.innertube.music.MusicArtist
@@ -262,7 +264,7 @@ class ArtistShuffle(
         val shuffled = wanted(songs, "all songs of \"${target.artist}\"").shuffled(random).map { it.toPlayable(source) }
         randomStarts?.assign(shuffled.map { it.item }, "all songs of \"${target.artist}\"", startAtRandom)
         Diag.log(TAG, "\"${target.artist}\": playing ${shuffled.size} shuffled now ($what)")
-        queue.playAll(shuffled, group)
+        queue.playAll(shuffled, group, reason = PlayReason.Chosen(ChosenWay.SHUFFLE))
         stats?.use(UseKind.SHUFFLE, "artist songs")
         recent?.record(
             Pin.ArtistSongs(

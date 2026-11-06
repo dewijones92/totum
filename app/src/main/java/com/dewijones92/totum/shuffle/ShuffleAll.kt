@@ -12,8 +12,10 @@ import com.dewijones92.totum.data.queue.QueueGroup
 import com.dewijones92.totum.data.shuffle.SourcePages
 import com.dewijones92.totum.data.shuffle.SourcePart
 import com.dewijones92.totum.data.shuffle.WholeSource
+import com.dewijones92.totum.domain.ChosenWay
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaSource
+import com.dewijones92.totum.domain.PlayReason
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.toPlayableOrNull
 import com.dewijones92.totum.domain.youTubeChannelId
@@ -160,7 +162,7 @@ class ShuffleAll(
         val shuffled = playable.shuffled()
         randomStarts?.assign(shuffled.map { it.item }, "shuffle all \"$title\"", startAtRandom)
         val group = QueueGroup(id = "shuffle:$key", title = title)
-        queue.playAll(shuffled, group)
+        queue.playAll(shuffled, group, reason = PlayReason.Chosen(ChosenWay.SHUFFLE))
         stats?.use(UseKind.SHUFFLE, "shuffle all")
         val pin = Pin.ShuffleAllOf(
             target = key,

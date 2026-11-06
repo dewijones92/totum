@@ -7,8 +7,10 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.dewijones92.totum.data.content.SeenItemsTracker
 import com.dewijones92.totum.di.AppContainer
+import com.dewijones92.totum.domain.ChosenWay
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.PlayHandle
+import com.dewijones92.totum.domain.PlayReason
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.innertube.feeds.FeedResult
 import com.dewijones92.totum.innertube.feeds.YouTubeFeeds
@@ -88,7 +90,12 @@ class NotificationsViewModel(
 
     fun play(video: MediaItem) {
         val watchUrl = video.mediaUrl ?: return
-        viewModelScope.launch { queue.playNow(PlayableItem(video, PlayHandle.Video(watchUrl))) }
+        viewModelScope.launch {
+            queue.playNow(
+                PlayableItem(video, PlayHandle.Video(watchUrl)),
+                reason = PlayReason.Chosen(ChosenWay.NOTIFICATION),
+            )
+        }
     }
 
     companion object {

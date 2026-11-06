@@ -11,6 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dewijones92.totum.R
@@ -24,6 +25,7 @@ import com.dewijones92.totum.pins.Pin
 import com.dewijones92.totum.pins.PinAction
 import com.dewijones92.totum.pins.PinOutcome
 import com.dewijones92.totum.pins.PinPlayed
+import com.dewijones92.totum.pins.PinSlot
 import com.dewijones92.totum.pins.PinTileActions
 import com.dewijones92.totum.stats.UseKind
 import kotlinx.coroutines.Dispatchers
@@ -64,7 +66,25 @@ internal fun rememberPinActions(container: AppContainer): PinActions {
     val pins by container.pinStore.pins.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val expandPlayer = LocalExpandPlayer.current
-    return ContainerPinActions(container, context, expandPlayer, pins)
+    val offers = LocalSnackbarOffers.current
+    val resources = LocalResources.current
+    val unpinWithUndo = rememberRemoveWithUndo(
+        offers = offers,
+        undoLabel = stringResource(R.string.undo),
+        tag = "pin",
+        removedMessage = { slot: PinSlot -> resources.getString(R.string.pin_removed, slot.pin.title) },
+        remove = { key: String -> container.pinStore.unpin(key) },
+        restore = container.pinStore::restore,
+    )
+    val forgetWithUndo = rememberRemoveWithUndo(
+        offers = offers,
+        undoLabel = stringResource(R.string.undo),
+        tag = "recent",
+        removedMessage = { slot: PinSlot -> resources.getString(R.string.recent_forgotten, slot.pin.title) },
+        remove = { key: String -> container.recentActions.forget(key, "tile menu") },
+        restore = container.recentActions::restore,
+    )
+    return ContainerPinActions(container, context, expandPlayer, pins, unpinWithUndo, forgetWithUndo)
 }
 
 private class ContainerPinActions(
@@ -72,6 +92,8 @@ private class ContainerPinActions(
     private val context: Context,
     private val expandPlayer: () -> Unit,
     override val pinned: List<Pin>,
+    private val unpinWithUndo: (String) -> Unit,
+    private val forgetWithUndo: (String) -> Unit,
 ) : PinActions {
 
     private fun say(res: Int, title: String) =
@@ -79,8 +101,7 @@ private class ContainerPinActions(
 
     override fun toggle(pin: Pin) {
         if (isPinned(pin.key)) {
-            container.pinStore.unpin(pin.key)
-            say(R.string.pin_removed, pin.title)
+            unpinWithUndo(pin.key)
         } else {
             container.pinStore.pin(pin)
             container.statsLog.use(UseKind.PIN, pin.key)
@@ -109,7 +130,6 @@ private class ContainerPinActions(
             radio = container.musicRadio,
             favourites = container.musicFavourites,
             artistShuffle = container.artistShuffle(),
-            recent = container.recentActions,
         )
     }
 
@@ -118,6 +138,7 @@ private class ContainerPinActions(
             PinAction.TOGGLE_PIN -> return toggle(pin)
             PinAction.ADD_TO_HOME -> return addToHomeScreen(pin)
             PinAction.ADD_TO_HOME_LOCKED -> return addToHomeScreen(pin, lockOnOpen = true)
+            PinAction.REMOVE_FROM_RECENT -> return forgetWithUndo(pin.key)
             else -> Unit
         }
         container.applicationScope.launch {

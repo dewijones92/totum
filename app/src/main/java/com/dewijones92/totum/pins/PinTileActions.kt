@@ -3,11 +3,13 @@ package com.dewijones92.totum.pins
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.common.youTubeWatchUrl
+import com.dewijones92.totum.domain.ChosenWay
 import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.domain.PlayHandle
+import com.dewijones92.totum.domain.PlayReason
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.innertube.music.MusicResult
@@ -39,7 +41,6 @@ class PinTileActions(
     private val radio: MusicRadio,
     private val favourites: MusicFavourites?,
     private val artistShuffle: ArtistShuffle?,
-    private val recent: RecentActions,
 ) {
     private val handlers: Map<PinAction, suspend (Pin) -> PinOutcome?> = mapOf(
         PinAction.PLAY to ::played,
@@ -58,10 +59,6 @@ class PinTileActions(
         PinAction.SAVE_ALBUM to ::saveAlbum,
         PinAction.FOLLOW_ARTIST to ::followArtist,
         PinAction.SHUFFLE_SONGS to ::shuffleSongs,
-        PinAction.REMOVE_FROM_RECENT to { pin ->
-            recent.forget(pin.key, "tile menu")
-            PinOutcome.Done("removed from Recently")
-        },
     )
 
     suspend fun run(pin: Pin, action: PinAction): PinOutcome {
@@ -86,7 +83,9 @@ class PinTileActions(
     private fun playShuffled(run: PinRun): PinOutcome = when {
         run is PinRun.Failed -> PinOutcome.Failed(run.why)
         run !is PinRun.Tracks || run.items.isEmpty() -> PinOutcome.Failed("nothing in it to shuffle")
-        else -> PinOutcome.Done("shuffled").also { queue.playAll(run.items.shuffled(), run.group) }
+        else -> PinOutcome.Done("shuffled").also {
+            queue.playAll(run.items.shuffled(), run.group, reason = PlayReason.Chosen(ChosenWay.PIN))
+        }
     }
 
     private suspend fun queued(pin: Pin, next: Boolean): PinOutcome? = when (val run = runOf(pin)) {
@@ -185,7 +184,8 @@ private suspend fun playSeed(queue: PlaybackQueue, pin: Pin): PinOutcome? {
         thumbnailUrl = station.artUrl?.let(HttpUrl::parse),
         contentKind = MediaContentKind.MUSIC,
     )
-    return if (queue.playNow(PlayableItem(song, PlayHandle.Video(watch)), quiet = true)) {
+    val playable = PlayableItem(song, PlayHandle.Video(watch))
+    return if (queue.playNow(playable, quiet = true, reason = PlayReason.Chosen(ChosenWay.PIN))) {
         PinOutcome.Done("playing the song it started from")
     } else {
         PinOutcome.Failed("the song would not play")

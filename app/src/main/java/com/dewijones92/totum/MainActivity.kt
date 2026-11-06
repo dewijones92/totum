@@ -187,6 +187,7 @@ class MainActivity : FragmentActivity() {
             if (arrival == ShareArrival.FRESH) logUnplayableShare(intent.action, intent.sharedText(), via)
             return
         }
+        val way = intent.openedFrom()
         val facts = "${arrival.why}; via=$via flags=0x${Integer.toHexString(intent.flags)} restored=$restored"
         if (arrival != ShareArrival.FRESH) {
             Diag.log("share", "ignored a replayed share, nothing queued [$facts] -> ${url ?: album}")
@@ -197,7 +198,7 @@ class MainActivity : FragmentActivity() {
             openMusicPage.value = MusicPage.Album(null, album, getString(R.string.music_kind_album))
         }
         if (url == null) return
-        Diag.log("share", "shared link -> $url [$facts]")
+        Diag.log("share", "shared link -> $url [$facts] way=${way.diagName}")
         val placeholder = placeholderFor(url, SHARED_SOURCE) ?: run {
             Diag.warn("share", "shared link has no video id, so nothing was queued -> $url")
             return
@@ -216,10 +217,13 @@ class MainActivity : FragmentActivity() {
                 }
             container.playbackQueue.playNow(
                 PlayableItem(item, PlayHandle.Video(url)),
-                reason = PlayReason.Chosen(ChosenWay.LINK),
+                reason = PlayReason.Chosen(way),
             )
         }
     }
+
+    private fun Intent.openedFrom(): ChosenWay =
+        if (getBooleanExtra(EXTRA_FROM_NOTIFICATION, false)) ChosenWay.NOTIFICATION else ChosenWay.LINK
 
     /** The YouTube watch URL from a VIEW (link) or SEND (share text) intent, if any. */
     private fun Intent.sharedWatchUrl(): HttpUrl? = sharedWatchUrl(sharedText())
@@ -242,6 +246,7 @@ class MainActivity : FragmentActivity() {
     companion object {
         private val SHARED_SOURCE = SourceId("shared")
         private const val EXTRA_OPEN_PLAYER = "totum.openPlayer"
+        const val EXTRA_FROM_NOTIFICATION = "totum.fromNotification"
 
         fun intent(context: Context, openPlayer: Boolean): Intent = Intent(context, MainActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
