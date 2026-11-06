@@ -77,6 +77,7 @@ alone until they need more.
 | The player screen, tinted by what is playing | player | shipped | [player-redesign.md](player-redesign.md) |
 | Managing downloads (cancel, retry, sort by size, see failures) | downloads | shipped | [download-management.md](download-management.md) |
 | Search results arrive per section (no longer blocked by torrent search) | search | shipped | [search-sections.md](search-sections.md) |
+| Search results as tabs (Videos, Torrents, Audiobooks, Podcasts, Songs, Albums and artists) with counts and a still-searching dot | search | built 2026-11-06 | [search-sections.md](search-sections.md) |
 | Views and dates everywhere (every list, and the video page) | video/search/playback | shipped | [upload-dates.md](upload-dates.md) |
 | Crash + diagnostics reporting (verbose reports to the Pi) | infrastructure | shipped | [crash-reporting.md](crash-reporting.md) |
 | Row status (pillar / played / offline / played wash on every row) | ui | shipped | [row-status.md](row-status.md) |

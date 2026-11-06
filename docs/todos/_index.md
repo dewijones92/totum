@@ -44,7 +44,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [Every download says what, from where, to where; Move to Pi moves the file](download-wording-and-moves.md) | downloads | high | decided 2026-11-06, Batch A |
 | [The codec beside every quality; AV1 first when the hardware decodes it](codec-everywhere.md) | video | high | decided 2026-11-06, Batch A; label seam + cast strip built |
 | [TV volume from the phone; the strip says what is cast](tv-volume-and-cast-strip.md) | casting | medium | decided 2026-11-06, Batch A |
-| [Search results as tabs](search-results-tabs.md) | search | medium | decided 2026-11-06, Batch A |
+| [Search results as tabs](search-results-tabs.md) | search | medium | built 2026-11-06, Batch A; tests to follow |
 | [Subtitles off stays off until turned on](subtitles-off-stays-off.md) | player | medium | built 2026-11-06, Batch A (ADR 123); tests to follow |
 | [A group page shows its last list while refreshing](group-page-last-list.md) | video | medium | decided 2026-11-06, Batch A |
 | [The queue tidies itself](queue-tidy-up.md) | queue | medium | decided 2026-11-06, Batch A |

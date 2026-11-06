@@ -1,7 +1,7 @@
 ---
 title: Search results as tabs
 kind: todo
-status: decided
+status: built
 batch: A (2026-11)
 priority: medium
 updated: 2026-11-06
@@ -14,3 +14,5 @@ still-searching dot, over the existing sections (`SearchScreen.kt:323-392`, `Sea
 player's `SecondaryScrollableTabRow` (`PlayerTabs.kt:66-83`). Paged counts must read as partial ("40+").
 
 Whole-batch review: extract a generic tab row from `PlayerTabs` (it is bound to the `PlayerTab` enum) and use it in both.
+
+Built 2026-11-06: see [search-sections](../features/search-sections.md) ("Results as tabs"). `ScrollableTabs` (ui/common) now serves the player and search; tests still to write are listed there.

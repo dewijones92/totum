@@ -3,7 +3,7 @@ title: Search results arrive per section
 kind: feature
 status: shipped
 area: search
-updated: 2026-08-07
+updated: 2026-11-06
 ---
 
 # Search results arrive per section
@@ -65,6 +65,42 @@ One renderer, `hitSection`, draws all three — the same reason there is one `Se
 
 Each section is also bounded at 20 seconds. Generous, because a slow answer is still worth having
 once the rest is on screen; the bound only exists so a section cannot spin for ever.
+
+## Results as tabs (2026-11-06)
+
+Report 20261101T232057: with every section stacked, a search for a film put torrents, audiobooks, podcasts, songs and
+videos in one long scroll. The results are now one tab per kind, over the same sections
+([todo](../todos/search-results-tabs.md)):
+
+| Tab | Section functions it draws | Count |
+|---|---|---|
+| Videos | `hitSection` over `results.videos` | fetched so far; `40+` while the section has another page |
+| Torrents | `torrentSection` | all the home server returned; `N+` while an indexer is still being asked |
+| Audiobooks | `bookSections` (free books and book torrents merged) | the merged list; `N+` while either is still out |
+| Podcasts | `hitSection` over `results.podcasts` | the directory's answer |
+| Songs | `songSection` | fetched so far; `N+` when YouTube Music has more |
+| Albums and artists | `musicCollectionSections` | both shelves added; `N+` when either has more |
+
+- A tab exists only when its section does (`searchTabsFor`): no home server means no Torrents tab; the Music tab
+  shows Songs and Albums and artists only.
+- A small dot after a tab's name means that section is still out (a section that has not answered, or a torrent
+  search still asking an indexer); a count appears as soon as the section answers. A failed section keeps its tab and
+  its own explanation.
+- Until the person taps a tab, the tab shown is the first one in the order above that has results (else the first
+  failed or still-searching one), so a slow tab never steals the screen from one that is already listed; a tap pins
+  the choice, and a chosen tab that disappears falls back to that rule.
+- Each tab keeps its own scroll position. **Videos still load more as the list scrolls to its end** (the trigger is
+  only armed while that tab is showing); the music "more" buttons and the torrent "show more" button are unchanged.
+- An answered tab with nothing in it says `📭 No videos for “query”` rather than showing a blank list.
+- The tab row is `ScrollableTabs` (`ui/common`), extracted from the player's tabs, which use it too.
+
+Log lines (`search`): `tabs: VIDEOS=40+ TORRENTS=3 searching AUDIOBOOKS=? searching ...; showing VIDEOS (chosen=nothing
+yet)` whenever a section answers, and `tab A -> B` on a tap.
+
+**Tests still to write:** `searchTabsFor` and `defaultSearchTab` (absent sections, partial counts, failed and searching
+tabs, the default rule); a Compose test for the tab row, the dot and the empty line; instrumented
+`SongSearchSectionTest.songsSitAboveTheVideoResults` is obsolete (songs and videos are on different tabs now) and
+`SearchSectionStatesTest`/`AudiobookSectionsTest` should drive `SearchContent` through a tab tap.
 
 ## Diagnostics
 

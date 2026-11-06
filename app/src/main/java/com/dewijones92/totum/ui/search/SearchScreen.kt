@@ -1,7 +1,6 @@
 package com.dewijones92.totum.ui.search
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -30,6 +29,7 @@ import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.dewijones92.totum.R
+import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.search.SearchHit
 import com.dewijones92.totum.data.search.map
 import com.dewijones92.totum.data.search.toSource
@@ -335,57 +336,48 @@ private fun ResultsList(
     onDownloadTorrent: (SearchHit.Torrent) -> Unit = {},
     onPlayBook: (SearchHit.Book) -> Unit = {},
 ) {
-    val listState = rememberLazyListState()
+    val rows = SearchRowActions(
+        onSubscribe,
+        onPlayVideo,
+        onPlaySong,
+        onPlayTorrent,
+        onDownloadTorrent,
+        onPlayBook,
+        actions,
+        onGoToChannel,
+        more,
+    )
+    val tabs = remember(results, query) { searchTabsFor(results, query) }
+    var chosen by rememberSaveable { mutableStateOf<SearchTab?>(null) }
+    val selected = chosen?.takeIf { pick -> tabs.any { it.tab == pick } } ?: defaultSearchTab(tabs)
+    val summary = tabs.joinToString(" ") { it.describe() }
+    LaunchedEffect(summary) {
+        Diag.log("search", "tabs: $summary; showing ${selected?.name} (chosen=${chosen?.name ?: "nothing yet"})")
+    }
+    val listStates = SearchTab.entries.associateWith { rememberLazyListState() }
     val shelf = rememberTorrentShelf(query)
     val bookShelf = rememberTorrentShelf("books:$query")
     // The same scroll trigger the account feeds and channel tabs use.
     val shownVideos = results.videos.itemsOrNull?.items?.size ?: 0
-    LoadMoreOnScrollToEnd(listState, results.canLoadMore && !results.loadingMore, shownVideos, more.videos)
+    LoadMoreOnScrollToEnd(
+        listStates.getValue(SearchTab.VIDEOS),
+        selected == SearchTab.VIDEOS && results.canLoadMore && !results.loadingMore,
+        shownVideos,
+        more.videos,
+    )
     val selectable = remember(results) { results.selectableItems() }
-    SelectableMediaList("search", selectable, selectable, { it }, modifier.fillMaxSize(), key = query) {
-        LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
-            torrentSection(results, onPlayTorrent, onDownloadTorrent, shelf)
-            bookSections(results, query, bookShelf, BookSections(onPlayBook, onPlayTorrent, onDownloadTorrent))
-            hitSection({ labelled(FactEmoji.PODCAST, R.string.destination_podcasts) }, results.podcasts) {
-                    hit: SearchHit.Podcast ->
-                PodcastHitRow(
-                    hit = hit,
-                    subscribed = hit.feedUrl.value in state.subscribedFeeds,
-                    onSubscribe = { onSubscribe(hit) },
-                )
-            }
-            songSection(results, state.resolving, onPlaySong, actions, more.music)
-            musicCollectionSections(results, more.music)
-            hitSection(
-                { labelled(FactEmoji.CHANNEL, R.string.destination_videos) },
-                results.videos.map { page -> page.items },
-            ) { hit: SearchHit.Video ->
-                VideoHitRow(
-                    hit = hit,
-                    resolving = state.resolving == hit.watchUrl.value,
-                    onPlay = { onPlayVideo(hit) },
-                    actions = actions,
-                    onGoToChannel = onGoToChannel,
-                )
-            }
-
-            if (results.loadingMore) {
-                item {
-                    Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                    }
-                }
-            }
-
-            if (state.resolveFailed) {
-                item {
-                    Text(
-                        text = stringResource(R.string.error_extraction),
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(16.dp),
-                    )
-                }
+    Column(modifier.fillMaxSize()) {
+        if (selected != null) {
+            SearchTabRow(tabs, selected, onSelect = { tab ->
+                Diag.log("search", "tab ${selected.name} -> ${tab.name}")
+                chosen = tab
+            })
+        }
+        SelectableMediaList("search", selectable, selectable, { it }, Modifier.weight(1f).fillMaxWidth(), key = query) {
+            LazyColumn(state = listStates.getValue(selected ?: SearchTab.VIDEOS), modifier = Modifier.fillMaxSize()) {
+                val view = SearchTabView(results, state, query, rows, shelf, bookShelf)
+                tabSections(selected, view)
+                tabFooter(tabs.firstOrNull { it.tab == selected }, view)
             }
         }
     }

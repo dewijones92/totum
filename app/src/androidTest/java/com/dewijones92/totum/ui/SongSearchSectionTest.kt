@@ -3,6 +3,7 @@ package com.dewijones92.totum.ui
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -14,6 +15,7 @@ import com.dewijones92.totum.di.fake.FakeAppContainer
 import com.dewijones92.totum.innertube.music.MusicSong
 import com.dewijones92.totum.theme.TotumTheme
 import com.dewijones92.totum.ui.common.rememberMediaItemActions
+import com.dewijones92.totum.ui.search.SEARCH_TAB_TAG
 import com.dewijones92.totum.ui.search.SearchContent
 import com.dewijones92.totum.ui.search.SearchMore
 import com.dewijones92.totum.ui.search.SearchViewModel.Results
@@ -66,7 +68,7 @@ class SongSearchSectionTest {
     fun songsAreShownWithTheirArtistAndAlbum() {
         show(loaded(songs = SearchSection.Found(Page.last(listOf(song())))))
 
-        composeTestRule.onNodeWithText("Songs", substring = true).assertIsDisplayed()
+        composeTestRule.onNodeWithText("🎵 Songs", substring = true).assertIsDisplayed()
         composeTestRule.onNodeWithText("Feeling Good", substring = true).assertIsDisplayed()
         composeTestRule.onNodeWithText("Nina Simone", substring = true).assertIsDisplayed()
     }
@@ -81,11 +83,11 @@ class SongSearchSectionTest {
     }
 
     /**
-     * Songs above videos, because a music query is answered better by YouTube Music than by video
-     * search — and putting the better answer second makes the worse one look like the answer.
+     * Songs and videos are tabs of their own now (search results as tabs, 2026-11-06), so the old claim
+     * that songs sit above videos becomes: the first tab with results shows, and the other is one tap away.
      */
     @Test
-    fun songsSitAboveTheVideoResults(): Unit = with(composeTestRule) {
+    fun songsAndVideosAreOnTheirOwnTabs(): Unit = with(composeTestRule) {
         show(
             loaded(
                 songs = SearchSection.Found(Page.last(listOf(song()))),
@@ -93,10 +95,12 @@ class SongSearchSectionTest {
             ),
         )
 
-        val songTop = onNodeWithText("Feeling Good", substring = true).fetchSemanticsNode().positionInRoot.y
-        val videoTop = onNodeWithText("A music video", substring = true).fetchSemanticsNode().positionInRoot.y
+        onNodeWithText("A music video", substring = true).assertIsDisplayed()
+        onNodeWithText("Feeling Good", substring = true).assertDoesNotExist()
 
-        assertEquals("the songs section must come first", true, songTop < videoTop)
+        onNodeWithTag(SEARCH_TAB_TAG + "SONGS").performClick()
+
+        onNodeWithText("Feeling Good", substring = true).assertIsDisplayed()
     }
 
     /** An empty music answer must leave no heading behind, like every other section. */
@@ -106,7 +110,7 @@ class SongSearchSectionTest {
 
         assertEquals(
             0,
-            composeTestRule.onAllNodesWithText("Songs", substring = true).fetchSemanticsNodes().size,
+            composeTestRule.onAllNodesWithText("🎵 Songs", substring = true).fetchSemanticsNodes().size,
         )
     }
 

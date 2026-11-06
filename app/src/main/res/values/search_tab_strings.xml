@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="search_tab_videos">Videos</string>
+    <string name="search_tab_torrents">Torrents</string>
+    <string name="search_tab_audiobooks">Audiobooks</string>
+    <string name="search_tab_podcasts">Podcasts</string>
+    <string name="search_tab_songs">Songs</string>
+    <string name="search_tab_albums_artists">Albums and artists</string>
+    <string name="search_tab_with_count">%1$s %2$s</string>
+    <string name="search_tab_searching">Still searching</string>
+    <string name="search_tab_empty">📭 No %1$s for “%2$s”</string>
+</resources>
