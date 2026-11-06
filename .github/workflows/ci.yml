@@ -276,6 +276,12 @@ jobs:
           # from this APK is a wall of one-letter class names (the trace carries a map id
           # to match against). Costs nothing and is useless if fetched later.
           cp app/build/outputs/mapping/release/mapping.txt totum-mapping.txt || true
+          previous="$(gh release view --json tagName --jq .tagName 2>/dev/null || true)"
+          changes=""
+          if [ -n "${previous}" ]; then
+            changes="$(gh api "repos/${GITHUB_REPOSITORY}/compare/${previous}...${GITHUB_SHA}" \
+              --jq '.commits[].commit.message | split("\n")[0]' 2>/dev/null | head -40 | sed 's/^/- /' || true)"
+          fi
           # Not a prerelease: it makes this the repo's "Latest release", so
           # /releases/latest/download/totum.apk stays a stable URL without a rolling tag,
           # and Obtainium needs nothing switched on to see it.
@@ -297,6 +303,12 @@ jobs:
             echo
             echo "Needs Java 17+, \`python3\` with \`yt-dlp\`, and a player (\`mpv\`, \`vlc\` or \`ffplay\`)."
             echo "\`totum doctor\` checks all of it. The raw archive is \`totum-cli.tar.gz\` if you prefer."
+            if [ -n "${changes}" ]; then
+              echo
+              echo "## What's new"
+              echo
+              echo "${changes}"
+            fi
           } > release-notes.md
           gh release create "v0.1.${GITHUB_RUN_NUMBER}" \
             totum.apk totum-mapping.txt totum-cli.tar.gz totum-cli.tar.gz.sha256 install.sh \

@@ -84,6 +84,7 @@ fun ShellBanners(container: AppContainer) {
     RefusedTapToasts(container.playbackQueue, signedIn)
     QueueNoticeToasts(container.playbackQueue)
     OperationResultToasts(container.operations)
+    WhatsNewCardHost(container.whatsNew)
     Column {
         OutOfDateBanner(container.appUpdate, container.appInstaller)
         val first = update !is UpdateStatus.OutOfDate

@@ -264,6 +264,8 @@ import com.dewijones92.totum.stats.StatsLog
 import com.dewijones92.totum.ui.ask.AskLatest
 import com.dewijones92.totum.ui.common.toMediaItem
 import com.dewijones92.totum.update.AppUpdateInstaller
+import com.dewijones92.totum.update.PrefsLastSeenVersion
+import com.dewijones92.totum.update.WhatsNew
 import com.dewijones92.totum.uploads.LatestUploads
 import com.dewijones92.totum.uploads.NewUploads
 import com.dewijones92.totum.uploads.newUploadsOf
@@ -553,6 +555,8 @@ interface AppContainer {
 
     val appInstaller: AppUpdateInstaller?
 
+    val whatsNew: WhatsNew?
+
     val polite: Politeness
 
     val shuffleAll: ShuffleAll
@@ -655,6 +659,13 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
 
     override val appInstaller: AppUpdateInstaller by lazy {
         AppUpdateInstaller(context, transferClient, operations, applicationScope, appUpdate.status)
+    }
+
+    override val whatsNew: WhatsNew by lazy {
+        WhatsNew(BuildConfig.VERSION_NAME, releaseSource, PrefsLastSeenVersion(context)) {
+            val info = context.packageManager.getPackageInfo(context.packageName, 0)
+            info.firstInstallTime == info.lastUpdateTime
+        }
     }
 
     override val applicationScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -1228,7 +1239,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                     exsurge.diagnostics + ExsurgeLiveUpdate.diagnostics(context) + dailyAlarms.diagnostics +
                         workApps.diagnostics
                 },
-                appUpdate = { appUpdate.diagnostics() + appInstaller.diagnostics() },
+                appUpdate = { appUpdate.diagnostics() + appInstaller.diagnostics() + whatsNew.diagnostics() },
                 polite = { polite.diagnostics() + ("explore.on" to exploreMode.on.value.toString()) },
                 backup = { driveBackup.diagnostics() + groupNews.diagnostics() },
                 screen = { screenReadiness?.diagnostics().orEmpty() },

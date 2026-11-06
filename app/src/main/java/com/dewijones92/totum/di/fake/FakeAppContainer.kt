@@ -124,6 +124,7 @@ import com.dewijones92.totum.shuffle.ShuffleAll
 import com.dewijones92.totum.stars.Stars
 import com.dewijones92.totum.stats.StatsLog
 import com.dewijones92.totum.update.AppUpdateInstaller
+import com.dewijones92.totum.update.WhatsNew
 import com.dewijones92.totum.uploads.InboxSources
 import com.dewijones92.totum.uploads.NewUploads
 import com.dewijones92.totum.uploads.QueueForUploads
@@ -151,6 +152,7 @@ import kotlinx.coroutines.flow.first
 class FakeAppContainer(
     override val appUpdate: AppUpdateCheck = AppUpdateCheck("0.1.0-dev", { ReleaseLookup.Unavailable("fake") }),
     override val appInstaller: AppUpdateInstaller? = null,
+    override val whatsNew: WhatsNew? = null,
     override val polite: com.dewijones92.totum.polite.Politeness = com.dewijones92.totum.polite.Politeness(),
     override val podcastRepository: PodcastRepository = FakePodcastRepository(),
     override val channelRepository: ChannelRepository = FakeChannelRepository(),

@@ -41,6 +41,7 @@ class TotumApplication : Application(), SingletonImageLoader.Factory {
         // self-heal; the download applies on the next start.
         container.refreshExtractorEngine()
         container.applicationScope.launch { container.appUpdate.keepChecking(UPDATE_CHECK_INTERVAL) }
+        container.whatsNew?.let { whatsNew -> container.applicationScope.launch { whatsNew.load() } }
         // Mirror video watch-progress to YouTube as playback advances.
         container.startWatchHistorySync()
         // Load the account's subscribed channels (read live, never copied locally).
