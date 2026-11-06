@@ -19,7 +19,7 @@ alone until they need more.
 | Shuffle all (channel, podcast, group) | queue/channel | shipped — every page, Shorts asked, one queue group; 🔀 on every group chip (2026-10-14) | [shuffle-all.md](shuffle-all.md) |
 | Google Drive backup | backup | built 2026-10-15 — a Drive folder or file via the picker, latest + 7 dailies, on every change, merge on restore, launch prompt | [drive-backup.md](drive-backup.md) |
 | A polite YouTube client | network/playback | built 2026-10-15 — one gate (4 in flight, 2/s), 429 and bot back-off, banner, `polite.*` in reports | [polite-youtube-client.md](polite-youtube-client.md) |
-| Out-of-date banner | ui/diagnostics | built 2026-10-12 — red banner on every tab when a newer release exists; reports carry `update.*` | [out-of-date-banner.md](out-of-date-banner.md) |
+| Out-of-date banner | ui/diagnostics | built 2026-10-12 — red banner on every tab when a newer release exists; 2026-11-06 it downloads and installs the APK (checked first) and the first launch after an update shows What's new (ADR 130); reports carry `update.*` | [out-of-date-banner.md](out-of-date-banner.md) |
 | Unified media model + playback (one controller, mini/full player) | playback | shipped | — |
 | Phone rotation opens video fullscreen; portrait restores the player page | player | shipped | [player-redesign.md](player-redesign.md) |
 | Offline shared links recover their titles in queue and downloads | queue/downloads | shipped | [shared-link-metadata.md](shared-link-metadata.md) |

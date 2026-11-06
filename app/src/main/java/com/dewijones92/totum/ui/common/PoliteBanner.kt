@@ -85,7 +85,7 @@ fun ShellBanners(container: AppContainer) {
     QueueNoticeToasts(container.playbackQueue)
     OperationResultToasts(container.operations)
     Column {
-        OutOfDateBanner(container.appUpdate)
+        OutOfDateBanner(container.appUpdate, container.appInstaller)
         val first = update !is UpdateStatus.OutOfDate
         OperationsStrip(running, padStatusBar = first, onCancel = container.operations::cancel)
         PoliteBanner(container.polite, signedIn, padStatusBar = first && running.isEmpty())

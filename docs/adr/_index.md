@@ -143,3 +143,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 125 | [Modes that are quietly on are one flow](0125-active-modes-are-one-flow.md) | Accepted |
 | 127 | [Downloads honour the phone's decoders, and every quality names its codec](0127-downloads-honour-the-phones-decoders-and-qualities-name-their-codec.md) | Accepted |
 | 126 | [A move to the Pi sends the file, and every download says what moves where](0126-a-move-to-the-pi-sends-the-file-and-every-download-says-where.md) | Accepted |
+| 130 | [The banner can install the update, and the first launch after one says what changed](0130-update-from-the-banner-and-say-whats-new.md) | Accepted |

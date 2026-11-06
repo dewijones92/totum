@@ -84,6 +84,7 @@ import com.dewijones92.totum.data.torrent.hasAudioOnlyFetch
 import com.dewijones92.totum.data.transcript.TranscriptLoader
 import com.dewijones92.totum.data.update.AppUpdateCheck
 import com.dewijones92.totum.data.update.GitHubLatestRelease
+import com.dewijones92.totum.data.update.ReleaseSource
 import com.dewijones92.totum.database.RoomAccountProgressOutbox
 import com.dewijones92.totum.database.RoomChannelLatestStore
 import com.dewijones92.totum.database.RoomDownloadStore
@@ -262,6 +263,7 @@ import com.dewijones92.totum.stars.Stars
 import com.dewijones92.totum.stats.StatsLog
 import com.dewijones92.totum.ui.ask.AskLatest
 import com.dewijones92.totum.ui.common.toMediaItem
+import com.dewijones92.totum.update.AppUpdateInstaller
 import com.dewijones92.totum.uploads.LatestUploads
 import com.dewijones92.totum.uploads.NewUploads
 import com.dewijones92.totum.uploads.newUploadsOf
@@ -549,6 +551,8 @@ interface AppContainer {
 
     val appUpdate: AppUpdateCheck
 
+    val appInstaller: AppUpdateInstaller?
+
     val polite: Politeness
 
     val shuffleAll: ShuffleAll
@@ -645,8 +649,12 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
 
     internal val shufflePages by lazy { AppSourcePages(youTubeChannel, channelRepository, podcastRepository) }
 
-    override val appUpdate: AppUpdateCheck by lazy {
-        AppUpdateCheck(BuildConfig.VERSION_NAME, GitHubLatestRelease(OkHttpTextFetcher(transferClient)))
+    private val releaseSource: ReleaseSource by lazy { GitHubLatestRelease(OkHttpTextFetcher(transferClient)) }
+
+    override val appUpdate: AppUpdateCheck by lazy { AppUpdateCheck(BuildConfig.VERSION_NAME, releaseSource) }
+
+    override val appInstaller: AppUpdateInstaller by lazy {
+        AppUpdateInstaller(context, transferClient, operations, applicationScope, appUpdate.status)
     }
 
     override val applicationScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -1220,7 +1228,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                     exsurge.diagnostics + ExsurgeLiveUpdate.diagnostics(context) + dailyAlarms.diagnostics +
                         workApps.diagnostics
                 },
-                appUpdate = appUpdate::diagnostics,
+                appUpdate = { appUpdate.diagnostics() + appInstaller.diagnostics() },
                 polite = { polite.diagnostics() + ("explore.on" to exploreMode.on.value.toString()) },
                 backup = { driveBackup.diagnostics() + groupNews.diagnostics() },
                 screen = { screenReadiness?.diagnostics().orEmpty() },
