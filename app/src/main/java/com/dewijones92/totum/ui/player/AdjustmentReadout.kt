@@ -35,7 +35,7 @@ internal fun AdjustmentReadout(feedback: AdjustmentFeedback, modifier: Modifier 
     val label = stringResource(
         when (feedback.kind) {
             VideoAdjustment.BRIGHTNESS -> R.string.adjust_brightness
-            VideoAdjustment.VOLUME -> R.string.adjust_volume
+            VideoAdjustment.VOLUME -> if (feedback.onTv) R.string.adjust_tv_volume else R.string.adjust_volume
         },
     )
     val icon = when {

@@ -615,6 +615,29 @@ public class Media3PlaybackController(
         }
     }
 
+    override fun setCastVolume(fraction: Float) {
+        withController { controller ->
+            val remote = controller.deviceInfo.playbackType == DeviceInfo.PLAYBACK_TYPE_REMOTE
+            val max = controller.deviceInfo.maxVolume
+            when {
+                !remote -> Diag.log("cast", "dewidebug TV volume asked at $fraction, but nothing is cast; ignored")
+                !controller.isCommandAvailable(Player.COMMAND_SET_DEVICE_VOLUME_WITH_FLAGS) || max <= 0 ->
+                    Diag.log("cast", "dewidebug TV volume asked at $fraction; the TV offers no volume (max=$max)")
+                else -> {
+                    val level = CastVolume.levelFor(fraction, max)
+                    if (level != controller.deviceVolume) {
+                        Diag.log(
+                            "cast",
+                            "dewidebug TV volume asked at $fraction: ${controller.deviceVolume} -> $level of $max",
+                        )
+                        controller.setDeviceVolume(level, 0)
+                        _state.value = controller.currentPlaybackState()
+                    }
+                }
+            }
+        }
+    }
+
     override fun setSpeed(speed: Float) {
         val clamped = speed.coerceIn(MIN_SPEED, MAX_SPEED)
         withController {
@@ -1278,6 +1301,12 @@ public class Media3PlaybackController(
         holdTimer.postDelayed({ controller?.let { _state.value = it.currentPlaybackState() } }, CastLoadHold.HOLD_MS)
     }
 
+    private fun MediaController.castVolumeOf(): CastVolume? {
+        if (deviceInfo.playbackType != DeviceInfo.PLAYBACK_TYPE_REMOTE) return null
+        if (!isCommandAvailable(Player.COMMAND_GET_DEVICE_VOLUME)) return null
+        return CastVolume.of(deviceVolume, deviceInfo.maxVolume, isDeviceMuted)
+    }
+
     private fun MediaController.itemState(current: Media3MediaItem): PlaybackState =
         PlaybackState(
             itemId = MediaItemId(current.mediaId),
@@ -1314,6 +1343,7 @@ public class Media3PlaybackController(
             castDroppedFrom = castDroppedFrom[current.mediaId],
             castFetchHeight = castFetchHeights[current.mediaId],
             castProblem = castProblem,
+            castVolume = castVolumeOf(),
             castStage = castStage.takeIf { castStageItem == current.mediaId },
             castStagePercent = castStagePercent.takeIf { castStageItem == current.mediaId },
             live = LocalManifests.isLive(current.localConfiguration?.uri?.toString()),

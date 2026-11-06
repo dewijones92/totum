@@ -8,6 +8,7 @@ import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.SkipSegment
+import com.dewijones92.totum.playback.CastVolume
 import com.dewijones92.totum.playback.PlaybackContext
 import com.dewijones92.totum.playback.PlaybackController
 import com.dewijones92.totum.playback.PlaybackEvent
@@ -255,6 +256,19 @@ public class FakePlaybackController(override val player: Player? = null) : Playb
 
     override fun setSpeed(speed: Float) {
         _state.update { it?.copy(speed = speed) }
+    }
+
+    public var castVolumeAsked: Float? = null
+
+    override fun setCastVolume(fraction: Float) {
+        castVolumeAsked = fraction
+        _state.update { current ->
+            current?.copy(
+                castVolume = current.castVolume?.let { v ->
+                    CastVolume.of(CastVolume.levelFor(fraction, v.max), v.max, v.muted)
+                },
+            )
+        }
     }
 
     /** What was nominated for preloading, so a test can assert data was (or was not) spent. */

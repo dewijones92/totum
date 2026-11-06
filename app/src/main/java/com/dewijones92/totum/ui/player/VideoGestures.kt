@@ -11,12 +11,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.getSystemService
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.playback.CastVolume
+import com.dewijones92.totum.ui.cast.LocalScreenControl
 
 /**
  * Slide up or down over the picture to change brightness (left half) or volume (right
@@ -29,12 +32,16 @@ import com.dewijones92.totum.common.Diag
 internal enum class VideoAdjustment { BRIGHTNESS, VOLUME }
 
 /** What a drag is currently changing, and how far along it is — drives the readout. */
-internal data class AdjustmentFeedback(val kind: VideoAdjustment, val fraction: Float)
+internal data class AdjustmentFeedback(val kind: VideoAdjustment, val fraction: Float, val onTv: Boolean = false)
 
 internal class VideoGestureState(
     private val activity: Activity?,
     private val audio: AudioManager?,
+    private val tvVolume: () -> CastVolume? = { null },
+    private val setTvVolume: (Float) -> Unit = {},
 ) {
+    private var tvFraction: Float? = null
+
     var feedback: AdjustmentFeedback? by mutableStateOf(null)
         private set
 
@@ -43,14 +50,18 @@ internal class VideoGestureState(
     private val maxVolume: Int get() = audio?.getStreamMaxVolume(AudioManager.STREAM_MUSIC) ?: 1
 
     fun begin(kind: VideoAdjustment) {
-        Diag.log("gesture", "begin $kind")
         if (kind == VideoAdjustment.BRIGHTNESS && brightness < 0f) {
             // The window starts on "whatever the system says", which is not a number we
             // can slide from — so adopt the current system brightness on first touch.
             brightness = activity?.systemBrightness() ?: DEFAULT_BRIGHTNESS
         }
-        feedback = AdjustmentFeedback(kind, currentFraction(kind))
+        tvFraction = if (kind == VideoAdjustment.VOLUME) tvVolume()?.fraction else null
+        Diag.log("gesture", "begin $kind on the ${if (tvFraction != null) "TV at $tvFraction" else "phone"}")
+        feedback = feedbackFor(kind)
     }
+
+    private fun feedbackFor(kind: VideoAdjustment) =
+        AdjustmentFeedback(kind, currentFraction(kind), onTv = kind == VideoAdjustment.VOLUME && tvFraction != null)
 
     /** [delta] is downward pixels; dragging **up** increases, as every player does. */
     fun adjust(kind: VideoAdjustment, delta: Float, stageHeight: Float) {
@@ -67,24 +78,26 @@ internal class VideoGestureState(
             }
             VideoAdjustment.VOLUME -> {
                 val target = (currentFraction(kind) + step).coerceIn(0f, 1f)
-                audio?.setStreamVolume(
-                    AudioManager.STREAM_MUSIC,
-                    Math.round(target * maxVolume),
-                    0,
-                )
+                if (tvFraction != null) {
+                    tvFraction = target
+                    setTvVolume(target)
+                } else {
+                    audio?.setStreamVolume(AudioManager.STREAM_MUSIC, Math.round(target * maxVolume), 0)
+                }
             }
         }
-        feedback = AdjustmentFeedback(kind, currentFraction(kind))
+        feedback = feedbackFor(kind)
     }
 
     fun end() {
+        tvFraction = null
         Diag.log("gesture", "end at ${feedback?.fraction}")
         feedback = null
     }
 
     private fun currentFraction(kind: VideoAdjustment): Float = when (kind) {
         VideoAdjustment.BRIGHTNESS -> brightness.coerceIn(0f, 1f)
-        VideoAdjustment.VOLUME -> {
+        VideoAdjustment.VOLUME -> tvFraction ?: run {
             val max = maxVolume
             if (max <= 0) 0f else (audio?.getStreamVolume(AudioManager.STREAM_MUSIC) ?: 0).toFloat() / max
         }
@@ -141,11 +154,15 @@ internal class VideoGestureState(
  * A windowed stage still gets the state (it draws the same readout) and claims nothing.
  */
 @Composable
-internal fun rememberVideoGestures(fullscreen: Boolean): VideoGestureState {
+internal fun rememberVideoGestures(fullscreen: Boolean, castVolume: CastVolume? = null): VideoGestureState {
     val context = LocalContext.current
     val activity = context.findActivity()
     val audio = context.getSystemService<AudioManager>()
-    val state = remember(activity, audio) { VideoGestureState(activity, audio) }
+    val control = LocalScreenControl.current
+    val tv by rememberUpdatedState(castVolume)
+    val state = remember(activity, audio, control) {
+        VideoGestureState(activity, audio, tvVolume = { tv }, setTvVolume = { control?.setCastVolume(it) })
+    }
     DisposableEffect(state, fullscreen) {
         if (fullscreen) state.attach()
         onDispose { if (fullscreen) state.detach() }

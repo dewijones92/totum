@@ -436,6 +436,7 @@
     <string name="diagnostics_view_supporting">Stalls, timings and the recent event log, on device.</string>
     <string name="adjust_brightness">Brightness</string>
     <string name="adjust_volume">Volume</string>
+    <string name="adjust_tv_volume">📺 TV volume</string>
     <string name="pause">Pause</string>
     <string name="close">Close</string>
     <string name="back">Back</string>
@@ -1063,6 +1064,8 @@
     <string name="cast_strip_quality">📺 %1$s on %2$s</string>
     <string name="cast_strip_quality_climbing">📺 %1$s on %2$s, going up to %3$s</string>
     <string name="cast_strip_stepped_down">⚠️ Dropped to %1$s, Wi-Fi too slow</string>
+    <string name="cast_strip_volume">🔊 Volume %1$d%% on %2$s</string>
+    <string name="cast_strip_muted">🔇 %1$s is muted</string>
     <string name="cast_strip_lower">a lower picture</string>
     <string name="cast_strip_no_address">⚠️ The phone has no Wi-Fi address %1$s can reach, so nothing reaches the TV</string>
     <string name="cast_strip_vpn">🔒 A VPN on this phone is carrying your home network, so %1$s can\'t reach the phone. Turn the VPN off, or exclude Totum in the VPN app, then cast again.</string>

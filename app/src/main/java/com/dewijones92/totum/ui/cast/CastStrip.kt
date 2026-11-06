@@ -9,10 +9,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -24,6 +28,7 @@ import com.dewijones92.totum.R
 import com.dewijones92.totum.domain.QualityLabel
 import com.dewijones92.totum.playback.CastProblem
 import com.dewijones92.totum.playback.CastStage
+import com.dewijones92.totum.playback.CastVolume
 import com.dewijones92.totum.playback.PlaybackController
 import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.ui.common.rememberField
@@ -52,19 +57,8 @@ fun CastStrip(state: PlaybackState, modifier: Modifier = Modifier, actions: @Com
                 CastButton(modifier = Modifier.size(CAST_BUTTON_SIZE))
             }
             state.castStage?.let { stage -> CastStageLine(stage, state.castStagePercent, device) }
-            (state.castFetchHeight ?: state.castVideoHeight)?.let { height ->
-                val best = state.castVideoHeight
-                val shown = QualityLabel(height, state.castVideoCodec.takeIf { height == best }).text
-                Text(
-                    if (best != null && best > height) {
-                        stringResource(R.string.cast_strip_quality_climbing, shown, device, "${best}p")
-                    } else {
-                        stringResource(R.string.cast_strip_quality, shown, device)
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(end = 8.dp, bottom = 6.dp),
-                )
-            }
+            CastQualityLine(state, device)
+            state.castVolume?.let { volume -> CastVolumeRow(volume, device) }
             state.castDroppedFrom?.let {
                 val now = state.castVideoHeight?.let { height -> QualityLabel(height, state.castVideoCodec).text }
                 Text(
@@ -88,6 +82,48 @@ fun CastStrip(state: PlaybackState, modifier: Modifier = Modifier, actions: @Com
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun CastQualityLine(state: PlaybackState, device: String) {
+    val height = state.castFetchHeight ?: state.castVideoHeight ?: return
+    val best = state.castVideoHeight
+    val shown = QualityLabel(height, state.castVideoCodec.takeIf { height == best }).text
+    Text(
+        if (best != null && best > height) {
+            stringResource(R.string.cast_strip_quality_climbing, shown, device, "${best}p")
+        } else {
+            stringResource(R.string.cast_strip_quality, shown, device)
+        },
+        style = MaterialTheme.typography.bodySmall,
+        modifier = Modifier.padding(end = 8.dp, bottom = 6.dp),
+    )
+}
+
+@Composable
+private fun CastVolumeRow(volume: CastVolume, device: String) {
+    val control = LocalScreenControl.current ?: return
+    var dragging by remember { mutableStateOf<Float?>(null) }
+    val shown = dragging ?: volume.fraction
+    Column(Modifier.padding(end = 8.dp, bottom = 2.dp).semantics { testTag = CAST_VOLUME_TAG }) {
+        Text(
+            if (volume.muted && dragging == null) {
+                stringResource(R.string.cast_strip_muted, device)
+            } else {
+                stringResource(R.string.cast_strip_volume, Math.round(shown * PERCENT), device)
+            },
+            style = MaterialTheme.typography.bodySmall,
+        )
+        Slider(
+            value = shown,
+            onValueChange = {
+                dragging = it
+                control.setCastVolume(it)
+            },
+            onValueChangeFinished = { dragging = null },
+            steps = (volume.max - 1).coerceAtLeast(0),
+        )
     }
 }
 
@@ -119,6 +155,7 @@ private fun CastStageLine(stage: CastStage, percent: Int?, device: String) {
 }
 
 const val CAST_STAGE_TAG: String = "cast-stage"
+const val CAST_VOLUME_TAG: String = "cast-volume"
 private val STAGE_SPINNER = 18.dp
 private const val PERCENT = 100f
 

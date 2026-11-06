@@ -120,6 +120,9 @@ public interface PlaybackController {
     /** Sets playback speed (e.g. 1.0, 1.5, 2.0); clamped to a sensible range. */
     public fun setSpeed(speed: Float)
 
+    /** Sets the TV's volume, 0 to 1, while casting; does nothing otherwise. */
+    public fun setCastVolume(fraction: Float)
+
     /** Toggles skipping of near-silent stretches (trims dead air, podcast-style). */
     public fun setSkipSilence(enabled: Boolean)
 
@@ -261,6 +264,7 @@ public data class PlaybackState(
     val castDroppedFrom: Int? = null,
     val castFetchHeight: Int? = null,
     val castProblem: CastProblem? = null,
+    val castVolume: CastVolume? = null,
     val castStage: CastStage? = null,
     val castStagePercent: Int? = null,
     val hasPictureTrack: Boolean = false,

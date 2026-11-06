@@ -78,6 +78,15 @@ place, and the strip says "⚠️ Dropped to 1080p · VP9, Wi-Fi too slow". The 
 <TV name>" (`QualityLabel`). Logs: `the TV gets … only [… ceiling=…]`, `the TV stalled at …ms after playing`, `stepping
 down from … to …p`, `sending …p instead of …`.
 
+## The TV's volume (2026-11-06)
+
+While casting, the phone's volume controls drive the TV. The strip shows "🔊 Volume 35% on <TV name>" (or "🔇 … is
+muted") with a slider, the fullscreen volume swipe changes the TV and its readout says "📺 TV volume", and the hardware
+keys reach the TV through the Media3 session's remote volume provider (no app code: the session's player is the cast
+player, which reports a remote device). `CastVolume` is the state (`PlaybackState.castVolume`, 0 to 20 from the Cast
+SDK), `PlaybackController.setCastVolume(fraction)` the one setter. Logs: `[cast] dewidebug TV volume asked at …: a -> b of
+20`, `[gesture] begin VOLUME on the TV at …`. Not yet seen on a device.
+
 A home copy (`…/fetch/files?id=…`) is probed for a picture instead of dropped when its address names no file type; the
 session line says `picture because …` for every item.
 

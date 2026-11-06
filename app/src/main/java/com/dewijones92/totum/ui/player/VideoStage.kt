@@ -114,7 +114,7 @@ internal fun VideoStageWithControls(
     // Slide over the picture for brightness (left) / volume (right) — fullscreen only, so
     // windowed the same drag still minimises the player. See videoAdjustmentGestures.
     // The same flag decides whether the stage claims the window brightness at all.
-    val gestures = rememberVideoGestures(fullscreen)
+    val gestures = rememberVideoGestures(fullscreen, state.castVolume)
     Box(
         modifier = sizing
             .background(Color.Black)
