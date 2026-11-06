@@ -7,6 +7,7 @@ import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.OfflineReadiness
 import com.dewijones92.totum.domain.describe
+import com.dewijones92.totum.domain.playsWithNoSignal
 import com.dewijones92.totum.downloads.DownloadKeepAliveService
 import com.dewijones92.totum.playback.ActiveMode
 import com.dewijones92.totum.playback.PlaybackCacheReport
@@ -215,6 +216,11 @@ internal class DiagnosticSnapshot(
         put("downloads.queueWaiting", readiness.waiting.toString())
         put("downloads.queueUnavailableOffline", readiness.unavailableOffline.toString())
         put("downloads.queueNotAutomatic", readiness.notAutomatic.toString())
+        put(
+            "downloads.queuePlaysWithNoSignal",
+            entries.count { it.item.playsWithNoSignal(states[it.item.item.id] ?: DownloadState.NotDownloaded) }
+                .toString(),
+        )
         put("downloads.onDisk", states.count { it.value is DownloadState.Downloaded }.toString())
         // Across EVERYTHING, not just the queue: a manual download is invisible to the queue
         // counters above, and "is it fetching anything at all" is the first question a

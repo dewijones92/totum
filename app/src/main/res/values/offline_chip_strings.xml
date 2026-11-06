@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="filter_plays_offline">✈️ Plays offline</string>
+    <plurals name="queue_playable_now">
+        <item quantity="one">✈️ %1$d playable now</item>
+        <item quantity="other">✈️ %1$d playable now</item>
+    </plurals>
+    <plurals name="queue_playable_with_no_signal">
+        <item quantity="one">✈️ %1$d plays with no signal</item>
+        <item quantity="other">✈️ %1$d play with no signal</item>
+    </plurals>
+</resources>

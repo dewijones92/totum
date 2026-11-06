@@ -85,5 +85,12 @@ public data class OfflineReadiness(
  * `PlaybackQueue`), which is right and also invisible: an item silently passed over reads as the
  * app losing your place. A row that says why costs nothing and answers the question.
  */
-public fun unavailableOfflineNow(state: DownloadState, offline: Boolean): Boolean =
-    offline && state !is DownloadState.Downloaded
+public fun PlayableItem.unavailableOfflineNow(state: DownloadState, offline: Boolean): Boolean =
+    offline && !playsWithNoSignal(state)
+
+public fun PlayableItem.playsWithNoSignal(state: DownloadState): Boolean =
+    routeNow(
+        onDisk = (state as? DownloadState.Downloaded)?.let { LocalCopy(it.localPath, it.audioOnly) },
+        offline = true,
+        audioPreferred = false,
+    ) is PlayRoute.File

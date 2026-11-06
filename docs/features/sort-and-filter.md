@@ -3,7 +3,7 @@ title: Sort and filter
 kind: feature
 area: ui
 status: shipped
-updated: 2026-10-30
+updated: 2026-11-06
 ---
 
 # Sort and filter
@@ -12,7 +12,7 @@ updated: 2026-10-30
 
 One control on every list header (the sort icon, with a badge counting active filters) opens one sheet: **Sort by**
 (as listed, newest, oldest, added newest, added oldest, title A–Z, channel or show A–Z, longest, shortest) and **Show
-only** (downloaded or not, length band, music / talk / videos, published today / this week / this month). Decision:
+only** (downloaded or not, or plays offline (✈️, [ADR 132](../adr/0132-offline-playable-is-whatever-routenow-plays-from-the-device.md); the same as downloaded outside the queue), length band, music / talk / videos, published today / this week / this month). Decision:
 [ADR 66](../adr/0066-one-sort-and-filter-menu-everywhere.md). The text filter (the funnel, [list-filter.md](list-filter.md))
 is separate and combines with these.
 

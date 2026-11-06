@@ -150,3 +150,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 128 | [Undo, already-queued prompts and not-for-me share one snackbar and one queue seam](0128-undo-already-queued-and-not-for-me-share-the-queue-entry-seam.md) | Accepted |
 | 133 | [Bedtime arms the one sleep timer, and every sleep timer fades out](0133-bedtime-arms-the-sleep-timer-and-every-sleep-timer-fades.md) | Accepted |
 | 131 | [Share and copy link are on every item menu, and a group shares its titles](0131-share-and-copy-link-are-on-every-item-menu.md) | Accepted |
+| 132 | [Offline playable is whatever routeNow plays from the device](0132-offline-playable-is-whatever-routenow-plays-from-the-device.md) | Accepted |

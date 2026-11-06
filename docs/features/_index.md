@@ -97,6 +97,7 @@ alone until they need more.
 | A daily mobile-data limit (video plays as sound only past it; 📶 chip) | playback | built 2026-11-06 (tests owed; counter not yet seen on a phone) | [mobile-data-budget.md](mobile-data-budget.md) |
 | Search in Settings (fuzzy, jumps to the row or opens its page) | settings | built 2026-11-06 | [settings-search.md](settings-search.md) |
 | Share and copy link on every item menu; a group shares its list of titles | app | built 2026-11-06 (tests owed; ADR 131) | [share-link.md](share-link.md) |
+| The queue says how many items play with no signal (✈️ chip) and filters to them | queue | built 2026-11-06 (tests owed; ADR 132) | [offline-playable-chip.md](offline-playable-chip.md) |
 | The mini player shows every mode that is on (🔂 🔁 🔀 🧭 ⏩ 👶 🔕 ⏰); the notification shows 🔂 | player | built 2026-11-06 (tests to follow) | [active-modes.md](active-modes.md) |
 | The playback notification and lock screen say "⏭️ Next: …" (from the queue, refreshed on every queue edit; 🔂 replaces it under repeat one) | player | built 2026-11-06 (tests to follow; device check owed; ADR 131) | [next-in-notification.md](next-in-notification.md) |
 | Tap the title (or long-press the mini player) to see why this is playing: tapped, next in the group, Explore, repeat, radio, new upload … | player | built 2026-11-06 (tests to follow; emulator look owed; ADR 131) | [why-is-this-playing.md](why-is-this-playing.md) |

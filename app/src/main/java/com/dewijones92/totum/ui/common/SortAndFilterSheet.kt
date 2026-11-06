@@ -128,6 +128,7 @@ private fun downloadedLabel(value: DownloadedFilter): Int = when (value) {
     DownloadedFilter.ANY -> R.string.filter_any
     DownloadedFilter.DOWNLOADED -> R.string.filter_downloaded_only
     DownloadedFilter.NOT_DOWNLOADED -> R.string.filter_not_downloaded
+    DownloadedFilter.PLAYS_OFFLINE -> R.string.filter_plays_offline
 }
 
 private fun lengthLabel(value: LengthFilter): Int = when (value) {

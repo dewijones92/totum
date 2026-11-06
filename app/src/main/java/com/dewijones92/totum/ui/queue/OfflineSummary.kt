@@ -1,5 +1,6 @@
 package com.dewijones92.totum.ui.queue
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -9,6 +10,7 @@ import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Downloading
 import androidx.compose.material.icons.filled.OfflinePin
 import androidx.compose.material.icons.filled.Wifi
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -17,6 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
@@ -41,6 +44,7 @@ internal fun OfflineSummary(
     /** True when downloads are waiting for Wi-Fi, which is otherwise completely silent. */
     waitingForWifi: Boolean,
     modifier: Modifier = Modifier,
+    playable: OfflinePlayable? = null,
 ) {
     if (readiness.total == 0) return
 
@@ -87,33 +91,60 @@ internal fun OfflineSummary(
                 pluralStringResource(R.plurals.queue_offline_ready_all, readiness.ready, readiness.ready)
     }
 
-    Banner(icon = icon, text = text, modifier = modifier)
+    Banner(icon = icon, text = text, playable = playable, modifier = modifier)
 }
 
+internal data class OfflinePlayable(
+    val count: Int,
+    val offline: Boolean,
+    val onlyThose: Boolean,
+    val onToggle: () -> Unit,
+)
+
 @Composable
-private fun Banner(icon: ImageVector, text: String, modifier: Modifier = Modifier) {
+private fun Banner(icon: ImageVector, text: String, playable: OfflinePlayable?, modifier: Modifier = Modifier) {
     Surface(
         color = MaterialTheme.colorScheme.surfaceVariant,
         modifier = modifier.fillMaxWidth(),
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-        ) {
-            Icon(
-                imageVector = icon,
-                // The text says everything; the icon is decoration beside it, and announcing
-                // both would read the state twice to a screen reader.
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(20.dp),
-            )
-            Text(
-                text = text,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(start = 12.dp),
-            )
+        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = icon,
+                    // The text says everything; the icon is decoration beside it, and announcing
+                    // both would read the state twice to a screen reader.
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp),
+                )
+                Text(
+                    text = text,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 12.dp),
+                )
+            }
+            playable?.let { PlayableChip(it) }
         }
     }
 }
+
+@Composable
+private fun PlayableChip(playable: OfflinePlayable) {
+    FilterChip(
+        selected = playable.onlyThose,
+        onClick = playable.onToggle,
+        label = {
+            Text(
+                pluralStringResource(
+                    if (playable.offline) R.plurals.queue_playable_now else R.plurals.queue_playable_with_no_signal,
+                    playable.count,
+                    playable.count,
+                ),
+            )
+        },
+        modifier = Modifier.padding(top = 4.dp).testTag(QUEUE_PLAYABLE_CHIP_TAG),
+    )
+}
+
+internal const val QUEUE_PLAYABLE_CHIP_TAG = "queue-playable-chip"

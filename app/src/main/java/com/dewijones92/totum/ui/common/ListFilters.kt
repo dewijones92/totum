@@ -13,10 +13,13 @@ import com.dewijones92.totum.domain.ItemFilters
 import com.dewijones92.totum.domain.KindFilter
 import com.dewijones92.totum.domain.LengthFilter
 import com.dewijones92.totum.domain.MediaItem
+import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.PublishedWithin
 import com.dewijones92.totum.video.LiveTag
 import com.dewijones92.totum.video.liveTagOf
 import com.dewijones92.totum.video.videoIdOf
+import com.dewijones92.totum.domain.asPlayable
+import com.dewijones92.totum.domain.playsWithNoSignal
 
 private val ItemFiltersSaver = Saver<MutableState<ItemFilters>, List<String>>(
     save = { listOf(it.value.downloaded.name, it.value.length.name, it.value.kind.name, it.value.within.name) },
@@ -37,7 +40,11 @@ fun rememberItemFilters(place: String): MutableState<ItemFilters> =
     rememberSaveable(place, saver = ItemFiltersSaver) { mutableStateOf(ItemFilters()) }
 
 @Composable
-fun <T> List<T>.filteredByItems(filters: ItemFilters, item: (T) -> MediaItem): List<T> {
+fun <T> List<T>.filteredByItems(
+    filters: ItemFilters,
+    playable: ((T) -> PlayableItem)? = null,
+    item: (T) -> MediaItem,
+): List<T> {
     val downloads = LocalDownloadStates.current
     val liveStates = LocalLiveStates.current
     val now = LocalNow.current
@@ -50,7 +57,9 @@ fun <T> List<T>.filteredByItems(filters: ItemFilters, item: (T) -> MediaItem): L
                     val media = item(entry)
                     val liveNow = liveTagOf(media.contentKind, videoIdOf(media.id)?.let { liveStates.value[it] }) ==
                         LiveTag.Live
-                    filters.accepts(media, downloads.value[media.id] is DownloadState.Downloaded, now, liveNow)
+                    val state = downloads.value[media.id] ?: DownloadState.NotDownloaded
+                    val playsOffline = (playable?.invoke(entry) ?: media.asPlayable()).playsWithNoSignal(state)
+                    filters.accepts(media, state is DownloadState.Downloaded, now, liveNow, playsOffline)
                 }
             }
         }
@@ -67,7 +76,7 @@ fun rememberListShape(place: String): ListShape {
 
 @Composable
 fun <T> List<T>.shapedBy(shape: ListShape, item: (T) -> MediaItem): List<T> {
-    val filtered = filteredByItems(shape.filters.value, item)
+    val filtered = filteredByItems(shape.filters.value, item = item)
     val order = shape.sort.value
     return remember(filtered, order) { order.sortedBy(filtered, item = item) }
 }

@@ -5,7 +5,7 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.minutes
 
-public enum class DownloadedFilter { ANY, DOWNLOADED, NOT_DOWNLOADED }
+public enum class DownloadedFilter { ANY, DOWNLOADED, NOT_DOWNLOADED, PLAYS_OFFLINE }
 
 public enum class LengthFilter(internal val from: Duration?, internal val until: Duration?) {
     ANY(null, null),
@@ -45,16 +45,18 @@ public data class ItemFilters(
         downloaded: Boolean,
         now: Instant,
         liveNow: Boolean = item.contentKind == MediaContentKind.LIVE,
+        playsOffline: Boolean = downloaded,
     ): Boolean =
-        acceptsDownload(downloaded) &&
+        acceptsDownload(downloaded, playsOffline) &&
             acceptsLength(item.duration) &&
             acceptsKind(item, liveNow) &&
             acceptsAge(item.publishedAt, now)
 
-    private fun acceptsDownload(onDisk: Boolean): Boolean = when (downloaded) {
+    private fun acceptsDownload(onDisk: Boolean, playsOffline: Boolean): Boolean = when (downloaded) {
         DownloadedFilter.ANY -> true
         DownloadedFilter.DOWNLOADED -> onDisk
         DownloadedFilter.NOT_DOWNLOADED -> !onDisk
+        DownloadedFilter.PLAYS_OFFLINE -> playsOffline
     }
 
     private fun acceptsLength(duration: Duration?): Boolean {

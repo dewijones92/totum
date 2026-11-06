@@ -151,7 +151,7 @@ fun QueueScreen(container: AppContainer, modifier: Modifier = Modifier) {
             if (entries.isEmpty()) {
                 EmptyQueue()
             } else {
-                QueueOfflineSummary(container, entries, downloads)
+                QueueOfflineSummary(container, entries, downloads, queueFilters)
                 val actions = rememberQueueActions(
                     container = container,
                     queue = queue,
@@ -442,7 +442,7 @@ private fun FilterableQueue(
 ) {
     val indexed = remember(entries) { entries.withIndex().toList() }
     val matches = listFilter.filter(
-        indexed.filteredByItems(filters) { it.value.item.item },
+        indexed.filteredByItems(filters, playable = { it.value.item }) { it.value.item.item },
         { it.value.item.item.searchableText }
     )
     val filtering = listFilter.filtering || filters.isActive
@@ -536,7 +536,7 @@ private fun QueueRow(
             // only thing worth reading on a row you cannot play.
             subtitleLines = when {
                 nowPlaying.startingId == media.id -> listOf(stringResource(R.string.starting_play))
-                unavailableOfflineNow(downloadState, availability.offline) ->
+                entry.item.unavailableOfflineNow(downloadState, availability.offline) ->
                     listOf(stringResource(R.string.queue_unavailable_offline))
                 else -> rowFacts(media, entry.item.pillar)
             },

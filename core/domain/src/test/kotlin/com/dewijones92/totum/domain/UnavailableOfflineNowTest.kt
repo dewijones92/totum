@@ -1,5 +1,6 @@
 package com.dewijones92.totum.domain
 
+import com.dewijones92.totum.common.HttpUrl
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -12,16 +13,27 @@ import org.junit.Test
  * looks like the app losing your place, which is why the row has to say it.
  */
 class UnavailableOfflineNowTest {
+    private val episode = PlayableItem(
+        MediaItem(
+            id = MediaItemId("episode"),
+            sourceId = SourceId("feed"),
+            title = "Episode",
+            publishedAt = null,
+            duration = null,
+            mediaUrl = HttpUrl.of("https://example.com/episode.mp3"),
+        ),
+        PlayHandle.Podcast(),
+    )
 
     @Test
     fun `offline and not downloaded is unavailable`() {
-        assertTrue(unavailableOfflineNow(DownloadState.NotDownloaded, offline = true))
+        assertTrue(episode.unavailableOfflineNow(DownloadState.NotDownloaded, offline = true))
     }
 
     /** The whole point of having downloaded it. */
     @Test
     fun `offline but downloaded is available`() {
-        assertFalse(unavailableOfflineNow(DownloadState.Downloaded("/data/a.mp3"), offline = true))
+        assertFalse(episode.unavailableOfflineNow(DownloadState.Downloaded("/data/a.mp3"), offline = true))
     }
 
     /**
@@ -32,16 +44,22 @@ class UnavailableOfflineNowTest {
     @Test
     fun `offline and still downloading is unavailable`() {
         assertTrue(
-            unavailableOfflineNow(DownloadState.Downloading(downloadedBytes = 1L, totalBytes = 2L), offline = true)
+            episode.unavailableOfflineNow(
+                DownloadState.Downloading(downloadedBytes = 1L, totalBytes = 2L),
+                offline = true
+            )
         )
     }
 
     @Test
     fun `online, nothing is unavailable for want of a network`() {
-        assertFalse(unavailableOfflineNow(DownloadState.NotDownloaded, offline = false))
+        assertFalse(episode.unavailableOfflineNow(DownloadState.NotDownloaded, offline = false))
         assertFalse(
-            unavailableOfflineNow(DownloadState.Downloading(downloadedBytes = 1L, totalBytes = 2L), offline = false)
+            episode.unavailableOfflineNow(
+                DownloadState.Downloading(downloadedBytes = 1L, totalBytes = 2L),
+                offline = false
+            )
         )
-        assertFalse(unavailableOfflineNow(DownloadState.Downloaded("/data/a.mp3"), offline = false))
+        assertFalse(episode.unavailableOfflineNow(DownloadState.Downloaded("/data/a.mp3"), offline = false))
     }
 }
