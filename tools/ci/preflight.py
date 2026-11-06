@@ -377,8 +377,8 @@ def check_instrumented_test_names_dex() -> int:
 
 
 AUDIO_WORKFLOW = ROOT / ".github/workflows/audio-quality.yml"
-AUDIO_TESTS = ROOT / "core/playback/src/test/kotlin/com/dewijones92/totum/playback/audioquality"
-PLAYBACK_MAIN = "core/playback/src/main/kotlin/com/dewijones92/totum/playback"
+AUDIO_TESTS = ROOT / "core/sound/src/test/kotlin/com/dewijones92/totum/playback/audioquality"
+PLAYBACK_MAIN = "core/sound/src/main/kotlin/com/dewijones92/totum/playback"
 PLAYBACK_IMPORT = re.compile(r"^import com\.dewijones92\.totum\.playback\.([A-Z]\w*)", re.M)
 
 

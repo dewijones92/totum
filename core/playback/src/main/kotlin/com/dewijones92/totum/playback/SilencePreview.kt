@@ -33,7 +33,7 @@ public data class PreviewState(
 @OptIn(markerClass = [UnstableApi::class])
 public class SilencePreview(context: Context) {
 
-    private val cutter = SilenceCuttingAudioProcessor().apply { speechWeights = { BundledSpeechModel.get(context) } }
+    private val cutter = SilenceCuttingAudioProcessor().apply { speechWeights = { BundledSpeechModel.get() } }
     private val booster = BoostingAudioProcessor()
 
     @Volatile
@@ -59,7 +59,7 @@ public class SilencePreview(context: Context) {
     }
 
     init {
-        BundledSpeechModel.get(context)
+        BundledSpeechModel.get()
         player.addListener(
             object : Player.Listener {
                 override fun onPlaybackStateChanged(playbackState: Int) {

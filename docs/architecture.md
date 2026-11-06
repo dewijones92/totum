@@ -1,7 +1,7 @@
 ---
 title: Architecture — unified seams & modules
 kind: reference
-updated: 2026-10-31
+updated: 2026-11-06
 ---
 
 # Architecture
@@ -19,6 +19,8 @@ for a genuinely strong technical reason, which must be surfaced to Dewi.
 | `:core:data` | JVM | Business logic: `RssParser`, `PodcastRepository`, search seam (`SearchSource` → `SearchHit`), `SearchHistoryStore`, downloads (`DownloadManager` + strategies), `SponsorBlockSegmentSource`, `ContentRefresher`/`SeenItemsTracker`, import/export. Ports here, impls in Android modules. |
 | `:core:database` | Android/Room | Entities, DAOs, `Room*Store` impls. The only place entities meet domain types. Kover-exempt. |
 | `:core:playback` | Android/Media3 | `PlaybackController` port + `Media3PlaybackController`, `PlaybackService`, `SleepTimer`, `PlaybackProgressStore`, `PlaybackSpeedStore`. Kover-exempt adapter. |
+| `:core:cast` | pure JVM | The plain-Kotlin half of casting: `DashManifest`, the rung choice (`CastLadder`, `CastRungs`), container layouts and remuxers (`Mp4Video`, `MkvVideo`, `WebmLayout`, `Fmp4Aac`), `CastHttpServer`, `CastReach`, `ScreenLink`, `TvCaptions`, `VideoProbe`, the TV port (`CastTvPort`). Package `…playback.cast`. `explicitApi()`. Kover-exempt until its tests reach 75% ([ADR 119](adr/0119-cast-and-sound-code-shared-with-the-pi.md)). Shared with the Pi's `:cli`. |
+| `:core:sound` | pure JVM | The sound processing: `SilenceCutter`, `SpeechModel` (the Silero VAD in plain Kotlin, weights in this module's Java resources), `SpeechTrack`, `LoudnessBoost`, `VolumeBoost`, `LookaheadLimiter`, and the audio-quality suite. `explicitApi()`. The Media3 wrappers stay in `:core:playback`. Shared with the Pi's `:cli`. |
 | `:core:video` | JVM | YouTube resolution: `VideoResolver`, `SignedInTvPlayer`, `PlayerStreams`, `VideoQuality`, `RangedFetch`, `LookupStore`, the `VideoCodecSupport` port. Pure JVM so the CLI's home-download service runs the same code as the app; the Android decoder list (`PlatformVideoCodecSupport`) stays in `:app`. |
 | `:lib:ytdlp` | pure JVM | yt-dlp API: `YtDlpEngine` (extract/search/download), result types. Platform-neutral. |
 | `:lib:ytdlp-chaquopy` | Android | Real engine on embedded CPython; `BridgeJson` (JSON in/out), wheel self-update. |

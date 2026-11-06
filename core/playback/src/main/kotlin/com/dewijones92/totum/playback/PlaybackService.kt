@@ -72,7 +72,7 @@ public class PlaybackService : MediaSessionService() {
      * rebuilt on every audio-session change — see [BoostingAudioProcessor].
      */
     @UnstableApi
-    private val booster = BoostingAudioProcessor { BundledSpeechModel.get(this) }
+    private val booster = BoostingAudioProcessor { BundledSpeechModel.get() }
 
     private var player: ExoPlayer? = null
 
@@ -81,7 +81,7 @@ public class PlaybackService : MediaSessionService() {
         { player },
         { booster.silentForMs },
         TailSpeechScans(
-            { BundledSpeechModel.get(this) },
+            { BundledSpeechModel.get() },
             unmetered = { !activeNetworkIsMetered() },
         ),
     )
@@ -113,8 +113,8 @@ public class PlaybackService : MediaSessionService() {
         setMediaNotificationProvider(RefusalTolerantNotificationProvider(notificationProvider))
         // A custom audio sink whose processor chain carries the silence skipper
         // (Sonic stays for speed/pitch); skipping is off until the user turns it on.
-        silenceCutter.speechWeights = { BundledSpeechModel.get(this) }
-        BundledSpeechModel.get(this)
+        silenceCutter.speechWeights = { BundledSpeechModel.get() }
+        BundledSpeechModel.get()
         val renderersFactory = silenceAwareRenderers(this, silenceCutter, booster) { skipSilenceEnabled }
         // Held so stalls can be reported with the throughput at the time. Without it a
         // stall is just "it stopped": a stream delivering 60 kbps and a 1080p stream that
@@ -376,7 +376,7 @@ public class PlaybackService : MediaSessionService() {
                     speechWeights = silenceCutter.speechWeights
                 }
             },
-            newBooster = { BoostingAudioProcessor { BundledSpeechModel.get(this) } },
+            newBooster = { BoostingAudioProcessor { BundledSpeechModel.get() } },
             gate = { booster.speechGate },
             host = host,
             tvs = castStatus,

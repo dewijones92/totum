@@ -123,7 +123,7 @@ subprojects {
   // Adapter modules are exempt: they are thin bridges to on-device machinery (Room,
   // embedded Python, Media3) verified by instrumented tests, whose coverage the JVM
   // gate cannot see.
-  val koverExemptAdapters = setOf(":core:database", ":lib:ytdlp-chaquopy", ":core:playback")
+  val koverExemptAdapters = setOf(":core:database", ":lib:ytdlp-chaquopy", ":core:playback", ":core:cast")
   if ((path.startsWith(":core") || path.startsWith(":lib")) && path !in koverExemptAdapters) {
     apply(plugin = "org.jetbrains.kotlinx.kover")
     val optInOnly = path == ":lib:exsurge" && !exsurgeTestsRequested

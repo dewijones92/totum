@@ -1,0 +1,163 @@
+package com.dewijones92.totum.playback.cast
+
+public sealed interface CastAudio {
+    public data class Passthrough(val layout: StreamLayout, val url: String) : CastAudio
+
+    public data class Processed(
+        val initUrl: String,
+        val mediaTemplate: String,
+        val sampleRate: Int,
+        val channels: Int,
+        val codecs: String,
+        val segmentSamples: Long,
+    ) : CastAudio
+}
+
+public sealed interface CastVideo {
+    public data class Relayed(
+        val layout: StreamLayout,
+        val url: String,
+        val bandwidth: Int = DashManifest.bandwidthFor(layout.height),
+    ) : CastVideo
+
+    public data class Ladder(val rungs: List<Relayed>) : CastVideo
+
+    public data class Segmented(
+        val codecs: String,
+        val width: Int,
+        val height: Int,
+        val timeline: List<VideoSegment>,
+        val initUrl: String,
+        val mediaTemplate: String,
+    ) : CastVideo
+}
+
+public data class CastSubtitle(val language: String, val url: String, val label: String)
+
+public object DashManifest {
+
+    public fun build(
+        durationMs: Long,
+        video: CastVideo?,
+        audio: CastAudio?,
+        subtitles: List<CastSubtitle> = emptyList(),
+    ): String {
+        require(video != null || audio != null) { "a manifest needs a video or an audio track" }
+        val sets = buildList {
+            video?.let { add(videoSet(it)) }
+            audio?.let { add(audioSet(it)) }
+            subtitles.forEachIndexed { i, sub -> add(subtitleSet(i, sub)) }
+        }
+        val mpd = "<MPD xmlns=\"urn:mpeg:dash:schema:mpd:2011\" profiles=\"$PROFILES\" type=\"static\" " +
+            "mediaPresentationDuration=\"${duration(durationMs)}\" minBufferTime=\"PT2S\">"
+        val period = "<Period id=\"0\" start=\"PT0S\">"
+        return listOf(XML_HEAD, mpd, period, sets.joinToString("\n"), "</Period>", "</MPD>", "").joinToString("\n")
+    }
+
+    private fun videoSet(video: CastVideo): String = when (video) {
+        is CastVideo.Relayed -> relayedVideoSet(listOf(video))
+        is CastVideo.Ladder -> relayedVideoSet(video.rungs)
+        is CastVideo.Segmented -> segmentedVideoSet(video)
+    }
+
+    private fun segmentedVideoSet(video: CastVideo.Segmented): String {
+        val timeline = video.timeline.joinToString("") { "<S t=\"${it.startMs}\" d=\"${it.durationMs}\"/>" }
+        return """<AdaptationSet id="1" contentType="video" mimeType="video/mp4" segmentAlignment="true" startWithSAP="1">
+<Representation id="video" codecs="${video.codecs}" bandwidth="$VIDEO_BANDWIDTH" width="${video.width}" height="${video.height}">
+<SegmentTemplate timescale="1000" initialization="${xml(
+            video.initUrl
+        )}" media="${xml(video.mediaTemplate)}" startNumber="0">
+<SegmentTimeline>$timeline</SegmentTimeline>
+</SegmentTemplate>
+</Representation>
+</AdaptationSet>"""
+    }
+
+    private fun relayedVideoSet(rungs: List<CastVideo.Relayed>): String {
+        val reps = rungs.mapIndexed { i, rung ->
+            val l = rung.layout
+            val id = if (rungs.size == 1) "video" else "v$i"
+            """<Representation id="$id" codecs="${l.codecs}" bandwidth="${rung.bandwidth}" width="${l.width}" height="${l.height}">
+<BaseURL>${xml(rung.url)}</BaseURL>
+<SegmentBase indexRange="${l.index.dash}"><Initialization range="${l.init.dash}"/></SegmentBase>
+</Representation>"""
+        }
+        val mime = rungs.first().layout.mimeType
+        return """<AdaptationSet id="1" contentType="video" mimeType="$mime" subsegmentAlignment="true" startWithSAP="1">
+${reps.joinToString("\n")}
+</AdaptationSet>"""
+    }
+
+    public fun bandwidthFor(url: String, height: Int?): Int {
+        val query = url.substringAfter('?', "").split('&').mapNotNull { part ->
+            part.split('=', limit = 2).takeIf { it.size == 2 }?.let { (k, v) -> k to v }
+        }.toMap()
+        val bytes = query["clen"]?.toLongOrNull()
+        val seconds = query["dur"]?.toDoubleOrNull()
+        val measured = if (bytes != null && seconds != null && seconds > 0) bytes * BITS_PER_BYTE / seconds else null
+        return measured?.toInt() ?: bandwidthFor(height)
+    }
+
+    public fun bandwidthFor(height: Int?): Int = when {
+        height == null -> VIDEO_BANDWIDTH
+        height >= UHD -> UHD_BANDWIDTH
+        height >= QHD -> QHD_BANDWIDTH
+        height >= FULL_HD -> VIDEO_BANDWIDTH
+        height >= HD -> HD_BANDWIDTH
+        height >= SD -> SD_BANDWIDTH
+        else -> LOW_BANDWIDTH
+    }
+
+    private fun audioSet(audio: CastAudio): String = when (audio) {
+        is CastAudio.Passthrough -> {
+            val l = audio.layout
+            """<AdaptationSet id="2" contentType="audio" mimeType="${l.mimeType}" subsegmentAlignment="true">
+<Representation id="audio" codecs="${l.codecs}" bandwidth="$AUDIO_BANDWIDTH" audioSamplingRate="${l.sampleRate ?: DEFAULT_RATE}">
+<BaseURL>${xml(audio.url)}</BaseURL>
+<SegmentBase indexRange="${l.index.dash}"><Initialization range="${l.init.dash}"/></SegmentBase>
+</Representation>
+</AdaptationSet>"""
+        }
+        is CastAudio.Processed -> {
+            val template = "<SegmentTemplate timescale=\"${audio.sampleRate}\" duration=\"${audio.segmentSamples}\" " +
+                "initialization=\"${xml(audio.initUrl)}\" media=\"${xml(audio.mediaTemplate)}\" startNumber=\"0\"/>"
+            """<AdaptationSet id="2" contentType="audio" mimeType="audio/mp4" segmentAlignment="true" startWithSAP="1">
+<Representation id="audio" codecs="${audio.codecs}" bandwidth="$AUDIO_BANDWIDTH" audioSamplingRate="${audio.sampleRate}">
+<AudioChannelConfiguration schemeIdUri="$CHANNEL_SCHEME" value="${audio.channels}"/>
+$template
+</Representation>
+</AdaptationSet>"""
+        }
+    }
+
+    private fun subtitleSet(index: Int, sub: CastSubtitle): String =
+        """<AdaptationSet id="${TEXT_SET_BASE + index}" contentType="text" mimeType="text/vtt" lang="${xml(
+            sub.language
+        )}">
+<Label>${xml(sub.label)}</Label>
+<Representation id="text$index" bandwidth="256"><BaseURL>${xml(sub.url)}</BaseURL></Representation>
+</AdaptationSet>"""
+
+    public fun duration(ms: Long): String = "PT%d.%03dS".format(ms / Http.MILLIS, ms % Http.MILLIS)
+
+    private fun xml(s: String): String = s.replace("&", "&amp;").replace("<", "&lt;").replace("\"", "&quot;")
+
+    private const val XML_HEAD = "<?xml version=\"1.0\" encoding=\"utf-8\"?>"
+    private const val PROFILES = "urn:mpeg:dash:profile:isoff-on-demand:2011,urn:mpeg:dash:profile:isoff-live:2011"
+    private const val CHANNEL_SCHEME = "urn:mpeg:dash:23003:3:audio_channel_configuration:2011"
+    private const val TEXT_SET_BASE = 10
+    private const val VIDEO_BANDWIDTH = 4_000_000
+    private const val UHD = 2160
+    private const val QHD = 1440
+    private const val FULL_HD = 1080
+    private const val HD = 720
+    private const val SD = 480
+    private const val UHD_BANDWIDTH = 16_000_000
+    private const val QHD_BANDWIDTH = 9_000_000
+    private const val HD_BANDWIDTH = 2_500_000
+    private const val SD_BANDWIDTH = 1_200_000
+    private const val LOW_BANDWIDTH = 700_000
+    private const val AUDIO_BANDWIDTH = 160_000
+    private const val BITS_PER_BYTE = 8
+    private const val DEFAULT_RATE = 48_000
+}

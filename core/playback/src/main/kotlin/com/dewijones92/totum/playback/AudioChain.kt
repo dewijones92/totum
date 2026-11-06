@@ -44,21 +44,21 @@ internal object BundledSpeechModel {
     @Volatile
     private var failedAt = 0L
 
-    fun get(context: Context): SpeechWeights? {
+    fun get(): SpeechWeights? {
         weights?.let { return it }
         val retryDue = failedAt == 0L || SystemClock.elapsedRealtime() - failedAt > RETRY_AFTER_MS
-        if (!loading && retryDue) startLoading(context.applicationContext)
+        if (!loading && retryDue) startLoading()
         return null
     }
 
     @Synchronized
-    private fun startLoading(context: Context) {
+    private fun startLoading() {
         val retryDue = failedAt == 0L || SystemClock.elapsedRealtime() - failedAt > RETRY_AFTER_MS
         if (loading || weights != null || !retryDue) return
         loading = true
         thread(name = "speech-model") {
             val started = SystemClock.elapsedRealtime()
-            runCatching { context.resources.openRawResource(R.raw.silero_vad).use(SpeechWeights::read) }
+            runCatching { SpeechWeights.bundled() }
                 .onSuccess {
                     weights = it
                     Diag.log("silence", "speech model loaded in ${SystemClock.elapsedRealtime() - started}ms")

@@ -45,7 +45,7 @@ same shape as clipping, and `clipped=0` could not see it because nothing went *o
 Measured on a quiet passage followed by a loud one: onset distortion 2.11%, against 0.01-0.08% once
 settled. Speech is mostly onsets.
 
-[`LookaheadLimiter`](../../core/playback/src/main/kotlin/com/dewijones92/totum/playback/LookaheadLimiter.kt)
+[`LookaheadLimiter`](../../core/sound/src/main/kotlin/com/dewijones92/totum/playback/LookaheadLimiter.kt)
 delays the audio 5 ms and applies, to each sample, the **average** of the limits over the 5 ms
 around it. Each of those limits is at or below that sample's own `CEILING / |sample|`, so the
 average is too, and the output still cannot reach the ceiling. The gain ramps down over the 5 ms

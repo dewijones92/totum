@@ -39,3 +39,22 @@ Extends ADR 116's speaker decisions ("a thin layer … just like a different que
 - **Mini player**: the phone's item plus one pill per other target ("📺 Bluey · 🔈 Vivaldi"); a tap opens that queue.
   **Notifications**: one per active target, each with its own controls.
 - **"Send to TV" from what the phone plays** moves that item plus the rest of its group, and the phone pauses.
+
+## Done: the shared JVM modules (2026-11-06, [ADR 119](../adr/0119-cast-and-sound-code-shared-with-the-pi.md))
+
+The mechanical move of phase 1 is built, behaviour unchanged:
+
+- **`:core:cast`** (pure JVM, `explicitApi()`): the 26 plain-Kotlin cast files the scout listed (all verified free of
+  Android imports), plus `CastProblem`/`CastStage` and the TV port (`CastTv`, `CastTvPort`, split out of `CastStatus`).
+  Their tests moved with them (all of `core/playback/src/test/…/cast` except `EmbeddedSubtitlesTest` and
+  `ScreenCaptionsTest`, which test files that stay, and `PcmDownmixTest`, which moved from the package root).
+  `CastStreams` is not split yet.
+- **`:core:sound`** (pure JVM, `explicitApi()`): `SilenceCutter`, `SpeechModel`/`SpeechWeights`, `SpeechTrack`,
+  `LoudnessBoost`, `VolumeBoost`, `LookaheadLimiter`, with their tests and the whole audio-quality suite
+  (`:core:sound:test -Ptotum.audioQualityTests`; `audio-quality.yml` and the preflight check follow it).
+- **One copy of the weights**: `silero_vad.bin` is in `:core:sound`'s Java resources and is loaded by
+  `SpeechWeights.bundled()` everywhere (`BundledSpeechModel`, the unit tests, the audio-quality suite, the instrumented
+  tail-scan test). The release APK was built with R8 and still holds it at its root.
+- **Package names unchanged**; `:core:playback` depends on both with `api`.
+- **Open for the testing stretch**: `:core:cast` is Kover-exempt at 65.2% of lines covered (bar 75%); the gaps are
+  `CastHttpServer`, `WebmLayout`, `Fmp4Aac`, `DashManifest`, `LocalRanges`, `Upstream`, `TvVideos`, `CastTimeline`.

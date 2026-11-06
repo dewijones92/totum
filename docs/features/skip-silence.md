@@ -58,7 +58,7 @@ volume, which is why it cannot match. Its "kept" length is also tied to its dete
 that window's length depends on the channel count: it sizes a byte buffer from a frame count, so
 stereo engages at a quarter of the configured duration and mono at half.
 
-So Totum has its own cutter, [`SilenceCutter`](../../core/playback/src/main/kotlin/com/dewijones92/totum/playback/SilenceCutter.kt),
+So Totum has its own cutter, [`SilenceCutter`](../../core/sound/src/main/kotlin/com/dewijones92/totum/playback/SilenceCutter.kt),
 with PipePipe's rule:
 
 - A frame is quiet when every channel is at or below the **cut level**: an eighth of the recording's
@@ -253,7 +253,7 @@ lost: each start or seek gives up about 190 ms of Smart's extra cutting.
 **The detector, and why it is plain Kotlin.** Silero VAD v6.2.3 (MIT, 16 kHz model): a 256-point
 filter bank, four 3-tap convolutions, one LSTM cell of 128, a sigmoid. ONNX Runtime 1.30's arm64
 library alone is 33 MB (about 12 MB compressed), roughly twice the size budget that was agreed, so
-`SpeechModel` runs the network itself from a 1.24 MB weight file (`res/raw/silero_vad.bin`,
+`SpeechModel` runs the network itself from a 1.24 MB weight file (`silero_vad.bin` in `:core:sound`'s Java resources, one copy for the phone and the Pi,
 exported once from the `.onnx`). A numpy transcription matched ONNX Runtime to 0.0000024 over all
 1,875 chunks of the clip, and `SpeechModelTest` pins the Kotlin version to ONNX Runtime's own
 outputs within 0.0001 on every commit. About 160x real time on a laptop JVM (200 us per 32 ms chunk). `SpeechTrack` feeds it:

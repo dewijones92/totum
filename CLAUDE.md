@@ -49,7 +49,7 @@ say why it is the way it is.
 | CI/CD | GitHub Actions; signed APKs on GitHub Releases | No Play Store (yt-dlp app) |
 | YouTube account (July 2026) | Own minimal InnerTube client (`:lib:innertube`) + **TV device-code OAuth**, SmartTube-style; yt-dlp stays for extraction/playback | Signed-in features (subs, history, comments, likes) need auth + writes; yt-dlp is read-only and removed OAuth login; Google blocks WebView logins, and the device flow is the login it expects from TVs |
 | UI bar | Genuinely nice, modern | Material 3 expressive, dark/light, edge-to-edge, considered motion — never template-default |
-| Voice detection (Sep 2026) | **Silero VAD run in plain Kotlin** (`SpeechModel`), weights exported to `res/raw/silero_vad.bin` | Smart skip-silence needs a neural speech detector; ONNX Runtime's arm64 library alone is ~12 MB compressed / 33 MB installed, about twice the agreed budget. The network is small (filter bank, 4 convs, one LSTM), and `SpeechModelTest` pins the Kotlin to ONNX Runtime's outputs |
+| Voice detection (Sep 2026) | **Silero VAD run in plain Kotlin** (`SpeechModel`), weights exported to `silero_vad.bin` in `:core:sound`'s Java resources | Smart skip-silence needs a neural speech detector; ONNX Runtime's arm64 library alone is ~12 MB compressed / 33 MB installed, about twice the agreed budget. The network is small (filter bank, 4 convs, one LSTM), and `SpeechModelTest` pins the Kotlin to ONNX Runtime's outputs |
 | Exsurge et Disce (Oct 2026) | A **side-quest module**, pure `:lib:exsurge` + Android adapters; exact alarms; a sticky health-FGS banner holds the step counter; the voice is an alarm, not media; tests opt-in and path-filtered; the break length is chosen at the summons and fixed for that break | Dewi's stand-up-and-study nudge into Loquax. See [ADRs 2–8 and 10](docs/adr/_index.md) |
 | Fast switch to video (Oct 2026) | yt-dlp's solver player cache on for every extraction; a resolve trusted until shortly before its URLs expire, and kept across restarts; one shared HTTP pool; caption translations only for offered languages; videos looked up before the tap (menu open, next in queue, audio copy) on unmetered networks; Watch offered for an audio copy | Downloaded audio → video took 16.7 s on Dewi's phone, 85% of it extraction; [ADR 11](docs/adr/0011-make-switching-to-video-fast.md) |
 | JS challenge solver (Oct 2026) | **Android's V8** (`androidx.javascriptengine`) as a yt-dlp provider above QuickJS, keeping the solver library and two players loaded; QuickJS is the automatic fallback | QuickJS parsed a 3–4 MB script per solve (1.1–7.9 s on the Pixel 7); V8 solves a kept player in 15–80 ms; [ADR 12](docs/adr/0012-solve-youtube-challenges-in-v8.md) |
@@ -203,7 +203,7 @@ python3 tools/ci/preflight.py    # what the Gradle gate CANNOT see — run befor
 ./gradlew detekt cpdCheck lint test koverVerify assembleDebugAndroidTest   # the full gate, = CI's "Quality gates + build"
 ./gradlew :app:assembleDebug     # the gate does NOT rebuild app-debug.apk: run this before installing after it
 ./gradlew connectedDebugAndroidTest  # instrumented tests (device/emulator needed)
-./gradlew :core:playback:testDebugUnitTest -Ptotum.audioQualityTests   # skip-silence + boost on real speech (needs ffmpeg)
+./gradlew :core:sound:test -Ptotum.audioQualityTests   # skip-silence + boost on real speech (needs ffmpeg)
 ```
 
 **Quick checks locally, the rest in CI** (Dewi, 2026-11-04: *"quick checks locally, then the rest in the CI"*).
@@ -510,6 +510,16 @@ differently from an anonymous one — which cannot be tested on a signed-out dev
   `RangedFetch`, `LookupStore`, the `VideoCodecSupport` port), pure JVM since 2026-10-31 so the Pi's download
   service (the CLI) resolves with the same code as the app. Only the decoder list (`PlatformVideoCodecSupport`)
   and the SABR download route stay in `:app`.
+- `:core:cast` — the plain-Kotlin half of casting (manifest, rung choice, container layouts and remuxers, the cast HTTP
+  server, reach, `ScreenLink`, captions, probes, the `CastTvPort`), pure JVM with `explicitApi()`, package
+  `…playback.cast`, so the Pi's `:cli` runs the same code as the phone (ADR 119). `:core:playback` keeps what touches
+  Media3, MediaCodec or Android (`CastStreams`, `CastHost`, `CastStatus`, `ScreenPlayer`). Kover-exempt until its tests
+  reach 75%.
+- `:core:sound` — the sound processing (`SilenceCutter`, `SpeechModel`, `SpeechTrack`, `LoudnessBoost`, `VolumeBoost`,
+  `LookaheadLimiter`), pure JVM with `explicitApi()`, shared with the Pi (ADR 119). The Silero weights
+  (`silero_vad.bin`) are its Java resource, read by `SpeechWeights.bundled()`; the Media3 wrappers
+  (`SilenceCuttingAudioProcessor`, `BoostingAudioProcessor`, `AudioChain`) stay in `:core:playback`. Its audio-quality
+  suite is `:core:sound:test -Ptotum.audioQualityTests`.
 - `:lib:ytdlp` — from-scratch yt-dlp library (replaces the youtubedl-android
   fork). **Pure JVM on purpose** — it is the platform-neutral API (types,
   port, fake); only the real engine module needs Android. Public API:

@@ -16,7 +16,7 @@ class TheTailIsScannedForSpeechTest {
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
 
     private fun weights(): SpeechWeights =
-        instrumentation.targetContext.resources.openRawResource(R.raw.silero_vad).use(SpeechWeights::read)
+        SpeechWeights.bundled()
 
     private fun file(asset: String): File =
         File(instrumentation.targetContext.cacheDir, asset).also { out ->

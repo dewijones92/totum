@@ -19,7 +19,9 @@ kotlin {
 }
 
 dependencies {
+    api(project(":core:cast"))
     api(project(":core:domain"))
+    api(project(":core:sound"))
     api(project(":lib:sabr"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.kotlinx.coroutines.core)

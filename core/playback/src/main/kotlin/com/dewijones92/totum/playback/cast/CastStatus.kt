@@ -5,19 +5,8 @@ import android.os.Handler
 import android.os.Looper
 import androidx.media3.session.MediaSession
 import com.dewijones92.totum.common.Diag
-import com.dewijones92.totum.domain.CastScreen
 import com.dewijones92.totum.playback.CastProblem
 import com.dewijones92.totum.playback.CastStage
-
-internal class CastTv(val name: String, val screen: CastScreen)
-
-internal interface CastTvPort {
-    fun current(): CastTv?
-    fun videos(refused: Map<String, String>, sentHeights: Map<String, Int>, fetchingHeights: Map<String, Int>)
-    fun problem(now: CastProblem?)
-
-    fun stage(mediaId: String, now: CastStage?, percent: Int? = null) {}
-}
 
 internal class CastStatus(private val session: () -> MediaSession?) : CastTvPort {
 
