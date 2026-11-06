@@ -18,13 +18,13 @@ import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.domain.ShareLink
-import com.dewijones92.totum.domain.canonicalItemId
 import com.dewijones92.totum.domain.messageFor
 import com.dewijones92.totum.domain.pillar
 import com.dewijones92.totum.domain.shareLink
 import com.dewijones92.totum.domain.toPlayableOrNull
 import com.dewijones92.totum.innertube.music.RadioSeed
 import com.dewijones92.totum.music.ArtistCredits
+import com.dewijones92.totum.notforme.NotForMeRejecter
 import com.dewijones92.totum.settings.DownloadChoice
 import com.dewijones92.totum.ui.player.LocalTrail
 import kotlinx.coroutines.CoroutineScope
@@ -166,23 +166,29 @@ private class ContainerItemActions(
 
     override val audioMode: Boolean get() = rows.audioMode
 
-    override fun notForMe(item: MediaItem): () -> Unit = {
-        val queue = container.playbackQueue
-        val entry = queue.state.value.entries.firstOrNull { it.item.item.id == item.id }
-        val index = entry?.let(queue::remove)
-        val queued = if (index != null) "left the queue from #${index + 1}" else "was not queued"
-        container.notForMe.suppress(item, "the item menu; $queued")
-        if (offers == null) {
-            Diag.log("notforme", "dewidebug no snackbar host here, so no undo is offered for \"${item.title}\"")
-        } else {
-            offers.offer(
-                resources.getString(R.string.not_for_me_done, item.title),
-                resources.getString(R.string.undo),
-                "notforme",
-                SnackbarDuration.Long,
-            ) {
-                container.notForMe.allow(canonicalItemId(item.id.value), "undo")
-                if (entry != null && index != null) queue.restoreAt(index, entry)
+    private val rejecter by lazy {
+        NotForMeRejecter(container.playbackQueue, container.notForMe) { container.playbackController.setPlaying(false) }
+    }
+
+    override fun notForMe(item: MediaItem): () -> Unit = { reject(item, setOf(item.id), "the item menu") }
+
+    override fun notForMeList(pack: MediaItem, files: List<MediaItem>): (() -> Unit)? {
+        if (files.isEmpty()) return null
+        return { reject(pack, files.mapTo(mutableSetOf()) { it.id }, "the menu of a pack of ${files.size} files") }
+    }
+
+    private fun reject(item: MediaItem, queuedIds: Set<MediaItemId>, from: String) {
+        scope.launch {
+            val rejection = rejecter.reject(item, queuedIds, from)
+            if (offers == null) {
+                Diag.log("notforme", "dewidebug no snackbar host here, so no undo is offered for \"${item.title}\"")
+            } else {
+                offers.offer(
+                    resources.getString(R.string.not_for_me_done, item.title),
+                    resources.getString(R.string.undo),
+                    "notforme",
+                    SnackbarDuration.Long,
+                ) { rejecter.undo(rejection) }
             }
         }
     }

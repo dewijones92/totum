@@ -110,14 +110,21 @@ public fun QueueSnapshot.removing(match: (QueueEntry) -> Boolean): QueueSnapshot
     return copy(entries = kept, currentIndex = current?.let(kept::indexOf) ?: NOTHING_PLAYING)
 }
 
-public fun QueueSnapshot.removingAt(index: Int): QueueSnapshot {
-    val kept = entries.filterIndexed { i, _ -> i != index }
-    // Removing the playing entry leaves nothing current; the next advance starts from
-    // where it was, which is what "remove the thing I'm on" should feel like.
-    val cursor = when {
-        index == currentIndex -> (currentIndex - 1).coerceAtLeast(NOTHING_PLAYING)
-        index < currentIndex -> currentIndex - 1
-        else -> currentIndex
+public fun QueueSnapshot.removingAt(index: Int): QueueSnapshot =
+    entries.getOrNull(index)?.let { removingAll(setOf(it.item.item.id)) } ?: this
+
+public fun QueueSnapshot.removingAll(ids: Set<MediaItemId>): QueueSnapshot {
+    val kept = entries.filterNot { it.item.item.id in ids }
+    if (kept.size == entries.size) return this
+    val at = place
+    val keptBefore = entries.take(at.coerceAtLeast(0)).count { it.item.item.id !in ids }
+    val placeRemoved = entries.getOrNull(at)?.item?.item?.id in ids
+    val before = kept.getOrNull(keptBefore - 1)?.item?.item?.id
+    return when {
+        currentIndex in entries.indices && placeRemoved ->
+            copy(entries = kept, currentIndex = NOTHING_PLAYING, anchor = before)
+        currentIndex in entries.indices -> copy(entries = kept, currentIndex = keptBefore)
+        placeRemoved -> copy(entries = kept, anchor = before)
+        else -> copy(entries = kept)
     }
-    return copy(entries = kept, currentIndex = cursor)
 }

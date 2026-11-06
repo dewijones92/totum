@@ -230,6 +230,25 @@ back, and shows the Undo on a `SnackbarOffers`. The shell hosts one snackbar for
 their own. The same helper serves the alarms page, Ask's earlier chats and the downloads below. A group delete keeps its
 hold to confirm.
 
+Added in the 2026-11-06 consistency sweep: the full player's **Up next ✕** offers the same Undo
+(`upNextControls` uses `rememberQueueRemoveWithUndo`), un-pinning and forgetting from Recently (`PinStore.unpin` and
+`RecentActions.forget` return a `PinSlot`, Undo puts the tile back in its slot), forgetting a recent search (✕ or
+long-press, `HistorySlot`, in search and in every filter, channel, transcript and Ask box), and unticking a channel in a
+group's edit sheet (the sheet hosts its own snackbar, because a modal sheet covers the shell's; Undo re-adds the channel at the end of the group).
+
+Up next rows in the player also have the ordinary item menu on a long press (`ItemActionSheet`), like every other row.
+
+### Removing the playing entry (coordinator's call, pending Dewi's confirmation)
+
+Removing the entry that is playing (✕, Remove, 🙅 Not for me) keeps the sound playing, but **no row is shown as playing**:
+the cursor is cleared and the queue's place is the entry above (`QueueSnapshot.removingAt` sets `currentIndex` to
+`NOTHING_PLAYING` and `anchor` to the entry before it), so the next advance plays what followed the removed entry. Undo
+puts the entry back in its old slot **as the current entry** when it is still what is playing and nothing else is current
+(`restoreAt`); if something else has started since, it only puts the row back. **🙅 Not for me on what is playing now
+skips to the next item** (a rejection should not keep playing; with nothing after it, playback is paused),
+through `NotForMeRejecter` (`app/…/notforme/`), which also removes and restores the queued files of a torrent pack.
+Tests: `PlaybackQueueTest` (removing the playing entry) and `NotForMeRejecterTest`.
+
 ## Adding something already queued asks first (2026-11-06)
 
 `PlaybackQueue.enqueue` and `playNext` read the queue before changing it. An item already queued is **not** moved:
@@ -250,3 +269,9 @@ those items; "playable offline" is whatever `routeNow` would play from the devic
 ADR 136). Each group header has a line "⏳ 4 h 12 min left at 2x", or "at least" when a length is unknown, counting what the
 queue would still play ([group-time-left.md](group-time-left.md), ADR 138). A group's ⋮ menu has "📤 Share the list of
 titles" ([share-link.md](share-link.md), ADR 134).
+
+## Tests owed (2026-11-06 consistency sweep)
+
+The player's Up next ✕ offering Undo and its long-press opening the item menu (instrumented); the empty-queue related
+fallback leaving out a Not for me item (a unit test around `playRelatedNext`'s filter); `PlaybackQueue.restoreAt` and
+`removingAt` with an anchor when the removed entry was the first or the last.

@@ -571,14 +571,19 @@ class PlaybackQueue(
                 return@mutate snapshot
             }
             val at = index.coerceIn(0, snapshot.entries.size)
-            val cursor = if (snapshot.currentIndex != NOTHING_PLAYING && at <= snapshot.currentIndex) {
-                snapshot.currentIndex + 1
-            } else {
-                snapshot.currentIndex
+            val stillPlayingIt = snapshot.currentIndex == NOTHING_PLAYING && _nowPlaying.value?.item?.id == id
+            val cursor = when {
+                stillPlayingIt -> at
+                snapshot.currentIndex != NOTHING_PLAYING && at <= snapshot.currentIndex -> snapshot.currentIndex + 1
+                else -> snapshot.currentIndex
+            }
+            if (stillPlayingIt) {
+                Diag.log("queue", "restore ${id.value}: still what is playing, so it is current at $at again")
             }
             snapshot.copy(
                 entries = snapshot.entries.take(at) + entry + snapshot.entries.drop(at),
                 currentIndex = cursor,
+                anchor = if (stillPlayingIt) null else snapshot.anchor,
             )
         }
     }

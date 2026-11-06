@@ -55,6 +55,8 @@ internal interface ItemActions {
 
     fun notForMe(item: MediaItem): (() -> Unit)? = null
 
+    fun notForMeList(pack: MediaItem, files: List<MediaItem>): (() -> Unit)? = null
+
     fun share(item: MediaItem): (() -> Unit)? = null
 
     fun copyLink(item: MediaItem): (() -> Unit)? = null

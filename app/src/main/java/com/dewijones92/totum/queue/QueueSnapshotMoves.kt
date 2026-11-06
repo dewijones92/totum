@@ -1,6 +1,7 @@
 package com.dewijones92.totum.queue
 
 import com.dewijones92.totum.data.queue.QueueSnapshot
+import com.dewijones92.totum.data.queue.removingAll
 import com.dewijones92.totum.domain.MediaItemId
 
 internal fun QueueSnapshot.movingBefore(id: MediaItemId, anchor: MediaItemId): QueueSnapshot {
@@ -34,18 +35,6 @@ internal fun QueueSnapshot.movingAll(ids: List<MediaItemId>, toTop: Boolean): Qu
     val reordered = if (toTop) chosen + rest else rest + chosen
     val playing = current ?: return copy(entries = reordered)
     return copy(entries = reordered, currentIndex = reordered.indexOfFirst { it === playing })
-}
-
-internal fun QueueSnapshot.removingAll(ids: Set<MediaItemId>): QueueSnapshot {
-    val kept = entries.filterNot { it.item.item.id in ids }
-    if (kept.size == entries.size) return this
-    val keptBefore = entries.take(currentIndex.coerceAtLeast(0)).count { it.item.item.id !in ids }
-    val cursor = when {
-        currentIndex !in entries.indices -> currentIndex
-        entries[currentIndex].item.item.id in ids -> keptBefore - 1
-        else -> keptBefore
-    }
-    return copy(entries = kept, currentIndex = cursor)
 }
 
 fun PlaybackQueue.removeAll(ids: Set<MediaItemId>) = reorder("remove x${ids.size}") { it.removingAll(ids) }
