@@ -1,6 +1,10 @@
 package com.dewijones92.totum.data.audiobook
 
 import com.dewijones92.totum.common.HttpUrl
+import com.dewijones92.totum.data.search.SearchHit
+import com.dewijones92.totum.domain.MediaItem
+import com.dewijones92.totum.domain.MediaItemId
+import com.dewijones92.totum.domain.MediaSource
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -54,3 +58,14 @@ internal fun JsonObject.archiveTexts(key: String): List<String> = when (val valu
     is JsonPrimitive -> listOfNotNull(value.contentOrNull)
     else -> emptyList()
 }.map { it.trim() }.filter { it.isNotEmpty() }
+
+public fun SearchHit.Book.asItem(): MediaItem = MediaItem(
+    id = MediaItemId(feedUrl.value),
+    sourceId = MediaSource.PodcastFeed.idFor(feedUrl),
+    title = title,
+    publishedAt = null,
+    duration = null,
+    author = subtitle,
+    thumbnailUrl = artworkUrl,
+    sourceUrl = HttpUrl.of(ArchiveBooks.detailsUrl(identifier)),
+)

@@ -19,6 +19,7 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
+import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.toPlayableOrNull
 import com.dewijones92.totum.music.artistShuffle
 import com.dewijones92.totum.pins.Pin
@@ -50,6 +51,8 @@ data class SheetExtras(
     val music: Boolean = false,
     val item: MediaItem? = null,
     val onShareList: (() -> Unit)? = null,
+    val onNotForMeList: (() -> Unit)? = null,
+    val starList: List<PlayableItem>? = null,
 )
 
 @Composable

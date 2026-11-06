@@ -1139,6 +1139,16 @@
     <string name="library_starred">⭐ Starred</string>
     <string name="star">Star</string>
     <string name="unstar">Unstar</string>
+    <string name="star_all">Star every file</string>
+    <string name="unstar_all">Unstar every file</string>
+    <plurals name="star_list_done">
+        <item quantity="one">⭐ Starred %1$d file of “%2$s”</item>
+        <item quantity="other">⭐ Starred %1$d files of “%2$s”</item>
+    </plurals>
+    <plurals name="unstar_list_done">
+        <item quantity="one">☆ Unstarred %1$d file of “%2$s”</item>
+        <item quantity="other">☆ Unstarred %1$d files of “%2$s”</item>
+    </plurals>
     <string name="star_done">⭐ Starred “%1$s”</string>
     <string name="unstar_done">☆ Unstarred “%1$s”</string>
     <string name="star_account_problem">⚠️ %1$s here, but the YouTube like did not land: %2$s</string>

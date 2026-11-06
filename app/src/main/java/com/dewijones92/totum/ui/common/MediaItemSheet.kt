@@ -127,12 +127,8 @@ internal fun ActionSheet(
             SheetAction(onPeek, Icons.Outlined.Visibility, R.string.queue_peek, onDismiss)
             SheetAction(extras.onStartRadio, Icons.Outlined.Radio, R.string.music_start_radio, onDismiss)
             StarAction(extras.item, onDismiss)
-            SheetAction(
-                extras.item?.let { LocalItemActions.current?.notForMe(it) },
-                Icons.Outlined.ThumbDown,
-                R.string.not_for_me,
-                onDismiss,
-            )
+            StarListAction(extras.starList, title, onDismiss)
+            SheetAction(notForMeActionOf(extras), Icons.Outlined.ThumbDown, R.string.not_for_me, onDismiss)
             ShareSheetActions(extras.item, extras.onShareList, onDismiss)
             PinSheetActions(pins, extras.pin, onDismiss)
             extras.item?.let { DetailsSection(it) }
@@ -178,6 +174,10 @@ internal fun ActionSheet(
         }
     }
 }
+
+@Composable
+private fun notForMeActionOf(extras: SheetExtras): (() -> Unit)? =
+    extras.item?.let { LocalItemActions.current?.notForMe(it) } ?: extras.onNotForMeList
 
 @Composable
 private fun ShareSheetActions(item: MediaItem?, onShareList: (() -> Unit)?, onDismiss: () -> Unit) {

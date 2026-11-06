@@ -6,7 +6,11 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dewijones92.totum.R
 import com.dewijones92.totum.di.AppContainer
+import com.dewijones92.totum.domain.MediaItem
+import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaKind
+import com.dewijones92.totum.domain.SourceId
+import com.dewijones92.totum.domain.showTitleOf
 import com.dewijones92.totum.ui.common.ActionSheet
 import com.dewijones92.totum.ui.common.ItemActionSheet
 import com.dewijones92.totum.ui.common.LocalItemActions
@@ -43,6 +47,18 @@ internal fun TorrentMenuSheet(search: SearchViewModel, container: AppContainer) 
         onSetPlayed = actions?.let { a -> { played -> chosen.items.forEach { a.setPlayed(it.item.id, played) } } },
         played = false,
         onDismiss = search::closeTorrentMenu,
-        extras = SheetExtras(onShareList = actions?.shareList(chosen.title, chosen.items.map { it.item })),
+        extras = SheetExtras(
+            onShareList = actions?.shareList(chosen.title, chosen.items.map { it.item }),
+            onNotForMeList = actions?.notForMeList(packItem(chosen), chosen.items.map { it.item }),
+            starList = chosen.items,
+        ),
     )
 }
+
+private fun packItem(pack: SearchViewModel.TorrentMenu) = MediaItem(
+    id = MediaItemId(pack.group.id),
+    sourceId = SourceId("torrent:${pack.group.id}"),
+    title = showTitleOf(pack.title) ?: pack.title,
+    publishedAt = null,
+    duration = null,
+)

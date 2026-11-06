@@ -3,7 +3,7 @@ title: Audiobooks
 kind: feature
 status: shipped
 area: search
-updated: 2026-10-31
+updated: 2026-11-06
 ---
 
 # Audiobooks
@@ -23,6 +23,10 @@ for torrents". Decisions and reasons: [ADR 105](../adr/0105-audiobooks-are-books
   plays the book from that chapter. There is no subscribe button.
 - An audiobook torrent plays like any torrent (prepared on the home server, through the VPN); its audio
   files queue in chapter order and an `.m4b` book plays as one item.
+- A long-press on a free book's row (search, Ask) opens a small menu: **Share** (the title; a book has no single
+  address), **🙅 Not for me** (the book, so Ask stops suggesting it) and Details. There is no Star, no queue or download
+  entries and no Copy link, because a book is a feed of chapters, not one playable thing (recorded in
+  [ADR 108](../adr/0108-consistent-everywhere-and-its-recorded-exceptions.md)); its chapters have the full menu.
 - Audiobooks appear only in the 🎧 sections, never among the film torrents. AudioBook Bay results say its seeders are not reported. Book chapters carry no follow mark.
 - Book chapters keep your speed, never skip silence (a toggle while one plays is for that chapter
   only), and are never cut short by a quiet ending. Rows wear 🎧 BOOK.

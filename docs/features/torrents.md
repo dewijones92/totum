@@ -3,7 +3,7 @@ title: Torrents (public-domain film & TV)
 kind: feature
 status: shipped
 area: torrent
-updated: 2026-10-31
+updated: 2026-11-06
 ---
 
 # Torrents (public-domain film & TV)
@@ -30,6 +30,7 @@ read afterwards and the whole path was there. **A status nobody re-checks is wor
 | 1337x | Its results carry only Prowlarr's download link; the magnet is asked for when one is chosen ([ADR 89](../adr/0089-a-result-without-a-magnet-is-resolved-when-chosen.md)); before, none ever reached the app |
 | Torrentio beside Prowlarr | `Torrentio`: Cinemeta finds the film or series, Torrentio lists its torrents in ~0.3 s; one more source in `ProwlarrSearch.updates`, the same info hash listed once ([ADR 86](../adr/0086-torrentio-beside-prowlarr.md)) |
 | Add a magnet, wait for metadata | `prepare` — polls for the file list, because asking once returns nothing |
+| A pack's long-press menu | `TorrentMenuSheet`: play next / add to queue, playlist, choose episodes to download, mark played, Share list, **⭐ Star every file** and **🙅 Not for me** (the pack by its show title: its queued files leave the queue, Undo puts them back); no Copy link, a pack has no address ([ADR 108](../adr/0108-consistent-everywhere-and-its-recorded-exceptions.md)) |
 | Season packs as episodes | `TorrentEpisodes` + `TorrentPlayables.queueItems` — one queue item per playable file |
 | Playback | **no new playback code**: a TorrServer stream is an ordinary ranged HTTP URL, so `MediaItem.mediaUrl` and the one `PlaybackController` take it unchanged |
 | Listen mode | the server's remuxed audio (HLS), 2.1 MB/min against 15.2 measured |

@@ -113,3 +113,9 @@ written to the not-for-me list (`NotForMe` in `:core:data`, `not-for-me.json`, p
 
 Settings > Not for me lists the items and allows one again (with Undo). It is per item, not per channel
 ([ADR 128](../adr/0128-undo-already-queued-and-not-for-me-share-the-queue-entry-seam.md)).
+
+## Tests owed (2026-11-06 consistency sweep)
+
+A book row's long-press menu (Share, Not for me, Details; no Star or queue entries); a torrent pack's menu having
+⭐ Star every file and 🙅 Not for me (and `StarListAction` toggling on only when every file is starred);
+`SearchHit.Book.asItem()`.

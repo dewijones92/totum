@@ -14,8 +14,10 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dewijones92.totum.R
+import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
+import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.isYouTubeVideoId
 import com.dewijones92.totum.innertube.actions.VideoRating
 import com.dewijones92.totum.music.MusicFavourites
@@ -31,6 +33,8 @@ class StarHost(val stars: Stars, val favourites: MusicFavourites, val scope: Cor
 internal val LocalStars = staticCompositionLocalOf<StarHost?> { null }
 
 const val STAR_TAG = "sheet-star"
+
+const val STAR_LIST_TAG = "sheet-star-list"
 
 @Composable
 internal fun StarAction(item: MediaItem?, onDismiss: () -> Unit) {
@@ -56,6 +60,32 @@ internal fun StarAction(item: MediaItem?, onDismiss: () -> Unit) {
         if (on) R.string.unstar else R.string.star,
         onDismiss,
         tag = STAR_TAG,
+    )
+}
+
+@Composable
+internal fun StarListAction(items: List<PlayableItem>?, title: String, onDismiss: () -> Unit) {
+    val host = LocalStars.current ?: return
+    if (items.isNullOrEmpty()) return
+    val here by host.stars.starredIds.collectAsStateWithLifecycle(initialValue = emptySet())
+    val on = items.all { it.item.id in here }
+    val context = LocalContext.current.applicationContext
+    SheetAction(
+        {
+            host.scope.launch {
+                items.forEach { host.stars.setStarred(it, !on) }
+                Diag.log(
+                    "stars",
+                    "dewidebug ${items.size} file(s) of \"$title\" ${if (on) "unstarred" else "starred"} from its menu",
+                )
+                val phrase = if (on) R.plurals.unstar_list_done else R.plurals.star_list_done
+                toast(context, context.resources.getQuantityString(phrase, items.size, items.size, title))
+            }
+        },
+        if (on) Icons.Filled.Star else Icons.Outlined.StarBorder,
+        if (on) R.string.unstar_all else R.string.star_all,
+        onDismiss,
+        tag = STAR_LIST_TAG,
     )
 }
 
