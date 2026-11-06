@@ -30,12 +30,14 @@ internal fun NewUploadsSettings(container: AppContainer, settings: AppPreference
     val prefs = container.appPreferences
     var choosing by rememberSaveable { mutableStateOf(false) }
     SectionTitle(stringResource(R.string.settings_inbox_section))
-    SwitchRow(
-        label = stringResource(R.string.settings_inbox_all),
-        summary = stringResource(R.string.settings_inbox_all_summary),
-        checked = settings.inboxAll,
-        onCheckedChange = prefs::setInboxAll,
-    )
+    AnchoredRow(SettingsRow.INBOX_ALL) {
+        SwitchRow(
+            label = stringResource(R.string.settings_inbox_all),
+            summary = stringResource(R.string.settings_inbox_all_summary),
+            checked = settings.inboxAll,
+            onCheckedChange = prefs::setInboxAll,
+        )
+    }
     if (!settings.inboxAll) {
         NavRow(
             label = stringResource(R.string.settings_inbox_sources) + " (${settings.inboxSources.size})",

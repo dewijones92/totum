@@ -1,7 +1,7 @@
 ---
 title: Search in Settings
 kind: todo
-status: decided
+status: built
 batch: A (2026-11)
 priority: low
 updated: 2026-11-06
@@ -11,3 +11,5 @@ updated: 2026-11-06
 
 Dewi 2026-11-06. Settings rows are composables, not data (`SettingsScreen.kt:76-146`), so search needs a small
 registry (label, section, destination) including the sub-pages (Exsurge, alarms).
+
+Built 2026-11-06: see [the feature doc](../features/settings-search.md). `SettingsRow` is the registry; tests to follow.

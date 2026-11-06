@@ -40,17 +40,21 @@ import java.util.Locale
 
 @Composable
 internal fun SkipSilenceSection(container: AppContainer, mode: SilenceMode, onMode: (SilenceMode) -> Unit) {
-    Text(
-        text = stringResource(R.string.settings_silence_section),
-        style = MaterialTheme.typography.titleMedium,
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-    )
-    Text(
-        text = stringResource(R.string.settings_silence_supporting),
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(horizontal = 16.dp),
-    )
+    AnchoredRow(SettingsRow.SILENCE) {
+        Column {
+            Text(
+                text = stringResource(R.string.settings_silence_section),
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            )
+            Text(
+                text = stringResource(R.string.settings_silence_supporting),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp),
+            )
+        }
+    }
     SilenceMode.entries.forEach { option ->
         ModeRow(option, selected = option == mode, onSelect = { onMode(option) })
     }

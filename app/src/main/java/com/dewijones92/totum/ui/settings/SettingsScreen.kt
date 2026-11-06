@@ -22,6 +22,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -36,7 +37,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dewijones92.totum.R
 import com.dewijones92.totum.dailyalarms.DailyAlarmsScreen
-import com.dewijones92.totum.data.sponsorblock.SkipCategory
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.diagnostics.EncodedScreenshot
 import com.dewijones92.totum.diagnostics.NOTE_MAX_CHARS
@@ -79,62 +79,18 @@ fun SettingsScreen(container: AppContainer, onBack: () -> Unit, modifier: Modifi
     val settings by prefs.settings.collectAsStateWithLifecycle()
     var subPageName by rememberSaveable { mutableStateOf<String?>(null) }
     val subPage = subPageName?.let(SettingsSubPage::valueOf)
+    val focus = remember { SettingsFocus() }
     val open: (SettingsSubPage?) -> Unit = { subPageName = it?.name }
     val close = { open(null) }
     ListThenDetail(subPage, listKey = "settings", onBack = close, list = {
-        Surface(modifier = modifier.fillMaxSize()) {
-            // Scrolls: the screen already ran past the bottom of a phone once the
-            // SponsorBlock categories were added, and everything below was simply unreachable.
-            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                BackHeader(stringResource(R.string.settings), onBack)
-                QualitySection(settings, prefs)
-                FeedAndQueueSettings(settings, prefs)
-                NewUploadsSettings(container, settings)
-                SkipSilenceSection(container, settings.silenceMode, prefs::setSilenceMode)
-                SpeechBoostSection(container, settings.speechGate, prefs::setSpeechGate)
-                DownloadSettings(settings, prefs)
-                NavRow(
-                    label = stringResource(R.string.exsurge_settings_row),
-                    onClick = { open(SettingsSubPage.EXSURGE) }
-                )
-                NavRow(
-                    label = stringResource(R.string.dailyalarm_settings_row),
-                    onClick = { open(SettingsSubPage.DAILY_ALARMS) }
-                )
-                NavRow(
-                    label = stringResource(R.string.work_apps_name),
-                    onClick = { open(SettingsSubPage.WORK_APPS) }
-                )
-                Text(
-                    text = stringResource(R.string.settings_subscriptions_section),
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                )
-                SwitchRow(
-                    label = stringResource(R.string.settings_youtube_alerts),
-                    summary = stringResource(R.string.settings_youtube_alerts_summary),
-                    checked = settings.youTubeUploadAlerts,
-                    onCheckedChange = prefs::setYouTubeUploadAlerts,
-                )
-                SwitchRow(
-                    label = stringResource(R.string.settings_podcast_alerts),
-                    summary = stringResource(R.string.settings_podcast_alerts_summary),
-                    checked = settings.podcastEpisodeAlerts,
-                    onCheckedChange = prefs::setPodcastEpisodeAlerts,
-                )
-                NavRow(
-                    label = stringResource(R.string.settings_import_export),
-                    onClick = { open(SettingsSubPage.IMPORT_EXPORT) },
-                )
-                SectionTitle(stringResource(R.string.settings_diagnostics_section))
-                SkipCategorySection(settings.skipCategories, prefs::setSkipCategories)
-
-                ViewDiagnosticsRow(onOpen = { open(SettingsSubPage.DIAGNOSTICS) })
-                HomeServerRow(container)
-                CheckForContentRow(container)
-                DiagnosticsRow(container)
-                SectionTitle(stringResource(R.string.drive_backup_section))
-                DriveBackupRow(container.driveBackup, container.operations)
+        CompositionLocalProvider(LocalSettingsFocus provides focus) {
+            Surface(modifier = modifier.fillMaxSize()) {
+                // Scrolls: the screen already ran past the bottom of a phone once the
+                // SponsorBlock categories were added, and everything below was simply unreachable.
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                    BackHeader(stringResource(R.string.settings), onBack)
+                    SettingsSearchBox(focus, open) { MainSettings(container, settings, open) }
+                }
             }
         }
     }) { open ->
@@ -152,29 +108,108 @@ fun SettingsScreen(container: AppContainer, onBack: () -> Unit, modifier: Modifi
     }
 }
 
+@Composable
+private fun MainSettings(
+    container: AppContainer,
+    settings: AppPreferences.Settings,
+    open: (SettingsSubPage?) -> Unit,
+) {
+    val prefs = container.appPreferences
+    Column {
+        QualitySection(settings, prefs)
+        FeedAndQueueSettings(settings, prefs)
+        NewUploadsSettings(container, settings)
+        SkipSilenceSection(container, settings.silenceMode, prefs::setSilenceMode)
+        SpeechBoostSection(container, settings.speechGate, prefs::setSpeechGate)
+        DownloadSettings(settings, prefs)
+        AnchoredRow(SettingsRow.EXSURGE) {
+            NavRow(
+                label = stringResource(R.string.exsurge_settings_row),
+                onClick = { open(SettingsSubPage.EXSURGE) }
+            )
+        }
+        AnchoredRow(SettingsRow.DAILY_ALARMS) {
+            NavRow(
+                label = stringResource(R.string.dailyalarm_settings_row),
+                onClick = { open(SettingsSubPage.DAILY_ALARMS) }
+            )
+        }
+        AnchoredRow(SettingsRow.WORK_APPS) {
+            NavRow(
+                label = stringResource(R.string.work_apps_name),
+                onClick = { open(SettingsSubPage.WORK_APPS) }
+            )
+        }
+        Text(
+            text = stringResource(R.string.settings_subscriptions_section),
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        )
+        AnchoredRow(SettingsRow.YOUTUBE_ALERTS) {
+            SwitchRow(
+                label = stringResource(R.string.settings_youtube_alerts),
+                summary = stringResource(R.string.settings_youtube_alerts_summary),
+                checked = settings.youTubeUploadAlerts,
+                onCheckedChange = prefs::setYouTubeUploadAlerts,
+            )
+        }
+        AnchoredRow(SettingsRow.PODCAST_ALERTS) {
+            SwitchRow(
+                label = stringResource(R.string.settings_podcast_alerts),
+                summary = stringResource(R.string.settings_podcast_alerts_summary),
+                checked = settings.podcastEpisodeAlerts,
+                onCheckedChange = prefs::setPodcastEpisodeAlerts,
+            )
+        }
+        AnchoredRow(SettingsRow.IMPORT_EXPORT) {
+            NavRow(
+                label = stringResource(R.string.settings_import_export),
+                onClick = { open(SettingsSubPage.IMPORT_EXPORT) },
+            )
+        }
+        SectionTitle(stringResource(R.string.settings_diagnostics_section))
+        SkipCategorySection(settings.skipCategories, prefs::setSkipCategories)
+
+        AnchoredRow(SettingsRow.VIEW_DIAGNOSTICS) {
+            ViewDiagnosticsRow(onOpen = { open(SettingsSubPage.DIAGNOSTICS) })
+        }
+        AnchoredRow(SettingsRow.HOME_SERVER) { HomeServerRow(container) }
+        AnchoredRow(SettingsRow.CHECK_CONTENT) { CheckForContentRow(container) }
+        AnchoredRow(SettingsRow.SEND_DIAGNOSTICS) { DiagnosticsRow(container) }
+        SectionTitle(stringResource(R.string.drive_backup_section))
+        AnchoredRow(SettingsRow.DRIVE_BACKUP) { DriveBackupRow(container.driveBackup, container.operations) }
+    }
+}
+
 /** Automatic-download preferences: whether, and on which networks. */
 @Composable
 private fun DownloadSettings(settings: AppPreferences.Settings, prefs: AppPreferences) {
     SectionTitle(stringResource(R.string.settings_downloads_section))
-    SwitchRow(
-        label = stringResource(R.string.settings_auto_download),
-        summary = stringResource(R.string.settings_auto_download_summary),
-        checked = settings.autoDownloadQueue,
-        onCheckedChange = prefs::setAutoDownloadQueue,
-    )
-    SwitchRow(
-        label = stringResource(R.string.settings_auto_download_wifi),
-        summary = stringResource(R.string.settings_auto_download_wifi_summary),
-        checked = settings.autoDownloadWifiOnly,
-        onCheckedChange = prefs::setAutoDownloadWifiOnly,
-        enabled = settings.autoDownloadQueue,
-    )
-    SwitchRow(
-        label = stringResource(R.string.settings_copy_home),
-        summary = stringResource(R.string.settings_copy_home_summary),
-        checked = settings.copyHomeOnWifi,
-        onCheckedChange = prefs::setCopyHomeOnWifi,
-    )
+    AnchoredRow(SettingsRow.AUTO_DOWNLOAD) {
+        SwitchRow(
+            label = stringResource(R.string.settings_auto_download),
+            summary = stringResource(R.string.settings_auto_download_summary),
+            checked = settings.autoDownloadQueue,
+            onCheckedChange = prefs::setAutoDownloadQueue,
+        )
+    }
+    AnchoredRow(SettingsRow.AUTO_DOWNLOAD_WIFI) {
+        SwitchRow(
+            label = stringResource(R.string.settings_auto_download_wifi),
+            summary = stringResource(R.string.settings_auto_download_wifi_summary),
+            checked = settings.autoDownloadWifiOnly,
+            onCheckedChange = prefs::setAutoDownloadWifiOnly,
+            enabled = settings.autoDownloadQueue,
+        )
+    }
+    AnchoredRow(SettingsRow.COPY_HOME) {
+        SwitchRow(
+            label = stringResource(R.string.settings_copy_home),
+            summary = stringResource(R.string.settings_copy_home_summary),
+            checked = settings.copyHomeOnWifi,
+            onCheckedChange = prefs::setCopyHomeOnWifi,
+        )
+    }
 }
 
 /**
@@ -189,73 +224,20 @@ private fun QualitySection(settings: AppPreferences.Settings, prefs: AppPreferen
         style = MaterialTheme.typography.titleMedium,
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
     )
-    QualityRow(
-        label = stringResource(R.string.settings_quality_wifi),
-        current = settings.wifiMaxHeight,
-        onSelect = prefs::setWifiMaxHeight,
-    )
-    QualityRow(
-        label = stringResource(R.string.settings_quality_cellular),
-        current = settings.cellularMaxHeight,
-        onSelect = prefs::setCellularMaxHeight,
-    )
-}
-
-/** The SponsorBlock categories, each independently on or off. */
-@Composable
-private fun SkipCategorySection(enabled: Set<SkipCategory>, onChange: (Set<SkipCategory>) -> Unit) {
-    Text(
-        text = stringResource(R.string.settings_skip_section),
-        style = MaterialTheme.typography.titleMedium,
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-    )
-    Text(
-        text = stringResource(R.string.settings_skip_supporting),
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(horizontal = 16.dp),
-    )
-    SkipCategory.entries.forEach { category ->
-        SkipCategoryRow(
-            category = category,
-            enabled = category in enabled,
-            onToggle = { on -> onChange(if (on) enabled + category else enabled - category) },
+    AnchoredRow(SettingsRow.QUALITY_WIFI) {
+        QualityRow(
+            label = stringResource(R.string.settings_quality_wifi),
+            current = settings.wifiMaxHeight,
+            onSelect = prefs::setWifiMaxHeight,
         )
     }
-}
-
-/**
- * One SponsorBlock category. Offered individually because they are not equivalent: a
- * sponsor read is unambiguously not the content, whereas an intro or a recap is content
- * to some people — so the opinionated ones are opt-in rather than assumed.
- */
-@Composable
-private fun SkipCategoryRow(category: SkipCategory, enabled: Boolean, onToggle: (Boolean) -> Unit) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onToggle(!enabled) }
-            .padding(horizontal = 16.dp, vertical = 4.dp),
-    ) {
-        Text(
-            text = stringResource(category.labelRes()),
-            style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.weight(1f),
+    AnchoredRow(SettingsRow.QUALITY_CELLULAR) {
+        QualityRow(
+            label = stringResource(R.string.settings_quality_cellular),
+            current = settings.cellularMaxHeight,
+            onSelect = prefs::setCellularMaxHeight,
         )
-        Switch(checked = enabled, onCheckedChange = onToggle)
     }
-}
-
-private fun SkipCategory.labelRes(): Int = when (this) {
-    SkipCategory.SPONSOR -> R.string.skip_sponsor
-    SkipCategory.SELF_PROMO -> R.string.skip_self_promo
-    SkipCategory.INTERACTION -> R.string.skip_interaction
-    SkipCategory.INTRO -> R.string.skip_intro
-    SkipCategory.OUTRO -> R.string.skip_outro
-    SkipCategory.PREVIEW -> R.string.skip_preview
-    SkipCategory.MUSIC_OFFTOPIC -> R.string.skip_music_offtopic
-    SkipCategory.FILLER -> R.string.skip_filler
 }
 
 /** Opens the on-device read of the same data the "send" button transmits. */
@@ -470,5 +452,3 @@ private fun QualityRow(label: String, current: Int, onSelect: (Int) -> Unit) {
         }
     }
 }
-
-private enum class SettingsSubPage { IMPORT_EXPORT, EXSURGE, DAILY_ALARMS, WORK_APPS, DIAGNOSTICS }

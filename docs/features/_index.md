@@ -1,7 +1,7 @@
 ---
 title: Features
 kind: index
-updated: 2026-10-31
+updated: 2026-11-06
 ---
 
 # Features
@@ -89,6 +89,7 @@ alone until they need more.
 | Quality + speed as an on-video overlay | ui | shipped | [video-settings-overlay.md](video-settings-overlay.md) |
 | Subtitles / captions (menu on the video, cues over the picture) | playback | shipped | [subtitles.md](subtitles.md) |
 | Audio tracks: the right language by default, and a menu to change it | playback | shipped | [audio-tracks.md](audio-tracks.md) |
+| Search in Settings (fuzzy, jumps to the row or opens its page) | settings | built 2026-11-06 | [settings-search.md](settings-search.md) |
 | Settings that stay put across the next video (speed, boost, captions, quality, track) | playback | shipped | [settings-that-stay-put.md](settings-that-stay-put.md) |
 | Command line: `totum "jazz live stream"` on Linux/macOS, same libraries as the app | cli | shipped | [command-line.md](command-line.md) |
 | YouTube Music: a Music tab (songs, albums, artists), album and artist pages, endless radio, your YouTube Music library, shared album links; music plays as sound | music | shipped | [youtube-music.md](youtube-music.md) |

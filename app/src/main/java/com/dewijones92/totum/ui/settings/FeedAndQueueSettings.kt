@@ -22,38 +22,48 @@ internal const val EXPLORE_CAP_TAG = "exploreCap"
 @Composable
 internal fun FeedAndQueueSettings(settings: AppPreferences.Settings, prefs: AppPreferences) {
     SectionTitle(stringResource(R.string.settings_feed_section))
-    SwitchRow(
-        label = stringResource(R.string.settings_feed_hidden),
-        summary = stringResource(R.string.settings_feed_hidden_summary),
-        checked = settings.feedHiddenUntilAsked,
-        onCheckedChange = prefs::setFeedHiddenUntilAsked,
-    )
+    AnchoredRow(SettingsRow.FEED_HIDDEN) {
+        SwitchRow(
+            label = stringResource(R.string.settings_feed_hidden),
+            summary = stringResource(R.string.settings_feed_hidden_summary),
+            checked = settings.feedHiddenUntilAsked,
+            onCheckedChange = prefs::setFeedHiddenUntilAsked,
+        )
+    }
     SectionTitle(stringResource(R.string.settings_queue_section))
-    SwitchRow(
-        label = stringResource(R.string.settings_rewind),
-        summary = stringResource(R.string.settings_rewind_summary),
-        checked = settings.rewindOnResume,
-        onCheckedChange = prefs::setRewindOnResume,
-    )
-    SwitchRow(
-        label = stringResource(R.string.settings_silent_tail),
-        summary = stringResource(R.string.settings_silent_tail_summary),
-        checked = settings.silentTailEnds,
-        onCheckedChange = prefs::setSilentTailEnds,
-    )
-    SwitchRow(
-        label = stringResource(R.string.settings_gapless),
-        summary = stringResource(R.string.settings_gapless_summary),
-        checked = settings.gaplessQueue,
-        onCheckedChange = prefs::setGaplessQueue,
-    )
-    SwitchRow(
-        label = stringResource(R.string.settings_explore),
-        summary = stringResource(R.string.settings_explore_summary),
-        checked = settings.exploreByDefault,
-        onCheckedChange = prefs::setExploreByDefault,
-    )
-    ExploreCapRow(settings.exploreCap, prefs::setExploreCap)
+    AnchoredRow(SettingsRow.REWIND) {
+        SwitchRow(
+            label = stringResource(R.string.settings_rewind),
+            summary = stringResource(R.string.settings_rewind_summary),
+            checked = settings.rewindOnResume,
+            onCheckedChange = prefs::setRewindOnResume,
+        )
+    }
+    AnchoredRow(SettingsRow.SILENT_TAIL) {
+        SwitchRow(
+            label = stringResource(R.string.settings_silent_tail),
+            summary = stringResource(R.string.settings_silent_tail_summary),
+            checked = settings.silentTailEnds,
+            onCheckedChange = prefs::setSilentTailEnds,
+        )
+    }
+    AnchoredRow(SettingsRow.GAPLESS) {
+        SwitchRow(
+            label = stringResource(R.string.settings_gapless),
+            summary = stringResource(R.string.settings_gapless_summary),
+            checked = settings.gaplessQueue,
+            onCheckedChange = prefs::setGaplessQueue,
+        )
+    }
+    AnchoredRow(SettingsRow.EXPLORE) {
+        SwitchRow(
+            label = stringResource(R.string.settings_explore),
+            summary = stringResource(R.string.settings_explore_summary),
+            checked = settings.exploreByDefault,
+            onCheckedChange = prefs::setExploreByDefault,
+        )
+    }
+    AnchoredRow(SettingsRow.EXPLORE_CAP) { ExploreCapRow(settings.exploreCap, prefs::setExploreCap) }
 }
 
 @OptIn(ExperimentalLayoutApi::class)

@@ -35,17 +35,21 @@ import kotlinx.coroutines.withContext
 
 @Composable
 internal fun SpeechBoostSection(container: AppContainer, gate: SpeechGate, onGate: (SpeechGate) -> Unit) {
-    Text(
-        text = stringResource(R.string.speech_boost_section),
-        style = MaterialTheme.typography.titleMedium,
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-    )
-    Text(
-        text = stringResource(R.string.speech_boost_supporting),
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(horizontal = 16.dp),
-    )
+    AnchoredRow(SettingsRow.SPEECH_BOOST) {
+        Column {
+            Text(
+                text = stringResource(R.string.speech_boost_section),
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            )
+            Text(
+                text = stringResource(R.string.speech_boost_supporting),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp),
+            )
+        }
+    }
     var feedbackOn by rememberSaveable { mutableStateOf<SpeechGate?>(null) }
     SpeechGate.entries.forEach { option ->
         GateRow(option, option == gate, onSelect = { onGate(option) }, onFeedback = { feedbackOn = option })

@@ -52,7 +52,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [Why is this playing?](why-is-this-playing.md) | player | medium | decided 2026-11-06, Batch A |
 | [What's new after an update](whats-new-card.md) | app | medium | decided 2026-11-06, Batch A |
 | [A Quick Settings tile sends a Totum report](send-report-tile.md) | diagnostics | medium | decided 2026-11-06, Batch A |
-| [Search in Settings](settings-search.md) | settings | low | decided 2026-11-06, Batch A |
+| [Search in Settings](settings-search.md) | settings | low | built 2026-11-06, Batch A; tests to follow |
 | [Update straight from the banner](in-app-updater.md) | app | high | decided 2026-11-06, Batch A |
 | [Undo after every remove](undo-everywhere.md) | app | medium | decided 2026-11-06, Batch A |
 | [Offline at a glance](offline-playable-chip.md) | queue | medium | decided 2026-11-06, Batch A |
