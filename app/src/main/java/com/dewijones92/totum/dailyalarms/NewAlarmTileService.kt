@@ -1,12 +1,11 @@
 package com.dewijones92.totum.dailyalarms
 
-import android.app.PendingIntent
-import android.os.Build
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import com.dewijones92.totum.R
 import com.dewijones92.totum.TotumApplication
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.reminders.kit.collapseAndOpen
 
 class NewAlarmTileService : TileService() {
 
@@ -23,19 +22,6 @@ class NewAlarmTileService : TileService() {
 
     override fun onClick() {
         Diag.log(DailyAlarmController.TAG, "dewidebug dailyalarm new alarm sheet opened from the quick settings tile")
-        val intent = DailyAlarmsActivity.newAlarm(this)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            startActivityAndCollapse(
-                PendingIntent.getActivity(
-                    this,
-                    1,
-                    intent,
-                    PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-                ),
-            )
-        } else {
-            @Suppress("DEPRECATION", "StartActivityAndCollapseDeprecated")
-            startActivityAndCollapse(intent)
-        }
+        collapseAndOpen(DailyAlarmsActivity.newAlarm(this), 1)
     }
 }

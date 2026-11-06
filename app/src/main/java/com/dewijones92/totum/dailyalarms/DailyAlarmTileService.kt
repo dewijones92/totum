@@ -1,11 +1,9 @@
 package com.dewijones92.totum.dailyalarms
 
-import android.app.PendingIntent
-import android.content.Intent
-import android.os.Build
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import com.dewijones92.totum.TotumApplication
+import com.dewijones92.totum.reminders.kit.collapseAndOpen
 
 class DailyAlarmTileService : TileService() {
 
@@ -27,18 +25,5 @@ class DailyAlarmTileService : TileService() {
         tile.updateTile()
     }
 
-    override fun onClick() {
-        val open = PendingIntent.getActivity(
-            this,
-            0,
-            DailyAlarmsActivity.intent(this),
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
-        )
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            startActivityAndCollapse(open)
-        } else {
-            @Suppress("DEPRECATION", "StartActivityAndCollapseDeprecated")
-            startActivityAndCollapse(DailyAlarmsActivity.intent(this).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-        }
-    }
+    override fun onClick() = collapseAndOpen(DailyAlarmsActivity.intent(this), 0)
 }

@@ -22,4 +22,15 @@
             android:targetPackage="com.dewijones92.totum"
             android:targetClass="com.dewijones92.totum.MainActivity" />
     </shortcut>
+    <shortcut
+        android:shortcutId="send_report"
+        android:enabled="true"
+        android:icon="@drawable/ic_bug_report"
+        android:shortcutShortLabel="@string/send_report_shortcut_short"
+        android:shortcutLongLabel="@string/send_report_shortcut_long">
+        <intent
+            android:action="com.dewijones92.totum.SEND_REPORT"
+            android:targetPackage="com.dewijones92.totum"
+            android:targetClass="com.dewijones92.totum.diagnostics.SendReportActivity" />
+    </shortcut>
 </shortcuts>

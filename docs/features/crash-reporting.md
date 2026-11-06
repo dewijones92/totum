@@ -214,6 +214,19 @@ Code first for Batch A; tests follow in the testing stretch. Decision and limits
 - **Repeat.** The state block has `playback.repeatNow` (effective, kid lock included) and
   `settings.repeatMode` (stored).
 
+## Send a report from a tile or the app icon (2026-11-06)
+
+A Quick Settings tile **🐞 Send Totum report** and a long-press app-icon shortcut **🐞 Send report** open the same
+"What went wrong?" box as Settings, over whatever is on screen: a small translucent activity
+(`SendReportActivity`) hosting `DiagnosticsNoteDialog`, which was moved out of `SettingsScreen` so both use one
+dialog, screenshots picker included. Sending saves the report through `container.sendDiagnostics`, shows a task in
+the progress strip while it is written, and a toast says it is saved and will send. An empty note is still sent,
+with the fallback "Sent from the Quick Settings tile" or "Sent from the app-icon shortcut", so triage can tell the
+routes apart. The tile opens the box through `collapseAndOpen`, the helper the alarm tiles now share. Android shows
+about four shortcuts per launcher, counting the dynamic pinned and recent ones, so the report shortcut may sit under
+the fold. Log lines: `[diagnostics] report box opened from the … `, `… dismissed without sending`, `report from the …:
+sending N chars and M screenshot(s)`, `… is saved on the phone`.
+
 ## A note on log volume
 
 The silence detector enters silence every few seconds during speech. Logging each one

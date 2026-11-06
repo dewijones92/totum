@@ -97,7 +97,7 @@ class MaxLinesMatchingTest(unittest.TestCase):
 
     def test_a_different_value_in_an_allowed_file_is_not_the_allowed_cap(self):
         allowed, _ = preflight.ALLOWED_MAXLINES[
-            "app/src/main/java/com/dewijones92/totum/ui/settings/SettingsScreen.kt"
+            "app/src/main/java/com/dewijones92/totum/ui/settings/DiagnosticsNoteDialog.kt"
         ]
         self.assertIn("maxLines = 6", allowed)
         self.assertNotIn("maxLines = 1", allowed)

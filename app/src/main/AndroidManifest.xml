@@ -190,6 +190,23 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/update_file_paths" />
         </provider>
+        <service
+            android:name=".diagnostics.SendReportTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_bug_report"
+            android:label="@string/send_report_tile_label"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+        <activity
+            android:name=".diagnostics.SendReportActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:taskAffinity="com.dewijones92.totum.diagnostics.report"
+            android:label="@string/send_report_shortcut_long"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
         <activity
             android:name=".downloads.home.SendHomeActivity"
             android:exported="true"

@@ -266,7 +266,7 @@ ALLOWED_MAXLINES = {
         "a one-word screen title (its caller passes a string resource) that shrinks as the list scrolls; "
         "TitleAndActions keeps it at least its own width, so it never needs a second line",
     ),
-    "app/src/main/java/com/dewijones92/totum/ui/settings/SettingsScreen.kt": (
+    "app/src/main/java/com/dewijones92/totum/ui/settings/DiagnosticsNoteDialog.kt": (
         ["maxLines = 6"], "minLines/maxLines on a text INPUT, which scrolls rather than truncating",
     ),
     "app/src/main/java/com/dewijones92/totum/ui/player/FullPlayer.kt": (
