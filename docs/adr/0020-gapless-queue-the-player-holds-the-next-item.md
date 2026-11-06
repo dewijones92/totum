@@ -2,7 +2,7 @@
 title: Gapless queue — the player holds the next item, and the queue adopts the crossover
 kind: adr
 status: accepted
-updated: 2026-10-28
+updated: 2026-11-06
 ---
 
 # 20. Gapless queue — the player holds the next item, and the queue adopts the crossover
@@ -86,6 +86,14 @@ controller). The queue still owns advancing; what changes is how the next item i
   the resume point honoured, the setting off falls back, short items chaining).
 - Measured with `tools/emulator/soak.py queue` on `totum-api35`, real YouTube items, seeking to 40 s before
   each end: gapless off 4.6 / 3.7 / 4.4 s of silence at the three hand-overs, gapless on 0 / 0 / 0 s.
+
+## Arming reads the same effective modes as the advance (2026-11-06)
+
+`gaplessNotNow` used the raw repeat, auto-play and Explore settings while the end-of-item advance reads them through
+`KidRules` (the kid lock forces repeat group or one, plays on whatever auto-play says and never explores). So under the
+kid lock the player could arm a next item the advance would not take, or refuse to arm one it would. It now takes
+`kidLocked` and the playing group and resolves repeat, auto-play and Explore with the same `KidRules` functions
+(`repeat`, `autoPlay`, `explores`), so there is one rule. Tests: `GaplessArmerTest` (three kid-lock cases, each red on the old code).
 
 ## The lead outlasts the silent tail (2026-10-28)
 

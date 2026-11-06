@@ -152,6 +152,42 @@ class GaplessArmerTest {
         )
     }
 
+    @Test
+    fun `kid lock decides repeat the same way for the arming as for the advance`() {
+        val off = AppPreferences.Settings(repeatMode = RepeatMode.OFF)
+        assertEquals(
+            "repeat group is on and this is its group's last item",
+            gaplessNotNow(off, false, lastOfItsGroup = true, kidLocked = true, playingGroup = "peppa"),
+        )
+        assertEquals(
+            "repeat one is on",
+            gaplessNotNow(
+                off.copy(repeatMode = RepeatMode.QUEUE),
+                false,
+                kidLocked = true,
+                playingGroup = null
+            ),
+        )
+        assertNull(gaplessNotNow(off, false, lastOfItsGroup = false, kidLocked = true, playingGroup = "peppa"))
+    }
+
+    @Test
+    fun `kid lock plays the next one on even with auto-play off, so the arming does not hold back`() {
+        val autoPlayOff = AppPreferences.Settings(autoPlayNext = false)
+        assertEquals("auto-play next is off", gaplessNotNow(autoPlayOff, false))
+        assertNull(gaplessNotNow(autoPlayOff, false, lastOfItsGroup = false, kidLocked = true, playingGroup = "peppa"))
+    }
+
+    @Test
+    fun `kid lock never explores, so Explore being on does not hold back the arming`() {
+        val on = AppPreferences.Settings()
+        assertEquals(
+            "Explore is on: a related video follows, not the queue's next",
+            gaplessNotNow(on, false, exploring = true),
+        )
+        assertNull(gaplessNotNow(on, false, exploring = true, kidLocked = true, playingGroup = "peppa"))
+    }
+
     private fun playing(
         positionMs: Long,
         durationMs: Long? = 600_000,

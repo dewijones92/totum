@@ -4,6 +4,7 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayableItem
+import com.dewijones92.totum.kidlock.KidRules
 import com.dewijones92.totum.queue.groupRestartIndex
 import com.dewijones92.totum.settings.AppPreferences
 import com.dewijones92.totum.settings.RepeatMode
@@ -89,14 +90,19 @@ internal fun gaplessNotNow(
     sleepsAfterPlaying: Boolean,
     exploring: Boolean = false,
     lastOfItsGroup: Boolean = false,
-): String? = when {
-    !settings.gaplessQueue -> "gapless queue is off in Settings"
-    exploring -> "Explore is on: a related video follows, not the queue's next"
-    !settings.autoPlayNext -> "auto-play next is off"
-    settings.repeatMode == RepeatMode.ONE -> "repeat one is on"
-    settings.repeatMode.repeatsGroup && lastOfItsGroup -> "repeat group is on and this is its group's last item"
-    sleepsAfterPlaying -> "the sleep timer stops after this item"
-    else -> null
+    kidLocked: Boolean = false,
+    playingGroup: String? = null,
+): String? {
+    val repeat = KidRules.repeat(kidLocked, playingGroup, settings.repeatMode)
+    return when {
+        !settings.gaplessQueue -> "gapless queue is off in Settings"
+        exploring && KidRules.explores(kidLocked) -> "Explore is on: a related video follows, not the queue's next"
+        !KidRules.autoPlay(kidLocked, settings.autoPlayNext) -> "auto-play next is off"
+        repeat == RepeatMode.ONE -> "repeat one is on"
+        repeat.repeatsGroup && lastOfItsGroup -> "repeat group is on and this is its group's last item"
+        sleepsAfterPlaying -> "the sleep timer stops after this item"
+        else -> null
+    }
 }
 
 internal fun startGapless(container: AppContainer, metered: () -> Boolean) {
@@ -111,8 +117,10 @@ internal fun startGapless(container: AppContainer, metered: () -> Boolean) {
                 sleepsAfterPlaying = container.sleepTimer.stopsAfterItem
                     .let { it != null && it == controller.state.value?.itemId },
                 exploring = container.exploreMode.on.value,
-                lastOfItsGroup = settings.repeatMode.repeatsGroup && controller.state.value?.itemId
+                lastOfItsGroup = controller.state.value?.itemId
                     ?.let { groupRestartIndex(queue.state.value, it) != null } == true,
+                kidLocked = container.kidLock.locked.value,
+                playingGroup = queue.state.value.current?.group?.id,
             )
         }
         override fun metered() = metered()
