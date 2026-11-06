@@ -42,7 +42,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [Every pause and cast drop says why; a flight recorder](pause-and-cast-drop-reasons.md) | diagnostics | high | built 2026-11-06, Batch A (ADR 120); tests and device checks to follow |
 | [The PC screen knows both phones](pc-screen-two-phones.md) | casting/pi | high | built 2026-11-06, Batch A (tests still to add) |
 | [The AI service decides which tools a caller may use](ai-service-tool-allowlist.md) | pi/security | high | decided 2026-11-06, Batch A |
-| [Slack, Outlook and Teams stay quiet outside work hours](work-apps-quiet-hours.md) | side-quest | high | built 2026-11-06 (code first; tests and an on-phone check to come), Batch A |
+| [Slack, Outlook and Teams stay quiet outside work hours](work-apps-quiet-hours.md) | side-quest | high | built 2026-11-06 with groups and change notifications (ADR 124 amended), Batch A; tests owed |
 | [Every download says what, from where, to where; Move to Pi moves the file](download-wording-and-moves.md) | downloads | high | built 2026-11-06, Batch A (ADR 126); Pi deploy, nginx body limit and tests to follow |
 | [The codec beside every quality; AV1 first when the hardware decodes it](codec-everywhere.md) | video | high | built 2026-11-06, Batch A (ADR 127); tests owed, not seen on a device |
 | [TV volume from the phone; the strip says what is cast](tv-volume-and-cast-strip.md) | casting | medium | built 2026-11-06, Batch A; tests owed, not seen on a device |

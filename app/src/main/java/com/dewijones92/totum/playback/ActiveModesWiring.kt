@@ -83,7 +83,7 @@ private fun quietHoursNow(workApps: WorkAppsQuiet): Flow<Boolean> =
         flow {
             while (true) {
                 val status = workApps.status()
-                emit(status is WorkAppsStatus.Quiet)
+                emit(status is WorkAppsStatus.Groups && status.anyQuiet)
                 val untilChange = status?.refreshAt?.let { Duration.between(Instant.now(), it).toMillis() }
                 delay((untilChange ?: QUIET_RECHECK_MAX_MS).coerceIn(QUIET_RECHECK_MIN_MS, QUIET_RECHECK_MAX_MS))
             }

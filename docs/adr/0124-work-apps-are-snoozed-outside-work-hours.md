@@ -7,7 +7,7 @@ updated: 2026-11-06
 
 # 124. Work apps are snoozed outside work hours, by a notification listener
 
-- Status: Accepted
+- Status: Accepted, amended 2026-11-06 (groups of apps, each with its own hours; a notification at each change)
 - Date: 2026-11-06
 
 ## Context
@@ -32,20 +32,20 @@ app, with one start and end for all days.
 - **`WorkAppsListenerService` snoozes outside the window** with `snoozeNotification(key, ms)`, for the chosen apps
   only, until the window's next start plus 5 s (so a notification handed back a moment early is not snoozed again).
   The decision is one pure function, `WorkAppsSettings.decide`, in `:lib:dailyalarms`: switched off, not a chosen app,
-  ongoing, category call or alarm, paused, inside the window → let through; otherwise snooze. With no work day set at
-  all, a notification is snoozed for 24 h at a time rather than let through.
+  ongoing, category call or alarm, the app's group paused, inside the group's window → let through; otherwise snooze.
+  With no day set in a group's window, its notifications are snoozed for 24 h at a time rather than let through.
 - **The user grants Notification access once.** The page shows ✅ / ⚠️ and opens
   `ACTION_NOTIFICATION_LISTENER_SETTINGS`. The feature ships **off**, and a missing grant shows as a ⚠️ line only
   once the switch is on, so it never nags someone who has not asked for it.
-- **Status is one line on the alarm board, not a notification of its own.** `AlarmBoard` carries an optional
-  `WorkAppsStatus` (quiet until, on until, paused until, needs access); the board notification shows it as its
-  sub-text (and as its text when no alarm is set), and the status's `refreshAt` joins the board's own `refreshAt`, so
-  the existing board refresh redraws it at 09:00 and 17:30. Settings and access changes call
+- **Status is one line on the alarm board.** `AlarmBoard` carries an optional `WorkAppsStatus` (needs access, or one
+  `GroupState` per group: quiet until, on until, paused until); the board notification shows it as its sub-text (and
+  as its text when no alarm is set), and the status's `refreshAt` (the earliest group boundary) joins the board's own
+  `refreshAt`, so the existing board refresh redraws it at every group's boundaries. Settings and access changes call
   `DailyAlarmController.tickAll`. The controller takes the status through a `() -> WorkAppsStatus?`, so `:lib:dailyalarms`
   stays free of Android.
-- **Settings:** per-day hours (a day off is quiet all day), an app list (installed launchable apps that declare the
-  notification permission, every app on request, or a typed package name) and a pause (1 h, 3 h, until the next work
-  day). Stored as JSON in its own prefs file (`work_apps_quiet`).
+- **Settings:** per group: a name, an emoji, per-day hours (a day off is quiet all day), an app list (installed
+  launchable apps that declare the notification permission, every app on request, or a typed package name) and a
+  pause (1 h, 3 h, until the next hours start). Stored as JSON in its own prefs file (`work_apps_quiet`).
 - **Counted logs:** each snooze and let-through for a chosen app is tallied, and a line is written at the first of
   each kind and every tenth; reports carry the tallies and the last decision.
 
@@ -59,3 +59,35 @@ app, with one start and end for all days.
 - Unverified until a phone run: that the sub-text shows on the Android 16 promoted board, and whether the restricted
   settings step is needed for an Obtainium install.
 - The bedtime sleep timer reuses `WeeklyWindow` instead of writing a third window.
+
+## Amendment 2026-11-06: groups, and a notification at each change
+
+Dewi, 2026-11-06 (Batch A phase 4): "groups of apps, each with its own schedule" (💼 Work: Slack, Teams, Outlook,
+Mon-Fri 09:00-17:30; 📱 Social: quiet after 22:00) and "a notification each time a group's quiet state changes".
+Icons for the apps in the board line were judged not feasible in the Live Update style (text only), so each group's
+emoji stands in.
+
+- **The model is a list of `QuietGroup`** (`id`, `name`, `emoji`, `packages`, a `WeeklyWindow`, `pausedUntil`) in
+  `WorkAppsSettings`; the master switch stays global. An app belongs to one group (adding it to a group takes it out of
+  any other; `validated()` keeps the first claim). The pause moved from the whole feature to each group, since being on
+  call for work should not let Social through. `QuietGroup.state(now, zone)` gives a `GroupState` (`QUIET`, `ON`,
+  `PAUSED`, and the time it runs until); `WorkAppsStatus.Groups` carries one per group, and the Quiet-hours mode chip
+  shows when any group is quiet.
+- **Migration:** a stored single list (`packages`, `window`, `pausedUntil` and no `groups` key) is read by
+  `WorkAppsCodec.decode` as one default group, 💼 "Work apps", carrying the same apps, window and pause, and is saved in
+  the new shape at once (logged as a migration). Nothing is lost; a fresh install gets the same default group.
+- **The board line is one combined line**, one short segment per group joined with " · ": `💼 Work apps 🔕 quiet until
+  09:00 Mon · 📱 Social 🔔 on until 22:00` (`⏸️ let through until` while paused). My call over one line per group: the
+  board's sub-text is a single line, and a group name and emoji say who each segment is about.
+- **A notification each time a group changes state**, from the same boundaries the board already uses. `WorkAppsQuiet.
+  noteBoundaries` runs at the end of every `DailyAlarmController.tickAll` (the board refresh alarm, startup, and any
+  tick), compares each group's state with the last one it recorded (a persisted map, so a restart does not forget), and
+  announces a move into quiet or back on: "🔕 Work apps quiet until 09:00 Mon" and "🔔 Work apps back on", with the
+  apps (or the next quiet time) as the body. Silent by rule, and logged with the reason: the first reading of a group,
+  any change made from the settings page (the person just did it), a pause starting, and a group with no days set.
+  The pause ending by itself is announced. The channel is its own, "Quiet hours: changes", low importance and silent.
+- **Removing a group, or an app from a group, can be taken back** through the shared undo helper (ADR 128), at its old
+  slot.
+
+Consequences: a notification arrives late if the phone was off at a boundary (it is sent when the state is next read
+and says the state then). Unverified until a phone run, as before.

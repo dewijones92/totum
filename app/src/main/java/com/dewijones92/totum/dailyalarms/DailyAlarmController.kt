@@ -104,6 +104,7 @@ class DailyAlarmController(
     private val record: (StatEvent) -> Unit = {},
     seeds: List<DailyAlarm> = emptyList(),
     private val workApps: () -> WorkAppsStatus? = { null },
+    private val onTick: (String) -> Unit = {},
 ) {
     private var alarms = seeded(store.loadAlarms().ifEmpty { listOf(DailyAlarm(id = PICKUP_ID)) }, seeds)
     private var states = store.loadStates()
@@ -173,6 +174,7 @@ class DailyAlarmController(
         lastEvent = "tick all from $source at ${clock()}"
         alarms.forEach { run(it, AlarmEvent.Tick, source) }
         publish()
+        onTick(source)
     }
 
     @Synchronized

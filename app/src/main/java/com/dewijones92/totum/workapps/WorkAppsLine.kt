@@ -5,6 +5,8 @@ import android.content.pm.PackageManager
 import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.dailyalarms.DailyAlarmNotifications
+import com.dewijones92.totum.dailyalarms.GroupState
+import com.dewijones92.totum.dailyalarms.QuietKind
 import com.dewijones92.totum.dailyalarms.WorkAppsSettings
 import com.dewijones92.totum.dailyalarms.WorkAppsStatus
 import java.time.Instant
@@ -27,16 +29,25 @@ fun Context.workAppsLine(
     zone: ZoneId = ZoneId.systemDefault(),
 ): String = when (status) {
     WorkAppsStatus.NeedsAccess -> getString(R.string.work_apps_line_needs_access)
-    is WorkAppsStatus.Paused -> getString(R.string.work_apps_line_paused, whenText(status.until, now, zone))
-    is WorkAppsStatus.On -> getString(R.string.work_apps_line_on, whenText(status.until, now, zone))
-    is WorkAppsStatus.Quiet ->
-        status.until
-            ?.let { getString(R.string.work_apps_line_quiet, namesOf(status.packages), whenText(it, now, zone)) }
-            ?: getString(R.string.work_apps_line_quiet_no_days, namesOf(status.packages))
+    is WorkAppsStatus.Groups -> status.states.joinToString(" · ") { groupLine(it, now, zone) }
 }
 
-private fun Context.namesOf(packages: List<String>): String {
-    if (packages.isEmpty()) return getString(R.string.work_apps_generic)
+fun Context.groupLine(state: GroupState, now: Instant, zone: ZoneId): String {
+    val group = state.group
+    val until = state.until?.let { whenText(it, now, zone) }
+    return when {
+        state.kind == QuietKind.PAUSED && until != null ->
+            getString(R.string.work_apps_seg_paused, group.emoji, group.name, until)
+        state.kind == QuietKind.ON && until != null ->
+            getString(R.string.work_apps_seg_on, group.emoji, group.name, until)
+        state.kind == QuietKind.QUIET && until != null ->
+            getString(R.string.work_apps_seg_quiet, group.emoji, group.name, until)
+        else -> getString(R.string.work_apps_seg_quiet_no_days, group.emoji, group.name)
+    }
+}
+
+fun Context.namesOf(packages: List<String>): String {
+    if (packages.isEmpty()) return getString(R.string.work_apps_apps_none)
     val shown = packages.take(NAMES_SHOWN).joinToString(" · ", transform = ::appLabel)
     val more = packages.size - NAMES_SHOWN
     return if (more > 0) getString(R.string.work_apps_names_more, shown, more) else shown

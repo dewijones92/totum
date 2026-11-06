@@ -309,6 +309,7 @@ import com.dewijones92.totum.video.decodesTenBitHevc
 import com.dewijones92.totum.video.solvingChallenges
 import com.dewijones92.totum.video.videoAndPodcastDownloads
 import com.dewijones92.totum.workapps.SharedPrefsWorkAppsStore
+import com.dewijones92.totum.workapps.WorkAppsNotifier
 import com.dewijones92.totum.workapps.WorkAppsQuiet
 import com.dewijones92.totum.ytdlp.InteractiveFirstEngine
 import com.dewijones92.totum.ytdlp.YtDlpEngine
@@ -1068,13 +1069,21 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         exsurgeController(context, playbackController, applicationScope, record = statsLog::record)
     }
     override val dailyAlarms by lazy {
-        dailyAlarmController(context, playbackController, applicationScope, statsLog::record) { workApps.status() }
+        dailyAlarmController(
+            context,
+            playbackController,
+            applicationScope,
+            statsLog::record,
+            workApps = { workApps.status() },
+            onTick = workApps::noteBoundaries,
+        )
     }
     override val workApps: WorkAppsQuiet by lazy {
         WorkAppsQuiet(
             SharedPrefsWorkAppsStore(context),
             accessGranted = { WorkAppsQuiet.accessGranted(context) },
             onChanged = { source -> dailyAlarms.tickAll(source) },
+            announce = WorkAppsNotifier(context)::announce,
         )
     }
 

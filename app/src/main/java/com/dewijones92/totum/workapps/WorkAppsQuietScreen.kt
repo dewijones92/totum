@@ -2,43 +2,37 @@ package com.dewijones92.totum.workapps
 
 import android.content.Intent
 import android.provider.Settings
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Apps
 import androidx.compose.material.icons.outlined.NotificationsOff
-import androidx.compose.material.icons.outlined.Pause
-import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.VerifiedUser
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -46,17 +40,15 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.dailyalarms.QuietGroup
 import com.dewijones92.totum.dailyalarms.WorkAppsSettings
-import com.dewijones92.totum.reminders.DayHours
 import com.dewijones92.totum.reminders.kit.KeepScreenAwake
-import com.dewijones92.totum.reminders.kit.TimePickDialog
 import com.dewijones92.totum.ui.common.BackHeader
+import com.dewijones92.totum.ui.common.LocalSnackbarOffers
+import com.dewijones92.totum.ui.common.SnackbarOffers
+import com.dewijones92.totum.ui.common.rememberRemoveWithUndo
+import com.dewijones92.totum.ui.common.rememberSnackbarOffers
 import com.dewijones92.totum.ui.settings.QuestCard
-import java.time.DayOfWeek
-import java.time.Instant
-import java.time.LocalTime
-import java.time.ZoneId
-import java.time.format.TextStyle
 
 @Composable
 fun WorkAppsQuietScreen(workApps: WorkAppsQuiet, onBack: () -> Unit, modifier: Modifier = Modifier) {
@@ -69,32 +61,89 @@ fun WorkAppsQuietScreen(workApps: WorkAppsQuiet, onBack: () -> Unit, modifier: M
         workApps.accessChanged("page resumed")
         onPauseOrDispose { }
     }
-    val update: (String, (WorkAppsSettings) -> WorkAppsSettings) -> Unit = { source, change ->
-        workApps.update("page: $source", change)
-    }
+    val update: SettingsUpdate = { source, change -> workApps.update("page: $source", change) }
+    val snackbar = remember { SnackbarHostState() }
+    val ownOffers = rememberSnackbarOffers(snackbar)
+    val offers = LocalSnackbarOffers.current ?: ownOffers
+    val removals = rememberGroupRemovals(workApps, offers)
     Surface(modifier = modifier.fillMaxSize()) {
-        Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-            BackHeader(stringResource(R.string.work_apps_name), onBack)
-            Text(
-                stringResource(R.string.work_apps_intro),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 16.dp),
-            )
-            StatusCard(workApps, settings, access, generation, update)
-            AccessCard(access)
-            QuestCard(Icons.Outlined.Schedule, stringResource(R.string.work_apps_hours_title)) {
-                HoursSection(settings, update)
+        Box {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                BackHeader(stringResource(R.string.work_apps_name), onBack)
+                Text(
+                    stringResource(R.string.work_apps_intro),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                )
+                StatusCard(workApps, settings, access, generation, update)
+                AccessCard(access)
+                if (settings.groups.isEmpty()) {
+                    Text(
+                        stringResource(R.string.work_apps_groups_none),
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.padding(16.dp),
+                    )
+                }
+                settings.groups.forEach { group ->
+                    key(group.id) { WorkAppsGroupCard(workApps, group, settings, update, removals) }
+                }
+                AddGroupButton(workApps, settings)
+                Spacer(Modifier.size(32.dp))
             }
-            QuestCard(Icons.Outlined.Apps, stringResource(R.string.work_apps_apps_title)) {
-                AppsSection(settings, update)
-            }
-            QuestCard(Icons.Outlined.Pause, stringResource(R.string.work_apps_pause_title)) {
-                PauseSection(workApps, settings)
-            }
-            Spacer(Modifier.size(32.dp))
+            SnackbarHost(snackbar, modifier = Modifier.align(Alignment.BottomCenter))
         }
     }
+}
+
+internal typealias SettingsUpdate = (String, (WorkAppsSettings) -> WorkAppsSettings) -> Unit
+
+internal class GroupRemovals(val group: (String) -> Unit, val app: (Pair<String, String>) -> Unit)
+
+@Composable
+private fun rememberGroupRemovals(workApps: WorkAppsQuiet, offers: SnackbarOffers?): GroupRemovals {
+    val context = LocalContext.current
+    val resources = LocalResources.current
+    val undo = stringResource(R.string.undo)
+    val group = rememberRemoveWithUndo(
+        offers = offers,
+        undoLabel = undo,
+        tag = WorkAppsQuiet.TAG,
+        duration = SnackbarDuration.Long,
+        removedMessage = { removed: RemovedGroup ->
+            resources.getString(
+                R.string.work_apps_group_deleted,
+                removed.group.name
+            )
+        },
+        remove = { id: String -> workApps.removeGroup(id, "page") },
+        restore = { workApps.restoreGroup(it, "undo") },
+    )
+    val app = rememberRemoveWithUndo(
+        offers = offers,
+        undoLabel = undo,
+        tag = WorkAppsQuiet.TAG,
+        duration = SnackbarDuration.Long,
+        removedMessage = { removed: RemovedApp ->
+            resources.getString(R.string.work_apps_app_removed, context.appLabel(removed.packageName))
+        },
+        remove = { target: Pair<String, String> -> workApps.removeApp(target.first, target.second, "page") },
+        restore = { workApps.restoreApp(it, "undo") },
+    )
+    return remember(group, app) { GroupRemovals(group, app) }
+}
+
+@Composable
+private fun AddGroupButton(workApps: WorkAppsQuiet, settings: WorkAppsSettings) {
+    val name = stringResource(R.string.work_apps_new_group_name)
+    Button(
+        onClick = {
+            val used = settings.groups.map { it.emoji }.toSet()
+            val emoji = QuietGroup.EMOJI_CHOICES.firstOrNull { it !in used } ?: QuietGroup.EMOJI_CHOICES.first()
+            workApps.addGroup(name, emoji, "page: add group")
+        },
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).testTag("work-apps-add-group"),
+    ) { Text(stringResource(R.string.work_apps_add_group)) }
 }
 
 @Composable
@@ -103,7 +152,7 @@ private fun StatusCard(
     settings: WorkAppsSettings,
     access: Boolean,
     generation: Int,
-    update: (String, (WorkAppsSettings) -> WorkAppsSettings) -> Unit,
+    update: SettingsUpdate,
 ) {
     val context = LocalContext.current
     val line = remember(settings, access, generation) {
@@ -165,150 +214,3 @@ private fun AccessCard(access: Boolean) {
 
 private fun notificationAccessIntent(): Intent =
     Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-
-@Composable
-private fun HoursSection(
-    settings: WorkAppsSettings,
-    update: (String, (WorkAppsSettings) -> WorkAppsSettings) -> Unit,
-) {
-    Text(
-        stringResource(R.string.work_apps_hours_hint),
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
-    val locale = LocalConfiguration.current.locales[0]
-    DayOfWeek.entries.forEach { day ->
-        val name = day.getDisplayName(TextStyle.FULL, locale)
-        DayRow(name, settings.window.hoursOn(day)) { hours -> update("hours $day") { it.withDay(day, hours) } }
-    }
-}
-
-@Composable
-private fun DayRow(name: String, hours: DayHours?, onChange: (DayHours?) -> Unit) {
-    var picking by rememberSaveable(name) { mutableStateOf<Boolean?>(null) }
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-        Switch(
-            checked = hours != null,
-            onCheckedChange = { on -> onChange(if (on) WorkAppsSettings.DEFAULT_DAY else null) },
-            modifier = Modifier.testTag("work-apps-day-$name").padding(end = 12.dp),
-        )
-        Text(
-            if (hours == null) "$name · ${stringResource(R.string.work_apps_day_off)}" else name,
-            style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.weight(1f),
-        )
-        if (hours != null) {
-            TextButton(onClick = { picking = true }) { Text(minuteText(hours.startMinuteOfDay)) }
-            Text(stringResource(R.string.work_apps_hours_to), style = MaterialTheme.typography.bodyMedium)
-            TextButton(onClick = { picking = false }) { Text(minuteText(hours.endMinuteOfDay)) }
-        }
-    }
-    val choosingStart = picking
-    if (hours != null && choosingStart != null) {
-        val initial = (if (choosingStart) hours.startMinuteOfDay else hours.endMinuteOfDay).let(::timeOf)
-        TimePickDialog(
-            title = stringResource(
-                if (choosingStart) R.string.work_apps_hours_start_title else R.string.work_apps_hours_end_title,
-            ),
-            initial = initial,
-            onPick = { time ->
-                picking = null
-                val minute = time.hour * DayHours.MINUTES_PER_HOUR + time.minute
-                onChange(
-                    if (choosingStart) {
-                        hours.copy(startMinuteOfDay = minute)
-                    } else {
-                        hours.copy(endMinuteOfDay = if (minute == 0) DayHours.MINUTES_PER_DAY else minute)
-                    },
-                )
-            },
-            onDismiss = { picking = null },
-        )
-    }
-}
-
-@Composable
-private fun AppsSection(settings: WorkAppsSettings, update: (String, (WorkAppsSettings) -> WorkAppsSettings) -> Unit) {
-    val context = LocalContext.current
-    var adding by rememberSaveable { mutableStateOf(false) }
-    if (settings.packages.isEmpty()) {
-        Text(stringResource(R.string.work_apps_apps_none), style = MaterialTheme.typography.bodyMedium)
-    }
-    settings.packages.forEach { packageName ->
-        val label = remember(packageName) { context.appLabel(packageName) }
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.weight(1f)) {
-                Text(label, style = MaterialTheme.typography.bodyLarge)
-                Text(
-                    packageName,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            TextButton(
-                onClick = { update("remove $packageName") { it.withoutApp(packageName) } },
-                modifier = Modifier.testTag("work-apps-remove-$packageName"),
-            ) { Text(stringResource(R.string.work_apps_remove, label)) }
-        }
-    }
-    Button(onClick = { adding = true }, modifier = Modifier.testTag("work-apps-add")) {
-        Text(stringResource(R.string.work_apps_add))
-    }
-    Text(
-        stringResource(R.string.work_apps_sound_tip),
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
-    if (adding) {
-        AppPickerDialog(
-            chosen = settings.packages.toSet(),
-            onPick = { packageName ->
-                adding = false
-                update("add $packageName") { it.withApp(packageName) }
-            },
-            onDismiss = { adding = false },
-        )
-    }
-}
-
-@Composable
-private fun PauseSection(workApps: WorkAppsQuiet, settings: WorkAppsSettings) {
-    val now = remember(settings) { Instant.now() }
-    Text(
-        stringResource(R.string.work_apps_pause_summary),
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
-    val until = settings.pausedUntil?.takeIf { settings.isPausedAt(now) }
-    if (until != null) {
-        Text(
-            stringResource(R.string.work_apps_paused, whenText(until, now, ZoneId.systemDefault())),
-            style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.testTag("work-apps-paused"),
-        )
-        Button(onClick = { workApps.resume("page") }) { Text(stringResource(R.string.work_apps_resume)) }
-        return
-    }
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        WorkAppsSettings.PAUSE_CHOICES_HOURS.forEach { hours ->
-            AssistChip(
-                onClick = { workApps.pauseFor(hours, "page") },
-                label = { Text(pluralStringResource(R.plurals.work_apps_pause_hours, hours, hours)) },
-                modifier = Modifier.testTag("work-apps-pause-$hours"),
-            )
-        }
-        AssistChip(
-            onClick = { workApps.pauseUntilNextWorkStart("page") },
-            label = { Text(stringResource(R.string.work_apps_pause_next_day)) },
-            modifier = Modifier.testTag("work-apps-pause-next-day"),
-        )
-    }
-}
-
-private fun minuteText(minuteOfDay: Int): String =
-    "%02d:%02d".format(minuteOfDay / DayHours.MINUTES_PER_HOUR, minuteOfDay % DayHours.MINUTES_PER_HOUR)
-
-private fun timeOf(minuteOfDay: Int): LocalTime =
-    LocalTime.ofSecondOfDay((minuteOfDay % DayHours.MINUTES_PER_DAY) * SECONDS_PER_MINUTE)
-
-private const val SECONDS_PER_MINUTE = 60L
