@@ -1,6 +1,8 @@
 package com.dewijones92.totum.data.search.fake
 
+import com.dewijones92.totum.data.search.HistorySlot
 import com.dewijones92.totum.data.search.SearchHistoryStore
+import com.dewijones92.totum.data.search.withRestored
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
@@ -28,6 +30,10 @@ public class InMemorySearchHistoryStore(
 
     override suspend fun remove(query: String) {
         history.update { current -> current.filterNot { it.equals(query, ignoreCase = true) } }
+    }
+
+    override suspend fun restore(slot: HistorySlot) {
+        history.update { current -> current.withRestored(slot, limit) }
     }
 
     override suspend fun clear() {

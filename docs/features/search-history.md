@@ -3,7 +3,7 @@ title: Search history
 kind: feature
 status: shipped
 area: search
-updated: 2026-10-23
+updated: 2026-11-06
 ---
 
 # Search history
@@ -30,6 +30,9 @@ case-insensitively, capped at 10.
   action / tapping a history item) — not on every keystroke.
 - Idle state shows "Recent searches" (tap to re-run, X to forget one, Clear all)
   instead of the empty prompt once there's history.
+- Forgetting one (the ✕ or a long-press, here and in every filter, channel, transcript and Ask box) offers Undo on the
+  shell's snackbar and puts the query back in its slot (`SearchHistoryStore.restore(HistorySlot)`,
+  `rememberForgetRecent`). Clear all has no Undo yet.
 
 ## Files
 
@@ -44,3 +47,8 @@ boxes keep a settled query, offer it again, ignore half-typed ones, and keep one
 
 Logs: `[recent] <scope>: kept "<q>" (<why>)`, `picked "<q>" from N recent`, `forgot "<q>"`. Verified
 on-device: submit → clear box → query appears under Recent searches.
+
+## Tests owed (2026-11-06 consistency sweep)
+
+`SearchHistoryStore.restore` / `withRestored` (slot, cap, case-insensitive duplicate); Undo after ✕ in search and in a
+filter box (instrumented).

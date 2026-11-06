@@ -33,3 +33,7 @@ cache.
 list; a corrupt file starts empty and is logged; a failed member's items are carried over and a member that returns
 nothing is not; two groups finishing together leave both in the file. `FileGroupNewsStore` round trip. A device check
 that a cold start shows the list at once.
+
+## Tests owed (2026-11-06 consistency sweep)
+
+Unticking a channel in the edit sheet offers Undo on the sheet's own snackbar and ticks it again (instrumented).

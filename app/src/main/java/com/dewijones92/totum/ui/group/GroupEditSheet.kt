@@ -2,6 +2,7 @@ package com.dewijones92.totum.ui.group
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -15,17 +16,21 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -35,6 +40,8 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.domain.SourceGroup
+import com.dewijones92.totum.ui.common.rememberRemoveWithUndo
+import com.dewijones92.totum.ui.common.rememberSnackbarOffers
 import kotlinx.coroutines.launch
 
 private const val MATCHES_SHOWN = 30
@@ -48,41 +55,60 @@ internal fun GroupEditSheet(container: AppContainer, group: SourceGroup, onDismi
     var name by rememberSaveable(group.id.value) { mutableStateOf(group.name) }
     var query by rememberSaveable { mutableStateOf("") }
     var confirmingDelete by rememberSaveable { mutableStateOf(false) }
-    val toggle: (MediaSource) -> Unit = { source ->
+    val snackbar = remember { SnackbarHostState() }
+    val resources = LocalResources.current
+    val flip: (MediaSource, String) -> Unit = { source, how ->
         scope.launch {
             val now = store.toggleMember(group.id, source)
-            Diag.log("group", "\"${group.name}\": ${source.title} ${if (now) "added" else "removed"} from its page")
+            Diag.log(
+                "group",
+                "\"${group.name}\": ${source.title} ${if (now) "added" else "removed"} from its page ($how)",
+            )
         }
+    }
+    val removeWithUndo = rememberRemoveWithUndo(
+        offers = rememberSnackbarOffers(snackbar),
+        undoLabel = stringResource(R.string.undo),
+        tag = "group",
+        removedMessage = { source: MediaSource -> resources.getString(R.string.group_member_removed, source.title) },
+        remove = { source: MediaSource -> source.also { flip(it, "unticked") } },
+        restore = { source: MediaSource -> flip(source, "undo") },
+    )
+    val toggle: (MediaSource) -> Unit = { source ->
+        if (source.id in group) removeWithUndo(source) else flip(source, "ticked")
     }
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ) {
-        Column(
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-            modifier = Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
-        ) {
-            Text(stringResource(R.string.group_edit), style = MaterialTheme.typography.titleLarge)
-            NameRow(name, { name = it }, saveable = name.isNotBlank() && name.trim() != group.name) {
-                Diag.log("group", "\"${group.name}\" renamed \"${name.trim()}\" from its page")
-                scope.launch { store.rename(group.id, name.trim()) }
-            }
-            Text(stringResource(R.string.group_channels), style = MaterialTheme.typography.titleMedium)
-            group.members.forEach { MemberRow(it, member = true, toggle) }
-            OutlinedTextField(
-                value = query,
-                onValueChange = { query = it },
-                singleLine = true,
-                label = { Text(stringResource(R.string.group_find_channel)) },
-                modifier = Modifier.fillMaxWidth().testTag("group-find-channel"),
-            )
-            matches(subscribed, group, query).forEach { MemberRow(it, member = false, toggle) }
-            OutlinedButton(
-                onClick = { confirmingDelete = true },
-                modifier = Modifier.padding(bottom = 16.dp).testTag("group-delete")
+        Box(Modifier.fillMaxWidth()) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
             ) {
-                Text(stringResource(R.string.group_delete))
+                Text(stringResource(R.string.group_edit), style = MaterialTheme.typography.titleLarge)
+                NameRow(name, { name = it }, saveable = name.isNotBlank() && name.trim() != group.name) {
+                    Diag.log("group", "\"${group.name}\" renamed \"${name.trim()}\" from its page")
+                    scope.launch { store.rename(group.id, name.trim()) }
+                }
+                Text(stringResource(R.string.group_channels), style = MaterialTheme.typography.titleMedium)
+                group.members.forEach { MemberRow(it, member = true, toggle) }
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    singleLine = true,
+                    label = { Text(stringResource(R.string.group_find_channel)) },
+                    modifier = Modifier.fillMaxWidth().testTag("group-find-channel"),
+                )
+                matches(subscribed, group, query).forEach { MemberRow(it, member = false, toggle) }
+                OutlinedButton(
+                    onClick = { confirmingDelete = true },
+                    modifier = Modifier.padding(bottom = 16.dp).testTag("group-delete")
+                ) {
+                    Text(stringResource(R.string.group_delete))
+                }
             }
+            SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter))
         }
     }
     if (confirmingDelete) {

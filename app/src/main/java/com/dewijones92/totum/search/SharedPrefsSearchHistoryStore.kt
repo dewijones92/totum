@@ -2,7 +2,9 @@ package com.dewijones92.totum.search
 
 import android.content.Context
 import androidx.core.content.edit
+import com.dewijones92.totum.data.search.HistorySlot
 import com.dewijones92.totum.data.search.SearchHistoryStore
+import com.dewijones92.totum.data.search.withRestored
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,6 +37,10 @@ public class SharedPrefsSearchHistoryStore(
 
     override suspend fun remove(query: String) {
         save(state.value.filterNot { it.equals(query, ignoreCase = true) })
+    }
+
+    override suspend fun restore(slot: HistorySlot) {
+        save(state.value.withRestored(slot, limit))
     }
 
     override suspend fun clear() {

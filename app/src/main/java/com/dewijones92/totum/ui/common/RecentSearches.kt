@@ -27,11 +27,13 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.data.search.HistorySlot
 import com.dewijones92.totum.data.search.SearchHistoryStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
@@ -54,9 +56,21 @@ class RecentSearches internal constructor(
         work.launch { store.record(trimmed) }
     }
 
-    fun remove(query: String) {
-        Diag.log("recent", "$scope: forgot \"$query\"")
+    fun remove(query: String): HistorySlot? {
+        val index = recent.indexOfFirst { it.equals(query, ignoreCase = true) }
+        if (index < 0) {
+            Diag.log("recent", "$scope: forget \"$query\": not in the ${recent.size} recent, so nothing changed")
+            return null
+        }
+        val slot = HistorySlot(index, recent[index])
+        Diag.log("recent", "$scope: forgot \"${slot.query}\" from slot ${index + 1} of ${recent.size}")
         work.launch { store.remove(query) }
+        return slot
+    }
+
+    fun restore(slot: HistorySlot) {
+        Diag.log("recent", "$scope: put \"${slot.query}\" back in slot ${slot.index + 1}")
+        work.launch { store.restore(slot) }
     }
 
     fun picked(query: String) = Diag.log("recent", "$scope: picked \"$query\" from ${recent.size} recent")
@@ -77,7 +91,21 @@ internal const val RECENT_SETTLE_MS = 2_500L
 private const val MIN_CHARS = 2
 
 @Composable
+fun rememberForgetRecent(remove: (String) -> HistorySlot?, restore: (HistorySlot) -> Unit): (String) -> Unit {
+    val resources = LocalResources.current
+    return rememberRemoveWithUndo(
+        offers = LocalSnackbarOffers.current,
+        undoLabel = stringResource(R.string.undo),
+        tag = "recent",
+        removedMessage = { slot: HistorySlot -> resources.getString(R.string.recent_search_forgotten, slot.query) },
+        remove = remove,
+        restore = restore,
+    )
+}
+
+@Composable
 fun RecentSearchChips(recents: RecentSearches?, onPick: (String) -> Unit, modifier: Modifier = Modifier) {
+    val forget = rememberForgetRecent(remove = { recents?.remove(it) }, restore = { recents?.restore(it) })
     val shown = recents?.recent.orEmpty()
     if (recents == null || shown.isEmpty()) return
     RecentChips(
@@ -86,7 +114,7 @@ fun RecentSearchChips(recents: RecentSearches?, onPick: (String) -> Unit, modifi
             recents.picked(it)
             onPick(it)
         },
-        onRemove = recents::remove,
+        onRemove = forget,
         modifier = modifier,
     )
 }

@@ -18,6 +18,16 @@ public interface SearchHistoryStore {
     /** Forgets a single query. */
     public suspend fun remove(query: String)
 
+    /** Puts a forgotten query back where it was. */
+    public suspend fun restore(slot: HistorySlot)
+
     /** Clears the whole history. */
     public suspend fun clear()
 }
+
+public data class HistorySlot(val index: Int, val query: String)
+
+public fun List<String>.withRestored(slot: HistorySlot, limit: Int): List<String> =
+    filterNot { it.equals(slot.query, ignoreCase = true) }.let { rest ->
+        (rest.take(slot.index) + slot.query + rest.drop(slot.index)).take(limit)
+    }

@@ -11,6 +11,7 @@ import com.dewijones92.totum.common.Page
 import com.dewijones92.totum.common.append
 import com.dewijones92.totum.data.podcast.PodcastRepository
 import com.dewijones92.totum.data.queue.QueueGroup
+import com.dewijones92.totum.data.search.HistorySlot
 import com.dewijones92.totum.data.search.SearchHistoryStore
 import com.dewijones92.totum.data.search.SearchHit
 import com.dewijones92.totum.data.search.SearchOutcome
@@ -287,8 +288,21 @@ class SearchViewModel(
         }
     }
 
-    fun removeHistory(query: String) {
+    fun removeHistory(query: String): HistorySlot? {
+        val shown = uiState.value.history
+        val index = shown.indexOfFirst { it.equals(query, ignoreCase = true) }
+        if (index < 0) {
+            Diag.log("search", "forget \"$query\" from search history: not among the ${shown.size} shown")
+            return null
+        }
+        Diag.log("search", "forgot \"${shown[index]}\" from search history, slot ${index + 1} of ${shown.size}")
         viewModelScope.launch { history.remove(query) }
+        return HistorySlot(index, shown[index])
+    }
+
+    fun restoreHistory(slot: HistorySlot) {
+        Diag.log("search", "put \"${slot.query}\" back in search history, slot ${slot.index + 1}")
+        viewModelScope.launch { history.restore(slot) }
     }
 
     fun clearHistory() {
