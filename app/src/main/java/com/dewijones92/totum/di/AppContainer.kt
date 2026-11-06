@@ -302,6 +302,7 @@ import com.dewijones92.totum.video.AccountSubscriptions
 import com.dewijones92.totum.video.AndroidSabrRoute
 import com.dewijones92.totum.video.CastAwareCodecSupport
 import com.dewijones92.totum.video.EmbeddedPlayer
+import com.dewijones92.totum.video.FileLiveStatesStore
 import com.dewijones92.totum.video.FileLookupStore
 import com.dewijones92.totum.video.InnerTubePlayerStreams
 import com.dewijones92.totum.video.LiveStates
@@ -679,7 +680,8 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
 
     override val shuffleAll: ShuffleAll by lazy { shuffleAllOf(this) }
     override val operations: Operations = Operations()
-    override val liveStates: LiveStates = LiveStates()
+    override val liveStates: LiveStates =
+        LiveStates(store = FileLiveStatesStore(File(context.filesDir, "live-states.json")))
     override val liveRefresher: LiveRefresher by lazy {
         LiveRefresher(
             applicationScope,
@@ -1350,6 +1352,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                 groupDownloads = { groupDownloads },
                 repeat = ::repeatNow,
                 modes = { activeModes.value },
+                liveStreams = liveStates::diagnostics,
             ),
         )
     }

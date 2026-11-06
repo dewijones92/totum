@@ -54,6 +54,7 @@ internal class DiagnosticSnapshot(
         val groupDownloads: () -> GroupDownloads? = { null },
         val repeat: () -> RepeatMode = { RepeatMode.OFF },
         val modes: () -> List<ActiveMode> = { emptyList() },
+        val liveStreams: () -> Map<String, String> = { emptyMap() },
     )
 
     fun capture(): Map<String, String> = buildMap {
@@ -110,6 +111,7 @@ internal class DiagnosticSnapshot(
         runCatching { putAll(live.polite()) }
         runCatching { putAll(live.backup()) }
         runCatching { putAll(live.screen()) }
+        runCatching { putAll(live.liveStreams()) }
         runCatching { putAll(PlaybackCacheReport.state()) }
     }
 

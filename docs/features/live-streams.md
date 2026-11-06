@@ -67,4 +67,13 @@ item says; the registry beats the kind saved on the item because it is newer.
 
 Not covered: an item that came from channel RSS and has never been looked up says nothing (no flag in the feed, and
 polling every untagged item would be new traffic); playlists, history and the feed cache are corrected on screen, not
-rewritten; the registry is in memory.
+rewritten.
+
+**The registry survives a restart** (2026-11-06): the upcoming and live entries are saved to `live-states.json`
+(`FileLiveStatesStore`, written on every change) and restored at start, so "🔴 Starts soon" and the refresher's interest
+are still there after a process kill. Ended entries are not saved (the item's own `WAS_LIVE` kind says it). One retention
+rule, `LiveStates.keeps`, serves both pruning and restoring: a live entry is kept 12 h after it was last seen, an upcoming
+one 48 h after its scheduled start (12 h after last seen when no start time is known). Before, an upcoming stream was
+dropped 12 h after it was last seen even when it was scheduled for tomorrow. The report has a `live.*` block:
+`live.count` (held by phase), `live.restoredAtStart` and `live.entries` (up to 20 upcoming or live, with start time and
+minutes since last seen). Tests owed: save/restore round trip, age rules at the boundary, the diagnostics block.

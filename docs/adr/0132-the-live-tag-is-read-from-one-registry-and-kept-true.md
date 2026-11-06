@@ -56,4 +56,6 @@ ones like members-only, and "I want consistency" (ADR 108).
   (a tap, the menu-open and next-in-queue look-ups of ADR 11). No new YouTube traffic was added for those.
 - The waiter (`LiveStartWatcher`) treats a playable non-live answer as "playable now" (its old behaviour) and records the
   stream as ended, so the registry is right even though the notification still says "is live".
-- The registry is in memory; a restart drops it and the stored kind speaks until the next look-up.
+- The registry's upcoming and live entries are saved (`FileLiveStatesStore`) and restored at start, so a restart keeps
+  "Starts soon" (amended 2026-11-06). Retention is one rule for pruning and restoring: live 12 h after last seen, upcoming 48 h
+  after its scheduled start (12 h after last seen with no start time). Ended entries are not saved; the stored kind speaks.
