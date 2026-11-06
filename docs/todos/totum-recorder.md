@@ -1,7 +1,7 @@
 ---
 title: 🎥 Totum recorder — screen, mic and an optional face bubble, from one icon
 kind: todo
-status: decided
+status: built 2026-11-06, Batch A (tests owed)
 batch: A (2026-11), phase 4
 priority: medium
 updated: 2026-11-06
@@ -21,3 +21,28 @@ Totum, draggable), with an on/off switch, default on. The file goes to the galle
 Share button follows. Every async step shows in the progress strip; each start/stop/failure is logged.
 Previously declined the same day ("Pixel's recorder covers it"), then reinstated when Pixel's recorder turned out
 not to be launchable.
+
+## Built 2026-11-06 (ADR 135)
+
+See [the feature doc](../features/totum-recorder.md) and [ADR 135](../adr/0135-totum-records-the-screen-with-voice-face-and-taps.md).
+Departures from the plan above, my call: the face bubble is a service-owned overlay window with Camera2, not a
+CameraX preview inside Totum (so it shows over other apps); taps are system-wide when `WRITE_SECURE_SETTINGS` is
+granted by `adb`, else circles inside Totum; Totum's own sound is **not** captured separately (the microphone hears
+it from the speaker), because that needs a hand-built MediaCodec/AudioPlaybackCapture pipeline that was not built
+untested; the recording is a progress-strip task only for its saving step, with the running recording shown by its
+notification.
+
+## Tests owed
+
+- `captureSize` and `recordingName` (pure): even sizes, the 1920 cap, portrait and landscape, tiny screens.
+- `RecorderChoiceStore` round trip and defaults.
+- `TapCircles`: a press draws a circle, a release fades it out after 450 ms, nothing draws unless the status is
+  `IN_TOTUM`.
+- `SystemTaps`: `show` remembers the previous value once, `restore` puts it back and forgets it, nothing happens
+  without the grant.
+- `RecorderService` plan: which foreground types follow from which permissions (the `Plan` rules), and that a failed
+  start discards the pending file and releases the projection.
+- Instrumented, on a device: consent then a 10 s recording lands in `Movies/Totum` and plays; Stop from the
+  notification, the tile and the system capture chip each finish a playable file; the face bubble preview is upright
+  and mirrored in portrait and landscape and is in the video; Show taps is restored after Stop and after a killed
+  process; a refused microphone, camera or overlay permission records without that part and says so.

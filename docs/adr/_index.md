@@ -153,3 +153,6 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 136 | [Offline playable is whatever routeNow plays from the device](0136-offline-playable-is-whatever-routenow-plays-from-the-device.md) | Accepted |
 | 137 | [Carry on is play history joined to progress](0137-carry-on-is-play-history-joined-to-progress.md) | Accepted |
 | 138 | [A queue group says how long is left, at the speed it will play](0138-a-queue-group-says-how-long-is-left-at-the-speed-it-will-play.md) | Accepted |
+| 129 | [Periodic jobs remember their last run, and mobile data is counted from the app's own byte counters](0129-periodic-jobs-remember-their-last-run-and-data-is-counted-from-the-uid.md) | Accepted |
+| 128 | [Undo, already-queued prompts and not-for-me share one snackbar and one queue seam](0128-undo-already-queued-and-not-for-me-share-the-queue-entry-seam.md) | Accepted |
+| 135 | [Totum records the screen, with voice, a face bubble and shown taps](0135-totum-records-the-screen-with-voice-face-and-taps.md) | Accepted |
