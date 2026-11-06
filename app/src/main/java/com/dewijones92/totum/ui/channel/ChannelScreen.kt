@@ -17,6 +17,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SecondaryTabRow
@@ -24,6 +25,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -93,6 +95,7 @@ fun ChannelScreen(
         viewModel(key = source.id.value, factory = ChannelViewModel.factory(container, source))
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val addToPlaylist = com.dewijones92.totum.ui.playlist.rememberPlaylistAdder(container)
+    LaunchedEffect(viewModel) { viewModel.refreshVideosOnEntry() }
 
     var showGroups by remember { mutableStateOf(false) }
     if (showGroups) {
@@ -313,6 +316,7 @@ private fun MediaItemTab(
         tab.loaded && tab.items.isEmpty() -> ListMessage(stringResource(R.string.feed_empty))
         else -> SelectableMediaList(place, tab.items, shown, { it }, key = sourceKey) {
             Column {
+                RefreshingBar(tab.loading)
                 listFilter?.let { FilterField(it, shown.size, tab.items.size, hosted = true) }
                 LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
                     listFilter?.let { filterOutcome(it, shown.size, tab.items.size) }
@@ -404,6 +408,11 @@ private fun PlaylistRow(playlist: Playlist, onClick: () -> Unit) {
             }
         }
     }
+}
+
+@Composable
+private fun RefreshingBar(refreshing: Boolean) {
+    if (refreshing) LinearProgressIndicator(Modifier.fillMaxWidth())
 }
 
 @Composable

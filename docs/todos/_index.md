@@ -34,7 +34,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [A Pi copy casts with its picture](cast-home-copy-picture.md) | casting | high | built 2026-11-06, Batch A (ADR 122); tests to follow |
 | [Cast the best quality only; Totum steps down itself](cast-best-quality-only.md) | casting | high | built 2026-11-06, Batch A (ADR 122); tests and device checks to follow |
 | [Casting keeps your place and notices the end](cast-progress-and-end.md) | casting | high | built 2026-11-06 (tests pending), Batch A |
-| [A channel's Videos reload when reopened](channel-videos-reload.md) | video | medium | decided 2026-11-06, Batch A |
+| [A channel's Videos reload when reopened](channel-videos-reload.md) | video | medium | built 2026-11-06, Batch A (tests owed) |
 | [Starting an album or group switches Repeat one off](repeat-one-off-on-group-play.md) | queue | high | built 2026-11-06, Batch A (tests owed) |
 | [Resuming a paused item takes YouTube's newer place](resume-from-account-position.md) | sync | high | decided 2026-11-06, Batch A |
 | [Every pause and cast drop says why; a flight recorder](pause-and-cast-drop-reasons.md) | diagnostics | high | built 2026-11-06, Batch A (ADR 120); tests and device checks to follow |

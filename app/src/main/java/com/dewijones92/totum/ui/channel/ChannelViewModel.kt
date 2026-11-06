@@ -60,6 +60,7 @@ class ChannelViewModel(
     private val accountSubscriptions: AccountSubscriptions,
     private val downloads: DownloadManager,
     private val groups: GroupServices,
+    private val now: () -> Long = System::currentTimeMillis,
 ) : ViewModel() {
 
     /**
@@ -178,6 +179,8 @@ class ChannelViewModel(
 
     private var lastSubscribedDecision: String? = null
 
+    private var videosFinishedAtMs: Long? = null
+
     private fun List<MediaSource.VideoChannel>.artworkFor(c: Content): HttpUrl? =
         findChannel(source, channelId ?: c.resolvedChannelId)?.artworkUrl
 
@@ -218,7 +221,32 @@ class ChannelViewModel(
             "opened \"${source.title}\" ${source.channelUrl.value} " +
                 if (channelId != null) "(UC id known: tabs load via InnerTube)" else "(handle only: videos via yt-dlp)",
         )
-        loadVideos()
+        loadVideos(refreshing = false)
+    }
+
+    fun refreshVideosOnEntry() {
+        val videos = content.value.videos
+        val finishedAt = videosFinishedAtMs
+        if (videos.loading || finishedAt == null) {
+            val why = if (videos.loading) "a load is already running" else "no load has finished yet"
+            Diag.log("channel", "\"${source.title}\" videos not reloaded on entry: $why")
+            return
+        }
+        val ageSeconds = (now() - finishedAt) / MILLIS_PER_SECOND
+        val why = when {
+            videos.error -> "the last load failed ${ageSeconds}s ago"
+            ageSeconds * MILLIS_PER_SECOND >= VIDEOS_STALE_AFTER_MS -> "the list is ${ageSeconds}s old"
+            else -> null
+        }
+        if (why == null) {
+            Diag.log("channel", "\"${source.title}\" videos reused: ${videos.items.size} item(s), ${ageSeconds}s old")
+            return
+        }
+        Diag.log(
+            "channel",
+            "\"${source.title}\" videos reloaded on entry: $why; keeping ${videos.items.size} item(s) meanwhile"
+        )
+        loadVideos(refreshing = true)
     }
 
     private fun Page<MediaItem>.listedHere(): Page<MediaItem> {
@@ -241,7 +269,7 @@ class ChannelViewModel(
     fun selectTab(tab: Tab) {
         content.update { it.copy(tab = tab) }
         when (tab) {
-            Tab.VIDEOS -> if (!content.value.videos.loaded) loadVideos()
+            Tab.VIDEOS -> if (!content.value.videos.loaded) loadVideos(refreshing = false)
             Tab.SHORTS -> if (!content.value.shorts.loaded) loadShorts()
             Tab.PLAYLISTS -> if (!content.value.playlists.loaded) loadPlaylists()
             // Nothing to load until there is a query to load it for.
@@ -279,7 +307,11 @@ class ChannelViewModel(
         }
     }
 
-    private fun loadVideos() {
+    private fun loadVideos(refreshing: Boolean) {
+        if (content.value.videos.loading) {
+            Diag.log("channel", "\"${source.title}\" videos already loading; not starting another")
+            return
+        }
         viewModelScope.launch {
             val started = TimeSource.Monotonic.markNow()
             content.update { it.copy(videos = it.videos.copy(loading = true, error = false)) }
@@ -292,6 +324,12 @@ class ChannelViewModel(
                 // page by nature rather than by omission.
             } ?: fallbackVideos()?.let { Page.last(it) }
             logLoad("videos", if (channelId != null) "InnerTube" else "yt-dlp", started, page?.items?.size)
+            videosFinishedAtMs = now()
+            if (page == null && refreshing) {
+                Diag.log("channel", "\"${source.title}\" refresh failed; the earlier list stays")
+                content.update { it.copy(videos = it.videos.copy(loading = false, error = it.videos.items.isEmpty())) }
+                return@launch
+            }
             content.update {
                 it.copy(
                     videos = TabState(
@@ -462,6 +500,8 @@ class ChannelViewModel(
 
     companion object {
         private const val STOP_TIMEOUT_MILLIS = 5_000L
+        private const val VIDEOS_STALE_AFTER_MS = 5 * 60_000L
+        private const val MILLIS_PER_SECOND = 1_000L
 
         fun factory(container: AppContainer, source: MediaSource.VideoChannel): ViewModelProvider.Factory =
             viewModelFactory {
