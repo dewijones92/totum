@@ -35,15 +35,17 @@ you. The weekly-window maths was extracted for the work-apps feature (ADR 124) s
 - **Cancelling it sticks for the night.** `SleepTimer.cancel()` (the person's tap) now also emits on `cancellations`;
   internal ends (the item finishing, the timer firing, playback moving off) do not. If the person cancels a timer that
   Bedtime armed, that night's end is remembered and nothing re-arms until the next night. (Amended below: only a cancel
-  of the timer Bedtime armed counts, and it is remembered across a process death.)
+  of the timer Bedtime armed counts, and it is remembered across a process death.) That the cancel sticks for the whole
+  night is the coordinator's call; Dewi delegated it, 2026-11-06.
 - **Every sleep timer fades, not only bedtime's.** `SleepTimer` takes a fade length (`Bedtime.fade`, default 20 s, 0 =
   off, set on the Bedtime page) and ramps `PlaybackController.setFadeLevel` (the player's own volume, a new port method
   implemented on the Media3 controller and the fake) over the last stretch: a countdown over its final seconds, an
   "after this item" or "end of album" timer over the final seconds of the last item (from its duration, position and
   speed). The level goes back to full the moment the timer ends or is cancelled, so the next play is never silent. No
   fade on a live stream or an item with no known length; those still stop, without a ramp (a cast now fades the TV's
-  volume, amended below). My call to apply it
-  to every timer rather than only bedtime's: one timer should behave one way, and a setting can switch it off.
+  volume, amended below). Applying it to every timer rather than only bedtime's, over its last 20 s by default, is the
+  coordinator's call; Dewi delegated it, 2026-11-06: one timer should behave one way, and a setting can switch it off (a
+  fade length of 0 turns it off).
 - **Settings** live on a "🌙 Bedtime sleep timer" page, reached from Settings and from the sleep timer's menu, stored as
   JSON (`bedtime_sleep_timer`). It ships **off**.
 

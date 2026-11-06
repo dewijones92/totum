@@ -20,9 +20,11 @@ Done as [features/bedtime-sleep-timer](../features/bedtime-sleep-timer.md), deci
 bedtime logic drives the existing `SleepTimer` (`stopAfterCurrentItem`); the fade went into that same timer. Not yet seen
 on a phone: that the fade is audible through the session's player.
 
-My calls (not Dewi's): the fade applies to every sleep timer, not only bedtime's (a setting turns it off); a night is
-nights-of-the-week plus a start and an end, not per-day hours; cancelling the armed timer sticks until the night ends,
-held in memory only; no auto-arm for live streams or the kid lock.
+The coordinator's calls, which Dewi delegated on 2026-11-06 ("your call on each"): every sleep timer fades out over its
+last 20 s, not only bedtime's (a fade length of 0 turns it off); cancelling Bedtime's own timer keeps Bedtime off until
+that night ends. Also the coordinator's: a night is nights-of-the-week plus a start and an end, not per-day hours; no
+auto-arm for live streams or the kid lock. (The "held in memory only" part was reversed: the cancel is now kept across a
+process death, see ADR 133's amendment.)
 
 ## Tests owed
 

@@ -19,3 +19,7 @@ See [menus](../features/menus-and-source-pages.md) for which surfaces filter and
 Tests to add: `NotForMe` (suppress, allow, contains by canonical id, `mentions` squashing, merge, encode/decode round trip,
 unreadable file); `LatestUploads.of` leaves a listed id out; the backup wrapper's export/restore; the menu action removing
 a queued row and Undo putting both back; `AskViewModel` drops a matching suggestion.
+
+Calls the coordinator made for Dewi, who delegated them on 2026-11-06: 🙅 on the item playing now skips to the next item;
+the All subscriptions page's latest-upload line is not filtered (a fact about your own subscription). See ADR 128.
+

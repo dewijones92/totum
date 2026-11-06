@@ -67,7 +67,7 @@ alone until they need more.
 | Tabs remember where you were (per-destination saved state) | ui | shipped | — |
 | Shorts reel (full-screen vertical pager) | video | shipped | — |
 | Skip-silence: pauses over 150ms cut to 40ms, podcasts and video, picture follows the sound; Standard and Smart (speech-detecting) modes with a test player in Settings | playback | shipped | [skip-silence.md](skip-silence.md) |
-| Sleep timer | playback | shipped | — |
+| Sleep timer (every timer fades out over its last 20 s; Bedtime arms it at night) | playback | shipped | [bedtime-sleep-timer.md](bedtime-sleep-timer.md) |
 | Per-source playback-speed memory | playback | shipped | — |
 | New-content notifications (background refresh, both pillars; per-kind and per-group switches) | notifications | shipped | [new-content-notifications.md](new-content-notifications.md) |
 | Import / export subscriptions (OPML / NewPipe / Takeout) | subscriptions | shipped | — |

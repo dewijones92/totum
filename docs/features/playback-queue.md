@@ -238,15 +238,15 @@ group's edit sheet (the sheet hosts its own snackbar, because a modal sheet cove
 
 Up next rows in the player also have the ordinary item menu on a long press (`ItemActionSheet`), like every other row.
 
-### Removing the playing entry (coordinator's call, pending Dewi's confirmation)
+### Removing the playing entry (the coordinator's call; Dewi delegated it, 2026-11-06)
 
 Removing the entry that is playing (✕, Remove, 🙅 Not for me) keeps the sound playing, but **no row is shown as playing**:
 the cursor is cleared and the queue's place is the entry above (`QueueSnapshot.removingAt` sets `currentIndex` to
 `NOTHING_PLAYING` and `anchor` to the entry before it), so the next advance plays what followed the removed entry. Undo
 puts the entry back in its old slot **as the current entry** when it is still what is playing and nothing else is current
 (`restoreAt`); if something else has started since, it only puts the row back. **🙅 Not for me on what is playing now
-skips to the next item** (a rejection should not keep playing; with nothing after it, playback is paused),
-through `NotForMeRejecter` (`app/…/notforme/`), which also removes and restores the queued files of a torrent pack.
+skips to the next item** (a rejection should not keep playing; with nothing after it, playback is paused; also the
+coordinator's call, Dewi delegated it, 2026-11-06), through `NotForMeRejecter` (`app/…/notforme/`), which also removes and restores the queued files of a torrent pack.
 Tests: `PlaybackQueueTest` (removing the playing entry) and `NotForMeRejecterTest`.
 
 ## Adding something already queued asks first (2026-11-06)

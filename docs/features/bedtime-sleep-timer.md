@@ -20,12 +20,14 @@ configurable. Decision: [ADR 133](../adr/0133-bedtime-arms-the-sleep-timer-and-e
   Nothing arms it when a sleep timer is already set, when the kid lock is on, or for a live stream (it never ends).
 - **It fades out.** Over the last stretch of the last item, or of a countdown, the player's volume ramps to silence, then
   playback stops; the volume is back to full the moment the timer ends or is cancelled, so the next play is not silent.
-  The fade applies to **every** sleep timer, not only the bedtime one, and is switched off by setting its length to 0.
+  The fade applies to **every** sleep timer, not only the bedtime one (the coordinator's call; Dewi delegated it,
+  2026-11-06), over its last 20 s by default, and is switched off by setting its length to 0.
   There is no ramp on a live stream or an item with no known length; those still stop. On a cast the fade moves the
   TV's own volume (from where it was, and put back after) when the device reports one; when it does not, the line
   `no fade: casting to <device>` is logged and playback still stops at the end of the item.
 - **Cancelling it sticks for the night.** Tap the moon button to cancel the armed timer and nothing re-arms it until
-  the next night (remembered across a restart). Only cancelling the timer bedtime armed counts: cancelling a timer you
+  the next night (remembered across a restart). That the cancel lasts until the night ends is the coordinator's call;
+  Dewi delegated it, 2026-11-06. Only cancelling the timer bedtime armed counts: cancelling a timer you
   set yourself, after bedtime's own has fired or been replaced, does not turn bedtime off.
 - It ships **off**.
 
