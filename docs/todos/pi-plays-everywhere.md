@@ -58,3 +58,11 @@ The mechanical move of phase 1 is built, behaviour unchanged:
 - **Package names unchanged**; `:core:playback` depends on both with `api`.
 - **Open for the testing stretch**: `:core:cast` is Kover-exempt at 65.2% of lines covered (bar 75%); the gaps are
   `CastHttpServer`, `WebmLayout`, `Fmp4Aac`, `DashManifest`, `LocalRanges`, `Upstream`, `TvVideos`, `CastTimeline`.
+
+## Spike, 2026-11-06 (phase 1): the Pi can do it
+
+Measured on the Pi 4 inside `totum-fetch` (Java 21, ffmpeg 8.0.1), load 0.4 before: ffmpeg decodes 60 s of Opus to PCM
+in 0.56 s (~107x real time) and encodes 60 s of AAC in 2.1 s (~28x); the shared `:core:sound` speech model (the jar
+built from ADR 119's module, the same bytes the phone runs) takes 60 s of audio in 1.9 s (~31x real time, one core,
+two runs; identical output to the laptop's run). The whole chain is ~13x real time on one of four cores, so several
+targets at 2x speed fit; 4K video is relayed, not processed. Verdict: build phase 7 as designed.
