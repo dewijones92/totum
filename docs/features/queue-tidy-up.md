@@ -28,9 +28,13 @@ page's "Clear all" now calls too, so there is one copy of the rule.
   60 days (14 by default), with the last run under the switch: "✅ Queue tidied 2 days ago: 12 played items left the
   queue, 3 failed downloads cleared" (or "nothing to tidy", or "❌ The last tidy-up failed: …"). Both rows are in the
   Settings registry (`TIDY_QUEUE`, `TIDY_AGE`).
-- **A notification** ("🧹 Queue tidied", housekeeping channel) when something moved. The shared Undo had not landed on
-  `main` when this was built, so there is no Undo; the entries leave as a plain notice. When it lands, the notice
-  should offer it.
+- **A notification** ("🧹 Queue tidied", housekeeping channel) when something moved, with **↩️ Undo** (2026-11-06).
+  The tidied entries and the slots they left are kept in `queue-tidy-undo.json` (`TidyUndoStore`, entries as
+  `SpeakerEntry`, the app's existing serialisable queue entry) for 6 hours, because the weekly worker's process is usually
+  gone by the time you tap. Undo (`QueueTidyUndoReceiver` → `QueueTidy.undo`, waits for the queue to load) puts each
+  entry back at its old slot with `PlaybackQueue.restoreAt`, cancels the notice and says how many came back; swiping the
+  notice away, or the six hours passing, forgets the batch. Failed downloads that were cleared are not brought back (they were
+  only records of failures).
 - Items that "leave the queue for History": played items are recorded in History when they are played, so nothing is
   re-recorded here (that would reorder History by the tidy time). History keeps the latest 50 plays, so most items this
   old are already past it.
@@ -42,6 +46,9 @@ music, locked, playing now, playing group, not finished), up to 50 leaving title
 `clear failed (queue tidy-up, weekly): N failed download(s) forgotten`; the `jobs` lines.
 
 ## Tests still to write
+
+`TidyUndoStore` (hold, take within and past its window, a dismissed batch, the file round trip) and `QueueTidy.undo`
+(slots restored in order, an entry already back is left alone).
 
 `tidyKeepReason` per rule; `QueueTidy.tidy` against a fake queue and progress store (age boundary, undated, locked,
 playing group, music, in progress); the worker with the setting off and with an unloaded queue; `clearFailed` against

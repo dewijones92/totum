@@ -260,6 +260,7 @@ import com.dewijones92.totum.queue.QueueSkips
 import com.dewijones92.totum.queue.QueueTidy
 import com.dewijones92.totum.queue.RandomStarts
 import com.dewijones92.totum.queue.RepeatOneRule
+import com.dewijones92.totum.queue.TidyUndoStore
 import com.dewijones92.totum.queue.TrailNavigation
 import com.dewijones92.totum.queue.keepTheQueuesPlace
 import com.dewijones92.totum.queue.onlyOtherKindAhead
@@ -1836,7 +1837,13 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     }
 
     override val queueTidy: QueueTidy by lazy {
-        QueueTidy(playbackQueue, playbackProgressStore, downloadManager, { lockingDownloads.locks.locked.value })
+        QueueTidy(
+            playbackQueue,
+            playbackProgressStore,
+            downloadManager,
+            { lockingDownloads.locks.locked.value },
+            undoStore = TidyUndoStore(File(context.filesDir, "queue-tidy-undo.json")),
+        )
     }
 
     override val mobileData: MobileDataMeter by lazy {

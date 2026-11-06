@@ -17,7 +17,9 @@ class HousekeepingNotifier(private val context: Context) {
 
     private val manager = NotificationManagerCompat.from(context)
 
-    fun tell(id: Int, title: String, text: String): Boolean {
+    class Undo(val label: String, val onTap: PendingIntent, val onDismiss: PendingIntent, val timeoutMs: Long)
+
+    fun tell(id: Int, title: String, text: String, undo: Undo? = null): Boolean {
         val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
             PackageManager.PERMISSION_GRANTED
         if (!granted) {
@@ -44,11 +46,23 @@ class HousekeepingNotifier(private val context: Context) {
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))
             .setContentIntent(open)
             .setAutoCancel(true)
+            .apply {
+                undo?.let {
+                    addAction(0, it.label, it.onTap)
+                    setDeleteIntent(it.onDismiss)
+                    setTimeoutAfter(it.timeoutMs)
+                }
+            }
             .build()
         return runCatching { manager.notify(id, notification) }
             .onFailure { Diag.warn("housekeeping", "the notification \"$title\" could not be posted", it) }
             .isSuccess
-            .also { Diag.log("housekeeping", "dewidebug told the person \"$title\": $text [posted=$it]") }
+            .also {
+                Diag.log(
+                    "housekeeping",
+                    "dewidebug told the person \"$title\": $text [posted=$it, undo=${undo != null}]"
+                )
+            }
     }
 
     companion object {

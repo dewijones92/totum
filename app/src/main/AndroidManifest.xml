@@ -91,6 +91,9 @@
             </intent-filter>
         </service>
         <receiver
+            android:name=".jobs.QueueTidyUndoReceiver"
+            android:exported="false" />
+        <receiver
             android:name=".exsurge.ExsurgeActionReceiver"
             android:exported="false">
             <intent-filter>

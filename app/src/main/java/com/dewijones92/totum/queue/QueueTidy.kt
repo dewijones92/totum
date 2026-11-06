@@ -5,6 +5,8 @@ import com.dewijones92.totum.data.download.DownloadManager
 import com.dewijones92.totum.data.download.clearFailed
 import com.dewijones92.totum.data.queue.QueueEntry
 import com.dewijones92.totum.data.queue.QueueSnapshot
+import com.dewijones92.totum.data.speakers.toQueueEntry
+import com.dewijones92.totum.data.speakers.toSpeakerEntry
 import com.dewijones92.totum.domain.Listening
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayState
@@ -44,6 +46,7 @@ class QueueTidy(
     private val downloads: DownloadManager,
     private val locked: () -> Set<MediaItemId>,
     private val now: () -> Long = System::currentTimeMillis,
+    private val undoStore: TidyUndoStore = TidyUndoStore(),
 ) {
     data class Result(val playedMoved: Int, val failedCleared: Int) {
         val movedAnything: Boolean get() = playedMoved + failedCleared > 0
@@ -78,7 +81,10 @@ class QueueTidy(
         leaving.take(LISTED).forEach {
             Diag.log("tidy", "dewidebug leaves the queue: \"${it.item.item.title}\" ${it.item.item.id.value}")
         }
-        if (leaving.isNotEmpty()) queue.removeAll(leaving.mapTo(HashSet()) { it.item.item.id })
+        if (leaving.isNotEmpty()) {
+            undoStore.hold(leaving.map { TidyUndoStore.Held(snapshot.entries.indexOf(it), it.toSpeakerEntry()) })
+            queue.removeAll(leaving.mapTo(HashSet()) { it.item.item.id })
+        }
         val failed = downloads.clearFailed("queue tidy-up, $why")
         return Result(leaving.size, failed.size).also {
             Diag.log(
@@ -88,6 +94,17 @@ class QueueTidy(
             )
         }
     }
+
+    fun undo(why: String): Int {
+        val batch = undoStore.take(why) ?: return 0
+        val restored = batch.held.sortedBy { it.index }.count { held ->
+            held.entry.toQueueEntry()?.also { queue.restoreAt(held.index, it) } != null
+        }
+        Diag.log("tidy", "dewidebug undo ($why): $restored of ${batch.held.size} tidied item(s) put back in the queue")
+        return restored
+    }
+
+    fun forgetUndo(why: String) = undoStore.clear(why)
 
     private companion object {
         const val MS_PER_DAY = 86_400_000L

@@ -38,6 +38,12 @@
     </plurals>
     <string name="tidy_joined">%1$s, %2$s</string>
     <string name="tidy_notification_title">🧹 Queue tidied</string>
+    <string name="tidy_undo">↩️ Undo</string>
+    <plurals name="tidy_undone">
+        <item quantity="one">↩️ Put %d played item back in the queue</item>
+        <item quantity="other">↩️ Put %d played items back in the queue</item>
+    </plurals>
+    <string name="tidy_undo_nothing">⏳ Too late: the tidy-up can not be undone any more</string>
 
     <string name="drive_backup_checked">✅ Backup checked %1$s</string>
     <string name="drive_backup_check_failed">❌ Backup could not be read: %1$s</string>

@@ -58,15 +58,15 @@ public data class SpeakerControl(
     val volume: Int? = null,
 )
 
-public fun QueueSnapshot.toSpeakerEntries(): List<SpeakerEntry> =
-    entries.map { SpeakerEntry(it.item.toBackup(), it.group?.id, it.group?.title) }
+public fun QueueEntry.toSpeakerEntry(): SpeakerEntry = SpeakerEntry(item.toBackup(), group?.id, group?.title)
+
+public fun SpeakerEntry.toQueueEntry(): QueueEntry? =
+    item.toPlayable()?.let { QueueEntry(it, groupOf(groupId, groupTitle)) }
+
+public fun QueueSnapshot.toSpeakerEntries(): List<SpeakerEntry> = entries.map { it.toSpeakerEntry() }
 
 public fun List<SpeakerEntry>.toSnapshot(at: Int): QueueSnapshot {
-    val kept = mapNotNull { entry ->
-        entry.item.toPlayable()?.let {
-            QueueEntry(it, groupOf(entry.groupId, entry.groupTitle))
-        }
-    }
+    val kept = mapNotNull { it.toQueueEntry() }
     return QueueSnapshot(kept, if (at in kept.indices) at else QueueSnapshot.NOTHING_PLAYING)
 }
 

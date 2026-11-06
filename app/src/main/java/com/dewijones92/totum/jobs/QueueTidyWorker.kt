@@ -8,6 +8,7 @@ import com.dewijones92.totum.R
 import com.dewijones92.totum.TotumApplication
 import com.dewijones92.totum.notifications.HousekeepingNotifier
 import com.dewijones92.totum.queue.QueueTidy
+import com.dewijones92.totum.queue.TidyUndoStore
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
 import java.time.Duration
@@ -28,6 +29,14 @@ class QueueTidyWorker(context: Context, params: WorkerParameters) : CoroutineWor
                     HousekeepingNotifier.TIDY_ID,
                     applicationContext.getString(R.string.tidy_notification_title),
                     detail,
+                    undo = result.playedMoved.takeIf { it > 0 }?.let {
+                        HousekeepingNotifier.Undo(
+                            label = applicationContext.getString(R.string.tidy_undo),
+                            onTap = QueueTidyUndoReceiver.undoIntent(applicationContext),
+                            onDismiss = QueueTidyUndoReceiver.dismissIntent(applicationContext),
+                            timeoutMs = TidyUndoStore.UNDO_WINDOW_MS,
+                        )
+                    },
                 )
             }
             JobOutcome.Done(detail)
