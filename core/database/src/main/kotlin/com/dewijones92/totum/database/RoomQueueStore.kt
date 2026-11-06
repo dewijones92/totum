@@ -62,7 +62,7 @@ public class RoomQueueStore(private val dao: QueueDao) : QueueStore {
                 albumTitle = media.album?.title,
                 playbackType = type,
                 handle = handle,
-                mediaUrl = media.mediaUrl?.value,
+                mediaUrl = media.mediaUrl?.storedValue(),
                 addedAtEpochMs = entry.addedAt?.toEpochMilli(),
             )
         }

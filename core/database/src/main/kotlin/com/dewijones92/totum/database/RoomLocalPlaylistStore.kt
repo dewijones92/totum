@@ -62,7 +62,7 @@ public class RoomLocalPlaylistStore(private val dao: LocalPlaylistDao) : LocalPl
             albumTitle = item.album?.title,
             playbackType = type,
             handle = handle,
-            mediaUrl = item.mediaUrl?.value,
+            mediaUrl = item.mediaUrl?.storedValue(),
         )
     }
 }

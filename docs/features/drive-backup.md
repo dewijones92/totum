@@ -3,7 +3,7 @@ title: Google Drive backup
 kind: feature
 status: built 2026-10-15 — verified on the emulator against a local folder; not yet seen with Google Drive on the phone
 area: backup
-updated: 2026-10-15
+updated: 2026-11-06
 ---
 
 # Google Drive backup
@@ -38,3 +38,9 @@ Back up now updates the card, and Restore… lists both copies and merges. **Not
 on the emulator), and the fresh-phone restore prompt (testing it would wipe the emulator's YouTube sign-in).
 
 Tests: `DriveBackupTest`, `BackupSchedulerTest`, `BackupServiceTest` (groups and history, queue left out).
+
+## Links carry no token
+
+`BackupCodec` strips the retired shared home-server `totumToken` parameter from every link when it writes a backup and
+when it reads one, so an old backup restores clean and a new one never carries it (found in a real Full backup,
+2026-11-06; todo `scrub-old-token-from-links`).

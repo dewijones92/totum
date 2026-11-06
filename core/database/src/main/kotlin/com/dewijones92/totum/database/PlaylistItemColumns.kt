@@ -1,6 +1,7 @@
 package com.dewijones92.totum.database
 
 import com.dewijones92.totum.common.HttpUrl
+import com.dewijones92.totum.common.LegacyLinkToken
 import com.dewijones92.totum.domain.AlbumRef
 import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
@@ -77,7 +78,7 @@ internal interface PlaylistItemColumns {
 
 /** The one place the denormalized columns rebuild a [PlayableItem]; null if the handle is unusable. */
 internal fun playlistItemFrom(columns: PlaylistItemColumns): PlayableItem? {
-    val playback = playHandleFrom(columns.playbackType, columns.handle) ?: return null
+    val playback = playHandleFrom(columns.playbackType, columns.handle?.let(::scrubbedRead)) ?: return null
     val item = MediaItem(
         id = MediaItemId(columns.itemId),
         sourceId = SourceId(columns.sourceId),
@@ -89,7 +90,7 @@ internal fun playlistItemFrom(columns: PlaylistItemColumns): PlayableItem? {
         author = columns.author,
         publisher = columns.publisher,
         thumbnailUrl = columns.thumbnailUrl?.let(HttpUrl::parse),
-        mediaUrl = columns.mediaUrl?.let(HttpUrl::parse),
+        mediaUrl = columns.mediaUrl?.let(::scrubbedRead)?.let(HttpUrl::parse),
         contentKind = runCatching { MediaContentKind.valueOf(columns.contentKind) }
             .getOrDefault(MediaContentKind.STANDARD),
         membersOnly = columns.membersOnly,
@@ -100,4 +101,9 @@ internal fun playlistItemFrom(columns: PlaylistItemColumns): PlayableItem? {
 }
 
 /** The persisted `playbackType` + `handle`; the vocabulary itself lives in the domain. */
-internal fun PlayHandle.typeAndHandle(): Pair<String, String?> = persisted()
+internal fun PlayHandle.typeAndHandle(): Pair<String, String?> =
+    persisted().let { (type, handle) -> type to handle?.let { LegacyLinkToken.strip(it, "a link being stored") } }
+
+internal fun HttpUrl.storedValue(): String = LegacyLinkToken.strip(value, "a link being stored")
+
+private fun scrubbedRead(link: String): String = LegacyLinkToken.strip(link, "stored rows being read")

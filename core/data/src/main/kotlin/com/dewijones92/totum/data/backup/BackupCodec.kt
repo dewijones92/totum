@@ -1,5 +1,6 @@
 package com.dewijones92.totum.data.backup
 
+import com.dewijones92.totum.common.LegacyLinkToken
 import kotlinx.serialization.json.Json
 
 /**
@@ -14,14 +15,17 @@ public object BackupCodec {
         encodeDefaults = true
     }
 
-    public fun encode(backup: Backup): String = json.encodeToString(Backup.serializer(), backup)
+    public fun encode(backup: Backup): String =
+        LegacyLinkToken.strip(json.encodeToString(Backup.serializer(), backup), "a backup being written")
 
     /**
      * Parses a backup, or explains why it can't. Never throws: this is arbitrary bytes a
      * user pointed at us, and "that isn't a Totum backup" is an answer, not a crash.
      */
     public fun decode(content: String): BackupReadResult {
-        val backup = runCatching { json.decodeFromString(Backup.serializer(), content) }
+        val backup = runCatching {
+            json.decodeFromString(Backup.serializer(), LegacyLinkToken.strip(content, "a backup being read"))
+        }
             .getOrElse { return BackupReadResult.Unreadable(it.message ?: "not a backup file") }
 
         // Refused rather than partially applied: a file from a newer build may hold

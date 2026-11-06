@@ -39,7 +39,7 @@ public class RoomPlayHistoryStore(
                 albumTitle = item.item.album?.title,
                 playbackType = type,
                 handle = handle,
-                mediaUrl = item.item.mediaUrl?.value,
+                mediaUrl = item.item.mediaUrl?.storedValue(),
             ),
         )
         dao.trim(limit)

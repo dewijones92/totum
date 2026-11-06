@@ -125,7 +125,7 @@ public class RoomDownloadStore(
             albumTitle = media.album?.title,
             playbackType = playbackType,
             handle = handleValue,
-            mediaUrl = media.mediaUrl?.value,
+            mediaUrl = media.mediaUrl?.storedValue(),
         )
     }
 
