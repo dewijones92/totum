@@ -235,6 +235,7 @@ import com.dewijones92.totum.playback.exploreModeFor
 import com.dewijones92.totum.playback.handOverFinishedDownloads
 import com.dewijones92.totum.playback.preloadableUrl
 import com.dewijones92.totum.playback.startActiveModes
+import com.dewijones92.totum.playback.startPlaybackContext
 import com.dewijones92.totum.playback.startStreamRecovery
 import com.dewijones92.totum.polite.PoliteInterceptor
 import com.dewijones92.totum.polite.PoliteYtDlpEngine
@@ -1320,6 +1321,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         trail.start()
         KidMode(kidLock, playbackController, applicationScope).start()
         startActiveModes(this)
+        startPlaybackContext(this)
     }
 
     override val readyAhead: ReadyAhead by lazy {

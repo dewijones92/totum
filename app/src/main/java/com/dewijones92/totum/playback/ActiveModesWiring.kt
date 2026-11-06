@@ -5,6 +5,7 @@ import com.dewijones92.totum.dailyalarms.WorkAppsStatus
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.kidlock.KidRules
 import com.dewijones92.totum.mobiledata.holdingBack
+import com.dewijones92.totum.settings.RepeatMode
 import com.dewijones92.totum.workapps.WorkAppsQuiet
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -20,14 +21,15 @@ import java.time.Instant
 private const val QUIET_RECHECK_MAX_MS = 5 * 60_000L
 private const val QUIET_RECHECK_MIN_MS = 1_000L
 
+internal fun effectiveRepeatFor(c: AppContainer): Flow<RepeatMode> = combine(
+    c.kidLock.locked,
+    c.playbackQueue.state.map { it.current?.group?.id }.distinctUntilChanged(),
+    c.appPreferences.settings.map { it.repeatMode }.distinctUntilChanged(),
+) { locked, group, chosen -> KidRules.repeat(locked, group, chosen) }
+
 internal fun activeModesFor(c: AppContainer): Flow<List<ActiveMode>> {
-    val repeat = combine(
-        c.kidLock.locked,
-        c.playbackQueue.state.map { it.current?.group?.id }.distinctUntilChanged(),
-        c.appPreferences.settings.map { it.repeatMode }.distinctUntilChanged(),
-    ) { locked, group, chosen -> KidRules.repeat(locked, group, chosen) }
     val first = combine(
-        repeat,
+        effectiveRepeatFor(c),
         c.exploreMode.on,
         c.kidLock.locked,
         c.playbackController.state.map { it?.speed }.distinctUntilChanged(),
@@ -56,7 +58,6 @@ internal fun startActiveModes(c: AppContainer) {
                 "dewidebug active modes ${before?.describe() ?: "(first reading)"} -> ${modes.describe()}"
             )
             before = modes
-            c.playbackController.setPlaybackContext(PlaybackContext(repeatOne = ActiveMode.RepeatOne in modes))
         }
     }
 }

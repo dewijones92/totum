@@ -11,6 +11,7 @@ import com.dewijones92.totum.common.Diag
 internal class ContextualNotificationProvider(
     private val context: Context,
     private val refresh: () -> Unit,
+    private val currentItemId: () -> String?,
 ) : DefaultMediaNotificationProvider(context) {
 
     @Volatile
@@ -28,8 +29,26 @@ internal class ContextualNotificationProvider(
 
     override fun getNotificationContentText(metadata: MediaMetadata): CharSequence? {
         val artist = super.getNotificationContentText(metadata)
-        if (!playbackContext.repeatOne) return artist
-        val badge = context.getString(R.string.playback_notification_repeat_one)
-        return if (artist.isNullOrBlank()) badge else "$badge · $artist"
+        val line = lineFor(playbackContext) ?: return artist
+        return if (artist.isNullOrBlank()) line else "$line · $artist"
+    }
+
+    private fun lineFor(shown: PlaybackContext): String? {
+        if (shown.repeatOne) return context.getString(R.string.playback_notification_repeat_one)
+        val wantsNext = shown.explorePicksNext || shown.nextTitle != null
+        if (!wantsNext) return null
+        val playing = currentItemId()
+        if (shown.nextAfter != playing) {
+            Diag.log(
+                "playback",
+                "dewidebug notification next line held back: it follows ${shown.nextAfter}, playing $playing",
+            )
+            return null
+        }
+        return if (shown.explorePicksNext) {
+            context.getString(R.string.playback_notification_explore_next)
+        } else {
+            context.getString(R.string.playback_notification_next, shown.nextTitle)
+        }
     }
 }

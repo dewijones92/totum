@@ -113,7 +113,10 @@ public class PlaybackService : MediaSessionService() {
     @androidx.annotation.OptIn(markerClass = [UnstableApi::class])
     override fun onCreate() {
         super.onCreate()
-        val contextual = ContextualNotificationProvider(this, ::triggerNotificationUpdate)
+        val contextual = ContextualNotificationProvider(
+            this,
+            ::triggerNotificationUpdate,
+        ) { mediaSession?.player?.currentMediaItem?.mediaId }
         notificationProvider = contextual
         setMediaNotificationProvider(RefusalTolerantNotificationProvider(contextual))
         // A custom audio sink whose processor chain carries the silence skipper

@@ -37,7 +37,9 @@ action, not a mode, so it has no chip; the shuffled repeat modes are the only pe
 - **Playback notification**: `🔂 Repeating this one` leads the content text when repeat one is on. The app tells the
   session through `PlaybackController.setPlaybackContext(PlaybackContext)` (a custom session command, held until the
   controller connects); `ContextualNotificationProvider` stores it and refreshes the notification. `PlaybackContext`
-  is the one seam later notification facts (Next line, why is this playing) extend.
+  is the one seam later notification facts extend: since 2026-11-06 it also carries the
+  [Next line](next-in-notification.md), and `startPlaybackContext` is its one writer (active modes and the next line
+  combined).
 - **Diagnostics**: `playback.activeModes` (`repeat-one | explore | speed-1.5 …`, or `none`) and a `modes` log line
   `dewidebug active modes <before> -> <after>` on every change; `dewidebug mode chip … tapped` on a tap;
   `dewidebug telling the session` and `dewidebug notification context` on the push.
