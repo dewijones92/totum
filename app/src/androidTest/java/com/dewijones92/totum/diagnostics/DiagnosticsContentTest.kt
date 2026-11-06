@@ -49,8 +49,8 @@ class DiagnosticsContentTest {
     )
 
     @Before
-    fun queueSomethingToReportOn() = runBlocking(Dispatchers.Main) {
-        container.playbackQueue.enqueue(queued)
+    fun queueSomethingToReportOn() {
+        runBlocking(Dispatchers.Main) { container.playbackQueue.enqueue(queued) }
     }
 
     @After

@@ -322,6 +322,12 @@ class ListFilterTest {
         composeTestRule.waitForIdle()
 
         type("gamma")
+        composeTestRule.waitUntil(TIMEOUT_MS) {
+            runCatching {
+                composeTestRule.onAllNodesWithContentDescription(context.getString(R.string.queue_menu))
+                    .fetchSemanticsNodes().size == 1
+            }.getOrDefault(false)
+        }
         composeTestRule.onAllNodesWithContentDescription(context.getString(R.string.queue_menu))[0].performClick()
         composeTestRule.onNodeWithText(context.getString(R.string.queue_move_to_top)).performClick()
         composeTestRule.waitUntil(TIMEOUT_MS) {
