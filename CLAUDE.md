@@ -155,6 +155,9 @@ say why it is the way it is.
   every kind it makes sense for, and every path that builds an item fills what is known. When a change touches one
   path, check its siblings (every list, every way in: tap, link, notification, search, restore). A deliberate
   exception is never built silently: stop and ask Dewi, then record it in [ADR 108](docs/adr/0108-consistent-everywhere-and-its-recorded-exceptions.md), which also lists what the 2026-10-31 audit left to do.
+  Shifted left (Dewi, 2026-11-06: *"in general for this whole repo - i want consistency"*): every builder or change
+  checks the siblings of what it touches before it is done, and a consistency sweep runs after every phase of a batch,
+  not only at its end, with what holds up fixed before the next phase starts.
 - **No duplication from a discussed idea** (Dewi, 2026-11-01: *"if we discuss an idea, I don't want you to then
   duplicate stuff"*). Before building anything, a scout searches for code that already does each part, and the plan
   names what it **reuses** for each part; a new copy of existing logic needs a stated reason Dewi has agreed. Code
