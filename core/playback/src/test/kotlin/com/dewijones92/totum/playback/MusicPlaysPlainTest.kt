@@ -17,16 +17,19 @@ class MusicPlaysPlainTest {
     }
 
     @Test
-    fun `everything else plays with the choices you made`() {
-        listOf(MediaContentKind.STANDARD, MediaContentKind.SHORT, MediaContentKind.LIVE).forEach { kind ->
+    fun `a live stream plays at normal speed with nothing cut, whatever was chosen for talk`() {
+        assertEquals(
+            ItemTuning(speed = 1f, skipSilence = false, keepsChanges = false),
+            tuningFor(MediaContentKind.LIVE, choices)
+        )
+    }
+
+    @Test
+    fun `talk plays with the choices you made`() {
+        listOf(MediaContentKind.STANDARD, MediaContentKind.SHORT).forEach { kind ->
             assertEquals(
                 kind.name,
-                ItemTuning(
-                    speed = 1.75f,
-                    skipSilence = true,
-                    keepsChanges = true,
-                    silentTailEnds = kind != MediaContentKind.LIVE
-                ),
+                ItemTuning(speed = 1.75f, skipSilence = true, keepsChanges = true),
                 tuningFor(kind, choices)
             )
         }

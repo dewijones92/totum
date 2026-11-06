@@ -2,7 +2,7 @@
 title: Live streams play a manifest Totum builds from the live head
 kind: adr
 status: accepted
-updated: 2026-10-22
+updated: 2026-11-06
 ---
 
 # 69. Live streams play a manifest Totum builds from the live head
@@ -53,3 +53,12 @@ the newest segment and the stream's length, then a DASH manifest of the adaptive
   phone still live. The live sound is relayed as it is: Totum's boost does not reach a live stream on the TV yet.
 - Not yet: Totum's processing (boost) on live audio while casting, DVR seeking back, and anonymous yt-dlp answers for
   live (they come as HLS formats and are not mapped).
+
+## Amended 2026-11-06: live plays at 1x, nothing cut
+
+Report 20261104T171409 (0.1.852): two lives played at the listener's 2x with skip-silence, outran the live edge and
+gave up buffering after 30 s and 24 s. A live stream has no future to run ahead into, so `MediaContentKind.LIVE` now
+has the same `ItemTuning` as music (`MusicPlaysPlain`): speed 1x, no skip-silence, `keepsChanges = false`, so a speed or
+skip-silence change made while it plays is for it alone and never replaces the saved talk choices (`setSpeed` already
+honoured that guard). No silent-tail ending either (it was already off for live). The play line also names a loopback
+manifest as "a live manifest Totum built" instead of "the torrent server", which it was mistaken for.

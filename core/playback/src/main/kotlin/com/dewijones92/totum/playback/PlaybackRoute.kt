@@ -1,5 +1,6 @@
 package com.dewijones92.totum.playback
 
+import com.dewijones92.totum.playback.cast.LocalManifests
 import com.dewijones92.totum.sabr.SabrSessions
 
 /**
@@ -26,6 +27,7 @@ public fun routeOf(uri: String, fromDisk: Boolean): String = when {
     fromDisk -> "a local file"
     SabrSessions.parse(uri) != null -> "sabr"
     uri.contains("hls_playlist") -> "hls"
+    LocalManifests.servesManifest(uri) -> "a live manifest Totum built"
     uri.startsWith("http://127.0.0.1") || uri.startsWith("http://localhost") -> "the torrent server"
     else -> "a direct url"
 }

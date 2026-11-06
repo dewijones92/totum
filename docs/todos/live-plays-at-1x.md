@@ -1,7 +1,7 @@
 ---
 title: Live streams play at 1x with no silence skipping
 kind: todo
-status: decided
+status: built (tests owed)
 batch: A (2026-11)
 priority: high
 updated: 2026-11-06
@@ -20,3 +20,13 @@ so a live session never saves a global speed; KidMode's save/restore pattern (`K
 `MusicPlaysPlainTest.kt:21-39` loops LIVE with the user's choices and must change (seen red first). Fix the route label.
 
 Whole-batch review: no new guard — `setSpeed` already honours `tuning.keepsChanges`; give LIVE the same `ItemTuning` as MUSIC (speed 1, no skip-silence, `keepsChanges = false`) in `MusicPlaysPlain`.
+
+## Built 2026-11-06 (code first; tests owed)
+
+`MediaContentKind.LIVE` shares music's `ItemTuning` in `MusicPlaysPlain.kt` (1x, no skip-silence, `keepsChanges = false`);
+no new guard, since `setSpeed` already honours it, and a live item's resume rewind is off with it. The loopback manifest
+route is named "a live manifest Totum built" (`routeOf`, via `LocalManifests.servesManifest`). The tuning and speed log
+lines say "live" rather than "music". `MusicPlaysPlainTest` updated: live now plays plain. ADR 69 amended.
+
+Tests owed: a `PlaybackRouteTest` case for a `http://127.0.0.1:…/live/<id>.mpd` uri (red against the old "the torrent
+server"); a controller-level check that a live item ignores a saved 2x and a speed change on it does not save.

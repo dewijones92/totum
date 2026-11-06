@@ -15,8 +15,7 @@ internal data class ItemTuning(
 )
 
 internal fun tuningFor(kind: MediaContentKind, choices: PlaybackChoices): ItemTuning = when (kind) {
-    MediaContentKind.MUSIC -> ItemTuning(speed = 1f, skipSilence = false, keepsChanges = false)
-    MediaContentKind.LIVE -> ItemTuning(choices.speed, choices.skipSilence, keepsChanges = true, silentTailEnds = false)
+    MediaContentKind.MUSIC, MediaContentKind.LIVE -> ItemTuning(speed = 1f, skipSilence = false, keepsChanges = false)
     MediaContentKind.AUDIOBOOK -> ItemTuning(
         choices.speed,
         skipSilence = false,

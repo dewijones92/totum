@@ -577,7 +577,10 @@ public class Media3PlaybackController(
         if (tuning.keepsChanges) {
             scope.launch { speedStore.save(clamped) }
         } else {
-            Diag.log("playback", "speed ${clamped}x for this song only; music does not change the saved speed")
+            Diag.log(
+                "playback",
+                "speed ${clamped}x for this item only; music and live do not change the saved speed",
+            )
         }
     }
 
@@ -902,8 +905,8 @@ public class Media3PlaybackController(
         if (!tuned.keepsChanges) {
             Diag.log(
                 "playback",
-                "${item.id.value} is music: 1x, skip-silence off; " +
-                    "the saved speed and skip-silence wait for the next talk item",
+                "${item.id.value} is ${item.contentKind.name.lowercase()}: " +
+                    "1x, skip-silence off; the saved speed and skip-silence wait for the next talk item",
             )
         } else if (!tuned.keepsSkipSilence) {
             Diag.log(
