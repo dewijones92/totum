@@ -13,7 +13,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 |---|---|---|---|
 | [Batch A, November 2026: the plan and its order](batch-a-2026-11.md) | batch | high | decided 2026-11-06 |
 | [🎥 Totum recorder](totum-recorder.md) | app | medium | decided 2026-11-06, Batch A phase 4 |
-| [🔴 LIVE everywhere, kept up to date](live-tag-everywhere.md) | video | medium | decided 2026-11-06, Batch A phase 4 |
+| [🔴 LIVE everywhere, kept up to date](live-tag-everywhere.md) | video | medium | built 2026-11-06, Batch A (tests owed) |
 | [Stored links no longer carry the old shared token](scrub-old-token-from-links.md) | pi/security | medium | decided 2026-11-06, Batch A |
 | [Queued tracks keep their artist](queued-tracks-keep-their-artist.md) | music/queue | medium | built 2026-11-06, Batch A (tests owed) |
 | [A live stream that hasn't started says so](live-starts-soon.md) | playback | medium | built 2026-11-06, Batch A (tests owed) |

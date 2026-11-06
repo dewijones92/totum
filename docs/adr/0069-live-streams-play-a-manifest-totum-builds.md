@@ -81,3 +81,8 @@ has the same `ItemTuning` as music (`MusicPlaysPlain`): speed 1x, no skip-silenc
 skip-silence change made while it plays is for it alone and never replaces the saved talk choices (`setSpeed` already
 honoured that guard). No silent-tail ending either (it was already off for live). The play line also names a loopback
 manifest as "a live manifest Totum built" instead of "the torrent server", which it was mistaken for.
+
+## Amended 2026-11-06: the tag follows the stream
+
+`UpcomingLives` became `LiveStates` (upcoming, live, ended) and every surface reads the tag through one function; a stream
+that has ended is `MediaContentKind.WAS_LIVE` and plays as an ordinary video. See [ADR 131](0131-the-live-tag-is-read-from-one-registry-and-kept-true.md).
