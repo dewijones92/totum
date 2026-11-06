@@ -84,12 +84,13 @@ back as placeholders (those lockup shapes hold the image under a different key
 than videos) and a playlist's subtitle is "View full playlist" rather than a
 count — cosmetic.
 
-## Reopening a channel reloads its Videos (2026-11-06)
+## Reopening a channel reloads its tabs (2026-11-06)
 
 The channel's view-model outlives the screen, so a reopened channel used to show the list it loaded the first time
-(report 20261101T222816: a 6-hour-old upload missing). Entering the screen now reloads the Videos list when it is
-5 minutes old or its last load failed: the old list stays with a progress bar, a failed refresh keeps it, and the
-diagnostics say whether the list was reused and how old it was.
+(report 20261101T222816: a 6-hour-old upload missing). Entering the screen now reloads the Videos, Shorts and
+Playlists lists (those already loaded) when 5 minutes old or when their last load failed, and so does selecting a
+loaded tab: the old list stays with a progress bar, a failed refresh keeps it, and the diagnostics say whether the
+list was reused and how old it was. One rule and one load path for the three tabs.
 
 ## Playlists open from every channel (2026-09-06)
 

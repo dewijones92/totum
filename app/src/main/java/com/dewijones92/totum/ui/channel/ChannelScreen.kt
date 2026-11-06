@@ -95,7 +95,7 @@ fun ChannelScreen(
         viewModel(key = source.id.value, factory = ChannelViewModel.factory(container, source))
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val addToPlaylist = com.dewijones92.totum.ui.playlist.rememberPlaylistAdder(container)
-    LaunchedEffect(viewModel) { viewModel.refreshVideosOnEntry() }
+    LaunchedEffect(viewModel) { viewModel.refreshOnEntry() }
 
     var showGroups by remember { mutableStateOf(false) }
     if (showGroups) {
