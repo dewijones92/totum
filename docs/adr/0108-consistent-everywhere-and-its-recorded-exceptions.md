@@ -94,6 +94,23 @@ words say "the Pi"; a bulk delete says "Delete from both" when a Pi copy exists;
 reopened channel refreshes Shorts and Playlists by the Videos rule; the retired-token scrub covers channel-latest,
 cached feed and podcast episode rows; the Shorts reel switches Repeat one off like any other run (Dewi's decision).
 
+Consistency sweep, 2026-11-06 (second pass, done): the empty-queue related fallback skips Not for me like Explore; the
+player's Up next has Undo and the ordinary long-press menu; audiobook rows have a menu; Ask's video "Go to channel" works;
+the pinned tile menu, shuffles and notification plays record their own reasons (`ChosenWay.SHUFFLE`, `NOTIFICATION`);
+un-pin, Recently, recent searches and group membership have Undo; a torrent pack's menu has Star and Not for me; the
+queue tidy-up notice has Undo; removing the playing entry leaves no row current; gapless arming follows the kid lock like the
+advance; a download-delete batch has one Undo window; the live registry survives a restart.
+
+Recorded exceptions from that pass:
+
+- **A book's menu has Share (title only), Not for me and Details, and no Star, queue, download or Copy link.** A book is a
+  feed of chapters at `archive.org/metadata/<id>`, not one playable thing, so there is nothing to star, queue or fetch as
+  one item and no address worth copying (its chapters have the full menu).
+- **A torrent pack's menu has no Copy link** (already recorded under the groups above): a pack has no public address.
+  Its Star stars every file and its Not for me suppresses the pack by its show title.
+- **Clear all searches has no Undo yet**; only forgetting one query does.
+- **Group membership Undo re-adds the channel at the end of the group**, not in its old slot (the store appends by position).
+
 ## Consequences
 
 - New work is reviewed against this list; an exception added later is recorded here.
