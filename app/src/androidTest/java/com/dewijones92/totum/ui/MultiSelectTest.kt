@@ -79,7 +79,7 @@ class MultiSelectTest {
     private val items = listOf(item("a", "Alpha episode"), item("b", "Beta episode"), item("c", "Gamma episode"))
 
     private fun longPress(title: String) {
-        composeTestRule.onNodeWithText(title).performTouchInput { longClick() }
+        composeTestRule.onNodeWithText(title).performTouchInput { longClick(percentOffset(HOLD_X, HOLD_Y)) }
         composeTestRule.waitForIdle()
     }
 
@@ -467,5 +467,7 @@ class MultiSelectTest {
     private companion object {
         const val TIMEOUT_MS = 5_000L
         const val DISK_WRITE_MS = 30L
+        const val HOLD_X = 0.1f
+        const val HOLD_Y = 0.5f
     }
 }
