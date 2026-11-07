@@ -57,7 +57,7 @@ token-gated `totum.` host).
   stderr has `api_key=` values replaced with `***` (`withoutApiKeys`); ffmpeg's stderr is now read and logged that way
   instead of being inherited. Accepted for a household and written down.
 - Watched state is not read from or written to Jellyfin.
-- Not run against a real Jellyfin: the route tests use a canned Jellyfin response.
+- The route tests use a canned Jellyfin response. On 2026-11-07 browse and stream were also exercised from the emulator against the Pi's real Jellyfin (the film list, a folder, a play, a failed decode, Listen on the same file); the poster route has only run in tests until it is deployed.
 
 ## Amended 2026-11-07: Jellyfin items are consistent with every other list
 

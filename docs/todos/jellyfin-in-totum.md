@@ -42,4 +42,4 @@ so "21 Jump Street" there is the test for the failure message; Dewi's Pixel 7 ca
 Tests: `JellyfinItemsAreShownLikeVideosTest` (shown as a video, no mark, the year, the description),
 `JellyfinItemTest` / `JellyfinClientTest` (year, poster address), `JellyfinRoutesTest` (the image route: key, type, 404, a
 bad id refused, a Pi with no Jellyfin), `HomeServerImagesTest` (the token goes only to the home host),
-`JellyfinScreenTest` (instrumented: the shared back, no second read of the top level, the queued item's poster and year).
+`JellyfinScreenTest` (instrumented: the shared back, no second read of the top level, the queued item's poster and year; run on `totum-api35` on 2026-11-07 with `AnUnplayableVideoSaysWhyWordsTest`, 10 passing). Seen on the emulator against the Pi's real Jellyfin: the list with years, the video icon and no follow chip, the shared back, a HEVC 10-bit film failing with the message and 🎧 Listen playing its sound, About this with Published, Type Video and the description. Not seen: a poster (route not deployed).
