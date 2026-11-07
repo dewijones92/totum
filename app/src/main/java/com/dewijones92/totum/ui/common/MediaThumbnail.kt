@@ -18,6 +18,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
@@ -51,6 +52,7 @@ fun MediaThumbnail(
     // knocked off, where 12 reads as deliberate. Matches the cards and sheets elsewhere.
     shape: Shape = RoundedCornerShape(12.dp),
     durationLabel: String? = null,
+    blurred: Boolean = false,
 ) {
     Box(
         modifier = modifier
@@ -73,7 +75,7 @@ fun MediaThumbnail(
                 contentDescription = contentDescription,
                 contentScale = thumbnailScale(portrait),
                 onSuccess = { loaded -> portrait = isPortrait(loaded.result.image.width, loaded.result.image.height) },
-                modifier = Modifier.fillMaxSize(),
+                modifier = if (blurred) Modifier.fillMaxSize().blur(SPOILER_BLUR) else Modifier.fillMaxSize(),
             )
         }
         durationLabel?.let { DurationChip(it, Modifier.align(Alignment.BottomEnd)) }
@@ -102,6 +104,7 @@ private fun DurationChip(label: String, modifier: Modifier = Modifier) {
     )
 }
 
+private val SPOILER_BLUR = 28.dp
 private const val PLACEHOLDER_GLYPH_FRACTION = 0.4f
 private const val CHIP_SCRIM = 0.72f
 

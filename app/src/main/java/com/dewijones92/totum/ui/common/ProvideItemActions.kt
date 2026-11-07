@@ -21,6 +21,7 @@ import com.dewijones92.totum.domain.ShareLink
 import com.dewijones92.totum.domain.messageFor
 import com.dewijones92.totum.domain.pillar
 import com.dewijones92.totum.domain.shareLink
+import com.dewijones92.totum.domain.titleOf
 import com.dewijones92.totum.domain.toPlayableOrNull
 import com.dewijones92.totum.innertube.music.RadioSeed
 import com.dewijones92.totum.music.ArtistCredits
@@ -184,7 +185,7 @@ private class ContainerItemActions(
                 Diag.log("notforme", "dewidebug no snackbar host here, so no undo is offered for \"${item.title}\"")
             } else {
                 offers.offer(
-                    resources.getString(R.string.not_for_me_done, item.title),
+                    resources.getString(R.string.not_for_me_done, container.aiFeatures.spoilerShield.titleOf(item)),
                     resources.getString(R.string.undo),
                     "notforme",
                     SnackbarDuration.Long,
@@ -195,8 +196,9 @@ private class ContainerItemActions(
 
     override fun share(item: MediaItem): () -> Unit = {
         val link = item.shareLink(HomeServerAuth.homeHost())
-        Diag.log("share", "dewidebug sharing \"${item.title}\" [id=${item.id.value}]: ${link.why}")
-        links.share(link.messageFor(item.title), item.title)
+        val shown = container.aiFeatures.spoilerShield.titleOf(item)
+        Diag.log("share", "dewidebug sharing \"${item.title}\" as \"$shown\" [id=${item.id.value}]: ${link.why}")
+        links.share(link.messageFor(shown), shown)
     }
 
     override fun copyLink(item: MediaItem): (() -> Unit)? {
@@ -218,7 +220,8 @@ private class ContainerItemActions(
                 "share",
                 "dewidebug sharing the list \"$title\": ${items.size} titles, no link because a group has none"
             )
-            links.share(resources.shareListMessage(title, items), title)
+            val shield = container.aiFeatures.spoilerShield
+            links.share(resources.shareListMessage(title, items, shield::titleOf), title)
         }
     }
 

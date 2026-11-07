@@ -22,7 +22,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [TL;DR and chapters for long items](tldr-and-chapters.md) | ai | medium | decided 2026-11-06, Batch A phase 6 |
 | [Ask about this video](ask-about-this-video.md) | ai | medium | decided 2026-11-06, Batch A phase 6 |
 | [A morning digest of what's new](morning-digest.md) | ai | low | decided 2026-11-06, Batch A phase 6 |
-| [A spoiler shield for sport](tennis-spoiler-shield.md) | ai/video | medium | decided 2026-11-06, Batch A phase 6 |
+| [A spoiler shield for sport](tennis-spoiler-shield.md) | ai/video | medium | built 2026-11-07, Batch A (tests owed) |
 | [Jellyfin's films and series inside Totum](jellyfin-in-totum.md) | home | medium | built 2026-11-07, Batch A (tests owed) |
 | [Trip mode](trip-mode.md) | downloads | low | built 2026-11-07, Batch A (ADR 149; tests owed; not run on a device) |
 | [One tap puts the kid playlist on the TV](kid-tv-button.md) | casting/kids | low | built 2026-11-07, Batch A (ADR 148; tests owed; not run on a TV) |

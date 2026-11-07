@@ -30,7 +30,7 @@ public class NewContentWorker(
                     val notifier = NewContentNotifier(
                         applicationContext,
                         { container.appPreferences.settings.value },
-                        LiveNoticeLabels(applicationContext, container.liveStates),
+                        LiveNoticeLabels(applicationContext, container.liveStates, container.aiFeatures.spoilerShield),
                     )
                     notifier.notify(updates)
                 },

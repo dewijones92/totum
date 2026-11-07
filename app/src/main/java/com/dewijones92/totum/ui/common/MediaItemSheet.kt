@@ -127,6 +127,7 @@ internal fun ActionSheet(
             SheetAction(onPeek, Icons.Outlined.Visibility, R.string.queue_peek, onDismiss)
             SheetAction(extras.onStartRadio, Icons.Outlined.Radio, R.string.music_start_radio, onDismiss)
             StarAction(extras.item, onDismiss)
+            SpoilerShieldActions(extras.item, onDismiss)
             StarListAction(extras.starList, title, onDismiss)
             SheetAction(notForMeActionOf(extras), Icons.Outlined.ThumbDown, R.string.not_for_me, onDismiss)
             ShareSheetActions(extras.item, extras.onShareList, onDismiss)

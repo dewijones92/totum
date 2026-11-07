@@ -3,7 +3,10 @@ package com.dewijones92.totum.live
 import android.content.Context
 import android.text.format.DateUtils
 import com.dewijones92.totum.R
+import com.dewijones92.totum.domain.ItemShield
 import com.dewijones92.totum.domain.MediaItem
+import com.dewijones92.totum.domain.NoShield
+import com.dewijones92.totum.domain.titleOf
 import com.dewijones92.totum.video.LiveStates
 import com.dewijones92.totum.video.LiveTag
 import com.dewijones92.totum.video.liveTagOf
@@ -24,9 +27,14 @@ fun Context.startsAtText(at: Instant): String = DateUtils.formatDateTime(
         if (DateUtils.isToday(at.toEpochMilli())) 0 else DateUtils.FORMAT_SHOW_DATE,
 )
 
-class LiveNoticeLabels(private val context: Context, private val states: LiveStates) {
+class LiveNoticeLabels(
+    private val context: Context,
+    private val states: LiveStates,
+    private val shield: ItemShield = NoShield,
+) {
     fun titled(item: MediaItem): String {
         val tag = liveTagOf(item.contentKind, videoIdOf(item.id)?.let(states::of))
-        return tag?.let { "${context.liveTagText(it)} · ${item.title}" } ?: item.title
+        val title = shield.titleOf(item)
+        return tag?.let { "${context.liveTagText(it)} · $title" } ?: title
     }
 }

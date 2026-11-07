@@ -2,6 +2,7 @@ package com.dewijones92.totum.playback
 
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.di.AppContainer
+import com.dewijones92.totum.domain.titleOf
 import com.dewijones92.totum.kidlock.KidRules
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -32,9 +33,10 @@ internal fun nextLineFor(c: AppContainer): Flow<NextAfter> {
         c.kidLock.modeOn,
         c.sleepTimer.state,
     ) { autoPlay, locked, _ -> KidRules.autoPlay(locked, autoPlay) }
-    return combine(queueFacts, modes, stops) { (snapshot, playing), (repeat, explore), autoPlay ->
+    val shield = c.aiFeatures.spoilerShield
+    return combine(queueFacts, modes, stops, shield.state) { (snapshot, playing), (repeat, explore), autoPlay, _ ->
         val inputs = NextLineInputs(snapshot, playing, repeat, autoPlay, explore, c.sleepTimer.stopsAfterItem)
-        NextAfter(playing?.id, nextLineOf(inputs, queue.passOver))
+        NextAfter(playing?.id, nextLineOf(inputs, queue.passOver, shield::titleOf))
     }.distinctUntilChanged()
 }
 

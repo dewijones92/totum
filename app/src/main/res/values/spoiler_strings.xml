@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="spoiler_reveal">👁️ Show the real title</string>
+    <string name="spoiler_hide_again">🙈 Hide the title again</string>
+    <string name="spoiler_channel_on">🙈 Hide spoilers from this channel</string>
+    <string name="spoiler_channel_off">👁️ Stop hiding spoilers from this channel</string>
+</resources>

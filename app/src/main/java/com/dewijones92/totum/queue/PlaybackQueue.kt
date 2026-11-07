@@ -21,10 +21,12 @@ import com.dewijones92.totum.data.queue.stampedSince
 import com.dewijones92.totum.data.targets.QueueMode
 import com.dewijones92.totum.domain.ChosenWay
 import com.dewijones92.totum.domain.HomeCopy
+import com.dewijones92.totum.domain.ItemShield
 import com.dewijones92.totum.domain.LocalCopy
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaKind
+import com.dewijones92.totum.domain.NoShield
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayReason
 import com.dewijones92.totum.domain.PlayRoute
@@ -141,6 +143,7 @@ class PlaybackQueue(
     private val sourceArtwork: () -> Map<SourceId, HttpUrl> = { emptyMap() },
     internal val passOver: (PlayableItem) -> String? = { null },
     private val repeatOneOffForRun: (String) -> Boolean = { false },
+    private val shield: ItemShield = NoShield,
 ) {
     private val _state = MutableStateFlow(QueueSnapshot())
 
@@ -403,7 +406,7 @@ class PlaybackQueue(
         ).also { played -> if (played && byYou) pictureOffers.started(item, "play now") }
     }
 
-    private val refusals = PlayAttempts(clock)
+    private val refusals = PlayAttempts(shield, clock)
     val refusedTaps: SharedFlow<RefusedTap> get() = refusals.taps
     val starting: StateFlow<Starting?> get() = refusals.starting
 

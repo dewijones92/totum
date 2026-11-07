@@ -90,7 +90,9 @@ internal fun DetailsSection(item: MediaItem) {
         Column(Modifier.padding(horizontal = 24.dp).testTag(DETAILS_LIST_TAG)) {
             val linkColor = MaterialTheme.colorScheme.primary
             val openLink = rememberLinkOpener()
-            itemDetails(item, liveTag = liveTagFor(item.id, item.contentKind)).forEach { line ->
+            val hidingSpoilers = item.face().shielded
+            val facts = if (hidingSpoilers) item.copy(duration = null, description = null) else item
+            itemDetails(facts, liveTag = liveTagFor(item.id, item.contentKind)).forEach { line ->
                 val style = MaterialTheme.typography.bodyMedium
                 val shown = line.withLinks(linkColor, openLink)
                 when {

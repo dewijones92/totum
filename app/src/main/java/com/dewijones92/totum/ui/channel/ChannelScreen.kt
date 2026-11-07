@@ -66,6 +66,7 @@ import com.dewijones92.totum.ui.common.SelectableMediaList
 import com.dewijones92.totum.ui.common.ShapeControl
 import com.dewijones92.totum.ui.common.ShuffleAllAction
 import com.dewijones92.totum.ui.common.SourceHeader
+import com.dewijones92.totum.ui.common.SpoilerShieldToggle
 import com.dewijones92.totum.ui.common.filter
 import com.dewijones92.totum.ui.common.filterOutcome
 import com.dewijones92.totum.ui.common.rememberChooseDownload
@@ -114,6 +115,7 @@ fun ChannelScreen(
         state = state,
         headerAction = {
             InboxToggle(source, state.subscribed, state.channelId)
+            SpoilerShieldToggle(source)
             ShuffleAllAction(
                 container.shuffleAll,
                 container.applicationScope,

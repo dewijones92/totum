@@ -5,6 +5,8 @@ import android.os.StatFs
 import androidx.core.os.LocaleListCompat
 import com.dewijones92.totum.BuildConfig
 import com.dewijones92.totum.account.SharedPrefsTokenStore
+import com.dewijones92.totum.ai.AiFeatures
+import com.dewijones92.totum.ai.aiFeaturesOf
 import com.dewijones92.totum.audiobooks.BookPlayer
 import com.dewijones92.totum.backup.BackupService
 import com.dewijones92.totum.backup.asBackupSettings
@@ -410,6 +412,7 @@ interface AppContainer {
      */
     val torrentSearchSource: SearchSource?
     val askService: AskService?
+    val aiFeatures: AiFeatures
     val homeDownloads: HomeDownloads
     val targets: TargetsRepository
     val sendToTarget: SendToTarget
@@ -837,7 +840,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         GroupNews(
             FileGroupNewsStore(File(context.filesDir, "group_news.json")),
             latest = latestUploads::of,
-            notify = GroupNewsNotifier(context, LiveNoticeLabels(context, liveStates))::notify,
+            notify = GroupNewsNotifier(context, LiveNoticeLabels(context, liveStates, aiFeatures.spoilerShield))::notify,
             muted = { group -> group.id.value in appPreferences.settings.value.quietGroups },
         )
     }
@@ -865,6 +868,10 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         homeTorrentServer?.let(
             ::TorrentSidecarSubtitles
         )
+    }
+
+    override val aiFeatures: AiFeatures by lazy {
+        aiFeaturesOf(this, httpClient, context.filesDir) { id -> playStatesNow.value[id]?.isPlayed == true }
     }
 
     override val askService: AskService? by lazy {
@@ -1493,6 +1500,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                 kidLocked = { kidLock.modeOn.value },
                 setMode = appPreferences::setRepeatMode,
             )::switchOffForRunOf,
+            shield = aiFeatures.spoilerShield,
         ).also { it.destination = targets }
     }
 

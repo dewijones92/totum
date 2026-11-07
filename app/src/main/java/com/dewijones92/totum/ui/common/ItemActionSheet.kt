@@ -33,7 +33,7 @@ internal fun ItemActionSheet(
     val local = downloadStateOf(item.id)
     val video = item.offersDownloadChoice(pillar)
     ActionSheet(
-        title = item.title,
+        title = item.face().title,
         onPlayInsteadOfCurrent = null,
         onPlayNext = { actions.queue(listOf(item), next = true) },
         onAddToQueue = { actions.queue(listOf(item), next = false) },

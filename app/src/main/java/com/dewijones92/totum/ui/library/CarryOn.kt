@@ -43,6 +43,7 @@ import com.dewijones92.totum.ui.common.MediaThumbnail
 import com.dewijones92.totum.ui.common.PlayProgressSliver
 import com.dewijones92.totum.ui.common.TrackedViewModel
 import com.dewijones92.totum.ui.common.durationLabel
+import com.dewijones92.totum.ui.common.face
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -108,6 +109,7 @@ internal fun LazyListScope.carryOnSection(carryOn: LibraryCarryOn) {
 private fun CarryOnCard(entry: CarryOnItem, onPlay: () -> Unit) {
     var menu by remember { mutableStateOf(false) }
     val item = entry.playable.item
+    val face = item.face()
     Column(
         modifier = Modifier
             .width(CARD_WIDTH)
@@ -120,12 +122,13 @@ private fun CarryOnCard(entry: CarryOnItem, onPlay: () -> Unit) {
     ) {
         MediaThumbnail(
             url = item.withArtworkFrom(LocalSourceArtwork.current).thumbnailUrl,
-            contentDescription = item.title,
+            contentDescription = face.title,
             modifier = Modifier.size(width = CARD_WIDTH, height = CARD_HEIGHT),
-            durationLabel = durationLabel(item),
+            durationLabel = durationLabel(face),
+            blurred = face.blurThumbnail,
         )
         PlayProgressSliver(entry.progress, Modifier.width(CARD_WIDTH))
-        Text(text = item.title, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 4.dp))
+        Text(text = face.title, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 4.dp))
         Text(
             text = progressWords(entry.progress),
             style = MaterialTheme.typography.labelSmall,

@@ -3,6 +3,7 @@ package com.dewijones92.totum.ui.common
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import com.dewijones92.totum.R
+import com.dewijones92.totum.domain.ItemFace
 import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaKind
@@ -166,6 +167,8 @@ fun formatClock(duration: Duration): String {
 
 /** A row's duration chip: the clock, or nothing when the source never said. */
 fun durationLabel(item: MediaItem): String? = item.duration?.let(::formatClock)
+
+fun durationLabel(face: ItemFace): String? = face.duration?.let(::formatClock)
 
 /** Kept for the "N min" phrasing where a full clock would be overkill (sleep timer, settings). */
 @Composable

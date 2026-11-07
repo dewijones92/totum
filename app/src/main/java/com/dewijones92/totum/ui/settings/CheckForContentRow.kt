@@ -59,7 +59,7 @@ internal fun CheckForContentRow(container: AppContainer) {
                             NewContentNotifier(
                                 context,
                                 { container.appPreferences.settings.value },
-                                LiveNoticeLabels(context, container.liveStates),
+                                LiveNoticeLabels(context, container.liveStates, container.aiFeatures.spoilerShield),
                             ).notify(it)
                         },
                     ).run()

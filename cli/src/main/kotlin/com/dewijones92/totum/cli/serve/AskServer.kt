@@ -24,6 +24,7 @@ import com.dewijones92.totum.cli.serve.targets.TargetDecks
 import com.dewijones92.totum.cli.serve.targets.TargetRoutes
 import com.dewijones92.totum.cli.serve.targets.TargetStreams
 import com.dewijones92.totum.cli.serve.targets.YouTubeProgress
+import com.dewijones92.totum.cli.serve.tasks.aiTaskRoutesFrom
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.ask.AskAnswer
 import com.dewijones92.totum.data.ask.AskJob
@@ -233,7 +234,7 @@ internal suspend fun serveAsk(port: Int, out: (String) -> Unit): Int = coroutine
         TargetRoutes(targets),
         jellyfin?.let { JellyfinRoutes(JellyfinBrowse(it)) },
         AskStateRoutes(states),
-    )
+    ) + aiTaskRoutesFrom(this)
     AskServer(brain, this, HomeRoutes(home), routes, ask = RoutedAsk(brain, states)::answer).start(port)
     out("totum serve: listening on $port")
     awaitCancellation()

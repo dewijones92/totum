@@ -1,5 +1,6 @@
 package com.dewijones92.totum.di.fake
 
+import com.dewijones92.totum.ai.AiFeatures
 import com.dewijones92.totum.audiobooks.BookPlayer
 import com.dewijones92.totum.backup.BackupService
 import com.dewijones92.totum.bedtime.Bedtime
@@ -175,6 +176,7 @@ class FakeAppContainer(
     /** Null by default: previews and most tests have no home server, which is the common case. */
     override val torrentSearchSource: SearchSource? = null,
     override val askService: AskService? = null,
+    override val aiFeatures: AiFeatures = AiFeatures.fake(applicationScope),
     override val askCopies: AskCopies = AskCopies({ emptyList() }),
     override val askStateSource: com.dewijones92.totum.ui.ask.AskStateSource? = null,
     override val homeTorrentServer: HomeTorrentServer? = null,

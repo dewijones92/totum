@@ -1,9 +1,12 @@
 package com.dewijones92.totum.queue
 
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.domain.ItemShield
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
+import com.dewijones92.totum.domain.NoShield
 import com.dewijones92.totum.domain.Refusal
+import com.dewijones92.totum.domain.titleOf
 import com.dewijones92.totum.video.videoIdOf
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,7 +19,10 @@ data class RefusedTap(val title: String, val reason: Refusal?, val videoId: Stri
 
 data class Starting(val id: MediaItemId, val title: String, val sinceMs: Long)
 
-internal class PlayAttempts(private val now: () -> Long = System::currentTimeMillis) {
+internal class PlayAttempts(
+    private val shield: ItemShield = NoShield,
+    private val now: () -> Long = System::currentTimeMillis,
+) {
     private var last: Refusal? = null
     private val emitted = MutableSharedFlow<RefusedTap>(extraBufferCapacity = BUFFER)
     val taps: SharedFlow<RefusedTap> = emitted.asSharedFlow()
@@ -25,7 +31,7 @@ internal class PlayAttempts(private val now: () -> Long = System::currentTimeMil
 
     fun begin(item: MediaItem): Starting {
         last = null
-        val attempt = Starting(item.id, item.title, now())
+        val attempt = Starting(item.id, shield.titleOf(item), now())
         startingNow.value = attempt
         Diag.log("queue", "starting \"${item.title.take(TITLE_CHARS)}\": shown as ⏳ until it plays or fails")
         return attempt
@@ -59,7 +65,7 @@ internal class PlayAttempts(private val now: () -> Long = System::currentTimeMil
     fun announce(item: MediaItem) {
         val why = last ?: "it resolved to nothing"
         Diag.warn("queue", "told the user \"${item.title.take(TITLE_CHARS)}\" would not play ($why)")
-        emitted.tryEmit(RefusedTap(item.title, last, videoIdOf(item.id)))
+        emitted.tryEmit(RefusedTap(shield.titleOf(item), last, videoIdOf(item.id)))
     }
 
     private companion object {

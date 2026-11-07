@@ -28,4 +28,5 @@ internal fun playbackControllerOf(
     sourceSkips = c.appPreferences.setting(c.applicationScope) { it.sourceSkips },
     silentTailEnds = c.appPreferences.setting(c.applicationScope) { it.silentTailEnds },
     captionStore = AppPreferencesCaptionStore(c.appPreferences),
+    shield = c.aiFeatures.spoilerShield,
 )

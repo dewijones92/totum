@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
 import com.dewijones92.totum.domain.DownloadState
+import com.dewijones92.totum.domain.ItemFace
 import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaKind
@@ -171,6 +172,7 @@ fun MediaItemRow(
         downloadVideo, sheetDownload, sheetDeleteDownload, onGoToSource, onSetPlayed, onMoveToTop, onMoveToBottom,
     ).isNotEmpty()
     val id = item.id.value
+    val face = item.face()
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
@@ -187,10 +189,10 @@ fun MediaItemRow(
             // than its artwork needed.
             .padding(start = 10.dp, end = 2.dp, top = 10.dp, bottom = 10.dp),
     ) {
-        ThumbnailWithProgress(item, playState)
+        ThumbnailWithProgress(item, face, playState)
         Spacer(Modifier.width(12.dp))
-        TitleAndSubtitle(item, subtitleLines, pillar, playState, downloadState, followMark, Modifier.weight(1f))
-        RowEnd(id, item.title, hasMenu, { showSheet = true }) {
+        TitleAndSubtitle(item, face, subtitleLines, pillar, playState, downloadState, followMark, Modifier.weight(1f))
+        RowEnd(id, face.title, hasMenu, { showSheet = true }) {
             TrailingControl(trailing, downloadState, onDownload, onDeleteDownload, item, pillar)
         }
     }
@@ -198,7 +200,7 @@ fun MediaItemRow(
         val readyAhead = LocalReadyAhead.current
         LaunchedEffect(item.id) { readyAhead(item) }
         ActionSheet(
-            title = item.title,
+            title = face.title,
             onPlayInsteadOfCurrent = onPlayInsteadOfCurrent,
             onPlayNext = onPlayNext,
             onAddToQueue = onAddToQueue,
@@ -266,14 +268,15 @@ private fun (() -> Unit)?.onlyWhenDownloaded(state: DownloadState): (() -> Unit)
 
 /** The artwork with a progress sliver beneath it, so "you are here" needs no words. */
 @Composable
-private fun ThumbnailWithProgress(item: MediaItem, playState: PlayState) {
+private fun ThumbnailWithProgress(item: MediaItem, face: ItemFace, playState: PlayState) {
     Column {
         Box {
             MediaThumbnail(
                 url = item.withArtworkFrom(LocalSourceArtwork.current).thumbnailUrl,
-                contentDescription = item.title,
+                contentDescription = face.title,
                 modifier = Modifier.size(width = THUMBNAIL_WIDTH, height = THUMBNAIL_HEIGHT),
-                durationLabel = durationLabel(item),
+                durationLabel = durationLabel(face),
+                blurred = face.blurThumbnail,
             )
             if (playState == PlayState.Unplayed) UnplayedDot(Modifier.align(Alignment.TopStart).padding(6.dp))
         }
@@ -284,6 +287,7 @@ private fun ThumbnailWithProgress(item: MediaItem, playState: PlayState) {
 @Composable
 private fun TitleAndSubtitle(
     item: MediaItem,
+    face: ItemFace,
     subtitleLines: List<String>,
     pillar: MediaKind,
     playState: PlayState,
@@ -294,7 +298,7 @@ private fun TitleAndSubtitle(
     Column(modifier = modifier) {
         ItemBadges(item)
         Text(
-            text = item.title,
+            text = face.title,
             // titleSmall over bodyLarge: the title is the thing the eye lands on and it was set at
             // the same weight as the subtitle under it, so a row had no hierarchy at all.
             style = MaterialTheme.typography.titleSmall.let {

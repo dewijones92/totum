@@ -59,6 +59,8 @@ internal fun ProvidePlayStates(
         LocalSourceArtwork provides artwork,
         LocalAlbumYears provides container.albumYears,
     ) {
-        ProvideFollowing(container) { ProvideItemActions(container, onOpenSource, content) }
+        ProvideSpoilerShield(container) {
+            ProvideFollowing(container) { ProvideItemActions(container, onOpenSource, content) }
+        }
     }
 }

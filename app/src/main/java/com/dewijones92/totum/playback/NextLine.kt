@@ -38,34 +38,43 @@ internal data class NextLineInputs(
     val sleepStopsAfter: MediaItemId?,
 )
 
-internal fun nextLineOf(inputs: NextLineInputs, passOver: (PlayableItem) -> String?): NextLine {
+internal fun nextLineOf(
+    inputs: NextLineInputs,
+    passOver: (PlayableItem) -> String?,
+    titleOf: (MediaItem) -> String = MediaItem::title,
+): NextLine {
     val playing = inputs.playing ?: return NextLine.Unknown("nothing is playing")
     val keepTo = playing.listening
     return when {
         inputs.sleepStopsAfter == playing.id -> NextLine.Unknown("the sleep timer stops after it")
         inputs.repeat == RepeatMode.ONE -> NextLine.Unknown("repeat one replays it")
         !inputs.autoPlay -> NextLine.Unknown("auto-play next is off")
-        inputs.repeat.repeatsGroup -> repeatGroupNext(inputs, playing, passOver)
+        inputs.repeat.repeatsGroup -> repeatGroupNext(inputs, playing, passOver, titleOf)
         inputs.explore -> NextLine.ExplorePicks
         else -> nextAfterThePlace(inputs.snapshot, playing.id, keepTo, passOver)
-            ?.let { NextLine.Queued(it.item.title) }
-            ?: afterTheQueue(inputs, keepTo)
+            ?.let { NextLine.Queued(titleOf(it.item)) }
+            ?: afterTheQueue(inputs, keepTo, titleOf)
     }
 }
 
-private fun repeatGroupNext(inputs: NextLineInputs, playing: MediaItem, passOver: (PlayableItem) -> String?): NextLine {
+private fun repeatGroupNext(
+    inputs: NextLineInputs,
+    playing: MediaItem,
+    passOver: (PlayableItem) -> String?,
+    titleOf: (MediaItem) -> String,
+): NextLine {
     val restart = groupRestartIndex(inputs.snapshot, playing.id)
         ?: return nextAfterThePlace(inputs.snapshot, playing.id, playing.listening, passOver)
-            ?.let { NextLine.Queued(it.item.title) }
+            ?.let { NextLine.Queued(titleOf(it.item)) }
             ?: NextLine.Unknown("nothing is queued after it")
     if (inputs.repeat.reshuffles) return NextLine.Unknown("the group reshuffles for its next round")
-    return NextLine.Queued(inputs.snapshot.entries[restart].item.item.title)
+    return NextLine.Queued(titleOf(inputs.snapshot.entries[restart].item.item))
 }
 
-private fun afterTheQueue(inputs: NextLineInputs, keepTo: Listening): NextLine {
+private fun afterTheQueue(inputs: NextLineInputs, keepTo: Listening, titleOf: (MediaItem) -> String): NextLine {
     if (!inputs.repeat.repeatsQueue) return NextLine.Unknown("nothing is queued after it")
     if (inputs.repeat.reshuffles) return NextLine.Unknown("the queue reshuffles for its next round")
     val first = inputs.snapshot.entries.firstOrNull { keepTo.admits(it.item) }
         ?: return NextLine.Unknown("nothing of its kind to repeat")
-    return NextLine.Queued(first.item.item.title)
+    return NextLine.Queued(titleOf(first.item.item))
 }

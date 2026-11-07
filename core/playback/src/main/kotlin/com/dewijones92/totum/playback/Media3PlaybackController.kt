@@ -28,10 +28,13 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.common.SubtitleTrack
 import com.dewijones92.totum.common.Vitals
+import com.dewijones92.totum.domain.ItemFace
+import com.dewijones92.totum.domain.ItemShield
 import com.dewijones92.totum.domain.Listening
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaKind
+import com.dewijones92.totum.domain.NoShield
 import com.dewijones92.totum.domain.PlayReason
 import com.dewijones92.totum.domain.SkipSegment
 import com.dewijones92.totum.domain.SourceId
@@ -81,6 +84,7 @@ public class Media3PlaybackController(
     private val speechGates: StateFlow<SpeechGate> = MutableStateFlow(SpeechGate.OFF),
     captionStore: CaptionStore = InMemoryCaptionStore(),
     private val wallClock: () -> Long = System::currentTimeMillis,
+    private val shield: ItemShield = NoShield,
 ) : PlaybackController {
 
     private val _state = MutableStateFlow<PlaybackState?>(null)
@@ -1284,14 +1288,18 @@ public class Media3PlaybackController(
      * The session is deliberately the only channel: anything read back in [currentPlaybackState]
      * comes from here, so a UI cannot describe one item while another is playing.
      */
-    private fun metadataFor(item: MediaItem, kind: MediaKind): MediaMetadata = MediaMetadata.Builder()
-        .setTitle(item.title)
+    private fun metadataFor(item: MediaItem, kind: MediaKind): MediaMetadata = shield.face(item).let { face ->
+        metadataOf(item, face, kind)
+    }
+
+    private fun metadataOf(item: MediaItem, face: ItemFace, kind: MediaKind): MediaMetadata = MediaMetadata.Builder()
+        .setTitle(face.title)
         .setArtist(listOfNotNull(item.playedAs, item.author).joinToString(" · ").ifEmpty { null })
         // The show's publisher. Not shown in the system notification, which reads title + artist,
         // so this adds a fact to the app's own player without changing what the lock screen says.
         .setAlbumArtist(item.publisher)
-        .setDescription(item.description)
-        .setArtworkUri(item.thumbnailUrl?.value?.let(android.net.Uri::parse))
+        .setDescription(item.description.takeUnless { face.shielded })
+        .setArtworkUri((face.artworkUrl)?.value?.let(android.net.Uri::parse))
         // Round-trips the pillar through the session so the UI can label it.
         .setMediaType(
             when (kind) {
