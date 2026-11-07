@@ -46,7 +46,8 @@ each carried their own authed-call shell.
 
 ## Consequences
 
-- The Pi's nginx must let a large body through: its `/fetch/` location needs `client_max_body_size` raised (default 1 MB)
+- The Pi's nginx must let a large body through (checked 2026-11-07: the totum server block has `client_max_body_size 0`,
+  so this holds): its `/fetch/` location needs `client_max_body_size` raised (default 1 MB)
   and `proxy_request_buffering off`, as `proxy_buffering off` already is for downloads. Until then an upload ends with the
   phone saying the Pi did not answer.
 - A refusal that comes before the body is read (too big, no length) may reach the phone as "didn't answer" rather than

@@ -61,8 +61,8 @@ shared gzip frame, `StateScrub` on both ends.
 
 - An instrumented or screenshot check of an app answer on the emulator (the reply, the 🗂️ source line, a card of
   rows with play / play all / queue all) and of the packing and sending stages in the strip.
-- A real phone to real Pi round trip: `PUT /fetch/ask-state` through nginx (needs `client_max_body_size` of at least
-  16m on `/fetch/`) and a real `jq` in the rebuilt ai image (`jq` was installed by the Dockerfile, not yet built).
+- A real phone to real Pi round trip: `PUT /fetch/ask-state` through nginx (the totum server block already allows any body
+  size: `client_max_body_size 0`, checked 2026-11-07) and a real `jq` in the rebuilt ai image (`jq` was installed by the Dockerfile, not yet built).
 - `AskStateSource`'s real wiring (`AppContainer.askStateSource`) against a Room-backed container: the pure builder is
   tested, the suppliers are not.
 - A queue group's id in `quietGroups`: the pack's channel groups carry no id (the backup format has none), so the model

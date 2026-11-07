@@ -192,8 +192,9 @@ $0.002 to $0.007; a question is therefore 20 to 45 s end to end. The Pi's Haiku 
   `Bash` name fix), then totum-fetch (the router, `PUT /ask-state`, the check command), then the app. A new totum-fetch
   against an old AI service is refused for `ask-route` (an unknown caller, 403) and would run `ask-state` with no file;
   an old totum-fetch against the new AI service is fine. A new app against an old Pi gets a 404 on the upload and asks
-  web only with the ⚠️ note. The snapshot upload goes through nginx's `/fetch/` location, which needs
-  `client_max_body_size` of at least 16m (the ADR 126 uploads need it too); it is untested through the real nginx.
+  web only with the ⚠️ note. The snapshot upload goes through nginx's `/fetch/` location; checked on the Pi on
+  2026-11-07 (`nginx -T` in `nginx_dewi`): the totum server block has `client_max_body_size 0` (no limit) and request
+  buffering off on that route, so nothing needs changing.
 - **Not in the snapshot:** downloads held at home on the Pi; the YouTube account's own history and subscriptions beyond
   the channel names; a channel group's id (so a `quietGroups` setting cannot be mapped to a name).
 - **Residual risks:** the data can still steer the *wording* of an answer (never an action, never a card id it does not
