@@ -5,11 +5,11 @@ import com.dewijones92.totum.domain.Listening
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayableItem
+import com.dewijones92.totum.domain.RepeatMode
 import com.dewijones92.totum.domain.listening
 import com.dewijones92.totum.queue.admits
 import com.dewijones92.totum.queue.groupRestartIndex
 import com.dewijones92.totum.queue.nextAfterThePlace
-import com.dewijones92.totum.domain.RepeatMode
 
 internal sealed interface NextLine {
     val diagName: String

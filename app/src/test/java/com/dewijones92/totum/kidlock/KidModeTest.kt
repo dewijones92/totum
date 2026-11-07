@@ -1,9 +1,9 @@
 package com.dewijones92.totum.kidlock
 
 import com.dewijones92.totum.domain.MediaItemId
+import com.dewijones92.totum.domain.RepeatMode
 import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.playback.fake.FakePlaybackController
-import com.dewijones92.totum.domain.RepeatMode
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest

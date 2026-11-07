@@ -6,6 +6,7 @@ import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.OfflineReadiness
+import com.dewijones92.totum.domain.RepeatMode
 import com.dewijones92.totum.domain.describe
 import com.dewijones92.totum.domain.playsWithNoSignal
 import com.dewijones92.totum.downloads.DownloadKeepAliveService
@@ -19,7 +20,6 @@ import com.dewijones92.totum.queue.GroupDownloads
 import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.queue.QueueAutoDownloader
 import com.dewijones92.totum.settings.AppPreferences
-import com.dewijones92.totum.domain.RepeatMode
 import com.dewijones92.totum.video.AccountSubscriptions
 import com.dewijones92.totum.video.OutboundSyncStatus
 

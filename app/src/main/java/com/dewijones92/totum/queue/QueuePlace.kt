@@ -10,9 +10,9 @@ import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayReason
 import com.dewijones92.totum.domain.PlayState
 import com.dewijones92.totum.domain.PlayableItem
+import com.dewijones92.totum.domain.RepeatMode
 import com.dewijones92.totum.domain.listening
 import com.dewijones92.totum.domain.word
-import com.dewijones92.totum.domain.RepeatMode
 import kotlin.random.Random
 
 internal fun advanceFrom(snapshot: QueueSnapshot, playingId: MediaItemId?): Int =

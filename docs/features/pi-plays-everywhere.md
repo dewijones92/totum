@@ -58,9 +58,14 @@ sound processing on the Pi). Brief: [pi-plays-everywhere.md](../todos/pi-plays-e
 | TVs | `cli/…/serve/cast/` (`ChromecastPlayer`, `CastControl`, `CastWire`, `SoundStreams`, `StreamRelay`), `server/totum-cli/chromecast_helper.py`; the ranged reader `ChunkedUpstream`, `PatientUpstream` and `LocalRanges.replyFor` in `core/cast` |
 | Phone | `app/…/targets/` (`TargetsRepository`, `SendToTarget`, `TargetColourStore`, `RequesterIdentity`), `ui/queue/` (`QueueWithTargets`, `TargetChips`, `RemoteQueue`, `SendToButton`), `queue/QueueDestination.kt` |
 
+- **Repeat, files and problems (2026-11-07, [ADR 155](../adr/0155-a-target-repeats-plays-files-on-the-pi-and-says-why-it-could-not-play.md)).** A
+  target repeats off / this one / the queue (set by a queue request or a `REPEAT` control, saved, shown in `GET /targets`);
+  an item can be a sound file on the Pi (`file:///sounds/<name>`, nothing outside that folder); a passed-over item or a
+  failed player shows as the target's `problem`; 8770 is published on the Pi's loopback for Home Assistant.
+
 ## Not built (see the todo)
 
-PC browsers as targets; Home Assistant's brown noise and jazz through Totum (a dot-files change); the mini-player pill
+PC browsers as targets; live YouTube on a Pi target; Home Assistant's brown noise and jazz through Totum (the Totum side is built; the dot-files adapter is in `tools/handoff/hermes-audio/`, not deployed); the mini-player pill
 and per-target notification; "Play on…" as a long press on every play button; sound processing on a picture (the DASH
 path of ADR 68 on the Pi); playback speed and subtitles on a target; TV volume in the strip.
 
@@ -72,4 +77,4 @@ Unit: `PcmChainTest`, `TargetRulesTest`, `TargetEntriesTest` (core), `TargetDeck
 `TargetDecksTest`, `DeckStoreTest`, `MpvPlayerTest`, `SoundStreamsTest`, `ChromecastPlayerTest`,
 `ProcessedSoundEndToEndTest` (cli), `RedirectEntryPointsTest`, `SendToTargetTest` (app); and from the two fixes after the
 first run on the LG `StreamRelayTest` (cli), `ChunkedUpstreamTest`, `LocalRangesTest` (core/cast) for the relay, and the
-volume tests in `TargetDeckTest`, `ChromecastPlayerTest`, `MpvPlayerTest`, `CastControlTest`, `CastWireTest`. Owed: see the todo.
+volume tests in `TargetDeckTest`, `ChromecastPlayerTest`, `MpvPlayerTest`, `CastControlTest`, `CastWireTest`; and from ADR 155 `TargetRepeatTest` (core), `SoundFilesTest` and the repeat, problem and requester cases of `TargetDeckTest`, `TargetRoutesTest`, `TargetStreamsTest`, `MpvPlayerTest` (cli). Owed: see the todo.

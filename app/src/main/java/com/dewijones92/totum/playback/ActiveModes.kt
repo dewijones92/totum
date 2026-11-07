@@ -1,7 +1,7 @@
 package com.dewijones92.totum.playback
 
-import com.dewijones92.totum.kidlock.KidRules
 import com.dewijones92.totum.domain.RepeatMode
+import com.dewijones92.totum.kidlock.KidRules
 import kotlin.math.abs
 
 sealed interface ActiveMode {
