@@ -42,8 +42,11 @@ class TheLiveCheckSaysWhatIsHappeningTest {
 
     private fun playable(isLiveContent: Boolean, hls: Boolean, live: Boolean) = """
         {"playabilityStatus":{"status":"OK"},
-         "streamingData":{"formats":[${if (live) liveFormat else
-            """{"itag":18,"mimeType":"video/mp4","height":360,"bitrate":1,"url":"https://x.test/videoplayback?itag=18"}"""}]
+         "streamingData":{"formats":[${if (live) {
+        liveFormat
+    } else {
+        """{"itag":18,"mimeType":"video/mp4","height":360,"bitrate":1,"url":"https://x.test/videoplayback?itag=18"}"""
+    }}]
             ${if (hls) ""","hlsManifestUrl":"https://x.test/live.m3u8"""" else ""}},
          "videoDetails":{"videoId":"dQw4w9WgXcQ","title":"A stream","isLiveContent":$isLiveContent}}
     """.trimIndent()

@@ -31,7 +31,11 @@ class LiveKindsTest {
     fun `an ended stream goes back to live when the resolution says it is live and otherwise stays ended`() {
         assertEquals(MediaContentKind.LIVE, MediaContentKind.WAS_LIVE.afterSeeing(MediaContentKind.LIVE))
         every.filter { it != MediaContentKind.LIVE }.forEach { resolved ->
-            assertEquals("resolved=$resolved", MediaContentKind.WAS_LIVE, MediaContentKind.WAS_LIVE.afterSeeing(resolved))
+            assertEquals(
+                "resolved=$resolved",
+                MediaContentKind.WAS_LIVE,
+                MediaContentKind.WAS_LIVE.afterSeeing(resolved)
+            )
         }
     }
 

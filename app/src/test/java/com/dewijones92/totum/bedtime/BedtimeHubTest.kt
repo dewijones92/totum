@@ -173,11 +173,19 @@ class BedtimeHubTest {
             runCurrent()
             assertEquals(Instant.parse("2026-11-07T06:00:00Z"), rig.store.loadDeclined())
 
-            val restarted = rig("2026-11-06T23:30:00Z", store = rig.store, timer = SleepTimer(controller, backgroundScope))
+            val restarted = rig(
+                "2026-11-06T23:30:00Z",
+                store = rig.store,
+                timer = SleepTimer(controller, backgroundScope)
+            )
             runCurrent()
             assertEquals(SleepTimerState.Off, restarted.timer.state.value)
 
-            val nextNight = rig("2026-11-07T23:30:00Z", store = rig.store, timer = SleepTimer(controller, backgroundScope))
+            val nextNight = rig(
+                "2026-11-07T23:30:00Z",
+                store = rig.store,
+                timer = SleepTimer(controller, backgroundScope)
+            )
             runCurrent()
             assertEquals(SleepTimerState.AfterCurrentItem, nextNight.timer.state.value)
         }

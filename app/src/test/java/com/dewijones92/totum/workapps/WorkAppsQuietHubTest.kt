@@ -114,7 +114,11 @@ class WorkAppsQuietHubTest {
         rig.hub.update("page") { it.withDay("work", DayOfWeek.MONDAY, DayHours(9 * 60, 17 * 60)) }
 
         assertTrue(rig.announced.toString(), rig.announced.isEmpty())
-        assertEquals("the page's own change still moved the remembered state", mapOf("work" to QuietKind.QUIET), rig.store.loadKinds())
+        assertEquals(
+            "the page's own change still moved the remembered state",
+            mapOf("work" to QuietKind.QUIET),
+            rig.store.loadKinds()
+        )
     }
 
     @Test
@@ -238,7 +242,11 @@ class WorkAppsQuietHubTest {
 
     @Test
     fun `removing a group or an app and undoing it puts it back in its slot`() {
-        val rig = rig(at(7, 10), WorkAppsSettings(true, listOf(QuietGroup.work(), social, QuietGroup.blank("third", "Third", "🎮"))))
+        val rig =
+            rig(
+                at(7, 10),
+                WorkAppsSettings(true, listOf(QuietGroup.work(), social, QuietGroup.blank("third", "Third", "🎮")))
+            )
 
         val removedGroup = rig.hub.removeGroup("social", "page")!!
         assertEquals(listOf("work", "third"), rig.hub.settings.value.groups.map { it.id })

@@ -138,7 +138,10 @@ class NotForMeTest {
         list.suppress(item("b"), "menu")
 
         assertEquals(listOf("a", "c"), list.without(three, "test").map { it.id.value })
-        assertEquals(listOf("a", "b", "c"), notForMe(InMemoryNotForMeStore()).without(three, "test").map { it.id.value })
+        assertEquals(
+            listOf("a", "b", "c"),
+            notForMe(InMemoryNotForMeStore()).without(three, "test").map { it.id.value }
+        )
     }
 
     @Test

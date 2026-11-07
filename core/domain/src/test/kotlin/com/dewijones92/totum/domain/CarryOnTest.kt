@@ -47,7 +47,10 @@ class CarryOnTest {
 
         assertEquals(
             listOf("halfway"),
-            carry(history, states = mapOf("done" to PlayState.Played, "halfway" to half(), "unplayed" to PlayState.Unplayed)),
+            carry(
+                history,
+                states = mapOf("done" to PlayState.Played, "halfway" to half(), "unplayed" to PlayState.Unplayed)
+            ),
         )
     }
 

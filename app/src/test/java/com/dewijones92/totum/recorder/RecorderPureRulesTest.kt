@@ -65,7 +65,10 @@ class RecorderPureRulesTest {
 
     @Test
     fun `a recording is named after the moment it started, to the second`() {
-        assertEquals(named("2026", "11", "07", "04", "10", "05"), recordingName(LocalDateTime.of(2026, 11, 7, 4, 10, 5)))
+        assertEquals(
+            named("2026", "11", "07", "04", "10", "05"),
+            recordingName(LocalDateTime.of(2026, 11, 7, 4, 10, 5))
+        )
         assertEquals(named("2026", "01", "02", "03", "04", "05"), recordingName(LocalDateTime.of(2026, 1, 2, 3, 4, 5)))
         assertNotEquals(
             recordingName(LocalDateTime.of(2026, 11, 7, 4, 10, 5)),

@@ -37,7 +37,13 @@ class StampsFrameRateTest {
             data.skipBytes(length)
         }
 
-        override fun sampleMetadata(timeUs: Long, flags: Int, size: Int, offset: Int, cryptoData: TrackOutput.CryptoData?) {
+        override fun sampleMetadata(
+            timeUs: Long,
+            flags: Int,
+            size: Int,
+            offset: Int,
+            cryptoData: TrackOutput.CryptoData?,
+        ) {
             times += timeUs
             events += "sample"
         }

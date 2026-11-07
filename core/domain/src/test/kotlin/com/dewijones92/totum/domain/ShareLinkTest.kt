@@ -30,7 +30,10 @@ class ShareLinkTest {
     fun `a YouTube video shares its canonical watch address whatever the address it carries`() {
         assertEquals(watch, linkOf(item(id = watch, mediaUrl = watch)))
         assertEquals(watch, linkOf(item(id = "dQw4w9WgXcQ", mediaUrl = "https://youtu.be/dQw4w9WgXcQ?si=tracking")))
-        assertEquals(watch, linkOf(item(id = "dQw4w9WgXcQ", mediaUrl = "https://m.youtube.com/watch?v=dQw4w9WgXcQ&t=90")))
+        assertEquals(
+            watch,
+            linkOf(item(id = "dQw4w9WgXcQ", mediaUrl = "https://m.youtube.com/watch?v=dQw4w9WgXcQ&t=90"))
+        )
     }
 
     @Test
@@ -76,7 +79,10 @@ class ShareLinkTest {
         val elsewhere = item(mediaUrl = "https://cdn.example.com/a.mp3")
 
         assertEquals("https://cdn.example.com/a.mp3", linkOf(elsewhere))
-        assertEquals("https://pi.home.example/files/a.mp3", linkOf(item(mediaUrl = "https://pi.home.example/files/a.mp3"), homeHost = null))
+        assertEquals(
+            "https://pi.home.example/files/a.mp3",
+            linkOf(item(mediaUrl = "https://pi.home.example/files/a.mp3"), homeHost = null)
+        )
     }
 
     @Test

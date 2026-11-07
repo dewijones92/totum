@@ -17,7 +17,10 @@ class PlaysWithNoSignalTest {
         mediaUrl = mediaUrl?.let(HttpUrl::of),
     )
 
-    private val video = PlayableItem(item(), PlayHandle.Video(HttpUrl.of("https://www.youtube.com/watch?v=dQw4w9WgXcQ")))
+    private val video = PlayableItem(
+        item(),
+        PlayHandle.Video(HttpUrl.of("https://www.youtube.com/watch?v=dQw4w9WgXcQ"))
+    )
     private val podcast = PlayableItem(item(), PlayHandle.Podcast())
 
     @Test

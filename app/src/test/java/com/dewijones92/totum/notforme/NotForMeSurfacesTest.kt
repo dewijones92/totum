@@ -129,7 +129,10 @@ class NotForMeSurfacesTest {
         wrapped.restore(mapOf("notforme.v1" to "{ nope"))
         wrapped.restore(mapOf("other" to "3"))
 
-        assertEquals(listOf(SuppressedItem("ccccccccccc", "Super Hans", null, phone.items.value.single().atMs)), phone.items.value)
+        assertEquals(
+            listOf(SuppressedItem("ccccccccccc", "Super Hans", null, phone.items.value.single().atMs)),
+            phone.items.value
+        )
         assertEquals(mapOf("other" to "3"), inner.restored)
     }
 }

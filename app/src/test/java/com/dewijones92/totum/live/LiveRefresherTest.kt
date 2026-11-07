@@ -1,6 +1,5 @@
 package com.dewijones92.totum.live
 
-import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
@@ -44,7 +43,14 @@ class LiveRefresherTest {
         var queue: List<MediaItem>,
     )
 
-    private fun TestScope.rig(queued: List<MediaItem> = emptyList(), answer: (String) -> LiveCheck = { LiveCheck.Live("t") }): Rig {
+    private fun TestScope.rig(
+        queued: List<MediaItem> = emptyList(),
+        answer: (String) -> LiveCheck = {
+            LiveCheck.Live(
+                "t"
+            )
+        }
+    ): Rig {
         val states = LiveStates { currentTime }
         val asked = mutableListOf<String>()
         val learned = mutableListOf<MediaItem>()
@@ -66,7 +72,14 @@ class LiveRefresherTest {
 
     @Test
     fun `only queued items tagged live or starting soon are asked, an ordinary queued video is not`() = runTest {
-        val rig = rig(listOf(item(1, MediaContentKind.LIVE), item(2, MediaContentKind.STANDARD), item(3, MediaContentKind.WAS_LIVE)))
+        val rig =
+            rig(
+                listOf(
+                    item(1, MediaContentKind.LIVE),
+                    item(2, MediaContentKind.STANDARD),
+                    item(3, MediaContentKind.WAS_LIVE)
+                )
+            )
         rig.states.noteUpcoming(id(2), UpcomingLive(null, "soon"), "test")
         advanceTimeBy(10 * minute)
 

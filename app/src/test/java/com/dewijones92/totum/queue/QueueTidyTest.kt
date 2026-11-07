@@ -284,7 +284,9 @@ class QueueTidyTest {
             at = 0,
         )
         val lockedIds = setOf(MediaItemId("lock"), MediaItemId("song"))
-        fun reason(id: String) = tidyKeepReason(queue.entries.first { it.item.item.id.value == id }, queue, states, lockedIds)
+        fun reason(
+            id: String
+        ) = tidyKeepReason(queue.entries.first { it.item.item.id.value == id }, queue, states, lockedIds)
 
         assertEquals(TidyKeep.PLAYING, reason("playing"))
         assertEquals(TidyKeep.PLAYING_GROUP, reason("mate"))

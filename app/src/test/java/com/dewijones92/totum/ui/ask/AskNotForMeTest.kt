@@ -60,7 +60,8 @@ class AskNotForMeTest {
             val notForMe = NotForMe()
             notForMe.suppress(suppressed("Zog (2018)"), "test")
             val service = Service(AskAnswer(listOf(zog, stickMan)))
-            val vm = AskViewModel(service, AskCopies({ emptyList() }), { emptyList() }, Operations(), notForMe = notForMe)
+            val vm =
+                AskViewModel(service, AskCopies({ emptyList() }), { emptyList() }, Operations(), notForMe = notForMe)
 
             vm.ask("a Gruffalo film", "typed")
             advanceUntilIdle()

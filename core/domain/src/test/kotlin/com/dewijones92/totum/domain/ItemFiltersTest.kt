@@ -92,8 +92,12 @@ class ItemFiltersTest {
         val a = item("a", 5.minutes, null)
 
         assertTrue(ItemFilters(downloaded = DownloadedFilter.DOWNLOADED).accepts(a, true, now, playsOffline = false))
-        assertTrue(ItemFilters(downloaded = DownloadedFilter.NOT_DOWNLOADED).accepts(a, false, now, playsOffline = true))
-        assertFalse(ItemFilters(downloaded = DownloadedFilter.NOT_DOWNLOADED).accepts(a, true, now, playsOffline = true))
+        assertTrue(
+            ItemFilters(downloaded = DownloadedFilter.NOT_DOWNLOADED).accepts(a, false, now, playsOffline = true)
+        )
+        assertFalse(
+            ItemFilters(downloaded = DownloadedFilter.NOT_DOWNLOADED).accepts(a, true, now, playsOffline = true)
+        )
     }
 
     @Test
@@ -104,7 +108,10 @@ class ItemFiltersTest {
 
         assertFalse(live.accepts(standard, false, now))
         assertTrue(live.accepts(streaming, false, now))
-        assertTrue("the registry says it is live though the item was saved standard", live.accepts(standard, false, now, liveNow = true))
+        assertTrue(
+            "the registry says it is live though the item was saved standard",
+            live.accepts(standard, false, now, liveNow = true)
+        )
         assertFalse("the registry says it ended", live.accepts(streaming, false, now, liveNow = false))
     }
 }

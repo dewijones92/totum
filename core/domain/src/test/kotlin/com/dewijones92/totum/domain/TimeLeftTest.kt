@@ -123,7 +123,12 @@ class TimeLeftTest {
     fun `nothing is said when nothing is known or nothing is left`() {
         assertNull(left(emptyList()))
         assertNull(left(listOf(item("a", length = null), item("b", length = null))))
-        assertNull(left(listOf(item("a", length = 10.minutes)), states = mapOf("a" to PlayState.InProgress(600_000L, 600_000L))))
+        assertNull(
+            left(
+                listOf(item("a", length = 10.minutes)),
+                states = mapOf("a" to PlayState.InProgress(600_000L, 600_000L))
+            )
+        )
         assertNull(left(listOf(item("stream", kind = MediaContentKind.LIVE))))
     }
 
