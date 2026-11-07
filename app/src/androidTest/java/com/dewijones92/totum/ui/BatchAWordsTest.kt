@@ -35,7 +35,7 @@ class BatchAWordsTest {
     )
 
     @Test
-    fun `an already queued item says whether it is playing, next, or where it is`() {
+    fun `an already queued item says whether it is playing next or where it is`() {
         val item = playable("Zog")
 
         assertEquals(
@@ -50,7 +50,7 @@ class BatchAWordsTest {
     }
 
     @Test
-    fun `a bulk add says how many were already queued, in the singular and the plural`() {
+    fun `a bulk add says how many were already queued in the singular and the plural`() {
         assertEquals("📌 1 item was already queued", context.noticeMessage(QueueNotice.SomeAlreadyQueued(1)))
         assertEquals("📌 4 items were already queued", context.noticeMessage(QueueNotice.SomeAlreadyQueued(4)))
     }
@@ -77,7 +77,7 @@ class BatchAWordsTest {
     }
 
     @Test
-    fun `a list of exactly a hundred has no more line, and the title can be shielded`() {
+    fun `a list of exactly a hundred has no more line and the title can be shielded`() {
         val items = (1..100).map { playable("T$it").item }
 
         assertFalse(context.resources.shareListMessage("Exact", items).contains("more"))
@@ -125,7 +125,7 @@ class BatchAWordsTest {
     }
 
     @Test
-    fun `the live tag reads live, was live, starts soon, or starts at a time`() {
+    fun `the live tag reads live was live starts soon or starts at a time`() {
         assertEquals("🔴 LIVE", context.liveTagText(LiveTag.Live))
         assertEquals("⏺️ WAS LIVE", context.liveTagText(LiveTag.WasLive))
         assertEquals("🔴 STARTS SOON", context.liveTagText(LiveTag.StartsSoon(null)))
@@ -134,7 +134,7 @@ class BatchAWordsTest {
     }
 
     @Test
-    fun `the tidy line says what moved, what was cleared, both, or nothing`() {
+    fun `the tidy line says what moved what was cleared both or nothing`() {
         assertEquals("12 played items left the queue", tidyDetail(context, QueueTidy.Result(12, 0)))
         assertEquals("1 played item left the queue", tidyDetail(context, QueueTidy.Result(1, 0)))
         assertEquals("3 failed downloads cleared", tidyDetail(context, QueueTidy.Result(0, 3)))
