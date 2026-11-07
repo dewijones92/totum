@@ -1,10 +1,10 @@
 ---
 title: ✨ Ask can answer about your own app
 kind: todo
-status: decided
+status: built 2026-11-07, Batch A (tests owed)
 batch: A (2026-11)
 priority: high
-updated: 2026-11-06
+updated: 2026-11-07
 ---
 
 # ✨ Ask can answer about your own app
@@ -44,3 +44,28 @@ Lessons for the build: no magic values in the pack (the backup writes "played, t
 `completedAtEpochMs = 1`, which Haiku called a bad flag; use `played: true`); positions as minutes:seconds beside
 the milliseconds; give the pack the item's group and episode numbers where known. A first run fed the remaining
 questions through stdin to `claude -p` (always `< /dev/null`).
+
+## Built 2026-11-07 ([ADR 140](../adr/0140-ask-answers-about-your-own-app-with-jq-only.md))
+
+One chat with a Haiku router; a fresh gzipped snapshot before every ask, held 10 minutes in the Pi's memory; an app
+question runs `Bash(jq:*)` alone on that snapshot, in a private temp directory in the AI service; "both" is two
+separate calls (or app only with a note); the answer is text plus cards of the phone's own items. Dry runs with the
+real model against Dewi's real backup are recorded in the ADR.
+
+Reuse: `BackupService.create` for the file's own sections (queue groups, downloads, stats, trail and the event log
+come from their stores), `episodeCodeOf`, `HttpAskService`/`HomePiCall`, the Ask cards (`ItemsBody` is `LatestBody`
+generalised), `LatestBody`'s play / play all / queue all, the operations strip's ASK kind, `AskStateWire` for the
+shared gzip frame, `StateScrub` on both ends.
+
+## Tests owed
+
+- An instrumented or screenshot check of an app answer on the emulator (the reply, the 🗂️ source line, a card of
+  rows with play / play all / queue all) and of the packing and sending stages in the strip.
+- A real phone to real Pi round trip: `PUT /fetch/ask-state` through nginx (needs `client_max_body_size` of at least
+  16m on `/fetch/`) and a real `jq` in the rebuilt ai image (`jq` was installed by the Dockerfile, not yet built).
+- `AskStateSource`'s real wiring (`AppContainer.askStateSource`) against a Room-backed container: the pure builder is
+  tested, the suppliers are not.
+- A queue group's id in `quietGroups`: the pack's channel groups carry no id (the backup format has none), so the model
+  cannot say which group a quiet-group setting means.
+- Downloads held at home on the Pi are not in the snapshot.
+- The sandbox hardening in ADR 140 (bubblewrap) if Dewi wants jq unable to read the service's environment.

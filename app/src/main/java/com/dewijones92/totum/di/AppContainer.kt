@@ -1897,7 +1897,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     override val askStateSource: AskStateSource? by lazy {
         AskStateSource(
             AskStatePorts(
-                backup = { backupService.create() },
+                backup = { backupService.create(includeQueue = false) },
                 queue = { playbackQueue.state.value },
                 downloaded = { downloadManager.observeDownloaded().first() },
                 records = { downloadManager.observeRecords().first() },

@@ -10,7 +10,7 @@ import com.dewijones92.totum.data.ask.Taste
 import com.dewijones92.totum.data.ask.VetAnswer
 import com.dewijones92.totum.data.ask.VetRequest
 import com.dewijones92.totum.data.ask.state.AskStateEnvelope
-import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -84,7 +84,7 @@ class RoutedAskTest {
         )
 
     @Test
-    fun `an ask with no snapshot is the old web ask, with no routing`() = runTest {
+    fun `an ask with no snapshot is the old web ask, with no routing`() = runBlocking {
         val brain = brain(AskSource.APP)
         val answer = RoutedAsk(brain, states).answer(asking(AskTurn("a dragon film"), id = null))
         assertEquals(0, brain.routed)
@@ -93,7 +93,7 @@ class RoutedAskTest {
     }
 
     @Test
-    fun `a question about the app reads the snapshot and never reaches the web`() = runTest {
+    fun `a question about the app reads the snapshot and never reaches the web`() = runBlocking {
         states.put("snapshot-0001", envelope)
         val brain = brain(AskSource.APP)
         val answer = RoutedAsk(brain, states).answer(asking(AskTurn("how many unplayed?")))
@@ -109,7 +109,7 @@ class RoutedAskTest {
     }
 
     @Test
-    fun `a web question never sees the snapshot and keeps its taste`() = runTest {
+    fun `a web question never sees the snapshot and keeps its taste`() = runBlocking {
         states.put("snapshot-0001", envelope)
         val brain = brain(AskSource.WEB)
         val answer = RoutedAsk(brain, states).answer(asking(AskTurn("a funny film")))
@@ -119,7 +119,7 @@ class RoutedAskTest {
     }
 
     @Test
-    fun `two independent questions are answered by two separate calls that share nothing`() = runTest {
+    fun `two independent questions are answered by two separate calls that share nothing`() = runBlocking {
         states.put("snapshot-0001", envelope)
         val brain = brain(AskSource.BOTH, appQ = "how many unplayed?", webQ = "news on the Madrid Open")
         val earlier =
@@ -140,7 +140,7 @@ class RoutedAskTest {
     }
 
     @Test
-    fun `a web part that needs the app's data is not answered and the reply says why`() = runTest {
+    fun `a web part that needs the app's data is not answered and the reply says why`() = runBlocking {
         states.put("snapshot-0001", envelope)
         val brain = brain(AskSource.BOTH, appQ = "what did I play last?", webQ = "a film like it", needs = true)
         val answer = RoutedAsk(brain, states).answer(asking(AskTurn("find a film like the last thing I played")))
@@ -151,7 +151,7 @@ class RoutedAskTest {
     }
 
     @Test
-    fun `one failing half still returns the other and says what failed`() = runTest {
+    fun `one failing half still returns the other and says what failed`() = runBlocking {
         states.put("snapshot-0001", envelope)
         val brain = brain(AskSource.BOTH, appQ = "a", webQ = "b").also { it.appFails = true }
         val answer = RoutedAsk(brain, states).answer(asking(AskTurn("both")))
@@ -160,7 +160,7 @@ class RoutedAskTest {
     }
 
     @Test
-    fun `an app question with an expired snapshot fails loudly instead of guessing`() = runTest {
+    fun `an app question with an expired snapshot fails loudly instead of guessing`() = runBlocking {
         val brain = brain(AskSource.APP)
         try {
             RoutedAsk(brain, states).answer(asking(AskTurn("how many?"), id = "gone-snapshot"))
@@ -172,7 +172,7 @@ class RoutedAskTest {
     }
 
     @Test
-    fun `both with the snapshot gone answers the web part and says the app part was skipped`() = runTest {
+    fun `both with the snapshot gone answers the web part and says the app part was skipped`() = runBlocking {
         val brain = brain(AskSource.BOTH, appQ = "a", webQ = "b")
         val answer = RoutedAsk(brain, states).answer(asking(AskTurn("both"), id = "gone-snapshot"))
         assertEquals(AskSource.WEB, answer.source)

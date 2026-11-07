@@ -13,7 +13,9 @@ internal object StatePrompts {
           why something happened). It knows nothing about the world outside the app.
         - "web": a helper that can search the web and find things to play or download: films, series, videos,
           podcasts, audiobooks, music, new releases, facts about the world, and "something like what I listen to"
-          (it is given a short summary of their taste). It cannot see the app's data.
+          (it is given a short summary of their taste: the channels, podcasts and artists they follow and what they play
+          most, so "my podcast", "my channels", "my vlogs" and "something like what I listen to" all go to web). It
+          cannot see the app's data.
 
         Decide where each message must go:
         - app: the message asks about what is in their app or what happened in it ("how many unfinished videos are
@@ -24,7 +26,11 @@ internal object StatePrompts {
           appQuestion and webQuestion as two complete questions that each make sense on their own, in the person's
           words. Set webNeedsAppData to true when the web question cannot be answered without facts that only their
           data holds (for example "find a film like the one I watched last night"): such a question is never joined
-          up, because their data must not travel to the web helper.
+          up, because their data must not travel to the web helper. A web question that is only on the same topic
+          ("recommend a bee documentary") does not need their data: write it as its own question and set it false.
+
+        When one message both asks about their own data and asks for something from the web (find, recommend, news, a
+        fact), choose both even if the data part may turn up nothing; never drop the web part.
 
         A follow-up ("and the second one?", "only the unplayed ones") goes where the message it follows went, unless
         it clearly asks for something else. For app and web leave appQuestion and webQuestion empty. why is one short

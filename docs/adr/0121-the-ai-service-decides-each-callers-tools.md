@@ -37,6 +37,7 @@ out. Found in the 2026-11-06 whole-batch review of Batch A; it has to land befor
 | `ask` | `WebSearch`, `WebFetch` | Picking titles needs the web (ADR 109); its input is Dewi's own words and taste |
 | `vet` | none | Judges copies from the names it is given |
 | `file` | `WebSearch` | Looks up what a release is for filing (ADR 111); no fetch |
+| `ask-route` | none | Picks app, web or both from the person's own words only ([ADR 140](0140-ask-answers-about-your-own-app-with-jq-only.md)) |
 | `ask-state` | `Bash(jq:*)` | Reads the app's state file with jq only, no web tool of any kind: the state holds untrusted text |
 | `for-you` | none | Picks from Dewi's taste, whose titles are untrusted; the app's own searches find each pick |
 | `digest` | none | Summarises new video titles, which anyone can write |
@@ -45,6 +46,10 @@ out. Found in the 2026-11-06 whole-batch review of Batch A; it has to land befor
 
 The last four start with no tools on purpose: widening one is a one-line change here and an edit to this table, made
 when a dry run shows it needs the web, rather than a default to be taken back.
+
+## Amendment 2026-11-07: a pattern is a permission, not a tool name
+
+`claude --tools` takes tool **names**: given `Bash(jq:*)` it silently offers no Bash tool at all (measured with Claude Code 2.1.319: the model reported StructuredOutput as its only tool). The completer now passes the names (`CallerTools.namesOf`) to `--tools` and the full strings to `--allowedTools`, which is where the `jq` pattern bites; a command outside it is denied, not asked. Claude Code still auto-approves a few read-only commands (`cat`, `ls`) confined to the working directory, which holds only that call's snapshot.
 
 ## Consequences
 

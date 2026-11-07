@@ -3,7 +3,7 @@ title: ✨ Ask (a chat that finds anything to play or download, knowing your tas
 kind: feature
 status: refining
 area: search
-updated: 2026-11-06
+updated: 2026-11-07
 ---
 
 # ✨ Ask
@@ -45,11 +45,28 @@ Chats are kept: Ask reopens the last one, and "🕘 Earlier chats" offers the ot
 with "Show all" to expand in place. ➕ New chat is always in the header (disabled while Ask is busy). Reopening a
 chat searches its turns again in one job that New chat or opening another chat cancels.
 
+## Asking about your own app (2026-11-07)
+
+The same chat answers questions about what is in the app ("which unfinished videos from my tennis group are in the
+queue", "why didn't that video carry on", "what have I starred", "which settings might surprise me"). A Haiku router on
+the Pi decides per message: **app** (jq on a snapshot), **web** (the picks above) or **both** (two separate calls). The
+phone gathers a fresh snapshot before every ask (📦), sends it gzipped (📤), and an app answer says "🗂️ Answered from
+your app's own data" and carries cards of your own items with ▶️ Play all / ➕ Queue all; Ask never acts by itself.
+If the snapshot cannot be gathered or sent the ask still goes, web only, and says so. ADR 140.
+
+- Snapshot: `AskStateSource` (`app/.../ui/ask/`) feeds `AppStateBuilder` (`core/data/.../ask/state/`); the schema is
+  walked from the pack's own serializers (`StateSchema`, `@Describe`); `StateScrub` removes secrets on the phone and
+  again on the Pi.
+- Pi: `RoutedAsk`, `AskStates` (10 minutes, in memory), `PUT /ask-state`, `StatePrompts`; the AI service runs the
+  `ask-state` call with `Bash(jq:*)` in a private temp directory.
+- Dry runs: `totum ask-state-check <backup.json> "question" "+follow-up"` runs the whole path through a local AI
+  service against a backup file.
+
 ## Tools
 
 Ask's three jobs call the AI service as `ask` (web search and fetch), `vet` (no tools) and `file` (web search); the
-service refuses any tool outside that caller's row, so Ask reading the app's own state later runs as `ask-state`
-with jq only. ADR 121.
+service refuses any tool outside that caller's row. Reading the app's own state runs as `ask-state` with jq only, and
+the router as `ask-route` with none. ADR 121, ADR 140.
 
 ## Measuring it
 

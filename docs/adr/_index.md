@@ -155,3 +155,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 137 | [Carry on is play history joined to progress](0137-carry-on-is-play-history-joined-to-progress.md) | Accepted |
 | 138 | [A queue group says how long is left, at the speed it will play](0138-a-queue-group-says-how-long-is-left-at-the-speed-it-will-play.md) | Accepted |
 | 139 | [The decoder and the screen are told the frame rate](0139-the-decoder-and-the-screen-are-told-the-frame-rate.md) | Accepted |
+| 140 | [Ask answers about your own app with jq only, and keeps the data away from the web](0140-ask-answers-about-your-own-app-with-jq-only.md) | Accepted |
