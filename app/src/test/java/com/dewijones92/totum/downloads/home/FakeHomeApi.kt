@@ -33,7 +33,11 @@ internal class FakeHomeApi : HomeJobsApi {
         handedOver += account
         return HomeAnswer.Ok(Unit)
     }
-    override suspend fun forgetAccount() = HomeAnswer.Ok(Unit)
+    val forgotBy = mutableListOf<String?>()
+    override suspend fun forgetAccount(by: String?): HomeAnswer<Unit> {
+        forgotBy += by
+        return HomeAnswer.Ok(Unit)
+    }
     override fun fileUrl(id: String) = HttpUrl.of("https://home.test/fetch/files/$id")
     val uploaded = mutableListOf<String>()
     var refuseUpload: String? = null

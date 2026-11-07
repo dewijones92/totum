@@ -76,8 +76,8 @@ internal interface Home {
     suspend fun retry(id: String)
     suspend fun fileOf(id: String): File?
     suspend fun receive(id: String, audioOnly: Boolean, declaredBytes: Long, body: InputStream): Received
-    suspend fun signIn(handover: AccountHandover)
-    suspend fun signOut()
+    suspend fun signIn(handover: AccountHandover): Admission
+    suspend fun signOut(by: String?): Admission
 }
 
 internal class HomeDownloads(
@@ -92,6 +92,7 @@ internal class HomeDownloads(
     private val http = OkHttpClient.Builder().readTimeout(READ_TIMEOUT_S, TimeUnit.SECONDS).build()
     private val engine = ProcessYtDlpEngine()
     private val tokens = FileTokenStore(File(dataDir, "youtube.json"))
+    private val ownership = YouTubeOwnership(File(dataDir, "youtube-owner.json"))
     private val account = YouTubeAccount(HttpYouTubeAuth(http), tokens)
     private val innerTube = InnerTubeClient(http, accountToken = {
         (account.accessToken() as? AccessTokenResult.Available)?.token
@@ -172,7 +173,15 @@ internal class HomeDownloads(
     override suspend fun jobs(): HomeJobs {
         val records = manager.observeRecords().first()
         val jobs = records.map { it.item.toJob(it.state) }
-        return HomeJobs(jobs, free(), account.isSignedIn(), health?.problems(jobs).orEmpty(), uploadLimit())
+        val signedIn = account.isSignedIn()
+        return HomeJobs(
+            jobs,
+            free(),
+            signedIn,
+            health?.problems(jobs).orEmpty(),
+            uploadLimit(),
+            youTubeOwner = ownership.owner()?.label?.takeIf { signedIn },
+        )
     }
 
     private fun uploadLimit(): Long = (free() - freeFloorBytes).coerceIn(0L, MAX_UPLOAD_BYTES)
@@ -192,6 +201,8 @@ internal class HomeDownloads(
     val watchHistory: YouTubeWatchHistory = HttpYouTubeWatchHistory(account, http, innerTube, stamps)
 
     suspend fun signedInToYouTube(): Boolean = account.isSignedIn()
+
+    fun youTubeOwnerId(): String? = ownership.owner()?.id
 
     suspend fun soundOf(item: PlayableItem, picture: Boolean = false): String? {
         fileOf(item.item.id.value)?.let { file ->
@@ -214,7 +225,9 @@ internal class HomeDownloads(
         return url
     }
 
-    override suspend fun signIn(handover: AccountHandover) {
+    override suspend fun signIn(handover: AccountHandover): Admission {
+        val admission = ownership.admit(handover.from)
+        if (admission is Admission.Refused) return admission
         tokens.save(
             OAuthTokens(
                 AccessToken(handover.accessToken),
@@ -222,12 +235,22 @@ internal class HomeDownloads(
                 handover.expiresAtEpochSeconds
             ),
         )
-        Diag.log("home", "the phone handed over its YouTube sign-in; signed in now: ${account.isSignedIn()}")
+        Diag.log(
+            "home",
+            "${handover.from?.label} handed over its YouTube sign-in; signed in now: ${account.isSignedIn()}",
+        )
+        return admission
     }
 
-    override suspend fun signOut() {
+    override suspend fun signOut(by: String?): Admission {
+        if (!ownership.mayForget(by)) {
+            val owner = ownership.owner()?.label ?: "another phone"
+            return Admission.Refused("🔒 Only the phone that signed the home server in ($owner) can sign it out")
+        }
         tokens.clear()
-        Diag.log("home", "YouTube sign-in forgotten at the phone's request")
+        ownership.clear()
+        Diag.log("home", "YouTube sign-in forgotten at the request of ${by ?: "an unidentified phone"}")
+        return Admission.Accepted
     }
 
     companion object {

@@ -40,10 +40,7 @@ internal class HomeRoutes(private val home: Home) : Routes {
             }
             path == "/files" -> files(exchange, method, id)
             method == "PUT" && path == "/account" -> account(exchange)
-            method == "DELETE" && path == "/account" -> {
-                home.signOut()
-                exchange.reply(OK, """{"ok":true}""")
-            }
+            method == "DELETE" && path == "/account" -> reply(exchange, home.signOut(exchange.query("by")))
             else -> exchange.reply(NOT_FOUND, """{"error":"no such route"}""")
         }
     }
@@ -96,8 +93,15 @@ internal class HomeRoutes(private val home: Home) : Routes {
         val text = exchange.requestBody.bufferedReader().readText()
         val handover = runCatching { AskJson.decodeFromString(AccountHandover.serializer(), text) }.getOrNull()
             ?: return exchange.reply(BAD_REQUEST, """{"error":"unreadable sign-in"}""")
-        home.signIn(handover)
-        exchange.reply(OK, """{"ok":true}""")
+        reply(exchange, home.signIn(handover))
+    }
+
+    private fun reply(exchange: HttpExchange, admission: Admission) = when (admission) {
+        Admission.Accepted -> exchange.reply(OK, """{"ok":true}""")
+        is Admission.Refused -> exchange.reply(
+            CONFLICT,
+            """{"error":${AskJson.encodeToString(String.serializer(), admission.why)}}""",
+        )
     }
 
     private fun serve(exchange: HttpExchange, file: File) {
@@ -151,5 +155,6 @@ internal class HomeRoutes(private val home: Home) : Routes {
         val RANGE = Regex("""bytes=(\d*)-(\d*)""")
         val PATHS = setOf("/jobs", "/jobs/retry", "/files", "/account")
         const val ACCOUNT_ID = "account"
+        const val CONFLICT = 409
     }
 }

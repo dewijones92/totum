@@ -16,6 +16,7 @@ import com.dewijones92.totum.cli.serve.filing.LibraryFiler
 import com.dewijones92.totum.cli.serve.filing.Shelf
 import com.dewijones92.totum.cli.serve.filing.SidecarMaker
 import com.dewijones92.totum.cli.serve.jellyfin.JellyfinBrowse
+import com.dewijones92.totum.cli.serve.jellyfin.JellyfinNotSetUp
 import com.dewijones92.totum.cli.serve.jellyfin.JellyfinRoutes
 import com.dewijones92.totum.cli.serve.sound.ProcessedSound
 import com.dewijones92.totum.cli.serve.speakers.SpeakerSource
@@ -222,6 +223,7 @@ internal suspend fun serveAsk(port: Int, out: (String) -> Unit): Int = coroutine
             ChromecastSource(knownCastsFrom(System.getenv("TOTUM_CAST_TARGETS")), streams),
         ),
         YouTubeProgress(home.watchHistory, home::signedInToYouTube),
+        ownerId = home::youTubeOwnerId,
     )
     val states = AskStates()
     launch {
@@ -232,7 +234,7 @@ internal suspend fun serveAsk(port: Int, out: (String) -> Unit): Int = coroutine
     }
     val routes = listOfNotNull(
         TargetRoutes(targets),
-        jellyfin?.let { JellyfinRoutes(JellyfinBrowse(it)) },
+        jellyfin?.let { JellyfinRoutes(JellyfinBrowse(it)) } ?: JellyfinNotSetUp(),
         AskStateRoutes(states),
     ) + aiTaskRoutesFrom(this)
     AskServer(brain, this, HomeRoutes(home), routes, ask = RoutedAsk(brain, states)::answer).start(port)

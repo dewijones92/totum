@@ -10,6 +10,7 @@ import com.dewijones92.totum.data.targets.Requester
 import com.dewijones92.totum.data.targets.Target
 import com.dewijones92.totum.data.targets.TargetColours
 import com.dewijones92.totum.data.targets.TargetControl
+import com.dewijones92.totum.data.targets.TargetEntry
 import com.dewijones92.totum.data.targets.TargetKind
 import com.dewijones92.totum.data.targets.TargetQueueRequest
 import com.dewijones92.totum.data.targets.TargetState
@@ -19,14 +20,18 @@ import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
+import com.dewijones92.totum.operations.Ended
+import com.dewijones92.totum.operations.OperationEnd
 import com.dewijones92.totum.operations.Operations
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -43,7 +48,14 @@ class TargetsRepositoryTest {
 
         override suspend fun queue(id: String, request: TargetQueueRequest): HomeAnswer<TargetState> {
             queued += id to request
-            return queueAnswer ?: HomeAnswer.Ok(TargetState(Target(id, id, TargetKind.TV), playing = true))
+            return queueAnswer ?: HomeAnswer.Ok(
+                TargetState(
+                    Target(id, id, TargetKind.TV),
+                    entries = request.items.map { TargetEntry(it) },
+                    at = 0,
+                    playing = true,
+                ),
+            )
         }
 
         override suspend fun control(id: String, control: TargetControl): HomeAnswer<TargetState> {
@@ -52,16 +64,26 @@ class TargetsRepositoryTest {
         }
     }
 
+    private data class Replayed(val items: List<String>, val mode: QueueMode)
+
     private val api = FakeApi()
     private val colours = InMemoryTargetColours()
     private val scope = TestScope(UnconfinedTestDispatcher())
+    private val operations = Operations()
+    private val ended = mutableListOf<Ended>()
+    private val playedHere = mutableListOf<Replayed>()
     private val repository = TargetsRepository(
         api,
-        { Requester("me", "My phone", owner = true) },
+        { Requester("me", "My phone") },
         colours,
         scope,
-        Operations(),
+        operations,
+        playHere = { items, mode, _, _ -> playedHere += Replayed(items.map { it.item.id.value }, mode) },
     )
+
+    init {
+        scope.launch { operations.ended.collect { ended += it } }
+    }
 
     private val tv = TargetState(Target("lg-tv", "LG TV", TargetKind.TV))
     private val bar = TargetState(Target("bar", "Soundbar"))
@@ -124,7 +146,7 @@ class TargetsRepositoryTest {
         assertEquals(QueueMode.PLAY, request.mode)
         assertEquals("Bluey", request.groupTitle)
         assertEquals("b", request.startItemId)
-        assertEquals(Requester("me", "My phone", owner = true), request.from)
+        assertEquals(Requester("me", "My phone"), request.from)
         assertEquals(item("a").toBackup(), request.items.first())
     }
 
@@ -148,5 +170,73 @@ class TargetsRepositoryTest {
 
         assertTrue(repository.targets.value.first { it.target.id == "lg-tv" }.playing)
         assertFalse(repository.targets.value.first { it.target.id == "bar" }.playing)
+    }
+
+    @Test
+    fun `looking at a target only lasts while the queue is on screen`() = runTest {
+        api.answer = HomeAnswer.Ok(TargetsAnswer(listOf(tv)))
+        repository.refresh("test")
+        repository.select("lg-tv")
+
+        repository.queueTabLeft()
+
+        assertNull(repository.selected.value)
+        assertFalse(repository.take(listOf(item("a")), QueueMode.PLAY, null, null))
+        assertTrue(api.queued.isEmpty())
+    }
+
+    @Test
+    fun `what is reported is what the Pi really queued, not what was asked for`() = runTest {
+        api.answer = HomeAnswer.Ok(TargetsAnswer(listOf(tv)))
+        repository.refresh("test")
+        api.queueAnswer = HomeAnswer.Ok(
+            TargetState(tv.target, entries = listOf(TargetEntry(item("a").toBackup())), at = 0, playing = true),
+        )
+
+        val end = repository.redirect("lg-tv", "LG TV", listOf(item("a"), item("b")), QueueMode.PLAY, null, null)
+
+        assertEquals(OperationEnd.Done(1), end)
+        assertTrue(playedHere.isEmpty())
+    }
+
+    @Test
+    fun `a Pi that could not start it leaves the items to this phone, with a notice that says so`() = runTest {
+        api.answer = HomeAnswer.Ok(TargetsAnswer(listOf(tv)))
+        repository.refresh("test")
+        repository.select("lg-tv")
+        api.queueAnswer = HomeAnswer.Ok(
+            TargetState(tv.target, entries = listOf(TargetEntry(item("a").toBackup())), at = 0, problem = "⚠️ Couldn't reach LG TV"),
+        )
+
+        repository.take(listOf(item("a"), item("b")), QueueMode.PLAY, null, MediaItemId("a"))
+
+        assertEquals(listOf(Replayed(listOf("a", "b"), QueueMode.PLAY)), playedHere)
+        val end = ended.single().end as OperationEnd.Failed
+        assertTrue(end.why, end.why.startsWith("⚠️") && end.why.contains("LG TV") && end.why.contains("this phone"))
+    }
+
+    @Test
+    fun `a Pi that refuses the items leaves them to this phone as well`() = runTest {
+        api.answer = HomeAnswer.Ok(TargetsAnswer(listOf(tv)))
+        repository.refresh("test")
+        repository.select("lg-tv")
+        api.queueAnswer = HomeAnswer.No("❌ Nothing in that was playable on LG TV")
+
+        repository.take(listOf(item("a")), QueueMode.END, null, null)
+
+        assertEquals(listOf(Replayed(listOf("a"), QueueMode.END)), playedHere)
+        assertTrue((ended.single().end as OperationEnd.Failed).why.contains("Nothing in that was playable"))
+    }
+
+    @Test
+    fun `a Pi that took it keeps it, and nothing is played here`() = runTest {
+        api.answer = HomeAnswer.Ok(TargetsAnswer(listOf(tv)))
+        repository.refresh("test")
+        repository.select("lg-tv")
+
+        repository.take(listOf(item("a"), item("b")), QueueMode.PLAY, null, null)
+
+        assertTrue(playedHere.isEmpty())
+        assertEquals(OperationEnd.Done(2), ended.single().end)
     }
 }

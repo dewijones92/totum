@@ -21,7 +21,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import com.dewijones92.totum.R
 import com.dewijones92.totum.data.targets.Target
 import com.dewijones92.totum.data.targets.TargetColours
@@ -37,7 +40,10 @@ fun TargetChips(targets: TargetsRepository, modifier: Modifier = Modifier) {
     val states by targets.targets.collectAsStateWithLifecycle()
     val selected by targets.selected.collectAsStateWithLifecycle()
     val colours by targets.colours.collectAsStateWithLifecycle()
-    LaunchedEffect(targets) { targets.watchWhile() }
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    LaunchedEffect(targets, lifecycle) {
+        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) { targets.watchWhile() }
+    }
     if (states.isEmpty()) return
     val inUse = states.filter { it.entries.isNotEmpty() || it.target.id == selected }.map { it.target }
     val idle = states.map { it.target } - inUse.toSet()

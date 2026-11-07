@@ -49,12 +49,20 @@ class HomeRoutesTest {
         override suspend fun receive(id: String, audioOnly: Boolean, declaredBytes: Long, body: java.io.InputStream) =
             (refuseUpload ?: Received.Stored(body.readBytes().size.toLong())).also { received += it }
         override suspend fun fileOf(id: String): File? = file.takeIf { id == fileId }
-        override suspend fun signIn(handover: AccountHandover) {
+        var refuseAccount: String? = null
+        var signedOutBy: String? = null
+
+        override suspend fun signIn(handover: AccountHandover): Admission {
+            refuseAccount?.let { return Admission.Refused(it) }
             handedOver = handover
+            return Admission.Accepted
         }
 
-        override suspend fun signOut() {
+        override suspend fun signOut(by: String?): Admission {
+            signedOutBy = by
+            refuseAccount?.let { return Admission.Refused(it) }
             signedOut = true
+            return Admission.Accepted
         }
     }
 
@@ -160,8 +168,26 @@ class HomeRoutesTest {
         )
         assertEquals("r", home.handedOver?.refreshToken)
         assertTrue("\"youTubeSignedIn\":true" in String(call("GET", "/jobs").body()))
-        call("DELETE", "/account")
+        call("DELETE", "/account?by=dewi-id")
         assertTrue(home.signedOut)
+        assertEquals("dewi-id", home.signedOutBy)
+    }
+
+    @Test
+    fun `a refused hand-over or sign-out says why, with a conflict`() {
+        home.refuseAccount = "🔒 The home server is signed in to YouTube from another phone (Pixel 7 (a3f9))"
+
+        val handover = call(
+            "PUT",
+            "/account",
+            """{"accessToken":"a","refreshToken":"r","expiresAtEpochSeconds":1}""",
+        )
+        val signOut = call("DELETE", "/account?by=wife-id")
+
+        assertEquals(409, handover.statusCode())
+        assertTrue(String(handover.body()).contains("another phone"))
+        assertEquals(409, signOut.statusCode())
+        assertTrue(home.handedOver == null && !home.signedOut)
     }
 }
 

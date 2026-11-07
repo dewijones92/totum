@@ -2,9 +2,8 @@ package com.dewijones92.totum.targets
 
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.home.HomeAnswer
-import com.dewijones92.totum.data.targets.QueueMode
 import com.dewijones92.totum.data.targets.SendTo
-import com.dewijones92.totum.data.targets.TargetQueueRequest
+import com.dewijones92.totum.data.targets.request
 import com.dewijones92.totum.operations.OperationEnd
 import com.dewijones92.totum.operations.OperationKind
 import com.dewijones92.totum.operations.Operations
@@ -39,15 +38,7 @@ class SendToTarget(
         )
         scope.launch {
             operations.track("send:$targetId", OperationKind.SEND_TO_TARGET, label) {
-                val request = TargetQueueRequest(
-                    items = plan.items,
-                    mode = QueueMode.REPLACE,
-                    groupId = plan.groupId,
-                    groupTitle = plan.groupTitle,
-                    from = targets.requesterNow(),
-                    startAtMs = plan.startAtMs,
-                    startItemId = plan.startItemId,
-                )
+                val request = plan.request(targets.requesterNow())
                 when (val answer = targets.queue(targetId, request)) {
                     is HomeAnswer.No -> OperationEnd.Failed(answer.reason)
                     is HomeAnswer.Ok -> {

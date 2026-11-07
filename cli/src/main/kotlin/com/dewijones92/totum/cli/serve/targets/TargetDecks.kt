@@ -16,6 +16,7 @@ internal class TargetDecks(
     private val sounds: TargetSounds,
     private val sources: List<TargetSource>,
     private val reporter: ProgressReporter = ProgressReporter.NONE,
+    private val ownerId: () -> String? = { null },
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
     private val decks = ConcurrentHashMap<String, TargetDeck>()
@@ -44,8 +45,7 @@ internal class TargetDecks(
 
     suspend fun deck(id: String): TargetDeck? {
         val found = found(fresh = false).firstOrNull { it.target.id == id }
-            ?: found(fresh = true).firstOrNull { it.target.id == id }
-        if (found == null) Diag.warn("targets", "no target $id")
+        if (found == null) Diag.warn("targets", "no target $id among ${known.joinToString { it.target.id }}; not scanning")
         return found?.let(::deckFor)
     }
 
@@ -76,6 +76,7 @@ internal class TargetDecks(
                 }
             },
             reporter = reporter,
+            ownerId = ownerId,
         ).also { deck -> kit.player.onEnded = { failed -> scope.launch { deck.ended(failed) } } }
     }
 

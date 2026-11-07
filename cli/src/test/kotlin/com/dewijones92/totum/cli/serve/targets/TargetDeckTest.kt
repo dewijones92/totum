@@ -11,11 +11,13 @@ import com.dewijones92.totum.data.targets.TargetAction
 import com.dewijones92.totum.data.targets.TargetControl
 import com.dewijones92.totum.data.targets.TargetKind
 import com.dewijones92.totum.data.targets.TargetQueueRequest
+import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
+import com.dewijones92.totum.playback.VolumeBoost
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -54,7 +56,7 @@ class TargetDeckTest {
         override suspend fun release() { released++ }
     }
 
-    private fun item(id: String): BackupItem = PlayableItem(
+    private fun item(id: String, kind: MediaContentKind = MediaContentKind.STANDARD): BackupItem = PlayableItem(
         MediaItem(
             MediaItemId(id),
             SourceId("feed"),
@@ -62,6 +64,7 @@ class TargetDeckTest {
             publishedAt = null,
             duration = null,
             mediaUrl = HttpUrl.of("https://example.com/$id.mp3"),
+            contentKind = kind,
         ),
         PlayHandle.Podcast(),
     ).toBackup()
@@ -76,7 +79,7 @@ class TargetDeckTest {
         reported += "${entry.item.itemId}@$position finished=$finished"
     }
     private val lookedAhead = mutableListOf<String>()
-    private fun deck(kind: TargetKind = TargetKind.SPEAKER) = TargetDeck(
+    private fun deck(kind: TargetKind = TargetKind.SPEAKER, ownerId: String? = "dewi") = TargetDeck(
         Target("bar", "LG soundbar", kind),
         player,
         link,
@@ -86,6 +89,7 @@ class TargetDeckTest {
             lookedAhead += it.item.id.value
         },
         reporter = reporter,
+        ownerId = { ownerId },
     )
 
     @Test
@@ -166,8 +170,8 @@ class TargetDeckTest {
         PlayHandle.Video(HttpUrl.of("https://www.youtube.com/watch?v=$id")),
     ).toBackup()
 
-    private val owner = Requester("dewi", "Dewi's phone", owner = true)
-    private val wife = Requester("wife", "Wife's phone", owner = false)
+    private val owner = Requester("dewi", "Dewi's phone")
+    private val wife = Requester("wife", "Wife's phone")
 
     @Test
     fun `an item shows who added it, and the deck remembers it across a restart`() = runBlocking {
@@ -255,5 +259,45 @@ class TargetDeckTest {
         assertEquals(listOf("a", "x", "y", "b"), deck.state().entries.map { it.item.itemId })
         assertEquals("x", deck.state().current?.item?.itemId)
         assertEquals("https://sound/x@bar-sink", player.played.last())
+    }
+
+    @Test
+    fun `skip silence is applied to talk and never to music or a book, by the same rule as the phone`() = runBlocking {
+        val deck = deck()
+        deck.control(TargetControl(TargetAction.SOUND, sound = SoundSettings(skipSilence = true, boost = VolumeBoost.AUTO)))
+        deck.enqueue(
+            TargetQueueRequest(
+                listOf(item("talk"), item("song", MediaContentKind.MUSIC), item("book", MediaContentKind.AUDIOBOOK)),
+                QueueMode.REPLACE,
+            )
+        )
+
+        assertTrue("talk is cut", player.requests.last().sound.skipSilence)
+        deck.ended(failed = false)
+        assertFalse("a song is not cut", player.requests.last().sound.skipSilence)
+        assertEquals("but the boost still applies", VolumeBoost.AUTO, player.requests.last().sound.boost)
+        deck.ended(failed = false)
+        assertFalse("a book is not cut", player.requests.last().sound.skipSilence)
+        assertTrue("and the deck's own choice is untouched", deck.state().sound.skipSilence)
+    }
+
+    @Test
+    fun `only the phone the Pi recorded as having handed the sign-in over is the owner`() = runBlocking {
+        val impostor = Requester("wife", "Wife's phone")
+        val deck = deck(TargetKind.TV, ownerId = "dewi")
+
+        deck.enqueue(TargetQueueRequest(listOf(item("a")), QueueMode.REPLACE, from = impostor))
+        deck.enqueue(TargetQueueRequest(listOf(item("b")), QueueMode.END, from = Requester("dewi", "Dewi's Pixel 7")))
+
+        assertEquals(listOf(false, true), deck.state().entries.map { it.reportsToYouTube })
+    }
+
+    @Test
+    fun `with nobody recorded as the owner nothing reports`() = runBlocking {
+        val deck = deck(TargetKind.TV, ownerId = null)
+
+        deck.enqueue(TargetQueueRequest(listOf(item("a")), QueueMode.REPLACE, from = owner))
+
+        assertEquals(listOf(false), deck.state().entries.map { it.reportsToYouTube })
     }
 }

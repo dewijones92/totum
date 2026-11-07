@@ -28,7 +28,7 @@ public interface HomeJobsApi {
     public suspend fun cancel(id: String): HomeAnswer<Unit>
     public suspend fun retry(id: String): HomeAnswer<Unit>
     public suspend fun handOver(account: AccountHandover): HomeAnswer<Unit>
-    public suspend fun forgetAccount(): HomeAnswer<Unit>
+    public suspend fun forgetAccount(by: String?): HomeAnswer<Unit>
     public fun fileUrl(id: String): HttpUrl
     public suspend fun upload(
         item: BackupItem,
@@ -67,8 +67,10 @@ public class HomeJobsClient(
         ).put(AskJson.encodeToString(AccountHandover.serializer(), account).json()),
     ) { }
 
-    override suspend fun forgetAccount(): HomeAnswer<Unit> =
-        call("DELETE /account", Request.Builder().url("$base/account").delete()) { }
+    override suspend fun forgetAccount(by: String?): HomeAnswer<Unit> {
+        val query = by?.let { "?by=${encoded(it)}" }.orEmpty()
+        return call("DELETE /account$query", Request.Builder().url("$base/account$query").delete()) { }
+    }
 
     override fun fileUrl(id: String): HttpUrl = HttpUrl.of("$base/files?id=${encoded(id)}")
 

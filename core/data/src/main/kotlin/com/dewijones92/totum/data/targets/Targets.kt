@@ -23,7 +23,7 @@ public enum class TargetKind(public val hasPicture: Boolean, public val label: S
 public data class Target(val id: String, val label: String, val kind: TargetKind = TargetKind.SPEAKER)
 
 @Serializable
-public data class Requester(val id: String, val label: String, val owner: Boolean = false)
+public data class Requester(val id: String, val label: String)
 
 @Serializable
 public data class SoundSettings(val skipSilence: Boolean = false, val boost: VolumeBoost = VolumeBoost.OFF) {
@@ -87,12 +87,12 @@ public data class TargetControl(
     val sound: SoundSettings? = null,
 )
 
-public fun QueueEntry.toTargetEntry(from: Requester? = null): TargetEntry = TargetEntry(
+public fun QueueEntry.toTargetEntry(from: Requester? = null, ownerId: String? = null): TargetEntry = TargetEntry(
     item.toBackup(),
     group?.id,
     group?.title,
     from?.label,
-    TargetReporting.reports(from),
+    TargetReporting.reports(from, ownerId),
 )
 
 public fun TargetEntry.toQueueEntry(): QueueEntry? =

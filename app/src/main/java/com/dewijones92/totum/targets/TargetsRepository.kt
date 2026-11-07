@@ -33,6 +33,7 @@ class TargetsRepository(
     private val colourStore: TargetColourStore,
     private val scope: CoroutineScope,
     private val operations: Operations? = null,
+    private val playHere: (List<PlayableItem>, QueueMode, QueueGroup?, MediaItemId?) -> Unit = { _, _, _, _ -> },
 ) : QueueDestination {
 
     val available: Boolean get() = client != null
@@ -47,12 +48,20 @@ class TargetsRepository(
     val colours: StateFlow<Map<String, Long>> = painted.asStateFlow()
 
     private val trouble = MutableStateFlow<String?>(null)
+    private var failures = 0
+    private var lastSummary: String? = null
     val problem: StateFlow<String?> = trouble.asStateFlow()
 
     fun select(id: String?) {
         if (chosen.value == id) return
         Diag.log("targets", "looking at ${id ?: "this phone"} (was ${chosen.value ?: "this phone"})")
         chosen.value = id
+    }
+
+    fun queueTabLeft() {
+        val was = chosen.value ?: return
+        Diag.log("targets", "the Queue tab was left; no longer looking at $was, so plays stay on this phone")
+        chosen.value = null
     }
 
     fun targetOf(id: String): Target? = live.value.firstOrNull { it.target.id == id }?.target
@@ -69,16 +78,22 @@ class TargetsRepository(
         when (val answer = home.targets()) {
             is HomeAnswer.No -> {
                 trouble.value = answer.reason
-                Diag.log("targets", "targets not read ($why): ${answer.reason}")
+                failures++
+                if (failures == 1 || failures % FAILURE_LOG_EVERY == 0) {
+                    Diag.log("targets", "targets not read ($why), $failures in a row: ${answer.reason}")
+                }
             }
             is HomeAnswer.Ok -> {
+                if (failures > 0) Diag.log("targets", "targets read again after $failures failed read(s)")
+                failures = 0
                 trouble.value = null
                 live.value = answer.value.targets
                 paint(answer.value.targets.map { it.target })
-                Diag.log(
-                    "targets",
-                    "read ($why): " + answer.value.targets.joinToString { "${it.target.label}[${it.entries.size}]" },
-                )
+                val summary = answer.value.targets.joinToString { "${it.target.label}[${it.entries.size}]" }
+                if (summary != lastSummary) {
+                    lastSummary = summary
+                    Diag.log("targets", "read ($why): $summary")
+                }
             }
         }
     }
@@ -122,23 +137,62 @@ class TargetsRepository(
         if (items.isEmpty()) return true
         Diag.log("targets", "redirecting $mode of ${items.size} to $label (the one being looked at)")
         scope.launch {
-            val request = TargetQueueRequest(
-                items = items.map { it.toBackup() },
-                mode = mode,
-                groupId = group?.id,
-                groupTitle = group?.title,
-                from = requester(),
-                startItemId = startAt?.value,
-            )
-            val run: suspend (Operations.Progress?) -> OperationEnd = {
-                when (val answer = queue(id, request)) {
-                    is HomeAnswer.Ok -> OperationEnd.Done(items.size)
-                    is HomeAnswer.No -> OperationEnd.Failed(answer.reason)
-                }
-            }
+            val run: suspend (Operations.Progress?) -> OperationEnd = { redirect(id, label, items, mode, group, startAt) }
             operations?.track("target:$id", OperationKind.SEND_TO_TARGET, label) { run(it) } ?: run(null)
         }
         return true
+    }
+
+    internal suspend fun redirect(
+        id: String,
+        label: String,
+        items: List<PlayableItem>,
+        mode: QueueMode,
+        group: QueueGroup?,
+        startAt: MediaItemId?,
+    ): OperationEnd {
+        val request = TargetQueueRequest(
+            items = items.map { it.toBackup() },
+            mode = mode,
+            groupId = group?.id,
+            groupTitle = group?.title,
+            from = requester(),
+            startItemId = startAt?.value,
+        )
+        return when (val answer = queue(id, request)) {
+            is HomeAnswer.No -> fallBack(label, items, mode, group, startAt, answer.reason)
+            is HomeAnswer.Ok -> {
+                val state = answer.value
+                val asked = items.mapTo(HashSet()) { it.item.id.value }
+                val queued = state.entries.count { it.item.itemId in asked }
+                val starts = mode == QueueMode.PLAY || mode == QueueMode.REPLACE
+                Diag.log(
+                    "targets",
+                    "$label answered $mode of ${items.size}: queued=$queued playing=${state.playing} " +
+                        "problem=${state.problem}",
+                )
+                when {
+                    queued == 0 -> fallBack(label, items, mode, group, startAt, "it queued none of them")
+                    starts && (state.problem != null || !state.playing) ->
+                        fallBack(label, items, mode, group, startAt, state.problem ?: "it did not start")
+                    else -> OperationEnd.Done(queued, note = state.problem)
+                }
+            }
+        }
+    }
+
+    private fun fallBack(
+        label: String,
+        items: List<PlayableItem>,
+        mode: QueueMode,
+        group: QueueGroup?,
+        startAt: MediaItemId?,
+        why: String,
+    ): OperationEnd {
+        Diag.warn("targets", "$label did not take $mode of ${items.size} ($why); playing them on this phone instead")
+        playHere(items, mode, group, startAt)
+        val plain = why.dropWhile { !it.isLetterOrDigit() }
+        return OperationEnd.Failed("⚠️ $label didn't take it ($plain). Playing on this phone instead.")
     }
 
     fun command(id: String, action: TargetAction) = act(id, TargetControl(action))
@@ -164,6 +218,7 @@ class TargetsRepository(
 
     private companion object {
         const val WATCH_MS = 2_000L
+        const val FAILURE_LOG_EVERY = 30
         const val HEX = 16
     }
 }

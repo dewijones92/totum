@@ -245,19 +245,31 @@ class PlaybackQueue(
         group: QueueGroup?,
         startAt: MediaItemId? = null,
         byYou: Boolean = true,
-    ): Boolean = byYou && destination?.take(items, mode, group, startAt) == true
+        local: Boolean = false,
+    ): Boolean = byYou && !local && destination?.take(items, mode, group, startAt) == true
 
     /** Adds to the end of the queue, unless it is already queued: then it says so ([QueueNotice.AlreadyQueued]). */
-    fun enqueue(item: PlayableItem, group: QueueGroup? = null): Boolean =
-        redirected(listOf(item), QueueMode.END, group) || addingUnlessQueued("add-to-end", item) { snapshot, kept ->
-            snapshot.copy(entries = snapshot.entries + QueueEntry(kept, group))
-        }
+    fun enqueue(item: PlayableItem, group: QueueGroup? = null, local: Boolean = false): Boolean =
+        redirected(listOf(item), QueueMode.END, group, local = local) ||
+            addingUnlessQueued("add-to-end", item) { snapshot, kept ->
+                snapshot.copy(entries = snapshot.entries + QueueEntry(kept, group))
+            }
 
     /** Inserts so it plays immediately after the current entry, unless it is already queued: then it says so. */
-    fun playNext(item: PlayableItem, group: QueueGroup? = null): Boolean =
-        redirected(listOf(item), QueueMode.NEXT, group) || addingUnlessQueued("play-next", item) { snapshot, kept ->
-            snapshot.inserted(listOf(QueueEntry(kept, group)))
+    fun playNext(item: PlayableItem, group: QueueGroup? = null, local: Boolean = false): Boolean =
+        redirected(listOf(item), QueueMode.NEXT, group, local = local) ||
+            addingUnlessQueued("play-next", item) { snapshot, kept ->
+                snapshot.inserted(listOf(QueueEntry(kept, group)))
+            }
+
+    fun playHere(items: List<PlayableItem>, mode: QueueMode, group: QueueGroup?, startAt: MediaItemId?) {
+        Diag.log("queue", "playing ${items.size} item(s) on this phone ($mode): the target did not take them")
+        when (mode) {
+            QueueMode.END -> enqueueAll(items, group, local = true)
+            QueueMode.NEXT -> playNextAll(items, group, local = true)
+            QueueMode.PLAY, QueueMode.REPLACE -> playAll(items, group, startAt = startAt, local = true)
         }
+    }
 
     fun moveUp(item: PlayableItem): Boolean {
         var moved = false
@@ -320,9 +332,9 @@ class PlaybackQueue(
         _notices.tryEmit(QueueNotice.SomeAlreadyQueued(count))
     }
 
-    fun enqueueAll(items: List<PlayableItem>, group: QueueGroup? = null) {
+    fun enqueueAll(items: List<PlayableItem>, group: QueueGroup? = null, local: Boolean = false) {
         if (items.isEmpty()) return Diag.log("queue", "add-to-end of nothing: queue left untouched")
-        if (redirected(items, QueueMode.END, group)) return
+        if (redirected(items, QueueMode.END, group, local = local)) return
         val label = group?.let { " as \"${it.title}\"" }.orEmpty()
         noteAlreadyQueued(items, "add-to-end x${items.size}$label")
         mutate("add-to-end x${items.size}$label") { it.appendingAll(items, group) }
@@ -348,9 +360,9 @@ class PlaybackQueue(
         return fresh.size
     }
 
-    fun playNextAll(items: List<PlayableItem>, group: QueueGroup? = null) {
+    fun playNextAll(items: List<PlayableItem>, group: QueueGroup? = null, local: Boolean = false) {
         if (items.isEmpty()) return Diag.log("queue", "play-next of nothing: queue left untouched")
-        if (redirected(items, QueueMode.NEXT, group)) return
+        if (redirected(items, QueueMode.NEXT, group, local = local)) return
         val label = group?.let { " as \"${it.title}\"" }.orEmpty()
         noteAlreadyQueued(items, "play-next x${items.size}$label")
         mutate("play-next x${items.size}$label") { snapshot ->
@@ -376,6 +388,7 @@ class PlaybackQueue(
         quiet: Boolean = false,
         byYou: Boolean = true,
         reason: PlayReason? = PlayReason.Chosen(ChosenWay.TAP),
+        local: Boolean = false,
     ): Boolean {
         // A repeat of the SAME item within a blink is never a real second request. A report
         // from Dewi's phone showed play-now firing seventeen times in twelve seconds, about
@@ -387,7 +400,7 @@ class PlaybackQueue(
         // A guard rather than a fix for the caller: whatever is re-firing is still worth
         // finding (the log below names it), but the queue should not be re-entrant on a
         // repeat regardless of who calls it.
-        if (redirected(listOf(item), QueueMode.PLAY, group, item.item.id, byYou)) return true
+        if (redirected(listOf(item), QueueMode.PLAY, group, item.item.id, byYou, local)) return true
         repeatTaps.repeatMs(item.item.id)?.let { sinceLast ->
             Diag.warn("queue", "play-now REPEAT ${sinceLast}ms apart — ignored: ${item.item.title.take(TITLE_CHARS)}")
             return true
@@ -425,9 +438,10 @@ class PlaybackQueue(
         startAt: MediaItemId? = null,
         endsRepeatOne: Boolean = byYou,
         reason: PlayReason = PlayReason.Chosen(ChosenWay.TAP),
+        local: Boolean = false,
     ) {
         if (items.isEmpty()) return
-        if (redirected(items.distinctBy { it.item.id }, QueueMode.PLAY, group, startAt, byYou)) return
+        if (redirected(items.distinctBy { it.item.id }, QueueMode.PLAY, group, startAt, byYou, local)) return
         if (group != null && endsRepeatOne && repeatOneOffForRun(group.title)) {
             _notices.tryEmit(QueueNotice.RepeatOneOff(group.title))
         }

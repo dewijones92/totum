@@ -910,9 +910,17 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         val client = appPreferences.settings.value.homeServerBase.takeIf { it.isNotBlank() }?.let { base ->
             TargetsClient(httpClient, "https://totum.$base/fetch", { appPreferences.settings.value.homeServerToken })
         }
-        val identity = RequesterIdentity(context) { SharedPrefsTokenStore(context).load() != null }
-        TargetsRepository(client, identity::requester, PrefsTargetColours(context), applicationScope, operations)
+        TargetsRepository(
+            client,
+            { requesterIdentity.requester() },
+            PrefsTargetColours(context),
+            applicationScope,
+            operations,
+            playHere = { items, mode, group, startAt -> playbackQueue.playHere(items, mode, group, startAt) },
+        )
     }
+
+    private val requesterIdentity: RequesterIdentity by lazy { RequesterIdentity(context) }
 
     override val jellyfin: JellyfinApi? by lazy {
         appPreferences.settings.value.homeServerBase.takeIf { it.isNotBlank() }?.let { base ->
@@ -941,6 +949,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                 copyOnWifi = { appPreferences.settings.value.copyHomeOnWifi },
                 kept = PrefsKeptAtHome(context),
                 moving = PrefsKeptAtHome(context, "totum_moving_home"),
+                identity = { requesterIdentity.requester() },
             ),
             downloads = lockingDownloads,
             operations = operations,

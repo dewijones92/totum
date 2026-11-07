@@ -152,6 +152,7 @@ private fun ReelQueueBinding(
             byYou = false,
             endsRepeatOne = opening,
             reason = PlayReason.Chosen(ChosenWay.SHORTS_REEL),
+            local = true,
         )
         opening = false
     }

@@ -37,13 +37,13 @@ class TargetRulesTest {
         PlayHandle.Podcast(),
     )
 
-    private val owner = Requester("dewi-phone", "Dewi's phone", owner = true)
-    private val wife = Requester("wife-phone", "Wife's phone", owner = false)
+    private val owner = Requester("dewi-phone", "Dewi's phone")
+    private val wife = Requester("wife-phone", "Wife's phone")
 
     @Test
     fun `only an item queued from the owner's phone reports to YouTube`() {
-        val mine = QueueEntry(video("aaaaaaaaaaa")).toTargetEntry(owner)
-        val hers = QueueEntry(video("bbbbbbbbbbb")).toTargetEntry(wife)
+        val mine = QueueEntry(video("aaaaaaaaaaa")).toTargetEntry(owner, owner.id)
+        val hers = QueueEntry(video("bbbbbbbbbbb")).toTargetEntry(wife, owner.id)
         val anonymous = QueueEntry(video("ccccccccccc")).toTargetEntry()
 
         assertEquals("aaaaaaaaaaa", TargetReporting.videoIdToReport(mine, signedIn = true))
@@ -53,19 +53,20 @@ class TargetRulesTest {
 
     @Test
     fun `nothing is reported while the Pi is signed out, and a podcast is never reported`() {
-        val mine = QueueEntry(video("aaaaaaaaaaa")).toTargetEntry(owner)
-        val episode = QueueEntry(podcast("p1")).toTargetEntry(owner)
+        val mine = QueueEntry(video("aaaaaaaaaaa")).toTargetEntry(owner, owner.id)
+        val episode = QueueEntry(podcast("p1")).toTargetEntry(owner, owner.id)
 
         assertNull(TargetReporting.videoIdToReport(mine, signedIn = false))
         assertNull(TargetReporting.videoIdToReport(episode, signedIn = true))
         assertEquals("the Pi is not signed in to YouTube", TargetReporting.why(mine, signedIn = false))
         assertEquals("not a YouTube video", TargetReporting.why(episode, signedIn = true))
-        assertTrue(TargetReporting.why(QueueEntry(video("bbbbbbbbbbb")).toTargetEntry(wife), true).contains("Wife"))
+        val hers = QueueEntry(video("bbbbbbbbbbb")).toTargetEntry(wife, owner.id)
+        assertTrue(TargetReporting.why(hers, true).contains("Wife"))
     }
 
     @Test
     fun `who added an item travels with it`() {
-        val entry = QueueEntry(video("aaaaaaaaaaa")).toTargetEntry(wife)
+        val entry = QueueEntry(video("aaaaaaaaaaa")).toTargetEntry(wife, owner.id)
 
         assertEquals("Wife's phone", entry.addedBy)
         assertFalse(entry.reportsToYouTube)
@@ -120,6 +121,25 @@ class TargetRulesTest {
         assertEquals(42_000L, plan.startAtMs)
         assertEquals(listOf(2, 3), plan.toRemove)
         assertEquals("Bluey", plan.groupTitle)
+    }
+
+    @Test
+    fun `a send is an insert after what plays there, never a replace of the target's queue`() {
+        val bluey = QueueGroup("shuffle:bluey", "Bluey")
+        val snapshot = QueueSnapshot(
+            listOf(QueueEntry(video("aaaaaaaaaaa"), bluey), QueueEntry(video("bbbbbbbbbbb"), bluey)),
+            currentIndex = 0,
+        )
+        val plan = SendTo.plan(snapshot, playingPositionMs = 9_000)!!
+
+        val request = plan.request(owner)
+
+        assertEquals(QueueMode.PLAY, request.mode)
+        assertEquals(plan.items, request.items)
+        assertEquals("aaaaaaaaaaa", request.startItemId)
+        assertEquals(9_000L, request.startAtMs)
+        assertEquals("Bluey", request.groupTitle)
+        assertEquals(owner, request.from)
     }
 
     @Test

@@ -10,6 +10,7 @@ import com.dewijones92.totum.data.home.HomeJobRequest
 import com.dewijones92.totum.data.home.HomeJobState
 import com.dewijones92.totum.data.home.HomeJobsApi
 import com.dewijones92.totum.data.home.HomeProblem
+import com.dewijones92.totum.data.targets.Requester
 import com.dewijones92.totum.data.home.PhoneDecoder
 import com.dewijones92.totum.domain.HomeCopy
 import com.dewijones92.totum.domain.MediaItemId
@@ -53,6 +54,7 @@ class PhoneSide(
     val copyOnWifi: () -> Boolean = { false },
     val kept: KeptAtHome = InMemoryKeptAtHome(),
     val moving: KeptAtHome = InMemoryKeptAtHome(),
+    val identity: suspend () -> Requester = { Requester("unknown", "This phone") },
 )
 
 class Pacing(
@@ -94,7 +96,7 @@ class HomeDownloads(
     )
     private val phoneDownloads = downloads
     val kept: StateFlow<Set<String>> get() = phone.kept.ids
-    private val handover = SignInHandover(phone.youTubeTokens)
+    private val handover = SignInHandover(phone.youTubeTokens, phone.identity) { text -> notices.problem("youtube-owner", text) }
     private var uploadLimitBytes = 0L
     private val wake = Channel<String>(Channel.CONFLATED)
     private val moves = HomeMoves(phone.moving) { deleteOnPhoneOnly(it) }
@@ -192,8 +194,10 @@ class HomeDownloads(
     fun forgetAccount() {
         handover.forget()
         scope.launch {
-            val answer = client?.forgetAccount() ?: return@launch
-            Diag.log(TAG, "asked home to forget the YouTube sign-in: $answer")
+            val by = phone.identity().id
+            val answer = client?.forgetAccount(by) ?: return@launch
+            Diag.log(TAG, "asked home to forget the YouTube sign-in (as $by): $answer")
+            if (answer is HomeAnswer.No) notices.problem("youtube-owner", answer.reason)
         }
     }
 

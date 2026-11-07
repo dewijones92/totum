@@ -1,6 +1,7 @@
 package com.dewijones92.totum.data.home
 
 import com.dewijones92.totum.data.backup.BackupItem
+import com.dewijones92.totum.data.targets.Requester
 import com.dewijones92.totum.domain.Transfer
 import com.dewijones92.totum.domain.TransferPlace
 import com.dewijones92.totum.domain.percentOf
@@ -70,7 +71,17 @@ public data class HomeJobs(
     val youTubeSignedIn: Boolean,
     val problems: List<HomeProblem> = emptyList(),
     val uploadLimitBytes: Long = 0,
+    val youTubeOwner: String? = null,
 )
 
 @Serializable
-public data class AccountHandover(val accessToken: String, val refreshToken: String, val expiresAtEpochSeconds: Long)
+public data class AccountHandover(
+    val accessToken: String,
+    val refreshToken: String,
+    val expiresAtEpochSeconds: Long,
+    val from: Requester? = null,
+) {
+    public companion object {
+        public const val REFUSED_MARK: String = "🔒"
+    }
+}

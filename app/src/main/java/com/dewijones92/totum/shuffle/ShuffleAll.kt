@@ -123,14 +123,19 @@ class ShuffleAll(
     val operations: Operations = Operations(),
     private val notForMe: NotForMe = NotForMe(),
 ) {
-    suspend fun shuffle(target: ShuffleTarget, includeShorts: Boolean, startAtRandom: Boolean? = null): ShuffleOutcome {
+    suspend fun shuffle(
+        target: ShuffleTarget,
+        includeShorts: Boolean,
+        startAtRandom: Boolean? = null,
+        local: Boolean = false,
+    ): ShuffleOutcome {
         if (operations.isRunning(target.key)) {
             Diag.log(TAG, "\"${target.title}\" is already loading; ignoring a second tap")
             return ShuffleOutcome.AlreadyLoading
         }
         var outcome: ShuffleOutcome = ShuffleOutcome.Nothing
         operations.track(target.key, OperationKind.SHUFFLE_SOURCES, target.title) { progress ->
-            outcome = gatherAndPlay(target, includeShorts, startAtRandom, progress)
+            outcome = gatherAndPlay(target, includeShorts, startAtRandom, progress, local)
             when (val done = outcome) {
                 is ShuffleOutcome.Shuffled -> OperationEnd.Done(done.count, partial = done.unfinished.isNotEmpty())
                 else -> OperationEnd.Nothing
@@ -144,6 +149,7 @@ class ShuffleAll(
         includeShorts: Boolean,
         startAtRandom: Boolean?,
         progress: Operations.Progress,
+        local: Boolean,
     ): ShuffleOutcome {
         val (key, title, sources) = target
         val started = TimeSource.Monotonic.markNow()
@@ -162,7 +168,7 @@ class ShuffleAll(
         val shuffled = playable.shuffled()
         randomStarts?.assign(shuffled.map { it.item }, "shuffle all \"$title\"", startAtRandom)
         val group = QueueGroup(id = "shuffle:$key", title = title)
-        queue.playAll(shuffled, group, reason = PlayReason.Chosen(ChosenWay.SHUFFLE))
+        queue.playAll(shuffled, group, reason = PlayReason.Chosen(ChosenWay.SHUFFLE), local = local)
         stats?.use(UseKind.SHUFFLE, "shuffle all")
         val pin = Pin.ShuffleAllOf(
             target = key,

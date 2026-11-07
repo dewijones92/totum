@@ -17,7 +17,7 @@ internal fun kidTvFor(c: AppContainer, context: Context): KidTv = KidTv(
     ports = KidTvPorts(
         connector = MediaRouterTvConnector(context, CastTarget.device),
         castDevice = CastTarget.device,
-        play = { pin -> c.pinPlayer.play(pin, from = "the Kid TV button") },
+        play = { pin -> c.pinPlayer.play(pin, from = "the Kid TV button", local = true) },
         pause = { c.playbackController.setPlaying(false) },
         endCast = { endCurrentCast(context) },
         startingLabel = { title, tv -> context.getString(R.string.kidtv_starting, title, tv) },

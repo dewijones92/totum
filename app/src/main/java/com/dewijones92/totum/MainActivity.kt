@@ -160,7 +160,7 @@ class MainActivity : FragmentActivity() {
         }
         val lockOnOpen = HomeScreenShortcuts.locksOnOpen(intent.data)
         container.applicationScope.launch {
-            val played = container.pinPlayer.play(pin, from = "home-screen shortcut via $via")
+            val played = container.pinPlayer.play(pin, from = "home-screen shortcut via $via", local = lockOnOpen)
             if (lockOnOpen) {
                 if (played is PinPlayed.Started) {
                     container.kidLock.lock("home-screen shortcut $key (picture=${played.showsPicture})")

@@ -10,7 +10,8 @@ import com.dewijones92.totum.domain.PlayHandle
 
 public object TargetReporting {
 
-    public fun reports(requester: Requester?): Boolean = requester?.owner == true
+    public fun reports(requester: Requester?, ownerId: String?): Boolean =
+        requester != null && ownerId != null && requester.id == ownerId
 
     public fun videoIdToReport(entry: TargetEntry, signedIn: Boolean): String? {
         if (!entry.reportsToYouTube || !signedIn) return null
@@ -20,7 +21,7 @@ public object TargetReporting {
     }
 
     public fun why(entry: TargetEntry, signedIn: Boolean): String = when {
-        !entry.reportsToYouTube -> "not queued from the owner's phone (added by ${entry.addedBy ?: "unknown"})"
+        !entry.reportsToYouTube -> "not queued from the phone that signed the Pi in (added by ${entry.addedBy ?: "unknown"})"
         !signedIn -> "the Pi is not signed in to YouTube"
         videoIdToReport(entry, signedIn = true) == null -> "not a YouTube video"
         else -> "reported"
@@ -66,6 +67,16 @@ public data class SendPlan(
     val startItemId: String,
     val startAtMs: Long,
     val toRemove: List<Int>,
+)
+
+public fun SendPlan.request(from: Requester?): TargetQueueRequest = TargetQueueRequest(
+    items = items,
+    mode = QueueMode.PLAY,
+    groupId = groupId,
+    groupTitle = groupTitle,
+    from = from,
+    startAtMs = startAtMs,
+    startItemId = startItemId,
 )
 
 public object SendTo {

@@ -23,6 +23,7 @@ import com.dewijones92.totum.data.targets.toTargetEntry
 import com.dewijones92.totum.domain.Picture
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.picture
+import com.dewijones92.totum.domain.skipsSilence
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.io.File
@@ -37,6 +38,7 @@ internal class TargetDeck(
     private val random: Random = Random.Default,
     private val lookAhead: (PlayableItem) -> Unit = {},
     private val reporter: ProgressReporter = ProgressReporter.NONE,
+    private val ownerId: () -> String? = { null },
 ) {
     private val store = DeckStore(file)
     private val lock = Mutex()
@@ -47,6 +49,7 @@ internal class TargetDeck(
     private var problem: String? = null
     private var sound = SoundSettings()
     private val provenance = Provenances()
+    private var reachedAhead: String? = null
 
     init {
         restore()
@@ -65,14 +68,17 @@ internal class TargetDeck(
         sound = sound,
     )
 
-    suspend fun enqueue(request: TargetQueueRequest): TargetState = lock.withLock {
+    suspend fun enqueue(request: TargetQueueRequest): EnqueueResult =
+        reachingFirst(needsLink = true) { enqueueLocked(request) }
+
+    private suspend fun enqueueLocked(request: TargetQueueRequest): EnqueueResult {
         val wanted = request.playables(random, target.id)
         if (wanted.isEmpty()) {
-            Diag.log("targets", "${target.id}: nothing playable in a ${request.mode} of ${request.items.size}")
-            return@withLock state()
+            Diag.warn("targets", "${target.id}: nothing playable in a ${request.mode} of ${request.items.size}")
+            return EnqueueResult.Refused("❌ Nothing in that was playable on ${target.label}")
         }
         val group = request.group
-        provenance.note(wanted, request.from)
+        provenance.note(wanted, request.from, ownerId())
         queue = when (request.mode) {
             QueueMode.REPLACE -> QueueSnapshot(wanted.map { QueueEntry(it, group) })
             QueueMode.NEXT -> queue.insertingAllNext(wanted, group)
@@ -82,7 +88,7 @@ internal class TargetDeck(
         Diag.log(
             "targets",
             "${target.id}: ${request.mode} ${wanted.size} item(s) group=${group?.title} shuffle=${request.shuffle} " +
-                "from=${request.from?.label}(owner=${request.from?.owner}) startItem=${request.startItemId} " +
+                "from=${request.from?.label}(owner=${request.from?.id == ownerId()}) startItem=${request.startItemId} " +
                 "startAtMs=${request.startAtMs} queue=${queue.entries.size} playing=$playing",
         )
         if (request.mode == QueueMode.REPLACE || request.mode == QueueMode.PLAY || !playing) {
@@ -93,11 +99,14 @@ internal class TargetDeck(
         } else {
             save()
         }
-        state()
+        return EnqueueResult.Accepted(state())
     }
 
+    suspend fun control(control: TargetControl): TargetState =
+        reachingFirst(needsLink = control.action in STARTING_ACTIONS) { controlLocked(control) }
+
     @Suppress("CyclomaticComplexMethod")
-    suspend fun control(control: TargetControl): TargetState = lock.withLock {
+    private suspend fun controlLocked(control: TargetControl): TargetState {
         Diag.log(
             "targets",
             "${target.id}: ${control.action} index=${control.index} at=${queue.currentIndex} playing=$playing"
@@ -122,13 +131,15 @@ internal class TargetDeck(
             TargetAction.SOUND -> control.sound?.let { changeSound(it) }
         }
         save()
-        state()
+        return state()
     }
 
-    suspend fun ended(failed: Boolean) = lock.withLock {
+    suspend fun ended(failed: Boolean) = reachingFirst(needsLink = false) { endedLocked(failed) }
+
+    private suspend fun endedLocked(failed: Boolean) {
         if (!playing) {
             Diag.log("targets", "${target.id}: an end with nothing playing, ignored (failed=$failed)")
-            return@withLock
+            return
         }
         Diag.log(
             "targets",
@@ -136,6 +147,19 @@ internal class TargetDeck(
         )
         if (!failed) reportProgress(finished = true)
         startAt(queue.currentIndex + 1)
+    }
+
+    private suspend fun <T> reachingFirst(needsLink: Boolean, block: suspend () -> T): T {
+        val linked = lock.withLock { destination != null }
+        val ahead = if (linked || !needsLink) null else link.connect()
+        return lock.withLock {
+            reachedAhead = ahead
+            try {
+                block()
+            } finally {
+                reachedAhead = null
+            }
+        }
     }
 
     suspend fun tick() = lock.withLock {
@@ -173,6 +197,7 @@ internal class TargetDeck(
         while (at in queue.entries.indices) {
             val item = queue.entries[at].item
             val picture = target.kind.hasPicture && item.picture != Picture.NO
+            val itemSound = sound.copy(skipSilence = item.item.contentKind.skipsSilence(sound.skipSilence))
             val url = sounds.urlFor(item, picture)
             if (url == null) {
                 Diag.warn(
@@ -183,7 +208,7 @@ internal class TargetDeck(
                 at++
                 continue
             }
-            val reached = destination ?: link.connect().also { destination = it }
+            val reached = destination ?: reachedAhead?.also { destination = it }
             queue = queue.copy(currentIndex = at)
             if (reached == null) {
                 problem = "⚠️ Couldn't reach ${target.label}"
@@ -192,13 +217,14 @@ internal class TargetDeck(
                 save()
                 return
             }
-            player.play(PlayRequest(url, reached, volume, sound, startAtMs, picture, item.item.title))
+            player.play(PlayRequest(url, reached, volume, itemSound, startAtMs, picture, item.item.title))
             playing = true
             problem = null
             Diag.log(
                 "targets",
                 "${target.id}: playing $at/${queue.entries.size} ${item.item.title} on $reached " +
-                    "picture=$picture sound=$sound from=${startAtMs}ms",
+                    "picture=$picture sound=$itemSound (asked for $sound, kind ${item.item.contentKind}) " +
+                    "from=${startAtMs}ms",
             )
             save()
             queue.entries.getOrNull(at + 1)?.let { lookAhead(it.item) }
@@ -253,6 +279,8 @@ internal class TargetDeck(
 
 private const val MAX_VOLUME = 100
 
+private val STARTING_ACTIONS = setOf(TargetAction.PLAY, TargetAction.NEXT, TargetAction.PREVIOUS, TargetAction.JUMP)
+
 private fun TargetQueueRequest.playables(random: Random, targetId: String): List<PlayableItem> = items
     .mapNotNull { backup ->
         backup.toPlayable().also {
@@ -261,13 +289,18 @@ private fun TargetQueueRequest.playables(random: Random, targetId: String): List
     }
     .let { if (shuffle) it.shuffled(random) else it }
 
+internal sealed interface EnqueueResult {
+    data class Accepted(val state: TargetState) : EnqueueResult
+    data class Refused(val why: String) : EnqueueResult
+}
+
 internal class Provenances {
     private class Who(val addedBy: String?, val reports: Boolean)
 
     private val byItem = HashMap<String, Who>()
 
-    fun note(items: List<PlayableItem>, from: Requester?) {
-        items.forEach { byItem[it.item.id.value] = Who(from?.label, TargetReporting.reports(from)) }
+    fun note(items: List<PlayableItem>, from: Requester?, ownerId: String?) {
+        items.forEach { byItem[it.item.id.value] = Who(from?.label, TargetReporting.reports(from, ownerId)) }
     }
 
     fun restore(entries: List<TargetEntry>) {

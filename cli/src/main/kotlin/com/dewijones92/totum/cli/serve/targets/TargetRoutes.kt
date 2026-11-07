@@ -4,6 +4,7 @@ import com.dewijones92.totum.cli.serve.Routes
 import com.dewijones92.totum.cli.serve.query
 import com.dewijones92.totum.cli.serve.reply
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.data.ask.AskJson
 import com.dewijones92.totum.data.targets.TargetControl
 import com.dewijones92.totum.data.targets.TargetQueueRequest
 import com.dewijones92.totum.data.targets.TargetState
@@ -12,6 +13,7 @@ import com.dewijones92.totum.data.targets.TargetsJson
 import com.sun.net.httpserver.HttpExchange
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.KSerializer
+import kotlinx.serialization.builtins.serializer
 
 internal class TargetRoutes(private val decks: TargetDecks) : Routes {
 
@@ -26,7 +28,10 @@ internal class TargetRoutes(private val decks: TargetDecks) : Routes {
                 )
             method != "POST" -> exchange.reply(NOT_FOUND, """{"error":"no such route"}""")
             path == "/targets/queue" -> withDeck(exchange, TargetQueueRequest.serializer()) { deck, request ->
-                deck.enqueue(request)
+                when (val result = deck.enqueue(request)) {
+                    is EnqueueResult.Accepted -> result.state
+                    is EnqueueResult.Refused -> throw Refusal(result.why)
+                }
             }
             else -> withDeck(exchange, TargetControl.serializer()) { deck, control -> deck.control(control) }
         }
@@ -44,13 +49,20 @@ internal class TargetRoutes(private val decks: TargetDecks) : Routes {
             return exchange.reply(BAD_REQUEST, """{"error":"unreadable request"}""")
         }
         val deck = decks.deck(id) ?: return exchange.reply(NOT_FOUND, """{"error":"❌ No target $id"}""")
-        exchange.reply(OK, TargetsJson.encodeToString(TargetState.serializer(), act(deck, body)))
+        try {
+            exchange.reply(OK, TargetsJson.encodeToString(TargetState.serializer(), act(deck, body)))
+        } catch (refused: Refusal) {
+            exchange.reply(UNPROCESSABLE, """{"error":${AskJson.encodeToString(String.serializer(), refused.message)}}""")
+        }
     }
+
+    private class Refusal(override val message: String) : RuntimeException(message)
 
     private companion object {
         const val OK = 200
         const val BAD_REQUEST = 400
         const val NOT_FOUND = 404
+        const val UNPROCESSABLE = 422
         const val LOGGED = 300
         val PATHS = setOf("/targets", "/targets/queue", "/targets/control")
     }
