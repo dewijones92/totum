@@ -1,14 +1,4 @@
 #!/usr/bin/env python3
-"""Home Assistant's audio endpoint, as an adapter over Totum's targets.
-
-Totum owns the Bluetooth speakers (dot-files ADR 0009, Totum ADRs 152 and 155). This service keeps the
-URLs and the /status JSON that Home Assistant already calls on 127.0.0.1:8099, but it plays nothing
-itself: every play, stop and speaker choice is a request to Totum's /targets on 127.0.0.1:8770, and
-/status is derived from GET /targets (cached a few seconds, because HA polls it).
-
-What Home Assistant started is recognised by its requester ("🏠 Home Assistant") on the queue entry, so a
-restart of this service loses nothing and a sound a phone queued on the same speaker is left alone.
-"""
 import json
 import os
 import threading
@@ -97,7 +87,6 @@ def holds(state):
 
 
 def holder(targets_json, selected):
-    """The speaker Home Assistant is using: the selected one if it holds a sound of ours, else any that does."""
     states = states_by_speaker(targets_json)
     order = [selected] + [n for n in SPEAKERS if n != selected]
     holding = [n for n in order if states[n] and holds(states[n])]
