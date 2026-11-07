@@ -167,6 +167,9 @@ the selection, no targets means no chips).
 
 Still owed, with the reason:
 
+- The YouTube relay on the real LG and Chromecast: a video sent from the phone plays past 4 s and to its end, seeks,
+  and its Pi log shows `stream relayed at /y/…` with ranges; a YouTube sound to a speaker (mpv) and a boosted one
+  through the relay.
 - Real-device day pass (volume rule: TV and speakers at 3% or lower, short silent or very quiet clips, volume restored):
   send a quiet clip from the phone to the LG, then the Chromecast, then the soundbar; pause, resume, next, jump, remove,
   volume; skip silences and boost on a speaker and on a TV; two speakers at the same time (stutter); a YouTube video

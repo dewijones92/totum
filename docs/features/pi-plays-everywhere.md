@@ -32,9 +32,11 @@ sound processing on the Pi). Brief: [pi-plays-everywhere.md](../todos/pi-plays-e
 - **Speakers are targets.** Any paired Bluetooth device with an Audio Sink is listed, linked only while it plays
   (ADR 116, unchanged), each with its own queue at the same time as the others.
 - **TVs and Chromecasts** listed in `TOTUM_CAST_TARGETS` (name=address, `;`-separated) are driven through `pychromecast`.
-  A YouTube video goes to the TV as the same address the phone would play, so the TV fetches it itself from the same home
-  IP; a home copy is served by the Pi (`SoundStreams`, ranged, a random token in the path). Audio the user has
-  processed (skip silences, boost) is decoded, processed and AAC-encoded on the Pi and served to the TV.
+  A YouTube video goes to the TV through the Pi: the Pi serves it at `/y/<token>.<ext>` and fetches it from YouTube in
+  2 MB ranges (YouTube stops a plain fetch after about a megabyte, which is what ended the first send to the LG after 3
+  seconds), whatever the TV asks for; the same relay feeds mpv and ffmpeg on the Pi over loopback. A home copy is served by
+  the Pi (`SoundStreams`, ranged, a random token in the path). Audio the user has processed (skip silences, boost) is
+  decoded, processed and AAC-encoded on the Pi and served to the TV.
 - **YouTube progress** is reported from the Pi for items queued from the phone that signed the Pi in only (the Pi records
   which phone handed the sign-in over), on pause, skip, an item ending and every 30 s; items from another phone are not.
   A second phone's sign-in hand-over is refused until the first phone signs the Pi out.
@@ -53,7 +55,7 @@ sound processing on the Pi). Brief: [pi-plays-everywhere.md](../todos/pi-plays-e
 | Pi decks, routes, reporting | `cli/…/serve/targets/` (`TargetDeck`, `TargetDecks`, `TargetRoutes`, `DeckStore`, `YouTubeProgress`) |
 | Pi sound pipelines | `cli/…/serve/sound/ProcessedSound.kt` |
 | Speakers | `cli/…/serve/speakers/` (`Bluez.kt`, `MpvPlayer.kt` — now a `TargetPlayer`, `SpeakerSource`) |
-| TVs | `cli/…/serve/cast/` (`ChromecastPlayer`, `CastControl`, `CastWire`, `SoundStreams`), `server/totum-cli/chromecast_helper.py` |
+| TVs | `cli/…/serve/cast/` (`ChromecastPlayer`, `CastControl`, `CastWire`, `SoundStreams`, `StreamRelay`), `server/totum-cli/chromecast_helper.py`; the ranged reader `ChunkedUpstream`, `PatientUpstream` and `LocalRanges.replyFor` in `core/cast` |
 | Phone | `app/…/targets/` (`TargetsRepository`, `SendToTarget`, `TargetColourStore`, `RequesterIdentity`), `ui/queue/` (`QueueWithTargets`, `TargetChips`, `RemoteQueue`, `SendToButton`), `queue/QueueDestination.kt` |
 
 ## Not built (see the todo)
@@ -68,4 +70,6 @@ Unit: `PcmChainTest`, `TargetRulesTest`, `TargetEntriesTest` (core), `TargetDeck
 `PcmPumpTest`, `CastWireTest`, `CastControlTest`, `YouTubeOwnershipTest` (cli); `TargetsRepositoryTest`, `PlayLocallyTest`,
 `SignInHandoverTest`, `RequesterIdentityTest` (app); and from the 2026-11-07 testing stretch `TargetRoutesTest`,
 `TargetDecksTest`, `DeckStoreTest`, `MpvPlayerTest`, `SoundStreamsTest`, `ChromecastPlayerTest`,
-`ProcessedSoundEndToEndTest` (cli), `RedirectEntryPointsTest`, `SendToTargetTest` (app). Owed: see the todo.
+`ProcessedSoundEndToEndTest` (cli), `RedirectEntryPointsTest`, `SendToTargetTest` (app); and from the two fixes after the
+first run on the LG `StreamRelayTest` (cli), `ChunkedUpstreamTest`, `LocalRangesTest` (core/cast) for the relay, and the
+volume tests in `TargetDeckTest`, `ChromecastPlayerTest`, `MpvPlayerTest`, `CastControlTest`, `CastWireTest`. Owed: see the todo.

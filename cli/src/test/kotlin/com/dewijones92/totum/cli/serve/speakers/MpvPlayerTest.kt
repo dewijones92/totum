@@ -43,9 +43,13 @@ class MpvPlayerTest {
         repeat(WAIT_TICKS) { if (!condition()) Thread.sleep(TICK_MS) }
     }
 
-    private fun mpv(body: String, ffmpeg: String? = null): MpvPlayer {
+    private fun mpv(
+        body: String,
+        ffmpeg: String? = null,
+        locally: (String, String) -> String = { _, url -> url },
+    ): MpvPlayer {
         val processed = ffmpeg?.let { ProcessedSound(it) { null } } ?: ProcessedSound("ffmpeg-not-used") { null }
-        return MpvPlayer("bar", dir, script("mpv.sh", body), processed).also {
+        return MpvPlayer("bar", dir, script("mpv.sh", body), processed, locally).also {
             it.onEnded = { failed ->
                 ended += failed
                 latch.countDown()
@@ -90,6 +94,43 @@ class MpvPlayerTest {
         assertFalse(runs.first().toString(), runs.first().any { it.startsWith("--volume") })
         assertTrue(runs.last().toString(), runs.last().contains("--volume=30"))
         assertEquals(30, p.volumePercent)
+    }
+
+    @Test
+    fun `mpv is given the address the Pi relays a stream at, and the item's own address is not used`() {
+        val p = mpv(
+            """printf '%s\n' "${'$'}@" > "${dir.path}/argv.txt"""",
+            locally = { label, _ -> "http://127.0.0.1:8771/y/$label.mp4" },
+        )
+
+        p.play(request(url = "https://r.googlevideo.com/videoplayback?clen=1"))
+
+        val args = argv("argv.txt")
+        assertEquals(listOf("--", "http://127.0.0.1:8771/y/bar.mp4"), args.takeLast(2))
+        assertFalse(args.toString(), args.any { it.contains("googlevideo") })
+    }
+
+    @Test
+    fun `a boosted item is decoded by ffmpeg from the relayed address too`() {
+        val ffmpeg = script(
+            "ffmpeg.sh",
+            """printf '%s\n' "${'$'}@" > "${dir.path}/ffmpeg-argv.txt"; head -c 96000 /dev/zero"""
+        )
+        val p = mpv(
+            """cat > /dev/null""",
+            ffmpeg,
+            locally = { _, _ -> "http://127.0.0.1:8771/y/relayed.mp4" },
+        )
+
+        p.play(
+            request(
+                url = "https://r.googlevideo.com/videoplayback?clen=1",
+                sound = SoundSettings(boost = VolumeBoost.AUTO)
+            )
+        )
+
+        val args = argv("ffmpeg-argv.txt")
+        assertEquals("http://127.0.0.1:8771/y/relayed.mp4", args[args.indexOf("-i") + 1])
     }
 
     @Test

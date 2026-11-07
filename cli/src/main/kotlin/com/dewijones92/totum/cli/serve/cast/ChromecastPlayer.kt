@@ -45,13 +45,25 @@ internal class ChromecastPlayer(
         val url = when {
             processed -> streams.offer(label, request.url, request.sound, request.startAtMs)
             request.url.startsWith("/") -> streams.offerFile(label, File(request.url))
+            streams.relays(request.url) -> relayed(request)
             else -> null
         } ?: request.url
-        offerUrl = url.takeIf { processed || request.url.startsWith("/") }
+        offerUrl = url.takeIf { it != request.url }
         offsetMs = if (processed) request.startAtMs else 0L
         sourceUrl = if (processed) url else null
         val startAt = if (processed) 0L else request.startAtMs
-        control.load(url, contentTypeOf(url, request.picture, processed), request.title, startAt)
+        control.load(url, contentTypeOf(request.url, request.picture, processed), request.title, startAt)
+    }
+
+    private fun relayed(request: PlayRequest): String? {
+        val address = streams.offerRelayed(label, request.url)
+        val outcome = if (address == null) {
+            "given as it is (no address the TV can reach is configured)"
+        } else {
+            "relayed by the Pi"
+        }
+        Diag.log("cast-target", "$label: YouTube stream $outcome")
+        return address
     }
 
     override fun pause(paused: Boolean) = control.pause(paused)

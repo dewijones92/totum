@@ -33,6 +33,7 @@ internal class MpvPlayer(
     private val dir: File,
     private val mpv: String = System.getenv("TOTUM_MPV") ?: "mpv",
     private val processed: ProcessedSound = ProcessedSound(),
+    private val locally: (label: String, url: String) -> String = { _, url -> url },
 ) : TargetPlayer {
     private val socket = File(dir, "mpv-$id.sock")
 
@@ -59,13 +60,14 @@ internal class MpvPlayer(
         socket.delete()
         val log = File(dir, "mpv-$id.log")
         val piped = request.sound.changesSound
+        val address = locally(id, request.url)
         val source = if (piped) {
             PIPED_SOURCE
         } else {
             listOf(
                 "--start=${request.startAtMs / MS_PER_S.toDouble()}",
                 "--",
-                request.url
+                address
             )
         }
         val command = listOf(
@@ -78,7 +80,7 @@ internal class MpvPlayer(
         offsetMs = request.startAtMs
         pipeline = if (piped) {
             processed.toSink(
-                SoundJob(id, request.url, request.sound, request.startAtMs),
+                SoundJob(id, address, request.sound, request.startAtMs),
                 started.outputStream,
             ) { failed ->
                 if (failed) pipelineFailed = true
@@ -90,8 +92,7 @@ internal class MpvPlayer(
         Diag.log(
             "speakers",
             "$id: mpv ${started.pid()} on ${request.destination} volume=${chosenVolume ?: "untouched"} " +
-                "${if (request.url.startsWith("/")) "file" else "stream"} sound=${request.sound} " +
-                "from=${request.startAtMs}ms",
+                "${sourceKind(request.url, address)} sound=${request.sound} from=${request.startAtMs}ms",
         )
         thread(name = "mpv-$id", isDaemon = true) {
             val code = started.waitFor()
@@ -110,6 +111,12 @@ internal class MpvPlayer(
                 onEnded(failed)
             }
         }
+    }
+
+    private fun sourceKind(url: String, address: String): String = when {
+        url.startsWith("/") -> "file"
+        address != url -> "relayed stream"
+        else -> "stream"
     }
 
     override fun pause(paused: Boolean) {

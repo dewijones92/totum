@@ -18,6 +18,7 @@ internal class SoundStreams(
     private val processed: ProcessedSound,
     private val base: String?,
     private val port: Int,
+    private val relay: StreamRelay = StreamRelay(),
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
     private class Offer(
@@ -35,12 +36,28 @@ internal class SoundStreams(
 
     val available: Boolean get() = base != null
 
+    fun relays(url: String): Boolean = relay.carries(url)
+
+    fun relayed(): Int = relay.offered()
+
+    fun offerRelayed(label: String, url: String): String? {
+        val where = base ?: return null
+        server.start(port)
+        return "${where.trimEnd('/')}${relay.offer(label, url)}"
+    }
+
+    fun locally(label: String, url: String): String {
+        if (!relay.carries(url)) return url
+        val listening = server.start(port)
+        return "http://127.0.0.1:$listening${relay.offer(label, url)}"
+    }
+
     fun offer(label: String, url: String, sound: SoundSettings, startAtMs: Long): String? {
         val where = base ?: return null
         server.start(port)
         prune()
         val token = tokenOf()
-        offers[token] = Offer(label, url, sound, startAtMs, clock())
+        offers[token] = Offer(label, locally(label, url), sound, startAtMs, clock())
         Diag.log("cast-target", "$label: processed sound offered at /s/${token.take(TOKEN_SHOWN)}… sound=$sound")
         return "${where.trimEnd('/')}/s/$token.aac"
     }
@@ -73,9 +90,11 @@ internal class SoundStreams(
         val token = tokenIn(url)
         if (token != null) offers.remove(token)?.running?.stop()
         FILE.find(url)?.groupValues?.get(1)?.let(files::remove)
+        relay.tokenIn(url)?.let(relay::withdraw)
     }
 
     private fun handle(request: HttpRequest): HttpReply {
+        relay.handle(request)?.let { return it }
         FILE.matchEntire(request.path)?.groupValues?.get(1)?.let(files::get)?.let { file ->
             Diag.log("cast-target", "${file.name}: ${request.from} fetches ${request.header("range") ?: "all of it"}")
             return LocalRanges.reply(file, request.header("range"))

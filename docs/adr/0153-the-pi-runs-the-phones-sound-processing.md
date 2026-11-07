@@ -42,14 +42,40 @@ spike measured the whole chain at about 13 times real time on one of the Pi's fo
 - **A picture is not processed yet.** For a TV showing a video, the sound goes as it comes; the log line says so. The
   phone's DASH path (original video packets plus processed audio segments, ADR 68) needs `CastStreams` split in two
   and is not built.
+- **A YouTube stream reaches a TV, mpv or ffmpeg through the Pi's own relay (amended 2026-11-07).** The first build
+  gave the receiver the raw `googlevideo` address, which the TV fetches straight through, and YouTube stops such a
+  fetch after about the first megabyte (the 0.1.887 run on the LG: `load sent`, 2.8 s of 20 s played, then
+  `idle (FINISHED)`; the same cap that made the phone, the Pi's downloads and ADR 68's relay fetch in ranges).
+  `StreamRelay` (`cli/serve/cast`) now serves such an address at `/y/<token>.<ext>` on `CastHttpServer` (port 8771,
+  `TOTUM_CAST_BASE`), answering any request, with or without a `Range`, by asking YouTube in bounded ranges of 2 MB
+  (`ChunkedUpstream` in `:core:cast`, driven by `ChunkedRead`, the arithmetic ADR 68's player source already used, which
+  moved there from `:core:playback`). The reply shape is `LocalRanges.replyFor`, the file reply generalised to any source
+  of known length (so a TV's seeks, `bytes=N-` and `bytes=-N`, work); the length is the link's `clen`, else asked of the
+  server with `bytes=0-0`; a stream whose length cannot be learned answers 502, never a guess.
+  - **Only a plain `videoplayback` address on `googlevideo.com` is relayed** (`isYouTubeStream`): a manifest, a live
+    segment (`sq=`, `live=1`), a Jellyfin or podcast address, a home copy and a processed stream are not.
+  - **The young-URL rule of [ADR 13](0013-playback-start-young-urls-held-bytes-and-copies.md) holds:** `PatientUpstream`
+    asks again when YouTube refuses a URL under 15 s old, at the learned window, at most three times; the Pi's resolve
+    (`HomeDownloads.soundOf`) still waits for that window before handing a URL out.
+  - **Picture or not is unchanged:** the resolve picks the picture or the audio-only address by the deck's choice; the
+    relay only carries what it is given, typed from the address's own `mime=`.
+  - **Where each player gets it:** a Chromecast gets the Pi's LAN address (`SoundStreams.offerRelayed`, withdrawn on
+    stop; with no `TOTUM_CAST_BASE` it gets the raw address and the log says why); mpv and ffmpeg (a boosted or cut
+    item, to a speaker or a TV) get `http://127.0.0.1:<port>/y/…` (`SoundStreams.locally`), since they run in the same
+    container. Whether mpv's own reader hit the cap was not measured (nothing was run on a speaker); it asks the same
+    address the same way, so it goes through the relay too. At most 64 relayed addresses are kept; the oldest is dropped.
+  - Logs: `YouTube stream relayed by the Pi` (or `given as it is`), `stream relayed at /y/xxxxxx… type= length=`, each
+    request with its range, the probe, a refused young URL, and an early end with the bytes still owed.
 - **TVs are driven by `pychromecast`** in a small helper (`server/totum-cli/chromecast_helper.py`) speaking JSON lines
   over stdin and stdout (`CastWire`); the TVs are configured by address (`TOTUM_CAST_TARGETS`), not discovered, because
   mDNS does not cross the container's bridge network.
 
 ## Consequences
 
-- Nothing here has run against a TV, a speaker or Chromecast: the unit tests cover the chain, the pump, the wire
-  format, the deck and the reporting rule. The first daytime run on the real devices is the test of the rest.
+- Nothing here has run against a TV, a speaker or Chromecast beyond the first run on the LG (2026-11-07), which found
+  the volume push (ADR 152) and the stopped YouTube stream above; the unit tests cover the chain, the pump, the wire
+  format, the deck, the reporting rule and the relay against a source that only serves ranges. The relay itself has not
+  been seen on a real TV.
 - ffmpeg is a hard dependency of a processed play, and a missing or failing one ends the item as failed (logged with its
   exit code) rather than silently skipping.
 - The Pi spends about 1/13 of a core per processed stream (the 2026-11-06 spike), so several streams fit at once.

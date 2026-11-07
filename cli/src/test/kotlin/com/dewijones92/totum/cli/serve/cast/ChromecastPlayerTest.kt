@@ -169,6 +169,44 @@ class ChromecastPlayerTest {
         assertEquals(listOf("pause=true", "seek=7000", "volume=25"), control.calls)
     }
 
+    private val youtube = "https://rr1---sn-aaa.googlevideo.com/videoplayback?expire=1&mime=video%2Fmp4&clen=1000"
+
+    @Test
+    fun `a YouTube picture is loaded from the Pi's own relay, which fetches it in ranges, not from YouTube`() {
+        val p = player()
+
+        p.play(request(url = youtube, picture = true, startAtMs = 4_000))
+
+        val load = control.loads.single()
+        assertTrue(load.url, Regex("""http://pi:$port/y/[0-9a-f]{32}\.mp4""").matches(load.url))
+        assertEquals("video/mp4", load.type)
+        assertEquals(4_000L, load.startAtMs)
+    }
+
+    @Test
+    fun `a YouTube sound is relayed as well, and stopping withdraws the relay`() {
+        val streams = streams()
+        val p = player(streams)
+
+        p.play(request(url = youtube.replace("video%2Fmp4", "audio%2Fmp4")))
+
+        val load = control.loads.single()
+        assertTrue(load.url, Regex("""http://pi:$port/y/[0-9a-f]{32}\.m4a""").matches(load.url))
+        assertEquals("audio/mp4", load.type)
+        assertEquals(1, streams.relayed())
+
+        p.stop()
+
+        assertEquals(0, streams.relayed())
+    }
+
+    @Test
+    fun `with no address the TV can reach, a YouTube address is given as it is`() {
+        player(streams(base = null)).play(request(url = youtube, picture = true))
+
+        assertEquals(youtube, control.loads.single().url)
+    }
+
     @Test
     fun `the volume shown is the TV's own, and unknown until it says`() {
         val p = player()

@@ -104,10 +104,16 @@ internal class BluezLink(
     }
 }
 
-internal class SpeakerSource(private val shell: Shell, private val dir: java.io.File) : TargetSource {
+internal class SpeakerSource(
+    private val shell: Shell,
+    private val dir: java.io.File,
+    private val locally: (label: String, url: String) -> String = { _, url -> url },
+) : TargetSource {
     private val discovery = BluezSpeakers(shell)
 
     override suspend fun find(fresh: Boolean): List<FoundTarget> = discovery.find().map { found ->
-        FoundTarget(found.speaker) { TargetKit(MpvPlayer(found.speaker.id, dir), BluezLink(found.mac, shell)) }
+        FoundTarget(found.speaker) {
+            TargetKit(MpvPlayer(found.speaker.id, dir, locally = locally), BluezLink(found.mac, shell))
+        }
     }
 }

@@ -209,7 +209,7 @@ internal suspend fun serveAsk(port: Int, out: (String) -> Unit): Int = coroutine
         this,
         TargetStreams(home::soundOf, jellyfin?.let { j -> { id -> j.streamUrl(id) } }),
         listOf(
-            SpeakerSource(shell, targetsDir),
+            SpeakerSource(shell, targetsDir, streams::locally),
             ChromecastSource(knownCastsFrom(System.getenv("TOTUM_CAST_TARGETS")), streams),
         ),
         YouTubeProgress(home.watchHistory, home::signedInToYouTube),
