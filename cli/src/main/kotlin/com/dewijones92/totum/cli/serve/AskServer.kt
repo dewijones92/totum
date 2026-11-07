@@ -21,6 +21,7 @@ import com.dewijones92.totum.cli.serve.jellyfin.JellyfinRoutes
 import com.dewijones92.totum.cli.serve.sound.ProcessedSound
 import com.dewijones92.totum.cli.serve.speakers.SpeakerSource
 import com.dewijones92.totum.cli.serve.speakers.SystemShell
+import com.dewijones92.totum.cli.serve.targets.SoundFiles
 import com.dewijones92.totum.cli.serve.targets.TargetDecks
 import com.dewijones92.totum.cli.serve.targets.TargetRoutes
 import com.dewijones92.totum.cli.serve.targets.TargetStreams
@@ -207,7 +208,11 @@ internal suspend fun serveAsk(port: Int, out: (String) -> Unit): Int = coroutine
     val targets = TargetDecks(
         targetsDir,
         this,
-        TargetStreams(home::soundOf, jellyfin?.let { j -> { id -> j.streamUrl(id) } }),
+        TargetStreams(
+            home::soundOf,
+            jellyfin?.let { j -> { id -> j.streamUrl(id) } },
+            SoundFiles(File(System.getenv("TOTUM_SOUNDS") ?: "/sounds")),
+        ),
         listOf(
             SpeakerSource(shell, targetsDir, streams::locally),
             ChromecastSource(knownCastsFrom(System.getenv("TOTUM_CAST_TARGETS")), streams),

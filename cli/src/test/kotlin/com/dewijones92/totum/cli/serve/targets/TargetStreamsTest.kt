@@ -12,9 +12,15 @@ import com.dewijones92.totum.domain.SourceId
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.nio.file.Files
 
 class TargetStreamsTest {
+
+    private val sounds = Files.createTempDirectory("sounds").toFile().apply {
+        resolve("brown-noise.opus").writeBytes(ByteArray(8))
+    }
 
     private val asked = mutableListOf<String>()
     private val streams = TargetStreams(
@@ -23,6 +29,7 @@ class TargetStreamsTest {
             "https://home/${item.item.id.value}"
         },
         { id -> "http://jellyfin.local/Videos/$id/stream?static=true&api_key=k" },
+        SoundFiles(sounds),
     )
 
     private val film = JellyfinItem("0123456789abcdef0123456789abcdef", "Heat", JellyfinKind.MOVIE, container = "mp4")
@@ -60,5 +67,34 @@ class TargetStreamsTest {
 
         assertNull(streams.urlFor(odd, picture = true))
         assertEquals(emptyList<String>(), asked)
+    }
+
+    private fun fileItem(path: String) = episode.copy(handle = PlayHandle.Podcast(localPath = path))
+
+    @Test
+    fun `a sound file on the Pi is played from the Pi's own disk, the phone's route never asked`() = runBlocking {
+        val url = streams.urlFor(fileItem("file:///sounds/brown-noise.opus"), picture = false)
+
+        assertEquals(sounds.resolve("brown-noise.opus").canonicalPath, url)
+        assertEquals(emptyList<String>(), asked)
+    }
+
+    @Test
+    fun `a file outside the sounds directory has no stream and is not sent the phone's way either`() = runBlocking {
+        val bad = fileItem("file:///sounds/../etc/passwd")
+
+        assertNull(streams.urlFor(bad, picture = false))
+        assertEquals(emptyList<String>(), asked)
+        assertTrue(streams.whyNone(bad), streams.whyNone(bad).contains("sounds"))
+    }
+
+    @Test
+    fun `a missing sound says which one, and any other item has the general reason`() = runBlocking {
+        val missing = fileItem("file:///sounds/nothing.opus")
+
+        assertNull(streams.urlFor(missing, picture = false))
+        assertTrue(streams.whyNone(missing), streams.whyNone(missing).contains("nothing.opus"))
+        assertEquals("no stream was found for it", streams.whyNone(episode))
+        assertEquals("Jellyfin is not set up on this Pi", TargetStreams({ _, _ -> null }, null).whyNone(film))
     }
 }
