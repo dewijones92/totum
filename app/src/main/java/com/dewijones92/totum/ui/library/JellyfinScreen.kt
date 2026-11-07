@@ -35,9 +35,9 @@ import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.operations.OperationEnd
 import com.dewijones92.totum.operations.OperationKind
 import com.dewijones92.totum.ui.common.MediaItemRow
-import com.dewijones92.totum.ui.common.rowFacts
 import com.dewijones92.totum.ui.common.ScreenHeader
 import kotlinx.coroutines.launch
+import com.dewijones92.totum.ui.common.rowFacts
 
 @Composable
 fun JellyfinScreen(container: AppContainer, onBack: () -> Unit, modifier: Modifier = Modifier) {

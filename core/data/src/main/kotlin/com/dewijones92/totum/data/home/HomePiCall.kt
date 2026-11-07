@@ -37,7 +37,9 @@ public class HomePiCall(
                         }
                     } else {
                         Diag.warn(diagTag, "$what -> HTTP ${response.code}: ${text.take(LOGGED)}")
-                        HomeAnswer.No(errorOf(text) ?: "❌ The home server said no (HTTP ${response.code})", response.code)
+                        val reason = errorOf(text)?.let { emojiLed(it) }
+                            ?: "❌ The home server said no (HTTP ${response.code})"
+                        HomeAnswer.No(reason, response.code)
                     }
                 }
             } catch (e: IOException) {
@@ -50,6 +52,12 @@ public class HomePiCall(
         runCatching { AskJson.parseToJsonElement(text).jsonObject["error"]?.jsonPrimitive?.content }.getOrNull()
 
     public companion object {
+        public fun emojiLed(reason: String): String {
+            val first = reason.trim().codePointAt(0)
+            return if (first < ASCII || Character.isLetterOrDigit(first)) "❌ ${reason.trim()}" else reason.trim()
+        }
+
+        private const val ASCII = 128
         public const val NOT_SIGNED_IN: String = "❌ Not signed in to the home server"
         private const val DEFAULT_TAG = "home"
         private const val LOGGED = 200

@@ -44,7 +44,10 @@ class PeriodicJob(
             .build()
         WorkManager.getInstance(context)
             .enqueueUniquePeriodicWork(name, ExistingPeriodicWorkPolicy.UPDATE, request)
-        Diag.log("jobs", "$name re-armed so its next run is in ${nextRunIn.toMinutes()} min, not a whole period from now")
+        Diag.log(
+            "jobs",
+            "$name re-armed so its next run is in ${nextRunIn.toMinutes()} min, not a whole period from now"
+        )
     }
 
     suspend fun run(lastRuns: LastRuns, work: suspend () -> JobOutcome): ListenableWorker.Result {

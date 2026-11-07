@@ -104,7 +104,11 @@ private fun PinCard(pin: Pin, pins: PinActions, inRecent: Boolean) {
                 contentDescription = shownTitle,
                 modifier = Modifier.size(CARD_WIDTH),
             )
-            Text(text = shownTitle, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 4.dp))
+            Text(
+                text = shownTitle,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(top = 4.dp)
+            )
             Text(
                 text = stringResource(pin.kindWords()),
                 style = MaterialTheme.typography.labelSmall,

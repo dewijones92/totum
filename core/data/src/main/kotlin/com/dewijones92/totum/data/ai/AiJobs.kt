@@ -101,7 +101,8 @@ public class HttpAiJobs(
             if (polled is HomeAnswer.No && polled.httpCode == HTTP_NOT_FOUND) {
                 Diag.warn(
                     "ai-job",
-                    "$task job ${status.id}: the home server no longer knows it (HTTP 404); it restarted, so the job is lost",
+                    "$task job ${status.id}: the home server no longer knows it (HTTP 404), so it restarted " +
+                        "and the job is lost",
                 )
                 return Ended.Lost
             }

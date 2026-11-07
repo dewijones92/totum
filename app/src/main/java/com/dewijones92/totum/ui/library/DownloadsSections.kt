@@ -26,8 +26,8 @@ import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.downloads.DownloadsSection
 import com.dewijones92.totum.ui.common.MediaThumbnail
-import com.dewijones92.totum.ui.common.rowCard
 import com.dewijones92.totum.ui.common.face
+import com.dewijones92.totum.ui.common.rowCard
 
 class Sections(
     val current: DownloadsSection? = null,

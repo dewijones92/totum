@@ -10,6 +10,7 @@ is this repository.
 | QuickJS-ng (`qjs`) | `libqjs.so` in `app/src/main/jniLibs`, the JavaScript runtime yt-dlp's challenge solver falls back to | MIT | <https://github.com/quickjs-ng/quickjs>; built from source here by `tools/quickjs/build-quickjs-android.sh` |
 | Chaquopy 17 | embeds CPython 3.12 so yt-dlp runs inside the app | MIT (the Python runtime it embeds is under the Python Software Foundation licence) | <https://chaquo.com/chaquopy/> |
 | yt-dlp | installed by Chaquopy; a newer wheel from PyPI is fetched and checked at launch | The Unlicense | <https://github.com/yt-dlp/yt-dlp> |
+| Silero VAD | `silero_vad.bin` in `core/sound/src/main/resources`, the speech detector's weights, exported from the Silero VAD model and run by Totum's own Kotlin code (`SpeechModel`), for smart skip-silence and speech-aware boost | MIT | <https://github.com/snakers4/silero-vad> |
 | yt-dlp-ejs | the challenge-solver scripts yt-dlp loads | The Unlicense, bundling third-party JavaScript under its own licences listed in that project | <https://github.com/yt-dlp/ejs> |
 
 The Android libraries Totum is built with (Jetpack Compose, Media3, Room, OkHttp, Coil, kotlinx and the rest) are

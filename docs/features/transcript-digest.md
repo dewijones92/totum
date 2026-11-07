@@ -38,7 +38,9 @@ still owed: [tl;dr and chapters](../todos/tldr-and-chapters.md), [ask about this
 ## Limits, honestly
 
 A transcript over about 100,000 characters (roughly 2 hours of speech) is thinned for a summary and chosen by keyword
-for a question, because `claude -p` takes its prompt as one argument of at most about 128 KB. A question's moments
+for a question, to keep the call inside the model's context (the prompt itself goes to `claude -p` on stdin, so the
+operating system's argument limit no longer applies; a prompt over 700 KB is refused with "❌ The text is too long to
+send"). For an item the spoiler shield is hiding, the tab says "🙈 Hidden until watched" instead. A question's moments
 can sit up to 20 seconds from the start of the sentence when it crossed a block. Only YouTube captions were dry-run.
 
 ## Diagnostics

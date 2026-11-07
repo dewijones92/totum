@@ -54,9 +54,9 @@ import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.ui.common.KeepWhenSettled
 import com.dewijones92.totum.ui.common.LocalSpoilerShield
 import com.dewijones92.totum.ui.common.RecentSearchChips
-import com.dewijones92.totum.ui.common.rememberResultHidden
 import com.dewijones92.totum.ui.common.live
 import com.dewijones92.totum.ui.common.rememberRecentSearches
+import com.dewijones92.totum.ui.common.rememberResultHidden
 import java.util.Locale
 
 val LocalTranscripts = staticCompositionLocalOf<TranscriptLoader?> { null }
@@ -122,7 +122,10 @@ private fun HiddenUntilWatched(state: PlaybackState) {
         Text(stringResource(R.string.spoiler_transcript_hidden))
         Button(
             onClick = {
-                Diag.log("spoiler", "${state.itemId.value}: transcript and digest shown by hand, title revealed with them")
+                Diag.log(
+                    "spoiler",
+                    "${state.itemId.value}: transcript and digest shown by hand, title revealed with them"
+                )
                 shield?.reveal(state.itemId)
             },
             modifier = Modifier.testTag(TRANSCRIPT_REVEAL_TAG),

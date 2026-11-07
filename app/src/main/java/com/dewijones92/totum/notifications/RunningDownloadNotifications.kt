@@ -7,16 +7,16 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.dewijones92.totum.R
+import com.dewijones92.totum.domain.ItemShields
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.Transfer
 import com.dewijones92.totum.domain.TransferPlace
 import com.dewijones92.totum.domain.formatBytes
+import com.dewijones92.totum.domain.titleOf
 import com.dewijones92.totum.downloads.DownloadsRequests
 import com.dewijones92.totum.downloads.DownloadsSection
 import com.dewijones92.totum.ui.common.transferRoute
 import com.dewijones92.totum.ui.common.transferText
-import com.dewijones92.totum.domain.ItemShields
-import com.dewijones92.totum.domain.titleOf
 
 internal class RunningDownloadNotifications(
     private val context: Context,

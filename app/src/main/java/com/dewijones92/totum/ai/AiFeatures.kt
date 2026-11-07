@@ -50,7 +50,9 @@ class AiFeatures(
 internal fun homeAiJobs(c: AppContainer, client: OkHttpClient): HttpAiJobs? {
     val settings = c.appPreferences.settings.value
     val base = settings.homeServerBase.takeIf { it.isNotBlank() } ?: return null
-    return HttpAiJobs(client, "https://${HomeServerHosts.app(base)}/fetch", { c.appPreferences.settings.value.homeServerToken })
+    return HttpAiJobs(client, "https://${HomeServerHosts.app(base)}/fetch", {
+        c.appPreferences.settings.value.homeServerToken
+    })
 }
 
 internal fun aiFeaturesOf(

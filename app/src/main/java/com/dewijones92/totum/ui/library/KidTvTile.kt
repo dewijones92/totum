@@ -25,10 +25,10 @@ import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.kidlock.KidTvStatus
-import com.dewijones92.totum.ui.kidtv.KidTvToasts
-import com.dewijones92.totum.ui.kidtv.kidTvStatusText
 import com.dewijones92.totum.pins.titleThrough
 import com.dewijones92.totum.ui.common.LocalItemShield
+import com.dewijones92.totum.ui.kidtv.KidTvToasts
+import com.dewijones92.totum.ui.kidtv.kidTvStatusText
 
 @Composable
 internal fun KidTvTile(container: AppContainer, onSetUp: () -> Unit) {

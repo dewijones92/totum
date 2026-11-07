@@ -41,6 +41,9 @@ public class ReportRedactor(
         private const val OCTETS = 4
         private const val LONG_TOKEN = 32
         private const val HEX_ID = 40
+        private const val SCHEME = 1
+        private const val HOST = 2
+        private const val REST = 3
 
         private val VIDEO_HOSTS = listOf("youtube.com", "youtu.be", "youtube-nocookie.com")
         private val SAFE_PARAMS = setOf("v", "list", "t", "index")
@@ -76,9 +79,9 @@ public class ReportRedactor(
             query.split('&').filter { pair -> pair.substringBefore('=') in SAFE_PARAMS }.joinToString("&")
 
         private fun keepVideoParts(match: MatchResult): String {
-            val scheme = match.groupValues[1]
-            val host = match.groupValues[2]
-            val rest = match.groupValues[3]
+            val scheme = match.groupValues[SCHEME]
+            val host = match.groupValues[HOST]
+            val rest = match.groupValues[REST]
             val path = rest.substringBefore('?').substringBefore('#')
             val query = rest.substringAfter('?', "").substringBefore('#')
             val kept = safeQuery(query)
@@ -86,22 +89,22 @@ public class ReportRedactor(
         }
 
         private fun cutAddress(match: MatchResult): String {
-            val host = match.groupValues[2]
-            val rest = match.groupValues[3]
+            val host = match.groupValues[HOST]
+            val rest = match.groupValues[REST]
             return if (isVideoHost(host)) {
                 keepVideoParts(match)
             } else {
-                "${match.groupValues[1]}://$host" + if (rest.isEmpty() || rest == "/") rest else PATH_REMOVED
+                "${match.groupValues[SCHEME]}://$host" + if (rest.isEmpty() || rest == "/") rest else PATH_REMOVED
             }
         }
 
         private fun trimQuery(match: MatchResult): String {
-            val host = match.groupValues[2]
-            val rest = match.groupValues[3]
+            val host = match.groupValues[HOST]
+            val rest = match.groupValues[REST]
             if (!rest.contains('?') && !rest.contains('#')) return match.value
             val path = rest.substringBefore('?').substringBefore('#')
             val kept = safeQuery(rest.substringAfter('?', "").substringBefore('#'))
-            return "${match.groupValues[1]}://$host$path" + if (kept.isEmpty()) "" else "?$kept"
+            return "${match.groupValues[SCHEME]}://$host$path" + if (kept.isEmpty()) "" else "?$kept"
         }
 
         private val ADDRESS_IN_TEXT = Regex("""(?i)\b(https?)://([^\s/?#"']*)([^\s"'<>]*)""")

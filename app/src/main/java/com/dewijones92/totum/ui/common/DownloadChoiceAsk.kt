@@ -19,9 +19,9 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.QualityLabel
 import com.dewijones92.totum.domain.pillar
+import com.dewijones92.totum.domain.titleOf
 import com.dewijones92.totum.downloads.DownloadChooser
 import com.dewijones92.totum.settings.DownloadChoice
-import com.dewijones92.totum.domain.titleOf
 
 const val DOWNLOAD_CHOICE_TAG = "download-choice"
 

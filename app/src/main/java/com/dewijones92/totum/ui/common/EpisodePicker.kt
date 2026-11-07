@@ -30,11 +30,11 @@ import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.PlayState
 import com.dewijones92.totum.domain.QualityLabel
+import com.dewijones92.totum.domain.titleOf
 import com.dewijones92.totum.downloads.EpisodeDownloads
 import com.dewijones92.totum.downloads.startsTicked
 import com.dewijones92.totum.settings.DownloadChoice
 import com.dewijones92.totum.settings.DownloadPlace
-import com.dewijones92.totum.domain.titleOf
 
 const val EPISODE_PICKER_TAG = "episode-picker"
 

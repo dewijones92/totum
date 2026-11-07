@@ -37,14 +37,14 @@ import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.kidlock.KidTv
 import com.dewijones92.totum.kidlock.KidTvStatus
 import com.dewijones92.totum.pins.Pin
+import com.dewijones92.totum.pins.titleThrough
 import com.dewijones92.totum.ui.cast.LOCAL_NETWORK
 import com.dewijones92.totum.ui.cast.needsLocalNetwork
 import com.dewijones92.totum.ui.common.BackHeader
+import com.dewijones92.totum.ui.common.LocalItemShield
 import com.dewijones92.totum.ui.common.kindWords
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
-import com.dewijones92.totum.pins.titleThrough
-import com.dewijones92.totum.ui.common.LocalItemShield
 
 @Composable
 fun KidTvScreen(container: AppContainer, onBack: () -> Unit, modifier: Modifier = Modifier) {

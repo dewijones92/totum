@@ -1,11 +1,13 @@
 package com.dewijones92.totum.downloads.home
 
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.data.backup.titleOf
 import com.dewijones92.totum.data.backup.toPlayable
 import com.dewijones92.totum.data.download.DownloadManager
 import com.dewijones92.totum.data.home.HomeJob
 import com.dewijones92.totum.data.home.HomeJobState
 import com.dewijones92.totum.domain.DownloadState
+import com.dewijones92.totum.domain.ItemShields
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.operations.OperationEnd
 import com.dewijones92.totum.operations.OperationKind
@@ -18,8 +20,6 @@ import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentHashMap
-import com.dewijones92.totum.domain.ItemShields
-import com.dewijones92.totum.data.backup.titleOf
 
 internal class HomeReporting(
     val operations: Operations,

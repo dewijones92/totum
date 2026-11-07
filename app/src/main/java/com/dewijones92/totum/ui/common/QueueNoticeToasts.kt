@@ -9,11 +9,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.domain.ItemShields
+import com.dewijones92.totum.domain.titleOf
 import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.queue.QueueNotice
 import kotlin.time.Duration.Companion.milliseconds
-import com.dewijones92.totum.domain.ItemShields
-import com.dewijones92.totum.domain.titleOf
 
 @Composable
 fun QueueNoticeToasts(queue: PlaybackQueue) {

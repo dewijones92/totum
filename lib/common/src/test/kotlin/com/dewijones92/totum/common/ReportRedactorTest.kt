@@ -135,7 +135,8 @@ class ReportRedactorTest {
     fun `the path of an address is cut, except where it names a video`() {
         val out = redactor.redact(
             "see https://feeds.example.net/private/keyinpath99/show.rss?auth=q1 and " +
-                "https://www.youtube.com/watch?v=abcDEF12345&list=PL1&t=30&si=trackme and https://youtu.be/abcDEF12345?t=5",
+                "https://www.youtube.com/watch?v=abcDEF12345&list=PL1&t=30&si=trackme and " +
+                "https://youtu.be/abcDEF12345?t=5",
         )
 
         assertFalse(out, "keyinpath99" in out)
@@ -162,7 +163,10 @@ class ReportRedactorTest {
 
         assertEquals(guid, ids.redact(guid))
         assertEquals(episode, ids.redact(episode))
-        assertEquals("https://cdn.example.net/ep/42.mp3", ids.redact("https://cdn.example.net/ep/42.mp3?key=abc&sig=zz"))
+        assertEquals(
+            "https://cdn.example.net/ep/42.mp3",
+            ids.redact("https://cdn.example.net/ep/42.mp3?key=abc&sig=zz")
+        )
         assertFalse(ids.redact("x $token y").contains(token))
         assertFalse(ids.redact("https://home.example.org/a").contains("home.example.org"))
         assertEquals(ReportRedactor.EMAIL, ids.redact("a.b@mail.example.org"))
@@ -182,7 +186,10 @@ class ReportRedactorTest {
 
     @Test
     fun `keyed secrets are redacted with a colon or an equals sign`() {
-        val out = redactor.redact("password: hunter2hunter2 and AIzaSyA-1234567890abcdefghijklmnopqrstuv sk-ant-api03-abcdefghijklmnopqrstuvwxyz")
+        val out = redactor.redact(
+            "password: hunter2hunter2 and AIzaSyA-1234567890abcdefghijklmnopqrstuv " +
+                "sk-ant-api03-abcdefghijklmnopqrstuvwxyz",
+        )
 
         assertFalse(out, "hunter2" in out)
         assertFalse(out, "AIza" in out)

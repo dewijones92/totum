@@ -38,6 +38,7 @@ import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.domain.SourceActivity
 import com.dewijones92.totum.domain.pillar
 import com.dewijones92.totum.domain.searchableText
+import com.dewijones92.totum.domain.titleOf
 import com.dewijones92.totum.shuffle.shuffleTargetOf
 import com.dewijones92.totum.ui.common.BackHeader
 import com.dewijones92.totum.ui.common.BulkAction
@@ -46,6 +47,7 @@ import com.dewijones92.totum.ui.common.FactEmoji
 import com.dewijones92.totum.ui.common.FilterToggle
 import com.dewijones92.totum.ui.common.FilterableList
 import com.dewijones92.totum.ui.common.LiveBadge
+import com.dewijones92.totum.ui.common.LocalItemShield
 import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.LocalOpenSource
 import com.dewijones92.totum.ui.common.SelectableList
@@ -60,8 +62,6 @@ import com.dewijones92.totum.ui.common.rememberSelection
 import com.dewijones92.totum.ui.common.rememberShuffleStarter
 import com.dewijones92.totum.ui.common.rowCard
 import com.dewijones92.totum.ui.common.selectableClicks
-import com.dewijones92.totum.ui.common.LocalItemShield
-import com.dewijones92.totum.domain.titleOf
 
 @Composable
 fun AllSubscriptionsScreen(container: AppContainer, onBack: () -> Unit, modifier: Modifier = Modifier) {

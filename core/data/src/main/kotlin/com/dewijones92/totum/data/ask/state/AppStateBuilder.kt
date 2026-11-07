@@ -118,7 +118,11 @@ public object AppStateBuilder {
             ).map { EventRow(facts.at(it.atEpochMs), it.atEpochMs, it.tag, it.message) },
         ).let { built ->
             built.copy(
-                otherStats = built.otherStats.map { it.copy(detail = prose.redact(facts.withoutHiddenTitles(it.detail))) },
+                otherStats = built.otherStats.map {
+                    it.copy(
+                        detail = prose.redact(facts.withoutHiddenTitles(it.detail))
+                    )
+                },
                 events = built.events.map { it.copy(message = prose.redact(facts.withoutHiddenTitles(it.message))) },
             )
         }

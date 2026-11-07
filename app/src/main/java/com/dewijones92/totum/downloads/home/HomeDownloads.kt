@@ -13,10 +13,12 @@ import com.dewijones92.totum.data.home.HomeProblem
 import com.dewijones92.totum.data.home.PhoneDecoder
 import com.dewijones92.totum.data.targets.Requester
 import com.dewijones92.totum.domain.HomeCopy
+import com.dewijones92.totum.domain.ItemShields
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.StorageUsage
+import com.dewijones92.totum.domain.titleOf
 import com.dewijones92.totum.innertube.auth.OAuthTokens
 import com.dewijones92.totum.operations.Operations
 import com.dewijones92.totum.settings.DownloadChoice
@@ -30,8 +32,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
-import com.dewijones92.totum.domain.ItemShields
-import com.dewijones92.totum.domain.titleOf
 
 interface HomeNotices {
     fun started(title: String)

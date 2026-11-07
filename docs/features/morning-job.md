@@ -21,13 +21,14 @@ what is new in his groups. One notification tells him both. Decisions, dry runs 
 2. **For you**: Haiku is given what Dewi subscribes to, plays most, starred and liked (and the picks of the last two
    weeks, so nothing repeats) and names up to 6 YouTube videos and 4 podcast shows he does not follow. The app's own
    searches find each one (a video not from a followed channel, not a Short, not members-only; a show's newest episode);
-   what cannot be found is left out. The result replaces the **"🤖 For you"** playlist (Library → playlists).
+   what cannot be found is left out. The result is added to the **"🤖 For you"** playlist (Library → playlists) and the old picks are removed after, so the
+   list is never empty in between.
 3. **Digest**: while it is on, a new video in a group no longer sends its own notification. It goes into an inbox. At 07:30
    Haiku turns the group names and titles into two short lines (a title the spoiler shield hides is sent hidden); if
    the home server cannot be reached the lines are plain ("🆕 Tennis: Fritz v Fils Highlights and 3 more"). A group's 🔔
    switched off still keeps it out of the digest.
-4. **One notification**, "🌅 Your morning": the digest lines and "🤖 7 picks for you are in Library". Nothing new and no
-   picks means no notification.
+4. **One notification**, "🌅 Your morning": the digest lines and "🤖 7 picks for you are in Library", or "⚠️ 🤖 For you could
+   not be filled this morning: …" when For you failed. Nothing new, no picks and no failure means no notification.
 
 ## Seam
 
@@ -47,7 +48,8 @@ what is new in his groups. One notification tells him both. Decisions, dry runs 
 ## Limits, honestly
 
 - The job runs at about 07:30 (WorkManager does not promise the minute, and not while the phone is off); the time is not
-  a setting yet.
+  a setting yet. After each run the work is re-armed for the next 07:30 so it does not drift by the length of a run.
+- The digest tells up to 40 titles a group; entries past that wait for the next one.
 - Haiku has no web in this job, so a pick is a name from its memory that the app's search must then find; a made-up
   one is simply not found.
 - The liked page is one YouTube request per run, through the same polite gate as every other call.

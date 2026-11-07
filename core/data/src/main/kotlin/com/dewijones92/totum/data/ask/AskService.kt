@@ -81,7 +81,8 @@ public class HttpAskService(
             if (polled is HomeAnswer.No && polled.httpCode == HTTP_NOT_FOUND) {
                 Diag.warn(
                     "ask",
-                    "$path job ${job.id}: the home server no longer knows it (HTTP 404); it restarted, so the job is lost",
+                    "$path job ${job.id}: the home server no longer knows it (HTTP 404), so it restarted " +
+                        "and the job is lost",
                 )
                 return AskOutcome.Failed(JOB_LOST_MESSAGE)
             }

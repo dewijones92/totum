@@ -35,14 +35,20 @@ tests still owed: [the todo](../todos/tennis-spoiler-shield.md).
   `POST /ai/spoiler`, caller `spoiler`, no tools.
 - App: `ai/AiFeatures.kt` (built in `AppContainer.aiFeatures`), `ui/common/SpoilerShieldUi.kt` (the composition locals,
   the sheet actions, the channel toggle), `MediaItemRow`, `CarryOn`, `ItemDetails`, `PlayAttempts`, `NextLine`,
-  `LiveNoticeLabels`, `ProvideItemActions`, and `Media3PlaybackController.metadataFor` for the playback session.
+  `LiveNoticeLabels`, `ProvideItemActions`, and `Media3PlaybackController.metadataFor` for the playback session (which
+  also carries the real title and a shielded flag, `PlaybackState.realTitle` and `.shielded`, for the stats and the
+  transcript tab). `core/domain/ItemShield.kt` also holds `ItemShields`, the process-wide shield for code with no
+  composition. `ai/AppTaste.kt` is the one taste and owned-titles source for Ask and the morning job.
 - Reused: the Pi call client (`HomePiCall`), `AskOutcome`, the AI service's caller table, the row capability locals.
 
 ## Limits, honestly
 
-See ADR 141: not covered are the seek bar's length, download notifications and Downloads rows that bypass
-`MediaItemRow`, search-result rows built from a hit, the queue's "already queued" notices, the Cast receiver's own
-title and the watch-page description the Details tab can fetch for itself. A multi-word surname is ordered by its first
+The policy and the full lists are in ADR 141: every surface that shows or sends a title reads the shield (composables
+through `LocalItemShield`; notifications, toasts and shortcuts through `ItemShields`), the logs and the stats records
+keep the real title, and the stats screen, the Ask pack and the taste go through the shield. For an item the shield is
+hiding, the transcript tab says "🙈 Hidden until watched" until you reveal it. Not covered: the seek bar's length, the
+Cast receiver's own title and the watch-page description the Details tab can fetch for itself; podcast show hits and
+torrent results are never shielded (the shield is per YouTube channel). A multi-word surname is ordered by its first
 word. A post-tournament video (a champions' dinner) tells you the tournament is over whatever its title says.
 
 ## Diagnostics

@@ -17,6 +17,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.di.AppContainer
+import com.dewijones92.totum.domain.ItemShields
 import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.PlayableItem
@@ -28,12 +29,11 @@ import com.dewijones92.totum.pins.PinOutcome
 import com.dewijones92.totum.pins.PinPlayed
 import com.dewijones92.totum.pins.PinSlot
 import com.dewijones92.totum.pins.PinTileActions
+import com.dewijones92.totum.pins.titleThrough
 import com.dewijones92.totum.stats.UseKind
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import com.dewijones92.totum.pins.titleThrough
-import com.dewijones92.totum.domain.ItemShields
 
 interface PinActions {
     val pinned: List<Pin>
@@ -156,7 +156,11 @@ private class ContainerPinActions(
                         Toast.LENGTH_SHORT
                     ).show()
                     is PinOutcome.Failed ->
-                        Toast.makeText(context, "❌ ${pin.titleThrough(ItemShields)}: ${outcome.why}", Toast.LENGTH_LONG).show()
+                        Toast.makeText(
+                            context,
+                            "❌ ${pin.titleThrough(ItemShields)}: ${outcome.why}",
+                            Toast.LENGTH_LONG
+                        ).show()
                     is PinOutcome.Open, is PinOutcome.OpenSource -> Unit
                 }
                 onOutcome(outcome)

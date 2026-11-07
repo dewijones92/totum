@@ -24,9 +24,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dewijones92.totum.R
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.MediaItemId
+import com.dewijones92.totum.domain.titleOf
 import com.dewijones92.totum.queue.PictureOffer
 import kotlinx.coroutines.delay
-import com.dewijones92.totum.domain.titleOf
 
 class PictureOfferUi(
     val offer: PictureOffer?,

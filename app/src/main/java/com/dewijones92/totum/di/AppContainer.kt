@@ -114,14 +114,15 @@ import com.dewijones92.totum.database.TotumDatabase
 import com.dewijones92.totum.diagnostics.AccountReportValues
 import com.dewijones92.totum.diagnostics.ActivitySnapshotter
 import com.dewijones92.totum.diagnostics.CrashReporter
-import com.dewijones92.totum.diagnostics.ReportSink
-import com.dewijones92.totum.diagnostics.knownHomeHosts
 import com.dewijones92.totum.diagnostics.DiagnosticSnapshot
 import com.dewijones92.totum.diagnostics.DiagnosticsUploader
 import com.dewijones92.totum.diagnostics.EncodedScreenshot
 import com.dewijones92.totum.diagnostics.InstallId
+import com.dewijones92.totum.diagnostics.ReportSink
+import com.dewijones92.totum.diagnostics.featureDiagnostics
 import com.dewijones92.totum.diagnostics.installAndroidLogSink
 import com.dewijones92.totum.diagnostics.installFlightRecorder
+import com.dewijones92.totum.diagnostics.knownHomeHosts
 import com.dewijones92.totum.diagnostics.runningOnAnEmulator
 import com.dewijones92.totum.diagnostics.runningUnderInstrumentation
 import com.dewijones92.totum.diagnostics.thisDevice
@@ -132,7 +133,6 @@ import com.dewijones92.totum.domain.Listening
 import com.dewijones92.totum.domain.LocalCopy
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
-import com.dewijones92.totum.domain.titleOf
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.domain.PlayHandle
@@ -148,6 +148,7 @@ import com.dewijones92.totum.domain.asPlayable
 import com.dewijones92.totum.domain.listening
 import com.dewijones92.totum.domain.pillar
 import com.dewijones92.totum.domain.titleIsKnown
+import com.dewijones92.totum.domain.titleOf
 import com.dewijones92.totum.domain.toPlayableOrNull
 import com.dewijones92.totum.downloads.DownloadChooser
 import com.dewijones92.totum.downloads.EpisodeDownloads
@@ -1446,6 +1447,16 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                 repeat = ::repeatNow,
                 modes = { activeModes.value },
                 liveStreams = liveStates::diagnostics,
+                features = {
+                    featureDiagnostics(
+                        morning = aiFeatures.morningStore.state.value,
+                        shield = aiFeatures.spoilerShield.state.value,
+                        signedInToHome = HomeServerAuth.signedIn(),
+                        jobs = lastRuns.snapshot(),
+                        targets = targets.targets.value,
+                        nowMs = System.currentTimeMillis(),
+                    )
+                },
             ),
         )
     }

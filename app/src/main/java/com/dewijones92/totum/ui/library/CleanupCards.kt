@@ -133,7 +133,10 @@ fun CleanupReview(
                         ) {
                             Checkbox(checked = id in ticked, onCheckedChange = { toggle() })
                             Column(modifier = Modifier.weight(1f)) {
-                                Text(LocalItemShield.current.titleOf(entry.item), style = MaterialTheme.typography.bodyMedium)
+                                Text(
+                                    LocalItemShield.current.titleOf(entry.item),
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
                                 Text(
                                     formatBytes(entry.sizeBytes),
                                     style = MaterialTheme.typography.bodySmall,

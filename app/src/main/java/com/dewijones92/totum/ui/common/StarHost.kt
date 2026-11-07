@@ -15,10 +15,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.domain.ItemShields
 import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.isYouTubeVideoId
+import com.dewijones92.totum.domain.titleOf
 import com.dewijones92.totum.innertube.actions.VideoRating
 import com.dewijones92.totum.music.MusicFavourites
 import com.dewijones92.totum.stars.StarOutcome
@@ -27,8 +29,6 @@ import com.dewijones92.totum.stars.starrable
 import com.dewijones92.totum.ui.music.toast
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-import com.dewijones92.totum.domain.ItemShields
-import com.dewijones92.totum.domain.titleOf
 
 class StarHost(val stars: Stars, val favourites: MusicFavourites, val scope: CoroutineScope)
 

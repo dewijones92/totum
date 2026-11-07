@@ -29,7 +29,15 @@ class PackRedactionTest {
 
     @Test
     fun `no feed address path or key, email or network address survives in an event message`() {
-        listOf("feedpathkey", "querykey99", "dewi.person@", "203.0.113.9", "mail.example.com/", "myhome.example.net", "HOMETOKEN").forEach {
+        listOf(
+            "feedpathkey",
+            "querykey99",
+            "dewi.person@",
+            "203.0.113.9",
+            "mail.example.com/",
+            "myhome.example.net",
+            "HOMETOKEN"
+        ).forEach {
             assertFalse("\"$it\" is in the pack", pack.contains(it))
         }
     }

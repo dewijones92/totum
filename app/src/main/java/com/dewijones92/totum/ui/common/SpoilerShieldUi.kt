@@ -12,8 +12,8 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -65,7 +65,10 @@ internal fun rememberSetShieldedChannel(): (SpoilerShield, ShieldedChannel, Bool
     return { shield, channel, on ->
         shield.setChannel(channel, on)
         if (on && !HomeServerAuth.signedIn()) {
-            Diag.warn("spoiler", "channel \"${channel.name}\" shielded with no signed-in home server: titles stay hidden")
+            Diag.warn(
+                "spoiler",
+                "channel \"${channel.name}\" shielded with no signed-in home server: titles stay hidden"
+            )
             Toast.makeText(context, R.string.spoiler_no_home_server, Toast.LENGTH_LONG).show()
         }
     }

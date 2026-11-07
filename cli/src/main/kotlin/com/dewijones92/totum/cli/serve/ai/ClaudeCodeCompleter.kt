@@ -60,11 +60,7 @@ internal class ClaudeCodeCompleter(
     }
 
     private fun attempt(completion: Completion, scratch: Scratch?): Completed {
-        val promptBytes = completion.message.toByteArray(Charsets.UTF_8).size
-        if (promptBytes > MAX_PROMPT_BYTES) {
-            Diag.warn("ai", "${completion.caller} ${completion.what}: prompt of $promptBytes bytes refused, over $MAX_PROMPT_BYTES")
-            throw BrainFailure("❌ The text is too long to send (${promptBytes / BYTES_PER_KB} KB, the most is ${MAX_PROMPT_BYTES / BYTES_PER_KB} KB)")
-        }
+        val promptBytes = checkedSize(completion)
         val args = listOf(
             claude, "-p",
             "--model", model,
@@ -81,16 +77,7 @@ internal class ClaudeCodeCompleter(
         )
         val started = clock()
         Diag.log("ai", "${completion.caller} ${completion.what}: prompt of $promptBytes bytes goes to claude on stdin")
-        val result = try {
-            if (scratch != null) {
-                runIn(args, timeoutMs, scratch.dir, completion.message)
-            } else {
-                run(args, timeoutMs, completion.message)
-            }
-        } catch (e: java.io.IOException) {
-            Diag.warn("ai", "${completion.caller} ${completion.what}: claude could not be run", e)
-            throw BrainFailure("❌ Claude could not be run on the home server (${e.message?.take(LOGGED)})", e)
-        }
+        val result = launch(args, completion, scratch)
         val tookMs = clock() - started
         val parsed = runCatching { envelope(result, tookMs) }
             .onFailure {
@@ -117,6 +104,30 @@ internal class ClaudeCodeCompleter(
             record(usage.copy(ok = false, error = failure.message))
             throw failure
         }
+    }
+
+    private fun checkedSize(completion: Completion): Int {
+        val bytes = completion.message.toByteArray(Charsets.UTF_8).size
+        if (bytes <= MAX_PROMPT_BYTES) return bytes
+        Diag.warn(
+            "ai",
+            "${completion.caller} ${completion.what}: prompt of $bytes bytes refused, over $MAX_PROMPT_BYTES"
+        )
+        throw BrainFailure(
+            "❌ The text is too long to send (${bytes / BYTES_PER_KB} KB, the most is " +
+                "${MAX_PROMPT_BYTES / BYTES_PER_KB} KB)",
+        )
+    }
+
+    private fun launch(args: List<String>, completion: Completion, scratch: Scratch?): ProcessResult = try {
+        if (scratch != null) {
+            runIn(args, timeoutMs, scratch.dir, completion.message)
+        } else {
+            run(args, timeoutMs, completion.message)
+        }
+    } catch (e: java.io.IOException) {
+        Diag.warn("ai", "${completion.caller} ${completion.what}: claude could not be run", e)
+        throw BrainFailure("❌ Claude could not be run on the home server (${e.message?.take(LOGGED)})", e)
     }
 
     private fun guard(completion: Completion, structured: JsonObject) {

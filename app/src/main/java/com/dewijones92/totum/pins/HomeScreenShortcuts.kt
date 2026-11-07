@@ -16,8 +16,8 @@ import coil3.toBitmap
 import com.dewijones92.totum.MainActivity
 import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
-import com.dewijones92.totum.ui.common.kindWords
 import com.dewijones92.totum.domain.ItemShields
+import com.dewijones92.totum.ui.common.kindWords
 
 class HomeScreenShortcuts(private val context: Context) {
 

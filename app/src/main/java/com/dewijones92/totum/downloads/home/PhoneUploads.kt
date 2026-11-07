@@ -5,15 +5,15 @@ import com.dewijones92.totum.data.backup.toBackup
 import com.dewijones92.totum.data.home.HomeAnswer
 import com.dewijones92.totum.data.home.HomeJobsApi
 import com.dewijones92.totum.domain.DownloadedMedia
+import com.dewijones92.totum.domain.ItemShields
 import com.dewijones92.totum.domain.formatBytes
 import com.dewijones92.totum.domain.percentOf
+import com.dewijones92.totum.domain.titleOf
 import com.dewijones92.totum.operations.OperationEnd
 import com.dewijones92.totum.operations.OperationKind
 import com.dewijones92.totum.operations.Operations
 import kotlinx.coroutines.CancellationException
 import java.io.File
-import com.dewijones92.totum.domain.ItemShields
-import com.dewijones92.totum.domain.titleOf
 
 internal class PhoneUploads(
     private val client: HomeJobsApi?,

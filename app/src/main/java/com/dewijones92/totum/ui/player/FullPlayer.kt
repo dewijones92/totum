@@ -86,6 +86,7 @@ import com.dewijones92.totum.ui.common.MediaThumbnail
 import com.dewijones92.totum.ui.common.SkipNextButton
 import com.dewijones92.totum.ui.common.SkipPreviousButton
 import com.dewijones92.totum.ui.common.SwitchListeningButton
+import com.dewijones92.totum.ui.common.face
 import com.dewijones92.totum.ui.common.rememberLinkOpener
 import com.dewijones92.totum.ui.common.withLinks
 import com.dewijones92.totum.ui.player.WatchViewModel.CommentsState
@@ -95,7 +96,6 @@ import com.dewijones92.totum.ui.player.WatchViewModel.RepliesState
 import kotlinx.coroutines.delay
 import java.util.concurrent.TimeUnit
 import kotlin.time.Duration
-import com.dewijones92.totum.ui.common.face
 
 /**
  * Leaves fullscreen once the player has settled on something with no picture — and not before.

@@ -24,7 +24,14 @@ public object NoShield : ItemShield {
 public fun ItemShield.titleOf(item: MediaItem): String = face(item).title
 
 public fun ItemShield.titleOf(id: MediaItemId, title: String, author: String?): String = titleOf(
-    MediaItem(id = id, sourceId = SourceId("recorded"), title = title, publishedAt = null, duration = null, author = author),
+    MediaItem(
+        id = id,
+        sourceId = SourceId("recorded"),
+        title = title,
+        publishedAt = null,
+        duration = null,
+        author = author
+    ),
 )
 
 public object ItemShields : ItemShield {

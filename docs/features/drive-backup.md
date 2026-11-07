@@ -3,7 +3,7 @@ title: Google Drive backup
 kind: feature
 status: built 2026-10-15 — verified on the emulator against a local folder; not yet seen with Google Drive on the phone
 area: backup
-updated: 2026-11-06
+updated: 2026-11-07
 ---
 
 # Google Drive backup
@@ -21,6 +21,13 @@ me … be able to restore from it as well."* Decisions in [ADR 53](../adr/0053-g
   [ADR 53](../adr/0053-google-drive-backup.md)) and the alarms re-scheduled.
 - **Not in a backup (transient):** a work-app group's pause in progress, bedtime's "off for tonight", an alarm's state
   for today, the recorded "Show taps was switched on by us" value and the snoozed notification keys.
+- **Not in a backup, by decision (2026-11-07, my call, found by the end-of-batch review):** trip mode's settings
+  (`totum_trip_mode`: an armed departure moment and its per-group choice) and the colour each home target was given
+  (`totum_target_colours`). A trip's departure is a single moment, so a restore onto another phone would arm a trip it
+  is not on; a target's colour is only the one this phone picked on first sight of the target (the targets themselves
+  come from the Pi), so losing it just picks again. Putting either in needs a `withX` settings wrapper beside the
+  others and a change flow in `Extras.others`, both call-site only; it was not done because neither has a reason a
+  restore should bring it back.
 - **Where:** a location chosen through Android's picker. A **folder** holds `totum-backup-latest.json` plus one
   `totum-backup-YYYY-MM-DD.json` a day, the newest 7 kept. **One file** (for when Drive will not let a folder be
   chosen) holds the latest, and the 7 daily copies are kept on the phone. Both phones can share one location.

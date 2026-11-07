@@ -50,13 +50,13 @@ import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayReason
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.ReelStart
+import com.dewijones92.totum.domain.titleOf
 import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.ui.common.ItemActionSheet
+import com.dewijones92.totum.ui.common.LocalItemShield
 import com.dewijones92.totum.ui.common.VideoSurface
 import com.dewijones92.totum.ui.common.rememberField
-import com.dewijones92.totum.ui.common.LocalItemShield
-import com.dewijones92.totum.domain.titleOf
 
 /**
  * A full-screen vertical Shorts reel: swipe up/down between shorts, each playing

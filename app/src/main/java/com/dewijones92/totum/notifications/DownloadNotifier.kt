@@ -9,15 +9,15 @@ import androidx.core.content.ContextCompat
 import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.download.DownloadManager
+import com.dewijones92.totum.domain.ItemShields
 import com.dewijones92.totum.domain.MediaItemId
+import com.dewijones92.totum.domain.titleOf
 import com.dewijones92.totum.downloads.DownloadKeepAliveService
 import com.dewijones92.totum.downloads.DownloadsRequests
 import com.dewijones92.totum.downloads.DownloadsSection
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
-import com.dewijones92.totum.domain.ItemShields
-import com.dewijones92.totum.domain.titleOf
 
 /**
  * Renders download progress, completions and failures into the shade.

@@ -15,6 +15,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
+import com.dewijones92.totum.data.backup.titleOf
 import com.dewijones92.totum.data.backup.toPlayable
 import com.dewijones92.totum.data.home.HomeJob
 import com.dewijones92.totum.data.home.HomeJobState
@@ -23,12 +24,11 @@ import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.StorageUsage
 import com.dewijones92.totum.ui.common.HomeRow
+import com.dewijones92.totum.ui.common.LocalItemShield
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.downloadStateOf
 import com.dewijones92.totum.ui.common.homeStateText
 import com.dewijones92.totum.ui.common.rowFacts
-import com.dewijones92.totum.ui.common.LocalItemShield
-import com.dewijones92.totum.data.backup.titleOf
 
 class HomeSection(
     val available: Boolean = false,

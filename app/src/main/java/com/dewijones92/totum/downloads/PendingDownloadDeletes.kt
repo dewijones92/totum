@@ -7,8 +7,10 @@ import com.dewijones92.totum.data.download.DownloadManager
 import com.dewijones92.totum.data.download.DownloadRecord
 import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.DownloadedMedia
+import com.dewijones92.totum.domain.ItemShields
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayableItem
+import com.dewijones92.totum.domain.titleOf
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
@@ -25,8 +27,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import com.dewijones92.totum.domain.ItemShields
-import com.dewijones92.totum.domain.titleOf
 
 interface PendingDeleteStore {
     fun load(): Set<MediaItemId>
@@ -108,7 +108,9 @@ class PendingDownloadDeletes(
             inner.delete(id)
             return
         }
-        val title = inner.observeDownloaded().first().firstOrNull { it.playable.item.id == id }?.playable?.item?.let(ItemShields::titleOf)
+        val title = inner.observeDownloaded().first().firstOrNull { it.playable.item.id == id }?.playable?.item?.let(
+            ItemShields::titleOf
+        )
         hide(id, true)
         Diag.log("download", "dewidebug ${id.value} hidden, waiting for its batch's Undo offer to run its course")
         synchronized(batchLock) {

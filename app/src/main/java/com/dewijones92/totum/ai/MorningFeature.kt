@@ -20,7 +20,6 @@ import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.asPlayable
 import com.dewijones92.totum.notifications.HousekeepingNotifier
 import com.dewijones92.totum.ui.common.toMediaItem
-import kotlinx.coroutines.flow.first
 
 val FOR_YOU_PLAYLIST: PlaylistId = PlaylistId("for-you")
 private val FOR_YOU_SOURCE = SourceId("for-you")
@@ -58,7 +57,12 @@ class MorningJob(
         val news = result.digestLines.orEmpty().map { "🆕 ${it.removePrefix("🆕 ")}" }
         val picks = result.picks?.takeIf { it > 0 }
             ?.let { context.resources.getQuantityString(R.plurals.morning_picks_line, it, it) }
-        val failed = result.picksFailed?.let { context.getString(R.string.morning_picks_failed_line, it.removePrefix("❌ ")) }
+        val failed = result.picksFailed?.let {
+            context.getString(
+                R.string.morning_picks_failed_line,
+                it.removePrefix("❌ ")
+            )
+        }
         return news + listOfNotNull(picks, failed)
     }
 }

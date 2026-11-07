@@ -11,9 +11,9 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dewijones92.totum.R
+import com.dewijones92.totum.domain.titleOf
 import com.dewijones92.totum.queue.TrailNavigation
 import com.dewijones92.totum.ui.common.LocalItemShield
-import com.dewijones92.totum.domain.titleOf
 
 val LocalTrail = staticCompositionLocalOf<TrailNavigation?> { null }
 

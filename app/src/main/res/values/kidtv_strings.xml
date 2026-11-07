@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="kidtv_title">👶📺 Kid TV</string>
-    <string name="kidtv_starting">Starting %1$s on %2$s</string>
+    <string name="kidtv_starting">⏳ Starting %1$s on %2$s</string>
     <string name="kidtv_intro">👶📺 One tap puts a playlist you pinned on the TV in kid mode: 1× speed, no skipped silences, the playlist loops, and nothing else plays. The phone stays free.</string>
     <string name="kidtv_tile_set_up">⚙️ Choose a playlist and a TV</string>
     <string name="kidtv_tile_ready">▶️ %1$s on %2$s</string>

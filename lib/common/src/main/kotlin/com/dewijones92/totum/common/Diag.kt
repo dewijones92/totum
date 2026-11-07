@@ -43,7 +43,10 @@ public object Breadcrumbs {
     private const val KEPT_MAX_ENTRIES = 1_000
 
     public val KEPT_TAGS: Set<String> =
-        setOf("Exsurge", "DailyAlarm", "reminders", "cast", "home", "ask", "speakers")
+        setOf(
+            "Exsurge", "DailyAlarm", "reminders", "cast", "home", "ask", "speakers", "morning", "spoiler", "targets",
+            "jobs", "ai-job", "jellyfin", "trip", "kidlock",
+        )
 
     private val entries = ConcurrentLinkedDeque<Entry>()
     private val count = AtomicInteger()

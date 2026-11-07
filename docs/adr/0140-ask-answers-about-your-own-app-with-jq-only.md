@@ -37,7 +37,11 @@ written from those words.
 - `app`: the question is about what is in the app. One call (`ask-state`) with `Bash(jq:*)` only, below.
 - `web`: the existing ADR 109 flow, unchanged: the picks, the web, the person's taste, the app's own searches. The taste
   (channel, show, artist and album names, most played titles) already travelled to that web-capable call before this
-  ADR and still does; it was not widened and is **not** sent on any call that also touched the snapshot.
+  ADR and still does, and is **not** sent on any call that also touched the snapshot. **Widened on 2026-11-07** at the
+  coordinator's instruction (the review found two taste builders that disagreed): Ask now uses the same `appTaste` as the
+  morning job, so the web-capable call also receives the titles of the ⭐ starred items and of the first page of the
+  account's liked videos (about 60 each), as the morning job's For you call already did (the liked page is one request through the polite gate, kept for 15 minutes). A title the spoiler shield is
+  hiding goes as its safe title, and one that is only the neutral placeholder is left out.
 - `both`: two **separate** calls that share nothing (below).
 - No snapshot with the ask (an older app): the old web flow, no routing. A snapshot that expired while the question
   was routed: an app question fails with "the snapshot has expired; ask again" rather than guessing.
@@ -243,3 +247,9 @@ the token is kept from jq by two layers: Claude Code's own checks on the command
 the folder, no compound commands) and jq-sandbox.sh (empty environment, no paths outside the folder). The earlier
 sentence "jq reads only the files in the snapshot's own folder" holds because of both, not the wrapper alone. A
 Claude Code upgrade must re-run this probe (the canary script is in the commit message of this amendment).
+
+The sandbox's `import` and `include` check first matched only those words followed by one or two spaces and a quote, so
+`import"x"` or `import` plus a tab walked past it. It now refuses `import` or `include` followed by any whitespace or a
+quote (a jq filter that holds the word followed by a quote, such as `test("import")`, is refused too: the safe side).
+Checked under dash in the `python:3.14-slim` image (the temurin image was not pulled): `import"x"`, `include "x"`,
+`import` plus a tab and `import` plus a newline are refused; `.title`, `.imports`, `test("importan")` and `env` run.

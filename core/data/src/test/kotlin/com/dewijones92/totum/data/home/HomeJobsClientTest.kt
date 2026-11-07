@@ -52,6 +52,16 @@ class HomeJobsClientTest {
     }
 
     @Test
+    fun `a plain error from the home server is wrapped in an emoji-led line on the phone`() = runTest {
+        server.enqueue(MockResponse.Builder().code(400).body("""{"error":"unreadable request"}""").build())
+        assertEquals(
+            HomeAnswer.No("❌ unreadable request", 400),
+            client().start(HomeJobRequest(item, true))
+        )
+        assertEquals("⚠️ keeps its own", com.dewijones92.totum.data.home.HomePiCall.emojiLed("⚠️ keeps its own"))
+    }
+
+    @Test
     fun `ids with odd characters travel in the query, untouched by nginx`() = runTest {
         server.enqueue(MockResponse.Builder().code(200).body("{}").build())
         client().cancel("a b/c?d")

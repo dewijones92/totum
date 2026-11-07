@@ -65,7 +65,7 @@ internal fun MorningSettings(container: AppContainer) {
             if (container.operations.isRunning(MORNING_KEY)) return@Button
             scope.launch {
                 container.operations.tracking(MORNING_KEY, OperationKind.TASK, label) {
-                    val job = container.aiFeatures.morningJob ?: return@tracking OperationEnd.Failed("no morning job")
+                    val job = container.aiFeatures.morningJob ?: return@tracking OperationEnd.Failed("❌ No morning job")
                     val result = job.runAndTell("settings")
                     container.lastRuns.succeeded(MorningWorker.JOB_NAME, job.detail(result))
                     OperationEnd.Done(result.picks ?: 0, note = result.digestLines?.firstOrNull())

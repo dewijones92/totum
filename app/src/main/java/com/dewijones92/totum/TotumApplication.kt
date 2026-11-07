@@ -9,10 +9,10 @@ import com.dewijones92.totum.cast.startCastScreens
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HomeServerAuth
 import com.dewijones92.totum.common.HomeServerHosts
-import com.dewijones92.totum.domain.ItemShields
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.di.DefaultAppContainer
 import com.dewijones92.totum.diagnostics.MainThreadWatch
+import com.dewijones92.totum.domain.ItemShields
 import com.dewijones92.totum.downloads.EmbeddedSubtitleWarmer
 import com.dewijones92.totum.exsurge.ExsurgeEvent
 import com.dewijones92.totum.exsurge.FlatPhoneNudge

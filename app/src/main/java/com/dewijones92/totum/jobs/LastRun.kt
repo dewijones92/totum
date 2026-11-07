@@ -68,6 +68,8 @@ class LastRuns(
 
     fun get(name: String): LastRun? = all.value[name]
 
+    fun snapshot(): Map<String, LastRun> = all.value
+
     fun observe(name: String): Flow<LastRun?> = all.map { it[name] }.distinctUntilChanged()
 
     fun succeeded(name: String, detail: String = "") = record(name, true, detail)

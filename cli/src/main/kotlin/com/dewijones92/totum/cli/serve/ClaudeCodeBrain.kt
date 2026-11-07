@@ -119,7 +119,10 @@ internal class PromptBrain(private val completer: Completer, private val service
         tools: String,
         serializer: KSerializer<T>,
         files: Map<String, String> = emptyMap(),
-    ): Pair<T, Completed> = runner.runDetailed(AiPrompt(caller, what, system, message, schema, tools, files), serializer)
+    ): Pair<T, Completed> = runner.runDetailed(
+        AiPrompt(caller, what, system, message, schema, tools, files),
+        serializer
+    )
 
     private fun callerFor(what: String) = if (what == "suggest") CallerTools.ASK else what
 }

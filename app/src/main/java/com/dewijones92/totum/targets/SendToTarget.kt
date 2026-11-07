@@ -49,7 +49,7 @@ class SendToTarget(
                                 "send to $label: it did not start (playing=${state.playing}, " +
                                     "problem=${state.problem}); the phone keeps its queue",
                             )
-                            OperationEnd.Failed(state.problem ?: "it did not start")
+                            OperationEnd.Failed(state.problem ?: "❌ It did not start")
                         } else {
                             controller.setPlaying(false)
                             queue.removeAll(plan.toRemove.map { snapshot.entries[it].item.item.id }.toSet())

@@ -118,7 +118,9 @@ class ListenRecorderTest {
         recorder(log, work).start()
         runCurrent()
 
-        controller.emitState(state("m1", playing = true, title = "🙈 Title hidden", realTitle = "A beat B in the final"))
+        controller.emitState(
+            state("m1", playing = true, title = "🙈 Title hidden", realTitle = "A beat B in the final")
+        )
         advanceTimeBy(40_000)
         controller.emitState(state("m2", playing = true))
         advanceTimeBy(2_000)

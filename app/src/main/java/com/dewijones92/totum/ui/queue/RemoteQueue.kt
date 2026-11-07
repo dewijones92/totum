@@ -39,6 +39,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dewijones92.totum.R
+import com.dewijones92.totum.data.backup.titleOf
 import com.dewijones92.totum.data.targets.SoundSettings
 import com.dewijones92.totum.data.targets.TargetAction
 import com.dewijones92.totum.data.targets.TargetColours
@@ -50,12 +51,11 @@ import com.dewijones92.totum.data.targets.toQueueEntry
 import com.dewijones92.totum.playback.VolumeBoost
 import com.dewijones92.totum.targets.TargetsRepository
 import com.dewijones92.totum.ui.common.EmptyState
+import com.dewijones92.totum.ui.common.LocalItemShield
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.formatClock
 import com.dewijones92.totum.ui.common.rowFacts
 import kotlin.time.Duration.Companion.milliseconds
-import com.dewijones92.totum.ui.common.LocalItemShield
-import com.dewijones92.totum.data.backup.titleOf
 
 @Composable
 fun RemoteQueue(targets: TargetsRepository, id: String, modifier: Modifier = Modifier) {
