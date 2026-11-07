@@ -166,3 +166,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 152 | [A target is anything the Pi plays to, and each has its own queue](0152-a-target-is-anything-the-pi-plays-to-and-each-has-its-own-queue.md) | Accepted |
 | 153 | [The Pi runs the phone's sound processing](0153-the-pi-runs-the-phones-sound-processing.md) | Accepted |
 | 154 | [Jellyfin is browsed and streamed through the Pi, with the key kept there](0154-jellyfin-is-browsed-and-streamed-through-the-pi.md) | Accepted |
+| 155 | [A target repeats, plays sound files on the Pi, and says why it could not play](0155-a-target-repeats-plays-files-on-the-pi-and-says-why-it-could-not-play.md) | Accepted |

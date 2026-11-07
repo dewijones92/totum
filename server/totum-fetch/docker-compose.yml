@@ -19,7 +19,9 @@ services:
       - /run/user/1000/pulse/native:/run/pulse/native
       - /home/pi/.config/pulse/cookie:/run/pulse/cookie:ro
       - /run/dbus/system_bus_socket:/run/dbus/system_bus_socket
+      - /var/lib/hermes-audio:/sounds:ro
     ports:
+      - "127.0.0.1:8770:8770"
       - "8771:8771"
     networks:
       - bin_private

@@ -87,7 +87,9 @@ to send a queue to. ADR 116 had built that for speakers only, with its own wire 
 - Speakers are targets; the leftover `speaker-<id>.json` queue files are not read (the new files are
   `target-<id>.json`), so a speaker queue saved before this change starts empty once.
 - Home Assistant's brown-noise and jazz switches (`hermes-audio-ctl`, in the Pi's `dot-files`) are still a second player
-  on the same speakers; making them call `POST /targets/queue` is a dot-files change and is not done here.
+  on the same speakers; making them call `POST /targets/queue` is a dot-files change. The Totum side (repeat, files on
+  the Pi, `problem`, 8770 on the loopback) is [ADR 155](0155-a-target-repeats-plays-files-on-the-pi-and-says-why-it-could-not-play.md);
+  the adapter is in `tools/handoff/hermes-audio/`, to be deployed by hand.
 - The Pi cannot tell phones apart beyond the id a phone sends. Anyone with a home-server token can send another
   phone's id; this is a household, not a threat model, and the rule is written down so it is not mistaken for one.
 - Connecting to a target (a Chromecast helper, a Bluetooth link) happens before the deck's lock is taken, so a slow or

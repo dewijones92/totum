@@ -1,7 +1,7 @@
 ---
 title: 🔊 Home Assistant's brown noise, jazz and shows play through Totum
 kind: todo
-status: refined 2026-11-07, Batch A
+status: Totum side built 2026-11-07 (repeat, files, problem, 8770; live waits for the casting-brain move); adapter in tools/handoff/hermes-audio, not deployed
 batch: A (2026-11)
 priority: high
 updated: 2026-11-07
@@ -48,6 +48,15 @@ it is "this batch please".
 - **A passed-over item is a problem on the target** ("❌ Couldn't play Jazz station: not available"), shown on the
   phone's chip like any other.
 - Items started by HA show in Totum's queue view, from "🏠 Home Assistant".
+
+## Built 2026-11-07 ([ADR 155](../adr/0155-a-target-repeats-plays-files-on-the-pi-and-says-why-it-could-not-play.md))
+
+- Repeat off / this one / the queue on a target; `file:///sounds/<name>` items from the read-only `/sounds` mount; `problem`
+  for a passed-over item or a failed player; 8770 on `127.0.0.1`; HA as a requester.
+- `tools/handoff/hermes-audio/audio-ctl.py` (same URLs and `/status` shape, calls Totum) with its unit test.
+- **Not built here:** live YouTube on a Pi target (comes with the casting-brain move into `:core:cast`), so HA's Jazz
+  shows a `problem` until that lands; the new jazz station id is `Dx5qFachd3A`; a TV's failure reason is generic.
+- **Owed:** deploy Totum and the adapter, then the done-when below on both speakers (nothing has run on a real speaker).
 
 ## Done when
 
