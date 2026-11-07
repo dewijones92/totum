@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.update
+import java.util.concurrent.CopyOnWriteArrayList
 
 /** In-memory [PlaybackController] for tests and Compose previews. */
 // The count is PlaybackController's own surface plus a few test hooks; the real
@@ -51,7 +52,7 @@ public class FakePlaybackController(override val player: Player? = null) : Playb
         playbackContext = context
     }
 
-    public val playReasons: MutableList<Pair<MediaItemId, PlayReason>> = mutableListOf()
+    public val playReasons: MutableList<Pair<MediaItemId, PlayReason>> = CopyOnWriteArrayList()
 
     override fun setPlayReason(itemId: MediaItemId, reason: PlayReason) {
         playReasons += itemId to reason
@@ -63,7 +64,7 @@ public class FakePlaybackController(override val player: Player? = null) : Playb
     }
 
     /** Every play() in order — lets a test assert how MANY times something was played. */
-    public val played: MutableList<String> = mutableListOf()
+    public val played: MutableList<String> = CopyOnWriteArrayList()
 
     private val _state = MutableStateFlow<PlaybackState?>(null)
     override val state: StateFlow<PlaybackState?> = _state
@@ -72,7 +73,7 @@ public class FakePlaybackController(override val player: Player? = null) : Playb
 
     public val screensFlow: MutableStateFlow<ScreenTargets> = MutableStateFlow(ScreenTargets())
     override val screens: StateFlow<ScreenTargets> = screensFlow
-    public val screenRequests: MutableList<String?> = mutableListOf()
+    public val screenRequests: MutableList<String?> = CopyOnWriteArrayList()
 
     override fun playOnScreen(screenId: String?) {
         screenRequests += screenId
@@ -263,8 +264,8 @@ public class FakePlaybackController(override val player: Player? = null) : Playb
         _state.update { it?.copy(positionMs = it.positionMs + SEEK_FORWARD_MS) }
     }
 
-    public val savedSpeeds: MutableList<Float> = mutableListOf()
-    public val savedSkipSilence: MutableList<Boolean> = mutableListOf()
+    public val savedSpeeds: MutableList<Float> = CopyOnWriteArrayList()
+    public val savedSkipSilence: MutableList<Boolean> = CopyOnWriteArrayList()
 
     override fun setSpeed(speed: Float) {
         savedSpeeds += speed
@@ -275,7 +276,7 @@ public class FakePlaybackController(override val player: Player? = null) : Playb
         _state.update { it?.copy(speed = speed) }
     }
 
-    public val fadeLevels: MutableList<Float> = mutableListOf()
+    public val fadeLevels: MutableList<Float> = CopyOnWriteArrayList()
 
     override fun setFadeLevel(level: Float) {
         fadeLevels += level
@@ -295,12 +296,12 @@ public class FakePlaybackController(override val player: Player? = null) : Playb
     }
 
     /** What was nominated for preloading, so a test can assert data was (or was not) spent. */
-    public var preloaded: MutableList<HttpUrl> = mutableListOf()
+    public var preloaded: MutableList<HttpUrl> = CopyOnWriteArrayList()
 
     /** Which item each nomination was for, which is what the real preloader keys on. */
-    public var preloadedFor: MutableList<MediaItemId> = mutableListOf()
+    public var preloadedFor: MutableList<MediaItemId> = CopyOnWriteArrayList()
 
-    public var preloadedAudio: MutableList<HttpUrl?> = mutableListOf()
+    public var preloadedAudio: MutableList<HttpUrl?> = CopyOnWriteArrayList()
 
     public var armedItem: MediaItem? = null
         private set
@@ -310,8 +311,8 @@ public class FakePlaybackController(override val player: Player? = null) : Playb
         private set
     public var armedAudioOnly: Boolean = false
         private set
-    public val disarmReasons: MutableList<String> = mutableListOf()
-    public val adopted: MutableList<String> = mutableListOf()
+    public val disarmReasons: MutableList<String> = CopyOnWriteArrayList()
+    public val adopted: MutableList<String> = CopyOnWriteArrayList()
     private var adoptable: MediaItem? = null
 
     override val armedNext: MediaItemId? get() = armedItem?.id
