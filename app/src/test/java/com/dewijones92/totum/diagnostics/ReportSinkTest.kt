@@ -56,6 +56,29 @@ class ReportSinkTest {
     }
 
     @Test
+    fun `the body goes as JSON by POST and a sink that refuses it is a failure, not a success`() {
+        HomeServerAuth.use({ "totum.home.test" }, { "device-token" }, { server.hostName })
+        server.enqueue(MockResponse.Builder().code(500).build())
+
+        val sent = sink { server.url("/ingest").toString() }.post("""{"a":1}""", "diagnostics")
+
+        assertFalse(sent)
+        val request = server.takeRequest()
+        assertEquals("POST", request.method)
+        assertEquals("""{"a":1}""", request.body?.utf8())
+        assertTrue(request.headers["Content-Type"].orEmpty().startsWith("application/json"))
+    }
+
+    @Test
+    fun `a sink that cannot be reached is a failure and does not throw`() {
+        HomeServerAuth.use({ "totum.home.test" }, { "device-token" }, { server.hostName })
+        val address = server.url("/ingest").toString()
+        server.close()
+
+        assertFalse(sink { address }.post("{}", "diagnostics"))
+    }
+
+    @Test
     fun `no home server means no endpoint and nothing is sent`() {
         HomeServerAuth.use({ null }, { "device-token" })
 
