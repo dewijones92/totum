@@ -35,6 +35,21 @@ public enum class AskKind(public val emoji: String, public val vetted: Boolean =
 
     @SerialName("latest")
     LATEST("🆕", vetted = false),
+
+    @SerialName("app")
+    APP("🗂️", vetted = false),
+}
+
+@Serializable
+public enum class AskSource {
+    @SerialName("web")
+    WEB,
+
+    @SerialName("app")
+    APP,
+
+    @SerialName("both")
+    BOTH,
 }
 
 @Serializable
@@ -55,6 +70,7 @@ public data class Suggestion(
     val why: String,
     val searchWords: String,
     val alreadyHave: Boolean = false,
+    val itemIds: List<String> = emptyList(),
 ) {
     val label: String get() = title + (year?.let { " ($it)" } ?: "")
 }
@@ -64,6 +80,7 @@ public data class AskTurn(
     val request: String,
     val suggested: List<String> = emptyList(),
     val reply: String = "",
+    val source: AskSource = AskSource.WEB,
 )
 
 @Serializable
@@ -71,6 +88,7 @@ public data class AskRequest(
     val turns: List<AskTurn>,
     val have: List<String> = emptyList(),
     val taste: Taste = Taste(),
+    val stateId: String? = null,
 ) {
     init {
         require(turns.isNotEmpty()) { "an ask needs a request" }
@@ -78,7 +96,24 @@ public data class AskRequest(
 }
 
 @Serializable
-public data class AskAnswer(val suggestions: List<Suggestion>, val reply: String = "")
+public data class AskTrace(
+    val route: String? = null,
+    val routeMs: Long? = null,
+    val appMs: Long? = null,
+    val webMs: Long? = null,
+    val jqCalls: Int? = null,
+    val jqDenied: Int? = null,
+    val stateBytes: Long? = null,
+    val note: String? = null,
+)
+
+@Serializable
+public data class AskAnswer(
+    val suggestions: List<Suggestion>,
+    val reply: String = "",
+    val source: AskSource = AskSource.WEB,
+    val trace: AskTrace? = null,
+)
 
 @Serializable
 public data class CopyToVet(val name: String, val sizeBytes: Long? = null, val detail: String? = null)
@@ -117,7 +152,7 @@ public data class AskJob(
     val error: String? = null,
 )
 
-public fun AskAnswer.tidied(taste: Taste): AskAnswer = AskAnswer(
+public fun AskAnswer.tidied(taste: Taste): AskAnswer = copy(
     suggestions = suggestions.map { it.tidied(taste) },
     reply = reply.replace(MARKDOWN_LINK) { it.groupValues[1] },
 )

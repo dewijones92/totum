@@ -1,6 +1,7 @@
 package com.dewijones92.totum.data.ask
 
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.data.ask.state.StateReceipt
 import com.dewijones92.totum.data.home.HomeAnswer
 import com.dewijones92.totum.data.home.HomePiCall
 import kotlinx.coroutines.delay
@@ -8,10 +9,14 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import java.net.URLEncoder
 
 public interface AskService {
     public suspend fun ask(request: AskRequest, progress: (elapsedMs: Long) -> Unit = {}): AskOutcome<AskAnswer>
     public suspend fun vet(request: VetRequest, progress: (elapsedMs: Long) -> Unit = {}): AskOutcome<VetAnswer>
+
+    public suspend fun uploadState(id: String, packed: ByteArray): AskOutcome<StateReceipt> =
+        AskOutcome.Failed("❌ This build cannot send your app's data")
 }
 
 public sealed interface AskOutcome<out T> {
@@ -34,6 +39,21 @@ public class HttpAskService(
 
     override suspend fun vet(request: VetRequest, progress: (Long) -> Unit): AskOutcome<VetAnswer> =
         run("vet", AskJson.encodeToString(VetRequest.serializer(), request), progress) { it.vet }
+
+    override suspend fun uploadState(id: String, packed: ByteArray): AskOutcome<StateReceipt> {
+        val began = clock()
+        val request = Request.Builder().url("$base/ask-state?id=${URLEncoder.encode(id, Charsets.UTF_8)}")
+            .header("Content-Encoding", "gzip")
+            .put(packed.toRequestBody(OCTETS))
+        val what = "PUT /ask-state ($id, ${packed.size} bytes packed)"
+        return when (val answer = pi.call(what, request, StateReceipt.serializer())) {
+            is HomeAnswer.Ok -> {
+                Diag.log("ask", "state $id uploaded: ${packed.size} bytes packed in ${clock() - began}ms")
+                AskOutcome.Answered(answer.value, clock() - began)
+            }
+            is HomeAnswer.No -> AskOutcome.Failed(answer.reason)
+        }
+    }
 
     private suspend fun <T> run(
         path: String,
@@ -80,6 +100,7 @@ public class HttpAskService(
 
     private companion object {
         val JSON = "application/json".toMediaType()
+        val OCTETS = "application/octet-stream".toMediaType()
         const val POLL_MS = 1_500L
         const val GIVE_UP_MS = 330_000L
     }

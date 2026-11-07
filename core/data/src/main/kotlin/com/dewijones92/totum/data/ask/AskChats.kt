@@ -10,7 +10,8 @@ import java.io.File
 public data class SavedTurn(
     val request: String,
     val reply: String = "",
-    val suggestions: List<Suggestion> = emptyList()
+    val suggestions: List<Suggestion> = emptyList(),
+    val source: AskSource = AskSource.WEB,
 )
 
 @Serializable
