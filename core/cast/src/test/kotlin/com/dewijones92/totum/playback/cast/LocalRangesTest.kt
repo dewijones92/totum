@@ -65,6 +65,36 @@ class LocalRangesTest {
     }
 
     @Test
+    fun `a suffix range is the last bytes of the file, not the first`() {
+        val reply = LocalRanges.reply(file("a.mp4"), "bytes=-10").stream()
+
+        assertEquals(206, reply.status)
+        assertEquals("bytes 90-99/100", reply.extra["Content-Range"])
+        assertEquals(content.copyOfRange(90, 100).toList(), reply.read().toList())
+    }
+
+    @Test
+    fun `a stream of a known length is answered like a file, from whatever opens its bytes`() {
+        val opened = mutableListOf<Pair<Long, Long>>()
+        val whole = LocalRanges.replyFor(100, null, "video/mp4") { first, length ->
+            opened += first to length
+            content.copyOfRange(first.toInt(), (first + length).toInt()).inputStream()
+        }.stream()
+        val part = LocalRanges.replyFor(100, "bytes=20-29", "video/mp4") { first, length ->
+            opened += first to length
+            content.copyOfRange(first.toInt(), (first + length).toInt()).inputStream()
+        }.stream()
+
+        assertEquals(200, whole.status)
+        assertEquals("video/mp4", whole.type)
+        assertEquals(content.toList(), whole.read().toList())
+        assertEquals(206, part.status)
+        assertEquals("bytes 20-29/100", part.extra["Content-Range"])
+        assertEquals(content.copyOfRange(20, 30).toList(), part.read().toList())
+        assertEquals(listOf(0L to 100L, 20L to 10L), opened)
+    }
+
+    @Test
     fun `an mp4 is typed video mp4 and anything else video webm`() {
         assertEquals("video/mp4", LocalRanges.reply(file("a.mp4"), null).stream().type)
         assertEquals("video/webm", LocalRanges.reply(file("a.webm"), null).stream().type)

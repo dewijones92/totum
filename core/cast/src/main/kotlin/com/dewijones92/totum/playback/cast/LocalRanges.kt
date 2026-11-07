@@ -16,21 +16,35 @@ public object LocalRanges {
     }
 
     public fun reply(file: File, range: String?): HttpReply {
-        val total = file.length()
+        val type = if (file.extension == "mp4") "video/mp4" else "video/webm"
+        return replyFor(file.length(), range, type) { first, length ->
+            Bounded(FileInputStream(file).apply { skip(first) }, length)
+        }
+    }
+
+    public fun replyFor(
+        total: Long,
+        range: String?,
+        type: String,
+        open: (first: Long, length: Long) -> InputStream,
+    ): HttpReply {
         val (first, last) = parse(range, total)
         val length = last - first + 1
         val extra = buildMap {
             put("Accept-Ranges", "bytes")
             if (range != null) put("Content-Range", "bytes $first-$last/$total")
         }
-        val type = if (file.extension == "mp4") "video/mp4" else "video/webm"
         return HttpReply.Stream(if (range != null) Http.PARTIAL else Http.OK, type, length, extra) {
-            Bounded(FileInputStream(file).apply { skip(first) }, length)
+            open(first, length)
         }
     }
 
     private fun parse(range: String?, total: Long): Pair<Long, Long> {
         val spec = range?.substringAfter("bytes=", "")?.substringBefore(',').orEmpty()
+        if (spec.startsWith('-')) {
+            val tail = spec.removePrefix("-").toLongOrNull()?.coerceIn(1, total) ?: total
+            return (total - tail) to (total - 1)
+        }
         val first = spec.substringBefore('-').toLongOrNull() ?: 0L
         val last = spec.substringAfter('-', "").toLongOrNull()?.coerceAtMost(total - 1) ?: (total - 1)
         return first.coerceIn(0, total - 1) to last

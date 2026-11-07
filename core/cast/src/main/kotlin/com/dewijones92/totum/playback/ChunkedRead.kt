@@ -1,7 +1,7 @@
 package com.dewijones92.totum.playback
 
 /** `C.LENGTH_UNSET` is an Int; every length here is a Long. */
-internal const val UNKNOWN_LENGTH: Long = -1L
+public const val UNKNOWN_LENGTH: Long = -1L
 
 /**
  * How many bytes are still available from [position] — the arithmetic [ChunkedDataSource] got wrong.
@@ -24,7 +24,7 @@ internal const val UNKNOWN_LENGTH: Long = -1L
  * needs an `android.net.Uri`, which a JVM test cannot make — the same reason [isExpiredStatus] is
  * split out from the cause-chain walk that uses it.
  */
-internal fun remainingFrom(position: Long, requestedLength: Long, resourceLength: Long?): Long = when {
+public fun remainingFrom(position: Long, requestedLength: Long, resourceLength: Long?): Long = when {
     requestedLength != UNKNOWN_LENGTH -> requestedLength
     resourceLength == null || resourceLength == UNKNOWN_LENGTH -> UNKNOWN_LENGTH
     // Clamped: a resource shorter than the position we were asked to start at owes nothing. It
@@ -40,23 +40,23 @@ internal fun remainingFrom(position: Long, requestedLength: Long, resourceLength
  * every rule below is one a unit test can hold, and none of them were held before. The class the
  * rules used to live in could not be tested at all without a device.
  */
-internal class ChunkedRead(
+public class ChunkedRead(
     remaining: Long,
     private val chunkBytes: Long,
 ) {
 
     /** Bytes still owed to the caller, or [UNKNOWN_LENGTH] when nobody has said. */
-    var remaining: Long = remaining
+    public var remaining: Long = remaining
         private set
 
     /** What `open()` should hand back: bytes available from where the caller started. */
-    val declaredLength: Long = remaining
+    public val declaredLength: Long = remaining
 
     /** Nothing left to serve — every later read is end-of-input. */
-    val finished: Boolean get() = remaining == 0L
+    public val finished: Boolean get() = remaining == 0L
 
     /** A range is open upstream and may still have bytes in it. */
-    var rangeOpen: Boolean = false
+    public var rangeOpen: Boolean = false
         private set
 
     /** Bytes handed to the caller so far, which is also where the next range starts. */
@@ -69,10 +69,10 @@ internal class ChunkedRead(
     private var deliveredFromRange = 0L
 
     /** A byte range to ask upstream for: an offset from where the caller's request began. */
-    data class Range(val offset: Long, val bytes: Long)
+    public data class Range(val offset: Long, val bytes: Long)
 
     /** What an end-of-input from upstream turned out to mean. */
-    enum class RangeEnd {
+    public enum class RangeEnd {
         /** This range is done and there is more resource after it. */
         Continue,
 
@@ -93,24 +93,24 @@ internal class ChunkedRead(
      *
      * Never called when [finished]; a zero-byte range is a request the server can only refuse.
      */
-    fun nextRange(): Range {
+    public fun nextRange(): Range {
         deliveredFromRange = 0
         val size = if (remaining == UNKNOWN_LENGTH) chunkBytes else minOf(chunkBytes, remaining)
         return Range(offset = delivered, bytes = size)
     }
 
     /** Records what a freshly-opened range reports it holds. */
-    fun opened(rangeLength: Long) {
+    public fun opened(rangeLength: Long) {
         rangeRemaining = rangeLength
         rangeOpen = true
     }
 
     /** How much may be read now without reading past the open range and mis-placing the next one. */
-    fun cap(length: Int): Int =
+    public fun cap(length: Int): Int =
         if (rangeRemaining == UNKNOWN_LENGTH) length else minOf(length.toLong(), rangeRemaining).toInt()
 
     /** Records bytes handed to the caller, closing the range once it is used up. */
-    fun served(bytes: Int) {
+    public fun served(bytes: Int) {
         delivered += bytes
         deliveredFromRange += bytes
         if (rangeRemaining != UNKNOWN_LENGTH) rangeRemaining -= bytes
@@ -119,7 +119,7 @@ internal class ChunkedRead(
     }
 
     /** Gives up on the open range; the next one starts at the byte this one reached. */
-    fun abandonRange() {
+    public fun abandonRange() {
         rangeOpen = false
         rangeRemaining = UNKNOWN_LENGTH
     }
@@ -139,7 +139,7 @@ internal class ChunkedRead(
      * - **A range that stopped short of what it promised.** The resource is shorter than it said,
      *   so there is nothing further along to fetch.
      */
-    fun endOfRange(): RangeEnd {
+    public fun endOfRange(): RangeEnd {
         rangeOpen = false
         val producedNothing = deliveredFromRange == 0L
         val stoppedShort = rangeRemaining != UNKNOWN_LENGTH && rangeRemaining > 0
@@ -150,6 +150,6 @@ internal class ChunkedRead(
     }
 
     /** Why the read ended where it did, for the one log line that would have found this in a day. */
-    fun describe(): String =
+    public fun describe(): String =
         "delivered=$delivered remaining=$remaining declared=$declaredLength chunk=$chunkBytes"
 }

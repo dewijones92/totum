@@ -48,3 +48,6 @@ Android imports; the audio-quality tests already ran them on the JVM, fed by ffm
   gaps). **Lifted 2026-11-07:** those gaps now have tests, the module covers 87.5%, and it is held by `koverVerify` like
   `:core:sound`.
 - `CastStreams` is not split yet; it still holds both the plain stream-building and the Android-bound parts.
+- **`ChunkedRead` moved to `:core:cast` on 2026-11-07** (package `com.dewijones92.totum.playback` unchanged, now public, its
+  test with it) so the Pi's YouTube relay (`ChunkedUpstream`, [ADR 153](0153-the-pi-runs-the-phones-sound-processing.md))
+  and the phone's `ChunkedDataSource` share one ranged-read state machine instead of a second copy.
