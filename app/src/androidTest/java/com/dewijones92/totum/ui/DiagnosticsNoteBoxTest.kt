@@ -10,12 +10,15 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.test.platform.app.InstrumentationRegistry
+import com.dewijones92.totum.BuildConfig
 import com.dewijones92.totum.TotumApplication
 import com.dewijones92.totum.diagnostics.DiagnosticsStore
 import com.dewijones92.totum.ui.settings.SettingsScreen
 import org.json.JSONObject
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 
@@ -43,8 +46,28 @@ class DiagnosticsNoteBoxTest {
      * The dialog's wiring is what is under test; walking Library → Account → Settings would make
      * this a test of the shell's navigation, which has its own.
      */
+    private val container get() = (context.applicationContext as TotumApplication).container
+    private var savedBase = ""
+    private var savedKey = ""
+    private var savedToken = ""
+
+    @Before
+    fun signInToThisBuildsHomeServer() {
+        val now = container.appPreferences.settings.value
+        savedBase = now.homeServerBase
+        savedKey = now.prowlarrApiKey
+        savedToken = now.homeServerToken
+        container.appPreferences.setHomeServer(BuildConfig.HOME_SERVER.ifBlank { "example.org" }, now.prowlarrApiKey)
+        container.appPreferences.setHomeServerToken("test-token-not-real")
+    }
+
+    @After
+    fun restoreHomeServer() {
+        container.appPreferences.setHomeServer(savedBase, savedKey)
+        container.appPreferences.setHomeServerToken(savedToken)
+    }
+
     private fun settings() {
-        val container = (context.applicationContext as TotumApplication).container
         compose.setContent { SettingsScreen(container = container, onBack = {}) }
     }
 
