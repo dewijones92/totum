@@ -50,3 +50,12 @@ the configuration.
 - A report says `[video] frame rate N fps worked out from 12 sample times … before the decoder was configured` and
   `[video] screen refresh preference …`, so a phone report can show both happened.
 - The DASH and HLS chunk paths (the live manifest aside) still rely on their manifests for the rate.
+
+## Amendment, 2026-11-07: whole-millisecond containers
+
+WebM and Matroska stamp every frame in whole milliseconds, so 60fps arrives as gaps of 16 and 17 ms and the median
+spacing reads 58.8fps, 30fps as 30.3fps; both were more than 1% from the common rate and were not snapped, and at 2x
+the screen then had no even mode (58.8 x 2 divides into neither 60 nor 90). When every sample time is a whole
+millisecond the snap tolerance is now one millisecond's share of the spacing (about 6% at 60fps, 3% at 30fps); times
+with microsecond detail (fragmented MP4) are still judged to 1%. 24fps and 23.976fps are indistinguishable at that
+resolution and snap to whichever is nearer, which the display choice treats alike.

@@ -26,7 +26,9 @@ internal fun frameRateFrom(sampleTimesUs: List<Long>): Float? {
     val raw = MICROS_PER_SECOND / medianUs.toFloat()
     if (raw < SLOWEST_FPS || raw > FASTEST_FPS) return null
     val nearest = COMMON_RATES.minBy { abs(it - raw) }
-    return if (abs(nearest - raw) / nearest < SNAP_TOLERANCE) nearest else raw
+    val wholeMs = sorted.all { it % MICROS_PER_MILLISECOND == 0L }
+    val tolerance = if (wholeMs) maxOf(SNAP_TOLERANCE, MICROS_PER_MILLISECOND / medianUs.toFloat()) else SNAP_TOLERANCE
+    return if (abs(nearest - raw) / nearest < tolerance) nearest else raw
 }
 
 @UnstableApi
@@ -179,6 +181,7 @@ internal class FrameRateStampingTrack(private val out: TrackOutput) : TrackOutpu
 private const val FRAMES_TO_JUDGE = 12
 private const val INITIAL_BYTES = 256 * 1024
 private const val MICROS_PER_SECOND = 1_000_000f
+private const val MICROS_PER_MILLISECOND = 1_000L
 private const val SLOWEST_FPS = 5f
 private const val FASTEST_FPS = 240f
 private const val SNAP_TOLERANCE = 0.01f

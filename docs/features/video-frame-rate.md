@@ -3,7 +3,7 @@ title: Smooth video at any speed
 kind: feature
 status: shipped
 area: playback
-updated: 2026-11-06
+updated: 2026-11-07
 ---
 
 # Smooth video at any speed
@@ -23,5 +23,8 @@ frames evenly. Decision and measurements: [ADR 139](../adr/0139-the-decoder-and-
 **Logs:** `[video] frame rate … worked out …`, `[video] frame rate not worked out …`, `[video] screen refresh
 preference …`, and the existing `[format] video … @Nfps` and `[playback] dropped N frames …` lines.
 
-**Tests:** `FrameRateFromSampleTimesTest`, `FrameRateStampingTrackTest`, `EvenRefreshTest`, `LiveDashTest`. Verified on
+**Tests:** `FrameRateFromSampleTimesTest` (including whole-millisecond WebM/MKV times, a clock that does not start at
+zero and reordered frames), `FrameRateStampingTrackTest`, `StampsFrameRateTest` (the wrapper over a Matroska-shaped
+extractor: video held and stamped, audio never held, an early end, a seek, a stated rate), `EvenRefreshTest`,
+`LiveDashTest`. Not covered: the real `MatroskaExtractor` on a real WebM (its `SparseArray` needs a device). Verified on
 the Pixel 7 by SurfaceFlinger frame times and the player's dropped-frame counter (ADR 139).
