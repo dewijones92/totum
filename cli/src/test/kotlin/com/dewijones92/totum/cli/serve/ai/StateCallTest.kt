@@ -53,8 +53,8 @@ class StateCallTest {
 
     private fun completer(capture: Capture, output: String, env: Map<String, String> = emptyMap()) =
         ClaudeCodeCompleter(
-            run = { _, _ -> error("a call with files must run in its own directory") },
-            runIn = { args, _, dir ->
+            run = { _, _, _ -> error("a call with files must run in its own directory") },
+            runIn = { args, _, dir, _ ->
                 capture.args = args
                 capture.dir = dir
                 capture.stateSeen = File(dir, "state.json").takeIf { it.isFile }?.readText()
@@ -91,11 +91,11 @@ class StateCallTest {
     fun `a call without files is the old one-line json call with no directory`() = runBlocking {
         var args: List<String> = emptyList()
         val completer = ClaudeCodeCompleter(
-            run = { a, _ ->
+            run = { a, _, _ ->
                 args = a
                 ProcessResult(0, """{"is_error":false,"structured_output":{"verdicts":[]}}""", "", false)
             },
-            runIn = { _, _, _ -> error("no directory without files") },
+            runIn = { _, _, _, _ -> error("no directory without files") },
         )
         completer.complete(Completion("vet", "vet", "s", "m", "{}", tools = ""))
         assertEquals("json", args[args.indexOf("--output-format") + 1])
@@ -161,7 +161,7 @@ class StateCallTest {
     fun `the router answer is read, and a malformed one is asked again once`() = runBlocking {
         var calls = 0
         val completer = ClaudeCodeCompleter(
-            run = { _, _ ->
+            run = { _, _, _ ->
                 calls++
                 val body = if (calls == 1) {
                     """{"route":"sideways"}"""

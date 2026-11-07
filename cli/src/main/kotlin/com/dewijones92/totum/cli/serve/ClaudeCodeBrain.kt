@@ -1,38 +1,35 @@
 package com.dewijones92.totum.cli.serve
 
-import com.dewijones92.totum.cli.BuildInfo
 import com.dewijones92.totum.cli.serve.ai.CallerTools
 import com.dewijones92.totum.cli.serve.ai.ClaudeCodeCompleter
 import com.dewijones92.totum.cli.serve.ai.Completed
 import com.dewijones92.totum.cli.serve.ai.Completer
-import com.dewijones92.totum.cli.serve.ai.Completion
 import com.dewijones92.totum.cli.serve.ai.ProblemReport
 import com.dewijones92.totum.cli.serve.filing.FilePlan
 import com.dewijones92.totum.cli.serve.filing.FileRequest
-import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.cli.serve.tasks.AiPrompt
+import com.dewijones92.totum.cli.serve.tasks.AiTaskRunner
 import com.dewijones92.totum.data.ask.AskAnswer
-import com.dewijones92.totum.data.ask.AskJson
 import com.dewijones92.totum.data.ask.AskRequest
 import com.dewijones92.totum.data.ask.AskTurn
 import com.dewijones92.totum.data.ask.VetAnswer
 import com.dewijones92.totum.data.ask.VetRequest
 import com.dewijones92.totum.data.ask.tidied
 import kotlinx.serialization.KSerializer
-import kotlinx.serialization.json.JsonObject
 import java.io.File
-import java.util.UUID
 import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
 
 internal fun claudeCodeBrain(
     claude: String = "claude",
     model: String = "haiku",
-    run: (List<String>, Long) -> ProcessResult = ::runProcess,
+    run: (List<String>, Long, String) -> ProcessResult = { args, ms, input -> runProcess(args, ms, input = input) },
 ): Brain = PromptBrain(ClaudeCodeCompleter(claude, model, run))
 
 internal class AnswerDidNotFit(message: String, cause: Throwable) : BrainFailure(message, cause)
 
 internal class PromptBrain(private val completer: Completer, private val service: String = "totum-fetch") : Brain {
+    private val runner = AiTaskRunner(completer, service, "ask")
 
     override suspend fun suggest(request: AskRequest): AskAnswer = ask(
         CallerTools.ASK,
@@ -122,63 +119,33 @@ internal class PromptBrain(private val completer: Completer, private val service
         tools: String,
         serializer: KSerializer<T>,
         files: Map<String, String> = emptyMap(),
-    ): Pair<T, Completed> {
-        var last: BrainFailure? = null
-        repeat(ATTEMPTS) { attempt ->
-            try {
-                val call = Completion(
-                    caller,
-                    what,
-                    system,
-                    message,
-                    schema,
-                    tools,
-                    version = BuildInfo.VERSION,
-                    requestId = UUID.randomUUID().toString(),
-                    meta = mapOf("attempt" to "${attempt + 1}", "service" to service),
-                    files = files,
-                )
-                val completed = completer.completeDetailed(call)
-                return decoded(serializer, completed.structured) to completed
-            } catch (e: NotRetried) {
-                Diag.warn("ask", "$what as $caller: not retrying: ${e.message}")
-                throw e
-            } catch (e: AnswerDidNotFit) {
-                Diag.warn("ask", "$what attempt ${attempt + 1} of $ATTEMPTS did not fit: ${e.message}")
-                completer.report(ProblemReport(caller, what, e.message.orEmpty(), version = BuildInfo.VERSION))
-                last = e
-            } catch (e: BrainFailure) {
-                Diag.warn("ask", "$what attempt ${attempt + 1} of $ATTEMPTS failed: ${e.message}")
-                last = e
-            }
-        }
-        throw last ?: BrainFailure("no answer")
-    }
+    ): Pair<T, Completed> = runner.runDetailed(AiPrompt(caller, what, system, message, schema, tools, files), serializer)
 
     private fun callerFor(what: String) = if (what == "suggest") CallerTools.ASK else what
-
-    private fun <T> decoded(serializer: KSerializer<T>, structured: JsonObject): T =
-        runCatching { AskJson.decodeFromJsonElement(serializer, structured) }
-            .getOrElse { throw AnswerDidNotFit("answer did not fit: ${it.message?.take(LOGGED)}", it) }
-
-    private companion object {
-        const val ATTEMPTS = 2
-        const val LOGGED = 300
-    }
 }
 
 internal data class ProcessResult(val exitCode: Int, val stdout: String, val stderr: String, val timedOut: Boolean)
 
-internal fun runProcess(args: List<String>, timeoutMs: Long, directory: File? = null): ProcessResult {
+internal fun runProcess(
+    args: List<String>,
+    timeoutMs: Long,
+    directory: File? = null,
+    input: String? = null,
+): ProcessResult {
     val process = ProcessBuilder(args)
-        .redirectInput(ProcessBuilder.Redirect.from(File("/dev/null")))
+        .apply { if (input == null) redirectInput(ProcessBuilder.Redirect.from(File("/dev/null"))) }
         .apply { directory?.let { directory(it) } }
         .start()
     var out = ""
     var err = ""
-    val readers = listOf(
+    val readers = listOfNotNull(
         thread { out = process.inputStream.bufferedReader().readText() },
         thread { err = process.errorStream.bufferedReader().readText() },
+        input?.let { text ->
+            thread {
+                runCatching { process.outputStream.use { it.write(text.toByteArray(Charsets.UTF_8)) } }
+            }
+        },
     )
     val finished = process.waitFor(timeoutMs, TimeUnit.MILLISECONDS)
     if (!finished) process.destroyForcibly()

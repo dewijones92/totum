@@ -2,8 +2,10 @@ package com.dewijones92.totum.data.ask
 
 import com.dewijones92.totum.common.HomeServerAuth
 import kotlinx.coroutines.test.runTest
+import mockwebserver3.Dispatcher
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
+import mockwebserver3.RecordedRequest
 import okhttp3.OkHttpClient
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -83,5 +85,23 @@ class HttpAskServiceTest {
                 clock = { ticks++ },
             )
         assertEquals(AskOutcome.Failed("❌ The home server took too long"), slow.ask(request))
+    }
+
+    @Test
+    fun `a job the Pi no longer knows ends at once with a plain message`() = runTest {
+        server.dispatcher = object : Dispatcher() {
+            override fun dispatch(request: RecordedRequest): MockResponse =
+                if (request.method == "POST") job("running") else MockResponse.Builder().code(404).body("{}").build()
+        }
+        val lost = HttpAskService(
+            OkHttpClient(),
+            server.url("/fetch").toString().trimEnd('/'),
+            { "t" },
+            pollMs = 1,
+            giveUpMs = 1_500,
+        )
+
+        assertEquals(AskOutcome.Failed(JOB_LOST_MESSAGE), lost.ask(request))
+        assertTrue("polled ${server.requestCount} times", server.requestCount <= 3)
     }
 }

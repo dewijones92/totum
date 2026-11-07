@@ -24,4 +24,32 @@ class MorningWorkerTest {
         val now = LocalDateTime.of(2026, 11, 7, 7, 30)
         assertEquals(Duration.ofDays(1), MorningWorker.untilMorning(now))
     }
+
+    @Test
+    fun `after a run the next one is tomorrow at half past seven, however late this one was`() {
+        assertEquals(
+            Duration.ofMinutes(23 * 60 + 59),
+            MorningWorker.untilNextMorningAfterARun(LocalDateTime.of(2026, 11, 7, 7, 31)),
+        )
+        assertEquals(
+            Duration.ofMinutes(20 * 60 + 30),
+            MorningWorker.untilNextMorningAfterARun(LocalDateTime.of(2026, 11, 7, 11, 0)),
+        )
+        assertEquals(
+            Duration.ofMinutes(10 * 60 + 30),
+            MorningWorker.untilNextMorningAfterARun(LocalDateTime.of(2026, 11, 7, 21, 0)),
+        )
+    }
+
+    @Test
+    fun `a run that came early does not arm a second run for the same morning`() {
+        assertEquals(
+            Duration.ofMinutes(24 * 60 + 15),
+            MorningWorker.untilNextMorningAfterARun(LocalDateTime.of(2026, 11, 7, 7, 15)),
+        )
+        assertEquals(
+            Duration.ofMinutes(5 * 60),
+            MorningWorker.untilNextMorningAfterARun(LocalDateTime.of(2026, 11, 7, 2, 30)),
+        )
+    }
 }

@@ -37,6 +37,16 @@ class PeriodicJob(
         Diag.log("jobs", "$name scheduled $timing [network=$network]")
     }
 
+    fun rearm(context: Context, worker: Class<out ListenableWorker>, nextRunIn: Duration) {
+        val request = PeriodicWorkRequest.Builder(worker, interval)
+            .setConstraints(Constraints.Builder().setRequiredNetworkType(network).build())
+            .setInitialDelay(nextRunIn)
+            .build()
+        WorkManager.getInstance(context)
+            .enqueueUniquePeriodicWork(name, ExistingPeriodicWorkPolicy.UPDATE, request)
+        Diag.log("jobs", "$name re-armed so its next run is in ${nextRunIn.toMinutes()} min, not a whole period from now")
+    }
+
     suspend fun run(lastRuns: LastRuns, work: suspend () -> JobOutcome): ListenableWorker.Result {
         if (skipsUnderInstrumentation && !TotumApplication.warmEngineAfterLaunch) {
             Diag.log("jobs", "$name skipped: running under instrumentation")

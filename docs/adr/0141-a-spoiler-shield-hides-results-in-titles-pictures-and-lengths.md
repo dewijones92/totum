@@ -97,7 +97,9 @@ winner is named first. Hiding only words such as "beats" would have left every A
 - The AI-job plumbing is new and shared: `POST /ai/<task>` starts a job and `GET /ai/job/<id>` reports it
   (`AiTaskRoutes`, `HttpAiJobs`), for this feature, the transcript digest and the morning job
   ([ADR 142](0142-tl-dr-chapters-and-ask-about-this-video-are-one-transcript-digest.md),
-  [ADR 143](0143-for-you-and-the-morning-digest-are-one-morning-job.md)).
+  [ADR 143](0143-for-you-and-the-morning-digest-are-one-morning-job.md)). On the Pi that job store (`JobBoard`, one class,
+  also behind `/ask` and `/vet`: a map, a 30-minute prune, two permits) and the retry-and-decode loop (`AiTaskRunner`, also
+  the one `PromptBrain` uses) were each written twice in the first version and are now single.
 
 ## Dry runs (2026-11-07, Haiku through a local `totum serve` built from this branch)
 

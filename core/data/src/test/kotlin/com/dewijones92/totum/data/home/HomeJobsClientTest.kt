@@ -46,7 +46,7 @@ class HomeJobsClientTest {
             MockResponse.Builder().code(507).body("""{"error":"❌ Not enough space on the Pi (12 GB free)"}""").build()
         )
         assertEquals(
-            HomeAnswer.No("❌ Not enough space on the Pi (12 GB free)"),
+            HomeAnswer.No("❌ Not enough space on the Pi (12 GB free)", 507),
             client().start(HomeJobRequest(item, true))
         )
     }

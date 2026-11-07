@@ -6,7 +6,7 @@
     <string name="settings_morning_for_you">🤖 For you each morning</string>
     <string name="settings_morning_for_you_summary">About ten videos and podcasts from outside your subscriptions, picked from what you watch, star and like, in the “🤖 For you” playlist.</string>
     <string name="settings_morning_run_now">▶️ Run the morning job now</string>
-    <string name="settings_morning_never">Not run yet</string>
+    <string name="settings_morning_never">⏳ Not run yet</string>
     <string name="settings_morning_last_ok">✅ Last ran %1$s: %2$s</string>
     <string name="settings_morning_last_failed">⚠️ Last run failed: %1$s</string>
     <string name="morning_notification_title">🌅 Your morning</string>
@@ -14,6 +14,7 @@
         <item quantity="one">🤖 %1$d pick for you is in Library, in the “🤖 For you” playlist</item>
         <item quantity="other">🤖 %1$d picks for you are in Library, in the “🤖 For you” playlist</item>
     </plurals>
+    <string name="morning_picks_failed_line">⚠️ 🤖 For you could not be filled this morning: %1$s</string>
     <string name="morning_op_label">Running the morning job</string>
     <string name="for_you_playlist_name">🤖 For you</string>
 </resources>

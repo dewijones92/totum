@@ -28,7 +28,7 @@ class AiServiceTest {
     private val answer = """{"suggestions":[{"kind":"film","title":"The Gruffalo","year":2009,"why":"w",""" +
         """"searchWords":"The Gruffalo 2009","alreadyHave":false}]}"""
     private val claude = ClaudeCodeCompleter(
-        run = { _, _ ->
+        run = { _, _, _ ->
             val said = if (signedIn) "x" else "Not logged in · Please run /login"
             ProcessResult(
                 0,

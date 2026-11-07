@@ -37,7 +37,7 @@ public class HomePiCall(
                         }
                     } else {
                         Diag.warn(diagTag, "$what -> HTTP ${response.code}: ${text.take(LOGGED)}")
-                        HomeAnswer.No(errorOf(text) ?: "❌ The home server said no (HTTP ${response.code})")
+                        HomeAnswer.No(errorOf(text) ?: "❌ The home server said no (HTTP ${response.code})", response.code)
                     }
                 }
             } catch (e: IOException) {

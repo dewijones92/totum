@@ -104,6 +104,26 @@ class MorningRunTest {
     }
 
     @Test
+    fun `every new title of a group is named to the model, and what did not fit stays for the next digest`() = runTest {
+        store.setDigest(true)
+        repeat(45) { store.addToInbox(entry("Tennis", "id$it", "title number $it", at = now - 1_000 - it)) }
+        server.enqueue(job("running"))
+        server.enqueue(job("done", ""","result":{"lines":["Tennis has 45 new videos."]}"""))
+
+        run().run()
+
+        val sent = server.takeRequest().body!!.utf8()
+        assertTrue(sent, (0 until 40).all { "title number $it\"" in sent })
+        assertTrue(sent, (40 until 45).none { "title number $it\"" in sent })
+        assertEquals((40 until 45).map { "id$it" }.toSet(), store.state.value.inbox.map { it.itemId }.toSet())
+
+        server.enqueue(job("done", ""","result":{"lines":["Tennis has 5 more."]}"""))
+        val next = run().run()
+        assertEquals(5, next.news)
+        assertTrue(store.state.value.inbox.isEmpty())
+    }
+
+    @Test
     fun `when the Pi is down the digest still goes out as plain lines`() = runTest {
         store.setDigest(true)
         store.addToInbox(entry("Tennis", "b", "Fritz v Fils Highlights"))

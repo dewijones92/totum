@@ -39,13 +39,18 @@ to the moment. The whole-batch review built them as one seam, cached per item on
   to the one before, none repeated, at most twelve, the first at 0; **a moment is kept only if at least 60% of its quote's
   words are in the transcript near that time**, and is moved to the block that holds them. An answer that is not found
   carries no moments.
-- **Long items.** `claude -p` takes the prompt as one argument, which Linux caps near 128 KB: the first dry run on a
-  3.6-hour episode (175,513 characters of transcript) failed with "Argument list too long". The digest therefore thins
-  every block evenly to a budget of 100,000 characters (`TranscriptText.fit`, applied on the phone and again on the Pi).
-  A **question** is sent differently: when the transcript does not fit, the blocks that share the question's words (with
-  their neighbours) go in full, up to 70% of the budget, and the rest as 100-character glimpses
-  (`TranscriptText.forQuestion`). This is the AI service's `ClaudeCodeCompleter` limit too; sending the message on
-  stdin instead would lift it and is left for whoever owns that class.
+- **Long items.** `claude -p` used to take the prompt as one argument, which Linux caps near 128 KB: the first dry run on
+  a 3.6-hour episode (175,513 characters of transcript) failed with "Argument list too long", and the cap is in bytes, so
+  a CJK or Cyrillic transcript would have hit it well inside the character budget. The AI service now sends every prompt
+  on **stdin** (`claude -p` with no positional prompt reads it; checked with Claude Code 2.1.319 on 2026-11-07), so the
+  argument limit is gone, and it refuses a prompt over 700 KB with "❌ The text is too long to send (N KB, the most is
+  700 KB)", and a `claude` that cannot be started with "❌ Claude could not be run on the home server", both typed
+  `BrainFailure`s, never a raw exception text. Test: `PromptOnStdinTest` (a fake `claude` that counts its stdin: 180 KB
+  of CJK arrives whole; before the change the same call failed with `error=7, Argument list too long`). The digest still
+  thins every block evenly to a budget of 100,000 characters (`TranscriptText.fit`, applied on the phone and again on the
+  Pi), now to keep the call inside the model's context, not the operating system's limit. A **question** is sent
+  differently: when the transcript does not fit, the blocks that share the question's words (with their neighbours) go in
+  full, up to 70% of the budget, and the rest as 100-character glimpses (`TranscriptText.forQuestion`).
 - The authors' own chapters (`MediaItem.chapters`) are untouched. `TranscriptTab.matchesOf` (a substring search) was
   not reused for confirming quotes: a quote Haiku tidied is rarely a substring, so `DigestRules` compares words.
 
@@ -81,3 +86,10 @@ blocks, 176 k characters thinned to 106 k).
 - A summary is as long-lived as the app's files; the model's wording is not versioned, so "Summarise again" is the only
   refresh.
 - Asking needs the home server and the AI service; offline, the box says it could not answer.
+- For an item the spoiler shield is hiding (and was not revealed by hand) the tab shows "🙈 Hidden until watched" and a
+  button instead of the transcript, the summary and the question box, because they would state the result
+  ([ADR 141](0141-a-spoiler-shield-hides-results-in-titles-pictures-and-lengths.md)). The subject sent with a call is the
+  shield's title, not the real one.
+- A job the Pi no longer knows (the Pi restarted; the job store is in memory) answers 404 to the poll; the phone ends the
+  call at once with "⚠️ The home server restarted; ask again" instead of polling for five and a half minutes
+  (`HttpAiJobs` and `HttpAskService`; tests `a job the Pi no longer knows ends at once`).

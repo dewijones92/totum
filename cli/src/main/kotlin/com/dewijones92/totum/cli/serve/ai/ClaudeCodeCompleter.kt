@@ -20,11 +20,15 @@ internal class AnswerWithheld(message: String) : NotRetried(message)
 internal class ClaudeCodeCompleter(
     private val claude: String = "claude",
     private val model: String = "haiku",
-    private val run: (List<String>, Long) -> ProcessResult = ::runProcess,
+    private val run: (List<String>, Long, String) -> ProcessResult = { args, ms, input ->
+        runProcess(args, ms, input = input)
+    },
     private val timeoutMs: Long = TIMEOUT_MS,
     private val clock: () -> Long = System::currentTimeMillis,
     private val record: (UsageRecord) -> Unit = {},
-    private val runIn: (List<String>, Long, File) -> ProcessResult = { args, ms, dir -> runProcess(args, ms, dir) },
+    private val runIn: (List<String>, Long, File, String) -> ProcessResult = { args, ms, dir, input ->
+        runProcess(args, ms, dir, input)
+    },
     private val env: () -> Map<String, String> = System::getenv,
 ) : Completer {
 
@@ -56,8 +60,13 @@ internal class ClaudeCodeCompleter(
     }
 
     private fun attempt(completion: Completion, scratch: Scratch?): Completed {
+        val promptBytes = completion.message.toByteArray(Charsets.UTF_8).size
+        if (promptBytes > MAX_PROMPT_BYTES) {
+            Diag.warn("ai", "${completion.caller} ${completion.what}: prompt of $promptBytes bytes refused, over $MAX_PROMPT_BYTES")
+            throw BrainFailure("❌ The text is too long to send (${promptBytes / BYTES_PER_KB} KB, the most is ${MAX_PROMPT_BYTES / BYTES_PER_KB} KB)")
+        }
         val args = listOf(
-            claude, "-p", completion.message,
+            claude, "-p",
             "--model", model,
             "--effort", EFFORT,
             "--output-format", if (scratch != null) "stream-json" else "json",
@@ -71,7 +80,17 @@ internal class ClaudeCodeCompleter(
             "--no-session-persistence",
         )
         val started = clock()
-        val result = if (scratch != null) runIn(args, timeoutMs, scratch.dir) else run(args, timeoutMs)
+        Diag.log("ai", "${completion.caller} ${completion.what}: prompt of $promptBytes bytes goes to claude on stdin")
+        val result = try {
+            if (scratch != null) {
+                runIn(args, timeoutMs, scratch.dir, completion.message)
+            } else {
+                run(args, timeoutMs, completion.message)
+            }
+        } catch (e: java.io.IOException) {
+            Diag.warn("ai", "${completion.caller} ${completion.what}: claude could not be run", e)
+            throw BrainFailure("❌ Claude could not be run on the home server (${e.message?.take(LOGGED)})", e)
+        }
         val tookMs = clock() - started
         val parsed = runCatching { envelope(result, tookMs) }
             .onFailure {
@@ -180,6 +199,8 @@ internal class ClaudeCodeCompleter(
     private companion object {
         const val TIMEOUT_MS = 150_000L
         const val LOGGED = 300
+        const val MAX_PROMPT_BYTES = 700_000
+        const val BYTES_PER_KB = 1_000
         val NOT_LOGGED_IN = Regex("(?i)not logged in|/login|invalid api key")
     }
 }

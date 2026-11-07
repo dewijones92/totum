@@ -13,7 +13,7 @@ class MorningWorker(context: Context, params: WorkerParameters) : CoroutineWorke
 
     override suspend fun doWork(): Result {
         val container = (applicationContext as TotumApplication).container
-        return JOB.run(container.lastRuns) {
+        val result = JOB.run(container.lastRuns) {
             val features = container.aiFeatures
             val state = features.morningStore.state.value
             val job = features.morningJob
@@ -23,11 +23,14 @@ class MorningWorker(context: Context, params: WorkerParameters) : CoroutineWorke
                 else -> JobOutcome.Done(job.detail(job.runAndTell("scheduled")))
             }
         }
+        JOB.rearm(applicationContext, MorningWorker::class.java, untilNextMorningAfterARun())
+        return result
     }
 
     companion object {
         const val JOB_NAME = "morning"
         private val MORNING = LocalTime.of(7, 30)
+        private val TOO_SOON = Duration.ofHours(1)
         private val JOB = PeriodicJob(
             JOB_NAME,
             Duration.ofDays(1),
@@ -36,6 +39,12 @@ class MorningWorker(context: Context, params: WorkerParameters) : CoroutineWorke
         )
 
         fun schedule(context: Context) = JOB.schedule(context, MorningWorker::class.java, untilMorning())
+
+        internal fun untilNextMorningAfterARun(now: LocalDateTime = LocalDateTime.now()): Duration {
+            val today = now.toLocalDate().atTime(MORNING)
+            val next = if (Duration.between(now, today) >= TOO_SOON) today else today.plusDays(1)
+            return Duration.between(now, next)
+        }
 
         internal fun untilMorning(now: LocalDateTime = LocalDateTime.now()): Duration {
             val today = now.toLocalDate().atTime(MORNING)

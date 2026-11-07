@@ -3,6 +3,7 @@ package com.dewijones92.totum.data.ai
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.ask.AskJson
 import com.dewijones92.totum.data.ask.AskOutcome
+import com.dewijones92.totum.data.ask.JOB_LOST_MESSAGE
 import com.dewijones92.totum.data.ask.JobState
 import com.dewijones92.totum.data.home.HomeAnswer
 import com.dewijones92.totum.data.home.HomePiCall
@@ -62,7 +63,11 @@ public class HttpAiJobs(
             is HomeAnswer.No -> return AskOutcome.Failed(posted.reason)
         }
         Diag.log("ai-job", "$task job ${first.id} started")
-        val last = settled(task, first, progress) ?: return AskOutcome.Failed("❌ The home server took too long")
+        val last = when (val ended = settled(task, first, progress)) {
+            Ended.TimedOut -> return AskOutcome.Failed("❌ The home server took too long")
+            Ended.Lost -> return AskOutcome.Failed(JOB_LOST_MESSAGE)
+            is Ended.Settled -> ended.status
+        }
         val answer = last.result?.takeIf { last.state == JobState.DONE }?.let {
             runCatching { AskJson.decodeFromJsonElement(answerSerializer, it) }
                 .onFailure { e -> Diag.warn("ai-job", "$task job ${last.id}: the answer did not fit", e) }
@@ -73,27 +78,43 @@ public class HttpAiJobs(
         return AskOutcome.Failed("❌ ${last.error ?: "No answer"}")
     }
 
-    private suspend fun settled(task: String, first: AiJobStatus, progress: (Long) -> Unit): AiJobStatus? {
+    private sealed interface Ended {
+        data object TimedOut : Ended
+
+        data object Lost : Ended
+
+        data class Settled(val status: AiJobStatus) : Ended
+    }
+
+    private suspend fun settled(task: String, first: AiJobStatus, progress: (Long) -> Unit): Ended {
         var status = first
         val began = clock()
         while (status.state == JobState.RUNNING) {
             val waited = clock() - began
             if (waited >= giveUpMs) {
                 Diag.warn("ai-job", "$task job ${status.id} still running after ${waited}ms; giving up")
-                return null
+                return Ended.TimedOut
             }
             delay(pollMs)
             val path = AiTasks.jobPathOf(status.id)
             val polled = pi.call("GET $path", Request.Builder().url(base + path).get(), AiJobStatus.serializer())
+            if (polled is HomeAnswer.No && polled.httpCode == HTTP_NOT_FOUND) {
+                Diag.warn(
+                    "ai-job",
+                    "$task job ${status.id}: the home server no longer knows it (HTTP 404); it restarted, so the job is lost",
+                )
+                return Ended.Lost
+            }
             status = (polled as? HomeAnswer.Ok)?.value ?: status
             progress(status.elapsedMs)
         }
-        return status
+        return Ended.Settled(status)
     }
 
     private companion object {
         val JSON = "application/json".toMediaType()
         const val POLL_MS = 1_500L
         const val GIVE_UP_MS = 330_000L
+        const val HTTP_NOT_FOUND = 404
     }
 }

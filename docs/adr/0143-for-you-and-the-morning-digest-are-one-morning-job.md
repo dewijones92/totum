@@ -36,14 +36,19 @@ likes.
   channel or show, anything already owned or picked in the last 14 days, a repeat, and strips links from the reason.
   The phone then finds each pick **one at a time** with the app's own search (a video not from a followed channel, not a
   Short, not members-only; a podcast's newest episode through the feed preview) and replaces the **"🤖 For you"
-  playlist** with what it found. A playlist, not a source group: a group holds channels, this holds videos, and a
+  playlist** with what it found: the new picks are added first and the old ones taken out after, so a process killed in
+  the middle never leaves the list empty (`replaceContents`, `ForYouPlaylistTest`). A playlist, not a source group: a group holds channels, this holds videos, and a
   playlist is already in Library, in the backup and playable as a queue.
 - **The digest.** While it is on, `GroupNews` hands each unannounced video to an inbox (`morning.json`) instead of a
   notification (so a group's bell still silences it, and a video is told once). At 07:30 the titles since the last
   digest go to Haiku grouped by group, a title hidden by the spoiler shield sent hidden; the model's two lines are kept only
   if they name a group or a title that was given (an invented line is dropped); if the Pi cannot be reached or gives
   nothing, plain lines are built in code so the morning is never silent. One notification, "🌅 Your morning", carries the
-  lines and "🤖 7 picks for you are in Library". Nothing new and nothing picked sends nothing.
+  lines and "🤖 7 picks for you are in Library". Nothing new and nothing picked sends nothing. **A For you that failed says
+  so in that notification** ("⚠️ 🤖 For you could not be filled this morning: …"; before the review it was only in
+  Settings), which also makes a morning with only a failure worth a notification. The digest names up to 40 titles a group
+  (it was 8, but every new entry was marked told); entries past that stay in the inbox for the next digest, and the
+  clock only moves up to the oldest of them.
 - **My call, not Dewi's:** only the per-video **group** notifications are replaced. The subscription "new uploads" and
   "new episodes" notifications (the other half of ADR 118) stay as they are: they are per source, not "across your
   groups", and removing them would leave non-group subscriptions with no notice at all.
@@ -77,7 +82,11 @@ empty one), one group alone, and a group whose title is an injection.
 - Picks the app cannot find are silently fewer than ten; the log says which and why.
 - A Haiku pick can be wrong (a channel that has no such video): the search finds the nearest result, so a pick is a
   suggestion, never a claim that the exact title exists.
-- The morning time is fixed at 07:30 for now.
+- The morning time is fixed at 07:30 for now. A daily periodic job with a first-run delay drifts (WorkManager runs it
+  once per period from whenever it last ran), so after every run `MorningWorker` re-arms the work to the next 07:30 at
+  least an hour away (`untilNextMorningAfterARun`, logged as "re-armed"); a run that came early does not arm a second
+  run for the same morning. The re-arm uses `ExistingPeriodicWorkPolicy.UPDATE` from inside the running worker, which is
+  what the API is for but was not observed on a device here.
 - Deploying: no new container and no new setting. The Pi needs the new CLI release in `totum-fetch` (the routes), the AI
   service already knows the callers; the phone can update in any order (with the old Pi the job reports "the home server said
   404" and, for the digest, falls back to plain lines).

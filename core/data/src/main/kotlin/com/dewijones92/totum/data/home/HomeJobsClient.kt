@@ -19,7 +19,7 @@ import java.net.URLEncoder
 
 public sealed interface HomeAnswer<out T> {
     public data class Ok<T>(val value: T) : HomeAnswer<T>
-    public data class No(val reason: String) : HomeAnswer<Nothing>
+    public data class No(val reason: String, val httpCode: Int? = null) : HomeAnswer<Nothing>
 }
 
 public interface HomeJobsApi {

@@ -2,12 +2,15 @@ package com.dewijones92.totum.data.ai
 
 import com.dewijones92.totum.common.HomeServerAuth
 import com.dewijones92.totum.data.ask.AskOutcome
+import com.dewijones92.totum.data.ask.JOB_LOST_MESSAGE
 import com.dewijones92.totum.data.spoiler.SpoilerAnswer
 import com.dewijones92.totum.data.spoiler.SpoilerQuery
 import com.dewijones92.totum.data.spoiler.SpoilerRequest
 import kotlinx.coroutines.test.runTest
+import mockwebserver3.Dispatcher
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
+import mockwebserver3.RecordedRequest
 import okhttp3.OkHttpClient
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -80,5 +83,23 @@ class HttpAiJobsTest {
         server.enqueue(MockResponse.Builder().code(502).body("bad gateway").build())
         server.enqueue(status("done", ""","result":{"verdicts":[]}"""))
         assertTrue(run() is AskOutcome.Answered)
+    }
+
+    @Test
+    fun `a job the Pi no longer knows ends at once with a plain message`() = runTest {
+        server.dispatcher = object : Dispatcher() {
+            override fun dispatch(request: RecordedRequest): MockResponse =
+                if (request.method == "POST") status("running") else MockResponse.Builder().code(404).body("{}").build()
+        }
+        val outcome = HttpAiJobs(
+            OkHttpClient(),
+            server.url("/fetch").toString().trimEnd('/'),
+            { "device-token" },
+            pollMs = 1,
+            giveUpMs = 1_500,
+        ).run(AiTasks.SPOILER, request, SpoilerRequest.serializer(), SpoilerAnswer.serializer())
+
+        assertEquals(AskOutcome.Failed(JOB_LOST_MESSAGE), outcome)
+        assertTrue("polled ${server.requestCount} times", server.requestCount <= 3)
     }
 }

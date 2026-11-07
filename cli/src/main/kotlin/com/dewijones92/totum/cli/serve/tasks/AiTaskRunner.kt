@@ -4,6 +4,7 @@ import com.dewijones92.totum.cli.BuildInfo
 import com.dewijones92.totum.cli.serve.AnswerDidNotFit
 import com.dewijones92.totum.cli.serve.BrainFailure
 import com.dewijones92.totum.cli.serve.NotRetried
+import com.dewijones92.totum.cli.serve.ai.Completed
 import com.dewijones92.totum.cli.serve.ai.Completer
 import com.dewijones92.totum.cli.serve.ai.Completion
 import com.dewijones92.totum.cli.serve.ai.ProblemReport
@@ -19,24 +20,32 @@ internal data class AiPrompt(
     val message: String,
     val schema: String,
     val tools: String = "",
+    val files: Map<String, String> = emptyMap(),
 )
 
-internal class AiTaskRunner(private val completer: Completer, private val service: String = "totum-fetch") {
+internal class AiTaskRunner(
+    private val completer: Completer,
+    private val service: String = "totum-fetch",
+    private val tag: String = "ai-task",
+) {
 
-    suspend fun <T> run(prompt: AiPrompt, serializer: KSerializer<T>): T {
+    suspend fun <T> run(prompt: AiPrompt, serializer: KSerializer<T>): T = runDetailed(prompt, serializer).first
+
+    suspend fun <T> runDetailed(prompt: AiPrompt, serializer: KSerializer<T>): Pair<T, Completed> {
         var failure: BrainFailure? = null
         for (attempt in 1..ATTEMPTS) {
             try {
-                return decoded(serializer, completer.complete(completion(prompt, attempt)))
+                val completed = completer.completeDetailed(completion(prompt, attempt))
+                return decoded(serializer, completed.structured) to completed
             } catch (refused: NotRetried) {
-                Diag.warn(TAG, "${prompt.what} as ${prompt.caller}: not retrying: ${refused.message}")
+                Diag.warn(tag, "${prompt.what} as ${prompt.caller}: not retrying: ${refused.message}")
                 throw refused
             } catch (misfit: AnswerDidNotFit) {
-                Diag.warn(TAG, "${prompt.what} attempt $attempt of $ATTEMPTS did not fit: ${misfit.message}")
+                Diag.warn(tag, "${prompt.what} attempt $attempt of $ATTEMPTS did not fit: ${misfit.message}")
                 completer.report(ProblemReport(prompt.caller, prompt.what, misfit.message.orEmpty(), BuildInfo.VERSION))
                 failure = misfit
             } catch (broken: BrainFailure) {
-                Diag.warn(TAG, "${prompt.what} attempt $attempt of $ATTEMPTS failed: ${broken.message}")
+                Diag.warn(tag, "${prompt.what} attempt $attempt of $ATTEMPTS failed: ${broken.message}")
                 failure = broken
             }
         }
@@ -57,10 +66,10 @@ internal class AiTaskRunner(private val completer: Completer, private val servic
         version = BuildInfo.VERSION,
         requestId = UUID.randomUUID().toString(),
         meta = mapOf("attempt" to "$attempt", "service" to service),
+        files = prompt.files,
     )
 
     private companion object {
-        const val TAG = "ai-task"
         const val ATTEMPTS = 2
         const val LOGGED = 300
     }

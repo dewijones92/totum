@@ -44,8 +44,6 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.builtins.ListSerializer
@@ -59,7 +57,6 @@ import okhttp3.Request
 import java.io.File
 import java.net.InetSocketAddress
 import java.util.UUID
-import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
@@ -71,12 +68,9 @@ internal class AskServer(
     private val ask: suspend (AskRequest) -> AskAnswer = { brain.suggest(it) },
     private val clock: () -> Long = System::currentTimeMillis,
     private val newId: () -> String = { UUID.randomUUID().toString() },
-    concurrent: Int = CONCURRENT,
+    concurrent: Int = JobBoard.CONCURRENT,
 ) {
-    private val jobs = ConcurrentHashMap<String, Job>()
-    private val permits = Semaphore(concurrent)
-
-    private data class Job(val started: Long, val snapshot: AskJob)
+    private val board = JobBoard<AskJob>(scope, clock, concurrent)
 
     fun start(port: Int): HttpServer = HttpServer.create(InetSocketAddress(port), 0).apply {
         executor = Executors.newFixedThreadPool(THREADS)
@@ -89,7 +83,7 @@ internal class AskServer(
         val homeJobs = home?.let { runBlocking { it.jobs() } }
         return buildJsonObject {
             put("ok", true)
-            put("jobs", jobs.size)
+            put("jobs", board.size)
             homeJobs?.let { h ->
                 put("homeJobs", h.jobs.size)
                 put("freeBytes", h.freeBytes)
@@ -125,13 +119,12 @@ internal class AskServer(
             exchange.reply(BAD_REQUEST, """{"error":"unreadable request"}""")
             return
         }
-        prune()
         val id = newId()
-        val started = clock()
-        jobs[id] = Job(started, AskJob(id, JobState.RUNNING))
         Diag.log("serve", "$what job $id started: ${text.take(LOGGED)}")
-        scope.launch {
-            val done = permits.withPermit {
+        board.start(
+            id,
+            AskJob(id, JobState.RUNNING),
+            work = { started ->
                 runCatching { work(request) }.fold(
                     onSuccess = { answer ->
                         AskJob(
@@ -144,24 +137,23 @@ internal class AskServer(
                     },
                     onFailure = { AskJob(id, JobState.FAILED, clock() - started, error = it.message ?: "failed") },
                 )
-            }
-            Diag.log("serve", "$what job $id ${done.state} in ${done.elapsedMs}ms${done.error?.let { ": $it" } ?: ""}")
-            jobs[id] = Job(started, done)
-        }
+            },
+            onSettled = { done ->
+                Diag.log(
+                    "serve",
+                    "$what job $id ${done.state} in ${done.elapsedMs}ms${done.error?.let { ": $it" } ?: ""}",
+                )
+            },
+        )
         exchange.reply(ACCEPTED, AskJson.encodeToString(AskJob.serializer(), AskJob(id, JobState.RUNNING)))
     }
 
     private fun job(exchange: HttpExchange, id: String) {
-        val job = jobs[id] ?: return exchange.reply(NOT_FOUND, """{"error":"no such job"}""")
-        val snapshot = job.snapshot.let {
-            if (it.state == JobState.RUNNING) it.copy(elapsedMs = clock() - job.started) else it
+        val job = board.find(id) ?: return exchange.reply(NOT_FOUND, """{"error":"no such job"}""")
+        val snapshot = job.status.let {
+            if (it.state == JobState.RUNNING) it.copy(elapsedMs = board.sinceStart(job)) else it
         }
         exchange.reply(OK, AskJson.encodeToString(AskJob.serializer(), snapshot))
-    }
-
-    private fun prune() {
-        val cutoff = clock() - KEEP_MS
-        jobs.entries.removeIf { it.value.started < cutoff }
     }
 
     private companion object {
@@ -169,9 +161,7 @@ internal class AskServer(
         const val ACCEPTED = 202
         const val BAD_REQUEST = 400
         const val NOT_FOUND = 404
-        const val CONCURRENT = 2
         const val THREADS = 16
-        const val KEEP_MS = 30 * 60_000L
         const val LOGGED = 300
     }
 }

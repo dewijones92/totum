@@ -19,6 +19,8 @@ public interface AskService {
         AskOutcome.Failed("❌ This build cannot send your app's data")
 }
 
+public const val JOB_LOST_MESSAGE: String = "⚠️ The home server restarted; ask again"
+
 public sealed interface AskOutcome<out T> {
     public data class Answered<T>(val value: T, val elapsedMs: Long) : AskOutcome<T>
     public data class Failed(val reason: String) : AskOutcome<Nothing>
@@ -75,7 +77,15 @@ public class HttpAskService(
                 return AskOutcome.Failed("❌ The home server took too long")
             }
             delay(pollMs)
-            job = poll(job.id) ?: job
+            val polled = poll(job.id)
+            if (polled is HomeAnswer.No && polled.httpCode == HTTP_NOT_FOUND) {
+                Diag.warn(
+                    "ask",
+                    "$path job ${job.id}: the home server no longer knows it (HTTP 404); it restarted, so the job is lost",
+                )
+                return AskOutcome.Failed(JOB_LOST_MESSAGE)
+            }
+            job = (polled as? HomeAnswer.Ok)?.value ?: job
             progress(job.elapsedMs)
         }
         val value = answer(job)
@@ -94,14 +104,14 @@ public class HttpAskService(
         AskJob.serializer(),
     )
 
-    private suspend fun poll(id: String): AskJob? =
-        (pi.call("GET /job/$id", Request.Builder().url("$base/job/$id").get(), AskJob.serializer()) as? HomeAnswer.Ok)
-            ?.value
+    private suspend fun poll(id: String): HomeAnswer<AskJob> =
+        pi.call("GET /job/$id", Request.Builder().url("$base/job/$id").get(), AskJob.serializer())
 
     private companion object {
         val JSON = "application/json".toMediaType()
         val OCTETS = "application/octet-stream".toMediaType()
         const val POLL_MS = 1_500L
         const val GIVE_UP_MS = 330_000L
+        const val HTTP_NOT_FOUND = 404
     }
 }

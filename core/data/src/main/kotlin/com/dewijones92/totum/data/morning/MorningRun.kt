@@ -89,10 +89,12 @@ public class MorningRun(
             store.consumed(emptyList(), now)
             return Triple(emptyList(), 0, false)
         }
+        val byGroup = entries.groupBy { it.group }.mapValues { (_, held) -> held.sortedByDescending { it.at } }
+        val sent = byGroup.values.flatMap { it.take(MAX_TITLES) }
+        val unsent = byGroup.values.flatMap { it.drop(MAX_TITLES) }
         val request = MorningDigestRequest(
-            entries.groupBy { it.group }.map { (group, held) ->
-                GroupHeadlines(group, held.sortedByDescending { it.at }.map(titleOf).take(MAX_TITLES))
-            }.sortedByDescending { it.titles.size },
+            byGroup.map { (group, held) -> GroupHeadlines(group, held.take(MAX_TITLES).map(titleOf)) }
+                .sortedByDescending { it.titles.size },
         )
         val client = jobs()
         val outcome = client?.run(
@@ -106,11 +108,11 @@ public class MorningRun(
         val lines = if (ai) said!!.lines else MorningRules.fallbackDigest(request).lines
         Diag.log(
             TAG,
-            "digest: ${entries.size} new in ${request.groups.size} group(s); " +
-                (if (ai) "AI lines" else "plain lines because ${because(outcome)}"),
+            "digest: ${sent.size} new in ${request.groups.size} group(s) told, ${unsent.size} left for the next " +
+                "digest; " + (if (ai) "AI lines" else "plain lines because ${because(outcome)}"),
         )
-        store.consumed(entries, now)
-        return Triple(lines, entries.size, ai)
+        store.consumed(sent, if (unsent.isEmpty()) now else unsent.minOf { it.at } - 1)
+        return Triple(lines, sent.size, ai)
     }
 
     private fun because(outcome: AskOutcome<*>?): String = when (outcome) {
@@ -124,6 +126,6 @@ public class MorningRun(
     private companion object {
         const val TAG = "morning"
         const val MAX_HAVE = 200
-        const val MAX_TITLES = 8
+        const val MAX_TITLES = 40
     }
 }

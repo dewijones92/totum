@@ -9,6 +9,7 @@ import com.dewijones92.totum.data.ask.Taste
 import com.dewijones92.totum.data.ask.squashed
 import com.dewijones92.totum.data.morning.MorningResult
 import com.dewijones92.totum.data.morning.MorningRun
+import com.dewijones92.totum.data.morning.replaceContents
 import com.dewijones92.totum.data.podcast.PreviewResult
 import com.dewijones92.totum.data.search.SearchHit
 import com.dewijones92.totum.di.AppContainer
@@ -57,7 +58,8 @@ class MorningJob(
         val news = result.digestLines.orEmpty().map { "🆕 ${it.removePrefix("🆕 ")}" }
         val picks = result.picks?.takeIf { it > 0 }
             ?.let { context.resources.getQuantityString(R.plurals.morning_picks_line, it, it) }
-        return news + listOfNotNull(picks)
+        val failed = result.picksFailed?.let { context.getString(R.string.morning_picks_failed_line, it.removePrefix("❌ ")) }
+        return news + listOfNotNull(picks, failed)
     }
 }
 
@@ -94,9 +96,6 @@ private suspend fun findLatestEpisode(c: AppContainer, pick: Suggestion, taste: 
 }
 
 internal suspend fun replaceForYou(c: AppContainer, name: String, items: List<PlayableItem>) {
-    val store = c.localPlaylistStore
-    store.ensure(FOR_YOU_PLAYLIST, name)
-    store.observeItems(FOR_YOU_PLAYLIST).first().forEach { store.removeItem(FOR_YOU_PLAYLIST, it.item.id) }
-    items.forEach { store.addItem(FOR_YOU_PLAYLIST, it) }
-    Diag.log(TAG, "the \"$name\" playlist now holds ${items.size} item(s): ${items.joinToString { it.item.title }}")
+    c.localPlaylistStore.replaceContents(FOR_YOU_PLAYLIST, name, items)
+    Diag.log(TAG, "the \"$name\" playlist now holds ${items.size} item(s), new ones added before the old were removed")
 }
