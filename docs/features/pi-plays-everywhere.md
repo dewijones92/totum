@@ -22,19 +22,23 @@ sound processing on the Pi). Brief: [pi-plays-everywhere.md](../todos/pi-plays-e
   phone's own queue; above it what plays, the position, ⏮ ⏯ ⏭ ⏹️, a volume slider, ✂️ Skip silences and 🔊 Boost (the
   phone's own processing, run on the Pi), and 🎨 Colour. Each row says "➕ Added by …" when the phone that added it is known.
 - **Where taps go.** While a remote chip is selected, Play, Add to queue, Play next, Shuffle all and the rest queue on
-  that target, not on the phone. 📱 This phone puts everything back. Every send shows in the progress strip
-  ("📡 Sending to …", then "✅ Sent 12 items to …" or the reason it failed).
+  that target, not on the phone. 📱 This phone puts everything back, and so does leaving the Queue tab. Kid TV, kid-locked
+  shortcuts and the Shorts reel always play on the phone. Every send shows in the progress strip
+  ("📡 Sending to …", then "✅ Sent 12 items to …"); if the Pi refuses, cannot be reached or cannot start, the phone
+  plays the items itself and the strip says why.
 - **📡 Send to… in the Queue header** moves what plays: the playing item and the rest of its group, at the second it was
-  at. The phone pauses and drops them once the target says it is playing; if the target does not start, the phone keeps
-  its queue and the strip says why.
+  at, inserted after what plays on the target (the target's other items stay). The phone pauses and drops them once the
+  target says it is playing; if the target does not start, the phone keeps its queue and the strip says why.
 - **Speakers are targets.** Any paired Bluetooth device with an Audio Sink is listed, linked only while it plays
   (ADR 116, unchanged), each with its own queue at the same time as the others.
 - **TVs and Chromecasts** listed in `TOTUM_CAST_TARGETS` (name=address, `;`-separated) are driven through `pychromecast`.
   A YouTube video goes to the TV as the same address the phone would play, so the TV fetches it itself from the same home
   IP; a home copy is served by the Pi (`SoundStreams`, ranged, a random token in the path). Audio the user has
   processed (skip silences, boost) is decoded, processed and AAC-encoded on the Pi and served to the TV.
-- **YouTube progress** is reported from the Pi for items queued from the owner's phone only, on pause, skip, an item
-  ending and every 30 s; items from another phone are not.
+- **YouTube progress** is reported from the Pi for items queued from the phone that signed the Pi in only (the Pi records
+  which phone handed the sign-in over), on pause, skip, an item ending and every 30 s; items from another phone are not.
+  A second phone's sign-in hand-over is refused until the first phone signs the Pi out.
+- **TV sound switches** are greyed, with a note, while the TV is showing a picture.
 
 ## Files
 
@@ -57,4 +61,5 @@ path of ADR 68 on the Pi); playback speed and subtitles on a target; TV volume i
 ## Tests
 
 Unit: `PcmChainTest`, `TargetRulesTest`, `TargetEntriesTest` (core), `TargetDeckTest`, `YouTubeProgressTest`,
-`PcmPumpTest`, `CastWireTest` (cli). Owed: see the todo.
+`PcmPumpTest`, `CastWireTest`, `CastControlTest`, `YouTubeOwnershipTest` (cli); `TargetsRepositoryTest`, `PlayLocallyTest`,
+`SignInHandoverTest`, `RequesterIdentityTest` (app). Owed: see the todo.

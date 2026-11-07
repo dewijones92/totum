@@ -124,6 +124,17 @@ TV volume strip and Cast arming on a target; the Pi measuring two A2DP streams a
 - A Chromecast plays an unseekable ADTS AAC stream sent without a length (processed audio).
 - Pi's PulseAudio and Bluetooth stay as ADR 116 set them up; mpv accepts raw PCM on stdin with `--demuxer=rawaudio`.
 
+### Review fixes, 2026-11-07
+
+Findings of the end-of-batch review and two sweeps, fixed: the target chip no longer outlives the Queue tab, and Kid TV,
+kid-locked shortcuts and the Shorts reel always play on the phone; a redirect reports what the Pi queued and falls back
+to the phone with a notice; send-to is an insert; the YouTube owner is the requester the Pi recorded at the hand-over
+(a second phone's hand-over or sign-out is refused); skip silence follows the per-kind rule on the Pi; a Chromecast is
+retried after a failure and stale idle statuses are ignored; connecting happens outside the deck lock; TV sound switches
+are greyed over a picture; play next on a remote row; the target poll is lifecycle-gated. See ADRs 152, 153, 154, 108.
+Still owed from them: carrying the phone's silence mode and speech gate to a target; hiding the Jellyfin tile when
+Jellyfin is off; Add to queue and Peek on a remote row (recorded as exceptions).
+
 ### Tests owed
 
 - Real-device day pass (volume rule: TV and speakers at 3% or lower, short silent or very quiet clips, volume restored):
@@ -132,8 +143,8 @@ TV volume strip and Cast arming on a target; the Pi measuring two A2DP streams a
   queued from the owner's phone appears in YouTube history, one from another phone does not; the colour of a chip.
 - Compose: `TargetChips` (hidden with no targets, ➕ for idle ones), `RemoteQueue` rows, `SendToButton`; an instrumented
   test that a redirected `playAll` leaves the phone's queue alone.
-- Unit: `SendToTarget` (does not release on `problem`; `TargetsRepositoryTest` covers colours, `take` and the state
-  replace), `PlaybackQueue.destination` (each of the six entry points,
-  and `byYou = false` is not redirected), `ChromecastPlayer` and `PyCastControl` with a fake helper process,
+- Unit: `SendToTarget` (does not release on `problem`; `TargetsRepositoryTest` covers colours, `take`, the real answer and
+  the phone fallback; `PlayLocallyTest` covers the local-only entry points), `PlaybackQueue.destination` with
+  `byYou = false`, `ChromecastPlayer` (`PyCastControl` has `CastControlTest` with a fake helper process),
   `ChromecastSource`, `SoundStreams` (HEAD/GET, token, withdraw), `MpvPlayer` command line, `ProcessedSound` end to end
   with a real ffmpeg on a tiny clip, `DeckStore` round trip, Kover for `:core:cast` stays exempt.

@@ -29,9 +29,10 @@ internal class FakeHomeApi : HomeJobsApi {
         return HomeAnswer.Ok(Unit)
     }
     override suspend fun retry(id: String) = HomeAnswer.Ok(Unit)
+    var refuseHandover: String? = null
     override suspend fun handOver(account: AccountHandover): HomeAnswer<Unit> {
         handedOver += account
-        return HomeAnswer.Ok(Unit)
+        return refuseHandover?.let { HomeAnswer.No(it) } ?: HomeAnswer.Ok(Unit)
     }
     val forgotBy = mutableListOf<String?>()
     override suspend fun forgetAccount(by: String?): HomeAnswer<Unit> {

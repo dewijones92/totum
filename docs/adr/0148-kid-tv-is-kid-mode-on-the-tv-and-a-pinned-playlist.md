@@ -48,18 +48,31 @@ Dewi's words cover the idea, the TV, kid mode and the tennis rule. The builder's
 "playlist", the tile and page as the surface, leaving the phone unlocked, the 0.8 s settle before ending the cast, the
 20 s waits, and not waking the TV.
 
+## Review fixes (2026-11-07)
+
+- **Always local.** Kid TV starts its playlist with `local = true`: whatever target the Queue tab was looking at, it
+  never redirects (a kid-locked home-screen shortcut does the same).
+- **Remembered across a restart.** `KidTvRunning` (tv and title) is saved when Kid TV is on and cleared on a stop. After a
+  restart the status is "starting" while the app waits up to 15 s for the cast to still be on that TV: it then shows On
+  with Stop and kid mode on, or goes off and clears the memory. (The coordinator's call; Dewi delegated it, 2026-11-07.)
+- **A failed start ends the cast it opened.** When the playlist would not start after the app had connected to the TV,
+  it ends that cast; a cast that was already there before the tap is left as it was. (My call: the second half.)
+- **Exsurge and alarms leave the TV alone.** While Kid TV is on, Exsurge summons and daily-alarm interruptions pause
+  nothing (`PlaybackInterruption`'s `exemptBecause`, logged); the summons and alarms still ring on the phone. The
+  recorder never paused playback, so it needed no change. (The coordinator's call; Dewi delegated it, 2026-11-07.)
+
 ## Consequences
 
 - The TV must already be on, or in a state where it still advertises itself for casting. Totum does not wake it: the
   wake-on-LAN address is not known to the app, and a missing TV is reported with what was seen.
 - Not run against a real TV in this change (no device was touched). The first real run should check that selecting the
-  route by name starts the session on the LG, that the cast hand-over wait is long enough, and what the phone's own
-  Exsurge, alarms and recorder do to a running Kid TV: a pause from any of them also pauses the TV.
+  route by name starts the session on the LG, that the cast hand-over wait is long enough, that a restart while the TV
+  plays comes back as On, and that an Exsurge summons or an alarm does not pause the TV.
 - A phone running Kid TV that is also kid-locked is unchanged.
 
 ## Tests
 
-`KidTvTest` (13): not set up, the happy path (kid mode on before the first item, the phone not locked), already casting
+`KidTvTest` (18): a failed start ends the cast it opened, a restart (still casting, no cast any more), what is remembered, not set up, the happy path (kid mode on before the first item, the phone not locked), already casting
 there, TV not found (with what was seen), no local-network access, a playlist that will not start, a playlist no longer
 pinned, stopping (pause then end the cast), the cast ending or moving by itself, choices and restore, the codec, and
 `modeOn` for lock and TV together.

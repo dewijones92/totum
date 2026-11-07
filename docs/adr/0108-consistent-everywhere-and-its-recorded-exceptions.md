@@ -2,7 +2,7 @@
 title: Consistent everywhere, with its exceptions recorded
 kind: adr
 status: accepted
-updated: 2026-11-06
+updated: 2026-11-07
 ---
 
 # 108. Consistent everywhere, with its exceptions recorded
@@ -124,6 +124,17 @@ Recorded exceptions from that pass:
   Its Star stars every file and its Not for me suppresses the pack by its show title.
 - **Clear all searches has no Undo yet**; only forgetting one query does.
 - **Group membership Undo re-adds the channel at the end of the group**, not in its old slot (the store appends by position).
+
+Recorded exceptions from the Pi-plays-everywhere review, 2026-11-07 (the coordinator's calls; Dewi delegated them):
+
+- **Opening the Shorts reel is always on the phone.** A full-screen reel is phone-only by nature, so it ignores the
+  target being looked at ([ADR 152](0152-a-target-is-anything-the-pi-plays-to-and-each-has-its-own-queue.md)). Kid TV and
+  kid-locked shortcuts are local too, by the same rule.
+- **A remote queue's row menu has Play next and Remove, and no Add to queue or Peek.** "Add to queue" on a row of
+  another device's queue has no clear meaning (this phone's queue or that one's), and a peek is a one-off listen on the
+  phone. Move up and down are not offered either; the Pi's operations are insert, remove and jump.
+- **The Jellyfin tile shows whenever a home server is set**, even when Jellyfin is not configured there; the page then
+  says "Jellyfin isn't set up on the home server".
 
 ## Consequences
 

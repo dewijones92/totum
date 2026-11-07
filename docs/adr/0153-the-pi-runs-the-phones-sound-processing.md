@@ -27,6 +27,14 @@ spike measured the whole chain at about 13 times real time on one of the Pi's fo
   - **to a speaker:** the processed PCM is written straight into mpv's stdin (`--demuxer=rawaudio`), no re-encode;
   - **to a TV:** the processed PCM goes to an ffmpeg AAC encoder and is served as an ADTS stream by `CastHttpServer`
     from `:core:cast` (`SoundStreams`, a per-offer random token in the path, withdrawn when the item ends).
+- **Skip silence follows the phone's per-kind rule.** `MediaContentKind.skipsSilence` (in `:core:domain`, used by the
+  phone's `tuningFor` and by the Pi's deck for each item) says talk is cut when asked and music, live and a book's
+  chapter never are ([ADR 105](0105-audiobooks-are-books-from-the-archive-and-torrents.md)); the boost applies to every
+  kind. The target's own switch (what the Queue tab shows) is unchanged.
+- **Not the same as the phone yet:** the Pi always cuts in the smart mode (falling back to the standard cut when the
+  speech model does not load) at the default level, and it has no speech gate on the boost. The phone's silence mode
+  and speech-gate settings are not carried to a target, so "exactly the phone's processing" holds for the chain and
+  the per-kind rule, not for those two settings. Carrying them needs them in `SoundSettings`; owed.
 - **Position is the source's.** A processed item's position is mpv's (or the TV's) time plus where it started plus the
   silence taken out, so the number the phone shows and YouTube is told is a place in the original. A processed item has
   no duration from the player; the item's own is used.
@@ -46,3 +54,9 @@ spike measured the whole chain at about 13 times real time on one of the Pi's fo
   exit code) rather than silently skipping.
 - The Pi spends about 1/13 of a core per processed stream (the 2026-11-06 spike), so several streams fit at once.
 - Playback speed is not carried to the Pi yet; a processed or direct stream plays at 1x.
+- A TV that is showing a picture ignores the two sound switches; the Queue tab greys them with a note
+  ("🎬 Skip silences and boost only work on sound for now …").
+- The Chromecast helper's status carries the media id; an idle status ends the loaded item only when it is that item's,
+  so a late "cancelled" for the item before cannot end the one that is loading, and one failed connection no longer
+  makes the TV unreachable for ever (the helper's problem is reset when a new helper starts). An unused or finished
+  sound offer is pruned.

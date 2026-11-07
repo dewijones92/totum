@@ -53,7 +53,8 @@ has `trip.armed`, `trip.departureAtMs`, `trip.perGroup`, `trip.progress`.
 - Not run on a phone. First checks: arm with a queue of mixed groups on Wi-Fi, switch to mobile data and back, kill the
   app and see the 15-minute job carry on, and arm with a Pi that has finished files.
 - No notification at departure ("✅ ready"); the tile is the only readout.
-- The hour and count choices, the 2 GB reserve and two attempts per item are the builder's calls.
+- The hour and count choices, the 2 GB reserve and two attempts per item are the builder's calls. The two attempts apply
+  to fetches, Pi copies and other Pi files alike, and are saved with the trip, so a restart does not reset them.
 
 ## Tests owed
 

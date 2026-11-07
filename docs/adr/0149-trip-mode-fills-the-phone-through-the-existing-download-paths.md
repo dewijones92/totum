@@ -49,6 +49,13 @@ Dewi's words cover the idea, the Pi rule and the strip. The builder's calls, ope
 and defaults, the 2 GB reserve, two attempts per item, skipping torrents, copying every finished Pi file that fits rather
 than only queued ones, the 15-minute job, the unmetered test, and no notification when the trip ends.
 
+## Review fix (2026-11-07)
+
+- **Two goes covers copies too.** Attempts are counted for Pi copies and other Pi files as well as fetches (a copy that
+  failed twice, or failed in a way asking again cannot help, is left alone and counted as failed), and they are saved
+  with the trip (`TripSettings.attempts`), so a restart does not give every item two more goes. Arming a trip starts the
+  counts afresh. (The coordinator's call; Dewi delegated it, 2026-11-07.)
+
 ## Consequences
 
 - Nothing is downloaded by trip mode unless a trip is armed; arming is one deliberate action.
@@ -60,7 +67,7 @@ than only queued ones, the 15-minute job, the unmetered test, and no notificatio
 
 ## Tests
 
-`TripPlanTest` (12) and `TripModeTest` (11): next N per group and for the ungrouped run, after what is playing, played
+`TripPlanTest` (14) and `TripModeTest` (13): next N per group and for the ungrouped run, after what is playing, played
 items passed over, on-phone and in-flight not asked twice, torrents skipped, no-URL items skipped, permanent and
 exhausted failures left alone, Pi copies for queued and other files within free space, the reserve, arming and passing
 (Wi-Fi, a running batch, departure, strip cancel, stop, a past time, resume at launch) and the codec.

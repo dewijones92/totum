@@ -50,8 +50,11 @@ name, select it, wait for the session), `CastTarget.device`, `PinPlayer.play` (t
   playlist and the existing standing permission (low volume, restored): the route selects by name, the hand-over wait is
   long enough, the loop repeats, stopping hands back to the phone paused.
 - Totum does not wake the TV; it must be on or in a state where it still advertises itself.
-- A pause from the phone's own Exsurge, alarms or recorder also pauses the TV; whether Kid TV should hold those off is
-  Dewi's call.
+- While Kid TV is on, Exsurge summons and daily-alarm interruptions pause nothing (the summons and alarms still ring on
+  the phone); the recorder never paused playback. Decided 2026-11-07 (the coordinator's call; Dewi delegated it).
+- Kid TV is remembered across a restart: the app waits up to 15 s for the cast to still be on that TV, then shows On
+  (with Stop) or goes off. A failed start that opened the cast ends it. It always plays on the phone's own queue, never
+  redirected to a target the Queue tab was looking at.
 
 ## Tests owed
 
