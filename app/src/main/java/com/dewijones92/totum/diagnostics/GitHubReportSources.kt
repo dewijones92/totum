@@ -4,6 +4,7 @@ import android.os.Build
 import com.dewijones92.totum.BuildConfig
 import com.dewijones92.totum.common.Breadcrumbs
 import com.dewijones92.totum.common.GitHubReport
+import com.dewijones92.totum.common.HomeServerHosts
 import com.dewijones92.totum.common.ReportRedactor
 
 internal object GitHubReportSources {
@@ -24,13 +25,15 @@ internal object GitHubReportSources {
     }
 }
 
+internal fun knownHomeHosts(homeServerBase: String, builtInBase: String = BuildConfig.HOME_SERVER): List<String> =
+    HomeServerHosts.allFor(listOf(homeServerBase, builtInBase))
+
 internal fun reportRedactorFor(
     homeServerBase: String,
     homeServerToken: String,
     prowlarrKey: String,
     builtInBase: String = BuildConfig.HOME_SERVER,
-): ReportRedactor {
-    val bases = listOf(homeServerBase, builtInBase).map { it.trim() }.filter { it.isNotEmpty() }
-    val hosts = bases.flatMap { listOf(it, "totum.$it", "totumauth.$it", "crashlog.$it") }
-    return ReportRedactor(secrets = listOf(homeServerToken, prowlarrKey), hosts = hosts)
-}
+): ReportRedactor = ReportRedactor(
+    secrets = listOf(homeServerToken, prowlarrKey),
+    hosts = knownHomeHosts(homeServerBase, builtInBase),
+)

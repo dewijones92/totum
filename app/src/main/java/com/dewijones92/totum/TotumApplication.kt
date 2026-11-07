@@ -8,6 +8,7 @@ import coil3.request.crossfade
 import com.dewijones92.totum.cast.startCastScreens
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HomeServerAuth
+import com.dewijones92.totum.common.HomeServerHosts
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.di.DefaultAppContainer
 import com.dewijones92.totum.diagnostics.MainThreadWatch
@@ -145,9 +146,9 @@ class TotumApplication : Application(), SingletonImageLoader.Factory {
 
 private fun signHomeServerRequests(prefs: AppPreferences) {
     HomeServerAuth.use(
-        host = { prefs.settings.value.homeServerBase.takeIf { it.isNotBlank() }?.let { "totum.$it" } },
+        host = { prefs.settings.value.homeServerBase.takeIf { it.isNotBlank() }?.let(HomeServerHosts::app) },
         token = { prefs.settings.value.homeServerToken },
-        sinkHost = { prefs.settings.value.homeServerBase.takeIf { it.isNotBlank() }?.let { "crashlog.$it" } },
+        sinkHost = { prefs.settings.value.homeServerBase.takeIf { it.isNotBlank() }?.let(HomeServerHosts::sink) },
     )
     val settings = prefs.settings.value
     Diag.log(

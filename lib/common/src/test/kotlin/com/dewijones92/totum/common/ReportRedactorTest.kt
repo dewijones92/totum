@@ -36,13 +36,15 @@ class ReportRedactorTest {
     @Test
     fun `token-looking query parameters and fragments are removed even when unknown`() {
         val out = redactor.redact(
-            "http://192.168.1.20:8080/screen#key=abc123XYZ and https://x.test/p?token=zzz999&b=1&api_key=qq11",
+            "http://192.168.1.20:8080/screen#key=abc123XYZ and https://x.test/p?token=zzz999&b=1&api_key=qq11 " +
+                "also token=yyy888 and ?b=2",
         )
 
         assertFalse(out, "abc123XYZ" in out)
         assertFalse(out, "zzz999" in out)
         assertFalse(out, "qq11" in out)
-        assertTrue(out, "b=1" in out)
+        assertFalse(out, "yyy888" in out)
+        assertTrue(out, "?b=2" in out)
     }
 
     @Test
@@ -107,7 +109,7 @@ class ReportRedactorTest {
         val out = redactor.redact("fetched https://user:hunter2@files.example.org/a.mp3")
 
         assertFalse(out, "hunter2" in out)
-        assertTrue(out, "files.example.org/a.mp3" in out)
+        assertTrue(out, "files.example.org" in out)
     }
 
     @Test
@@ -127,5 +129,63 @@ class ReportRedactorTest {
     @Test
     fun `a secret too short to be one is not used to cut the text up`() {
         assertEquals("a b c", ReportRedactor(secrets = listOf("a", "")).redact("a b c"))
+    }
+
+    @Test
+    fun `the path of an address is cut, except where it names a video`() {
+        val out = redactor.redact(
+            "see https://feeds.example.net/private/keyinpath99/show.rss?auth=q1 and " +
+                "https://www.youtube.com/watch?v=abcDEF12345&list=PL1&t=30&si=trackme and https://youtu.be/abcDEF12345?t=5",
+        )
+
+        assertFalse(out, "keyinpath99" in out)
+        assertFalse(out, "q1" in out)
+        assertTrue(out, "https://feeds.example.net${ReportRedactor.PATH_REMOVED}" in out)
+        assertTrue(out, "https://www.youtube.com/watch?v=abcDEF12345&list=PL1&t=30" in out)
+        assertFalse(out, "trackme" in out)
+        assertTrue(out, "https://youtu.be/abcDEF12345?t=5" in out)
+    }
+
+    @Test
+    fun `a torrent id with its info hash is kept in both modes`() {
+        val id = "torrent:0123456789abcdef0123456789abcdef01234567:12"
+
+        assertEquals(id, redactor.redact(id))
+        assertEquals(id, ReportRedactor(keepIdentifiers = true).redact(id))
+    }
+
+    @Test
+    fun `identifier mode keeps ids that are addresses or guids but still cuts keys and secrets`() {
+        val ids = ReportRedactor(secrets = listOf(token), hosts = listOf("home.example.org"), keepIdentifiers = true)
+        val guid = "123e4567-e89b-12d3-a456-426614174000"
+        val episode = "https://cdn.example.net/ep/42.mp3"
+
+        assertEquals(guid, ids.redact(guid))
+        assertEquals(episode, ids.redact(episode))
+        assertEquals("https://cdn.example.net/ep/42.mp3", ids.redact("https://cdn.example.net/ep/42.mp3?key=abc&sig=zz"))
+        assertFalse(ids.redact("x $token y").contains(token))
+        assertFalse(ids.redact("https://home.example.org/a").contains("home.example.org"))
+        assertEquals(ReportRedactor.EMAIL, ids.redact("a.b@mail.example.org"))
+        assertFalse(redactor.redact(guid).contains(guid))
+    }
+
+    @Test
+    fun `shapes of secrets and the names of secret keys are recognised`() {
+        assertTrue(ReportRedactor.looksSecret("here: ya29.a0AfH6SMBxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"))
+        assertTrue(ReportRedactor.looksSecret("hash 0123456789abcdef0123456789abcdef01234567 here"))
+        assertFalse(ReportRedactor.looksSecret("torrent:0123456789abcdef0123456789abcdef01234567:3"))
+        assertFalse(ReportRedactor.looksSecret("You have 13 starred items, nine played."))
+        assertTrue(ReportRedactor.isSecretKey("homeServerToken"))
+        assertTrue(ReportRedactor.isSecretKey("API-KEY"))
+        assertFalse(ReportRedactor.isSecretKey("title"))
+    }
+
+    @Test
+    fun `keyed secrets are redacted with a colon or an equals sign`() {
+        val out = redactor.redact("password: hunter2hunter2 and AIzaSyA-1234567890abcdefghijklmnopqrstuv sk-ant-api03-abcdefghijklmnopqrstuvwxyz")
+
+        assertFalse(out, "hunter2" in out)
+        assertFalse(out, "AIza" in out)
+        assertFalse(out, "sk-ant" in out)
     }
 }

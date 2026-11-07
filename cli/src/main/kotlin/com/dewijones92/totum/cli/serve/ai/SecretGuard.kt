@@ -1,6 +1,6 @@
 package com.dewijones92.totum.cli.serve.ai
 
-import com.dewijones92.totum.data.ask.state.StateScrub
+import com.dewijones92.totum.common.ReportRedactor
 
 internal object SecretGuard {
 
@@ -10,7 +10,7 @@ internal object SecretGuard {
     fun leaks(text: String, env: Map<String, String> = System.getenv()): List<String> {
         val named = env.filter { (name, value) -> SECRET_NAME.containsMatchIn(name) && value.length >= MIN_LENGTH }
             .filter { (_, value) -> text.contains(value) }.keys.toList()
-        val shaped = if (StateScrub.looksSecret(text)) listOf("a value shaped like a secret") else emptyList()
+        val shaped = if (ReportRedactor.looksSecret(text)) listOf("a value shaped like a secret") else emptyList()
         return named + shaped
     }
 }

@@ -36,6 +36,8 @@ data class AskStatePorts(
     val channels: suspend () -> List<BackupSubscription>,
     val appVersion: String,
     val starredName: String,
+    val secrets: () -> List<String> = { emptyList() },
+    val hosts: () -> List<String> = { emptyList() },
 )
 
 class AskStateSource(
@@ -94,6 +96,8 @@ class AskStateSource(
             nowMs = now(),
             zone = zone(),
             sizeOf = sizeOf,
+            secrets = ports.secrets(),
+            hosts = ports.hosts(),
         )
     }
 

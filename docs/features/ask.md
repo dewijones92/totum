@@ -55,8 +55,8 @@ your app's own data" and carries cards of your own items with ▶️ Play all / 
 If the snapshot cannot be gathered or sent the ask still goes, web only, and says so. ADR 140.
 
 - Snapshot: `AskStateSource` (`app/.../ui/ask/`) feeds `AppStateBuilder` (`core/data/.../ask/state/`); the schema is
-  walked from the pack's own serializers (`StateSchema`, `@Describe`); `StateScrub` removes secrets on the phone and
-  again on the Pi.
+  walked from the pack's own serializers (`StateSchema`, `@Describe`); the shared `ReportRedactor` (via `StateScrub`) removes secrets on the phone, seeded with the home
+  host and token, and again on the Pi.
 - Pi: `RoutedAsk`, `AskStates` (10 minutes, in memory), `PUT /ask-state`, `StatePrompts`; the AI service runs the
   `ask-state` call with `Bash(jq:*)` in a private temp directory.
 - Dry runs: `totum ask-state-check <backup.json> "question" "+follow-up"` runs the whole path through a local AI

@@ -115,6 +115,7 @@ import com.dewijones92.totum.diagnostics.AccountReportValues
 import com.dewijones92.totum.diagnostics.ActivitySnapshotter
 import com.dewijones92.totum.diagnostics.CrashReporter
 import com.dewijones92.totum.diagnostics.ReportSink
+import com.dewijones92.totum.diagnostics.knownHomeHosts
 import com.dewijones92.totum.diagnostics.DiagnosticSnapshot
 import com.dewijones92.totum.diagnostics.DiagnosticsUploader
 import com.dewijones92.totum.diagnostics.EncodedScreenshot
@@ -2003,6 +2004,10 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                 },
                 appVersion = BuildConfig.VERSION_NAME,
                 starredName = STARRED_PLAYLIST_NAME,
+                secrets = {
+                    appPreferences.settings.value.let { listOf(it.homeServerToken, it.prowlarrApiKey) }
+                },
+                hosts = { knownHomeHosts(appPreferences.settings.value.homeServerBase) },
             ),
         )
     }

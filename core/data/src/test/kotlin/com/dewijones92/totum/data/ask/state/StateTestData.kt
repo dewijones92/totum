@@ -137,6 +137,9 @@ object StateTestData {
         listens: List<ListenFact> = listOf(
             ListenFact(NOW - HOUR_MS, "A song", "An Artist", null, "An Album", "music", false, 200_000, 240_000, true),
         ),
+        events: List<Breadcrumbs.Entry> = this.events,
+        secrets: List<String> = emptyList(),
+        hosts: List<String> = emptyList(),
     ): AppStateInputs = AppStateInputs(
         backup = backup,
         queue = QueueSnapshot(queue, currentIndex = 1),
@@ -161,6 +164,8 @@ object StateTestData {
         nowMs = NOW,
         zone = ZoneId.of("Europe/London"),
         sizeOf = sizeOf,
+        secrets = secrets,
+        hosts = hosts,
     )
 
     private const val MINUTE_MS = 60_000L

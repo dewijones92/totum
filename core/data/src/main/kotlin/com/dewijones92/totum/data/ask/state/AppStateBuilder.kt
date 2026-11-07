@@ -1,6 +1,7 @@
 package com.dewijones92.totum.data.ask.state
 
 import com.dewijones92.totum.common.Breadcrumbs
+import com.dewijones92.totum.common.ReportRedactor
 import com.dewijones92.totum.data.backup.Backup
 import com.dewijones92.totum.data.backup.BackupItem
 import com.dewijones92.totum.data.backup.BackupProgress
@@ -56,6 +57,8 @@ public data class AppStateInputs(
     public val nowMs: Long,
     public val zone: ZoneId,
     public val sizeOf: (String) -> Long? = { null },
+    public val secrets: List<String> = emptyList(),
+    public val hosts: List<String> = emptyList(),
 )
 
 public class BuiltState(
@@ -76,6 +79,8 @@ public object AppStateBuilder {
 
     public fun build(inputs: AppStateInputs): BuiltState {
         val facts = Facts(inputs)
+        val prose = ReportRedactor(inputs.secrets, inputs.hosts)
+        val identifiers = ReportRedactor(inputs.secrets, inputs.hosts, keepIdentifiers = true)
         val notes = mutableListOf<String>()
         val listens = inputs.listens.sortedByDescending { it.atMs }
         val others = inputs.stats.sortedByDescending { it.atMs }
@@ -103,16 +108,18 @@ public object AppStateBuilder {
             downloads = facts.downloads(),
             progress = facts.progressRows(),
             listens = listens.take(MAX_LISTENS).map(facts::listen),
-            otherStats = others.take(MAX_OTHER_STATS).map { StatRow(facts.at(it.atMs), it.atMs, it.type, it.detail) },
+            otherStats = others.take(MAX_OTHER_STATS).map {
+                StatRow(facts.at(it.atMs), it.atMs, it.type, prose.redact(it.detail))
+            },
             trail = facts.trail(),
             settings = settings(inputs.backup.settings),
             events = inputs.events.takeLast(
                 MAX_EVENTS
-            ).map { EventRow(facts.at(it.atEpochMs), it.atEpochMs, it.tag, it.message) },
+            ).map { EventRow(facts.at(it.atEpochMs), it.atEpochMs, it.tag, prose.redact(it.message)) },
         )
         val counts = countsOf(state)
         val counted = state.copy(snapshot = state.snapshot.copy(counts = counts))
-        val scrubbed = StateScrub.clean(StateJson.encodeToJsonElement(AppState.serializer(), counted))
+        val scrubbed = StateScrub.clean(StateJson.encodeToJsonElement(AppState.serializer(), counted), identifiers)
         return BuiltState(
             json = scrubbed.element as JsonObject,
             counts = counts,

@@ -69,16 +69,33 @@ place, downloads in every state with sizes and locks, the stats log, the back/fo
 - Lists capped at their newest rows say so in `snapshot.notes` (listens 3,000, other stats 500, events 5,000); every
   other list is complete; `snapshot.counts` holds each list's size. Settings are expanded from the backup's flat
   strings (a value that is a JSON list or object becomes one).
-- **Never in the pack:** an address of any kind for an item or a feed (only the host of a subscription's feed), the
+- **Not in the pack as a field:** an address for an item or a feed (a subscription carries only the feed's host), the
   YouTube sign-in, the home-server token, the Drive folder, any setting that is not on the backup's hand-written list.
   Subscription ids are omitted because a feed's address can carry a private key in its path.
-- `StateScrub` runs over the finished JSON on the phone **and again on the Pi when it arrives**: object keys that name
-  a secret (token, secret, password, credential, authorization, api key, cookie, bearer, signature, refresh, access
-  key, session id) are dropped, and string values shaped like one (bearer tokens, JWTs, Google and Anthropic key
-  shapes, `token=` and `password:` pairs, user:password in an address, 40-hex strings) are redacted. In any address
-  only the query parameters `v`, `list`, `t` and `index` survive. An info hash after `torrent:` or `btih:` is exempt:
-  it is an item's id, not a secret (the first scrub of the real backup redacted 176 of them and broke every torrent
-  card).
+- **What the pack still holds that looks like an address (corrected 2026-11-07; the first version said "an address of
+  any kind never leaves", which was an overclaim).** An item's id is kept as it is so cards resolve, and for a podcast
+  episode the id can be its guid, else its enclosure address, else its feed address plus the title. Such an id keeps its
+  path (only its query is cut to `v`, `list`, `t`, `index`), so a key that sits in an enclosure path **is** in the pack
+  and goes to Anthropic through the jq call. The event log (`Breadcrumbs`) and the other stats' detail are free text:
+  they carry whole feed addresses (`subscribe …`), the home server's address (`change(homeServer, …)`) and its URLs
+  (`POST …`). They now go through the strict redactor below before they enter the pack.
+- **One redactor.** `ReportRedactor` (`:lib:common`) is the one definition of "what is a secret", used for the GitHub
+  report ([ADR 146](0146-gpl-3-and-reports-go-to-the-pi-only-when-signed-in.md)) and the pack; there is no second
+  rule set (`StateScrub` is now only the JSON walker). It has two modes. **Text** (the report, and the pack's event
+  messages and stats detail): the path and query of every address is cut except a YouTube video's `v`/`list`/`t`/`index`
+  (`https://feeds.example/…`), magnet links removed, email addresses and IPv4/IPv6 addresses removed, any 32-character
+  opaque string removed, the home server's every host (`totum.`, `totumauth.`, `crashlog.` and the bare base, from
+  `HomeServerHosts`) and the device token and Prowlarr key by value. **Identifiers** (the pack's structured fields,
+  where an id must still match): the same secret shapes (bearer, JWT, Google, Anthropic keys, `token=`/`password:`
+  pairs, user:password in an address), emails and IPs, the home hosts and token, a query cut to the video parameters,
+  and a hex run of 40 or more characters, but an address id keeps its path and an id such as a podcast guid stays
+  whole. An info hash after `torrent:` or `btih:` is exempt in both modes: it is an item's id, not a secret (the
+  first scrub of the real backup redacted 176 of them and broke every torrent card). Object keys that name a secret
+  (token, secret, password, credential, authorization, api key, cookie, bearer, signature, refresh, access key, session
+  id) are dropped by `StateScrub.clean`. The phone seeds the redactor with the home hosts and the secrets
+  (`AskStatePorts.secrets`/`hosts`); the Pi runs it again on arrival without the seeds, since it cannot know them. This
+  is the coordinator's call; Dewi delegated it, 2026-11-06/07. Test: `PackRedactionTest` (a pack built from realistic
+  events keeps no feed path key, home host, token, email or IP).
 - **The schema** is walked from the pack's own `SerialDescriptor`s (`StateSchema`): types, nullable and optional
   fields, enums, a one-line `@Describe` on every list and field, and the number of rows each list holds (`x-count`).
   It goes into the prompt (about 18 KB for the real pack); the data goes into a file.

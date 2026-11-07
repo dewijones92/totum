@@ -37,17 +37,18 @@ change; the notices file is the pointer.
 In: the note, the app version, build, commit and build type, the device model, Android version and ABIs, and (only if
 switched on) recent activity lines. Never: the install id, settings, queue, titles, the report JSON, screenshots.
 Everything, including the note, passes `ReportRedactor`: the device token and Prowlarr key by value; the home server's
-address in every form (its setting, the address built into the APK, `totum.` and `totumauth.` hosts, the Pi sink's
-host); credentials in URLs; `token=`, `key=`, `#key=`-style parameters; `Authorization`, `X-Totum-Token`, `Cookie` lines;
+address in every form (its setting, the address built into the APK, and each one's `totum.`, `totumauth.` and `crashlog.` hosts, from
+`HomeServerHosts`); credentials in URLs; the path and query of every other address (a YouTube video keeps `v`, `list`
+and `t`); `token=`, `key=`, `#key=`-style parameters; `Authorization`, `X-Totum-Token`, `Cookie` lines;
 bearer, Google and JWT tokens; email addresses; IPv4 and IPv6 addresses; magnet links; opaque strings of 32 or more
 characters. The link is capped at 7,000 characters: oldest activity goes first, then the end of the note (marked `…`).
 
 ## Seams
 
-`:lib:common`: `ReportRedactor`, `GitHubReport` (the draft), `HomeServerAuth.isSignedIn`/`signedIn`. App:
+`:lib:common`: `ReportRedactor` (also the Ask pack's redactor, [ADR 140](../adr/0140-ask-answers-about-your-own-app-with-jq-only.md)), `HomeServerHosts`, `GitHubReport` (the draft), `HomeServerAuth.isSignedIn`/`signedIn`/`reportEndpoint`. App:
 `diagnostics/GitHubReportSources` (facts, activity, `reportRedactorFor`), `diagnostics/OpenedReports`,
 `ui/settings/ReportDialog` (the one door for the Settings row and `SendReportActivity`), `rememberSuspendCopier` in
-`ui/common/LinksAndCopy`. `DiagnosticsUploader` and the screen announcer read the same sign-in.
+`ui/common/LinksAndCopy`. `DiagnosticsUploader` and the screen announcer read the same sign-in and post through `ReportSink`, to the sink derived from the configured home server.
 
 ## Diagnostics
 

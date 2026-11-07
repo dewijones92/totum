@@ -1,5 +1,6 @@
 package com.dewijones92.totum.data.ask.state
 
+import com.dewijones92.totum.common.ReportRedactor
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
@@ -42,8 +43,8 @@ class StateScrubTest {
             "hash 0123456789abcdef0123456789abcdef01234567 here",
         )
         secrets.forEach { text ->
-            val out = StateScrub.redact(text)
-            assertTrue("\"$text\" -> \"$out\"", out.contains("[redacted]"))
+            val out = StateScrub.IDENTIFIERS.redact(text)
+            assertTrue("\"$text\" -> \"$out\"", out != text)
             assertFalse(
                 "\"$text\" -> \"$out\"",
                 Regex("abcdef0123456789|hunter2|pass1234|abcdef123456\\b").containsMatchIn(out)
@@ -53,7 +54,7 @@ class StateScrubTest {
 
     @Test
     fun `a link keeps only the parts that name a video, never a signature or key`() {
-        val out = StateScrub.redact(
+        val out = StateScrub.IDENTIFIERS.redact(
             "see https://rr1.googlevideo.com/videoplayback?expire=1&sig=SECRETSIG&id=o-ABC and " +
                 "https://www.youtube.com/watch?v=abcDEF12345&list=PL1&t=30 and " +
                 "https://feeds.example/p.rss?key=SECRETKEY",
@@ -67,10 +68,10 @@ class StateScrubTest {
     @Test
     fun `a torrent item id with its info hash is not mistaken for a secret`() {
         val id = "torrent:0123456789abcdef0123456789abcdef01234567:12"
-        assertEquals(id, StateScrub.redact(id))
+        assertEquals(id, StateScrub.IDENTIFIERS.redact(id))
         assertEquals(
             "magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567",
-            StateScrub.redact("magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567")
+            StateScrub.IDENTIFIERS.redact("magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567")
         )
     }
 
@@ -78,7 +79,7 @@ class StateScrubTest {
     fun `ordinary titles and numbers pass through untouched`() {
         val text = "Day 2 in Hong Kong featuring Eala | WTA Match Highlights 2026-11-06T21:10:51Z 12:34 " +
             "Chopin Op. 10 No. 4"
-        assertEquals(text, StateScrub.redact(text))
+        assertEquals(text, StateScrub.IDENTIFIERS.redact(text))
         val tree = clean("""{"n":5,"b":true,"t":"$text","l":[1,2,"abc"]}""")
         assertEquals(0, tree.redactedValues)
         assertEquals(text, (tree.element as JsonObject).getValue("t").jsonPrimitive.content)
@@ -86,7 +87,7 @@ class StateScrubTest {
 
     @Test
     fun `looksSecret flags the shapes an answer must never carry`() {
-        assertTrue(StateScrub.looksSecret("here you go: ya29.a0AfH6SMBxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"))
-        assertFalse(StateScrub.looksSecret("You have 13 starred items, nine played."))
+        assertTrue(ReportRedactor.looksSecret("here you go: ya29.a0AfH6SMBxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"))
+        assertFalse(ReportRedactor.looksSecret("You have 13 starred items, nine played."))
     }
 }
