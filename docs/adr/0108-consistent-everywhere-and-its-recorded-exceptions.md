@@ -141,7 +141,7 @@ follow mark (`FollowedSources.nothingToFollow`, one rule for book chapters, torr
 year as its date fact and its overview in Details, wears its poster everywhere (the Pi serves `/jellyfin/image/<id>` and
 the shared image loader sends the device token), and its page uses the shared back header
 ([ADR 154](0154-jellyfin-is-browsed-and-streamed-through-the-pi.md)). A player error with no recovery is told to the user
-through the refused-tap message, for every source ([ADR 156](0156-a-player-error-with-no-recovery-tells-the-user-and-offers-listen.md)).
+through the refused-tap message, for every source ([ADR 157](0157-a-player-error-with-no-recovery-tells-the-user-and-offers-listen.md)).
 
 ## Consequences
 

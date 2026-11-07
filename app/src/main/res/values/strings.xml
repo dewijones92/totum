@@ -846,6 +846,9 @@
     <string name="refused_offline">it is not downloaded and there is no network</string>
     <string name="refused_stream">its stream will not play and there is no copy on disk</string>
     <string name="refused_nothing">there is nothing to play</string>
+    <string name="refused_cannot_decode_video">this phone can\'t play this video (%1$s)</string>
+    <string name="refused_cannot_decode_sound">this phone can\'t play this sound (%1$s)</string>
+    <string name="refused_player_error">playback failed (%1$s)</string>
     <string name="refused_no_stream">YouTube gave no stream for it</string>
     <string name="refused_live_soon">🔴 “%1$s” has not started yet. Totum will tell you when it is live.</string>
     <string name="refused_live_at">🔴 “%1$s” starts %2$s. Totum will tell you when it is live.</string>

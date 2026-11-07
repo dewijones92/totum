@@ -3,7 +3,7 @@ title: Permanent vs transient failure, and playback that goes nowhere
 kind: feature
 status: shipped
 area: playback
-updated: 2026-09-06
+updated: 2026-11-07
 ---
 
 # Knowing when to stop asking
@@ -261,3 +261,14 @@ last rung did not, so a stream that failed every retry walked on down the queue 
 asked it to stop. `abandon()` now checks the same one reading of the setting (`autoPlayNextEnabled`
 in the container, shared by all three) and logs `not moving on from the failed stream — auto-play
 next is off` instead. Guarded by `StreamRecoveryTest`.
+
+## A player error nothing can recover is told to the user (2026-11-07)
+
+The emulator cannot decode 10-bit HEVC, so a Jellyfin film failed with `ERROR_CODE_DECODING_FAILED` and the app showed a
+Play button that did nothing: `onPlayerError` logged "player error with no recovery for it" and stopped. It is now a
+`PlaybackEvent.CouldNotPlay`, shown as "❌ Couldn't play “21 Jump Street”: this phone can't play this video (HEVC
+10-bit)" through the refused-tap message, with 🎧 Listen offered when the picture is what failed and the item has sound
+([ADR 157](../adr/0157-a-player-error-with-no-recovery-tells-the-user-and-offers-listen.md)). Retryable failures are
+untouched. Files: `core/playback/…/PlaybackProblem.kt`, `ErroredFormats.kt`, `Media3PlaybackController.kt`
+(`announceCouldNotPlay`), `app/…/queue/PlaybackQueue.kt` (`announceCouldNotPlay`), `PlayAttempts.kt`,
+`ui/common/RefusedTapToasts.kt`.

@@ -13,6 +13,7 @@ import com.dewijones92.totum.playback.CastVolume
 import com.dewijones92.totum.playback.PlaybackContext
 import com.dewijones92.totum.playback.PlaybackController
 import com.dewijones92.totum.playback.PlaybackEvent
+import com.dewijones92.totum.playback.PlaybackProblem
 import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.playback.ScreenTargets
 import com.dewijones92.totum.playback.SkipDirection
@@ -133,6 +134,14 @@ public class FakePlaybackController(override val player: Player? = null) : Playb
         // stream that had just died — the fake asserting the opposite of what it was modelling.
         _state.update { it?.copy(isPlaying = false, isBuffering = false) }
         _streamFailures.emit(failure)
+    }
+
+    public fun failToPlay(problem: PlaybackProblem, hasSound: Boolean = true) {
+        val current = checkNotNull(_state.value) {
+            "failToPlay() while nothing is playing -- wait for playback to start before failing it"
+        }
+        _state.update { it?.copy(isPlaying = false, isBuffering = false) }
+        _events.tryEmit(PlaybackEvent.CouldNotPlay(current.itemId, current.positionMs, problem, hasSound))
     }
 
     /** Segments handed to the most recent [play] call, for assertions. */

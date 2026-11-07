@@ -38,6 +38,7 @@ import com.dewijones92.totum.domain.fillingSilenceFrom
 import com.dewijones92.totum.domain.listening
 import com.dewijones92.totum.domain.pictureForSwitching
 import com.dewijones92.totum.domain.routeNow
+import com.dewijones92.totum.domain.titleOf
 import com.dewijones92.totum.music.labelledForPlay
 import com.dewijones92.totum.playback.PlaybackController
 import com.dewijones92.totum.playback.PlaybackEvent
@@ -234,6 +235,17 @@ class PlaybackQueue(
             Diag.log("queue", "${event.itemId.value} carried on from ${event.fromMs}ms to ${event.toMs}ms, saying so")
             _notices.tryEmit(QueueNotice.CarriedOn(event.toMs))
         }.launchIn(scope)
+        controller.events.filterIsInstance<PlaybackEvent.CouldNotPlay>().onEach(::announceCouldNotPlay).launchIn(scope)
+    }
+
+    private fun announceCouldNotPlay(event: PlaybackEvent.CouldNotPlay) {
+        val queued = _state.value.entries.firstOrNull { it.item.item.id == event.itemId }?.item
+            ?: _nowPlaying.value?.takeIf { it.item.id == event.itemId }
+        val title = queued?.let { shield.titleOf(it.item) } ?: controller.state.value?.title ?: event.itemId.value
+        val listen = queued?.takeIf {
+            event.problem.isPicture && event.hasSound && !audioPreferred() && !pictures.soundOnly(it)
+        }
+        refusals.announceProblem(title, event.itemId, event.problem, listen)
     }
 
     @Volatile

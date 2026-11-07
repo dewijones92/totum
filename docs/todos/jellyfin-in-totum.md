@@ -33,7 +33,7 @@ data).
 
 ## Consistency pass, 2026-11-07 (found on the emulator)
 
-[ADR 154](../adr/0154-jellyfin-is-browsed-and-streamed-through-the-pi.md) amendment and [ADR 156](../adr/0156-a-player-error-with-no-recovery-tells-the-user-and-offers-listen.md):
+[ADR 154](../adr/0154-jellyfin-is-browsed-and-streamed-through-the-pi.md) amendment and [ADR 157](../adr/0157-a-player-error-with-no-recovery-tells-the-user-and-offers-listen.md):
 posters (`/jellyfin/image/<id>` on the Pi, the shared image loader now sends the device token), no follow mark, shown as a
 video, the year and overview, the shared back header with the place kept, and a film the phone cannot decode says why and
 offers 🎧 Listen. **Needs a deploy of `totum serve` on the Pi for the posters.** The emulator cannot decode 10-bit HEVC,

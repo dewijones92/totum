@@ -2,7 +2,7 @@
 title: Listen and Watch follow whether the item has a picture, not which pillar it came from
 kind: adr
 status: accepted
-updated: 2026-10-22
+updated: 2026-11-07
 ---
 
 # 70. Listen and Watch follow the picture, not the pillar
@@ -43,3 +43,4 @@ picture is a separate fact, and only that one decides Listen and Watch.
 - Listening to a video podcast with no audio-only version saves decoding and battery, not data.
 - The "switch the picture off" rule is one function, `listensWithThePictureOff`, used by the queue's play route and by
   gapless arming alike (the review of c7b1967a found arming had its own copy that kept the picture on).
+- A video the phone cannot decode offers Listen from the failure message, for every source ([ADR 157](0157-a-player-error-with-no-recovery-tells-the-user-and-offers-listen.md), 2026-11-07).

@@ -91,5 +91,5 @@ Jellyfin special case in the screen:
   known gap recorded in [ADR 108](0108-consistent-everywhere-and-its-recorded-exceptions.md)).
 - **Back.** The page uses the shared `BackHeader` and `ListThenDetail` ([ADR 88](0088-a-page-opened-over-a-list-keeps-its-place.md)):
   a series opened over the top level keeps the top level's place, and going back does not read the listing again.
-- A decode failure of the original file now says why and offers Listen: [ADR 156](0156-a-player-error-with-no-recovery-tells-the-user-and-offers-listen.md).
+- A decode failure of the original file now says why and offers Listen: [ADR 157](0157-a-player-error-with-no-recovery-tells-the-user-and-offers-listen.md).
 - The Pi route needs a deploy of `totum serve`; the phone without it shows the placeholder (the route answers 404).

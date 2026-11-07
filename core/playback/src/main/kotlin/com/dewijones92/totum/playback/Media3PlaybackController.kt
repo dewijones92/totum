@@ -275,6 +275,7 @@ public class Media3PlaybackController(
                                 // trace here at all, so "playback stopped and nothing in
                                 // the trail explains it" was a real state.
                                 Diag.warn("playback", "player error with no recovery for it", error)
+                                announceCouldNotPlay(connected, error)
                                 return
                             }
                             val id = connected.currentMediaItem?.mediaId?.ifBlank { null } ?: return
@@ -1200,6 +1201,24 @@ public class Media3PlaybackController(
             "remote=${controller.deviceInfo.playbackType == DeviceInfo.PLAYBACK_TYPE_REMOTE} " +
             "source=${controller.currentMediaItem?.localConfiguration?.uri?.scheme} " +
             "error=${controller.playerError?.errorCodeName}"
+
+    @OptIn(markerClass = [UnstableApi::class])
+    private fun announceCouldNotPlay(connected: MediaController, error: PlaybackException) {
+        val id = connected.currentMediaItem?.mediaId?.ifBlank { null }
+        if (id == null) {
+            Diag.warn("playback", "${error.errorCodeName} with no recovery, and nothing names the item: user not told")
+            return
+        }
+        val problem = error.problem()
+        val hasSound = connected.currentTracks.containsType(C.TRACK_TYPE_AUDIO)
+        val format = error.erroredFormat()
+        Diag.warn(
+            "playback",
+            "telling the user $id could not play: $problem [format=${format?.mimeType}/${format?.codecs} " +
+                "hasSound=$hasSound at=${connected.currentPosition}ms]",
+        )
+        _events.tryEmit(PlaybackEvent.CouldNotPlay(MediaItemId(id), connected.currentPosition, problem, hasSound))
+    }
 
     private fun announceEnd(how: String, ended: PlaybackEvent.Ended) {
         val id = ended.itemId.value

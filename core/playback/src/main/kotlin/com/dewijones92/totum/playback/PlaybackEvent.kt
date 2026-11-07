@@ -55,4 +55,11 @@ public sealed interface PlaybackEvent {
         public val fromMs: Long,
         public val toMs: Long,
     ) : PlaybackEvent
+
+    public data class CouldNotPlay(
+        override val itemId: MediaItemId,
+        public val atMs: Long,
+        public val problem: PlaybackProblem,
+        public val hasSound: Boolean,
+    ) : PlaybackEvent
 }
