@@ -43,21 +43,15 @@ internal fun Target.chipLabel(power: TargetPower = TargetPower.ON): String {
 }
 
 @Composable
-fun WatchTargetsWhileShown(targets: TargetsRepository) {
-    if (!targets.available) return
-    val lifecycle = LocalLifecycleOwner.current.lifecycle
-    LaunchedEffect(targets, lifecycle) {
-        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) { targets.watchWhile() }
-    }
-}
-
-@Composable
-fun TargetChips(targets: TargetsRepository, modifier: Modifier = Modifier, watching: Boolean = true) {
+fun TargetChips(targets: TargetsRepository, modifier: Modifier = Modifier) {
     if (!targets.available) return
     val states by targets.targets.collectAsStateWithLifecycle()
     val selected by targets.selected.collectAsStateWithLifecycle()
     val colours by targets.colours.collectAsStateWithLifecycle()
-    if (watching) WatchTargetsWhileShown(targets)
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    LaunchedEffect(targets, lifecycle) {
+        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) { targets.watchWhile() }
+    }
     if (states.isEmpty()) return
     val power = states.associate { it.target.id to it.power }
     val inUse = states.filter { it.entries.isNotEmpty() || it.target.id == selected }.map { it.target }

@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -103,11 +104,7 @@ import sh.calvin.reorderable.ReorderableLazyListState
  * structure, dragging an entry out simply splits the run — nothing to repair.
  */
 @Composable
-internal fun PhoneQueue(
-    container: AppContainer,
-    modifier: Modifier = Modifier,
-    above: @Composable () -> Unit = {},
-) {
+internal fun PhoneQueue(container: AppContainer, modifier: Modifier = Modifier) {
     val queue = container.playbackQueue
     val snapshot by queue.state.collectAsStateWithLifecycle()
     CountRecompositions("queue")
@@ -133,11 +130,6 @@ internal fun PhoneQueue(
     val groupIds = remember(entries) { entries.mapNotNullTo(linkedSetOf()) { it.group?.id } }
     val jump = rememberJumpToPlaying(listState, snapshot, collapsedGroups) { collapsedGroups = it }
 
-    val aboveRows: @Composable () -> Unit = {
-        above()
-        if (entries.isNotEmpty()) QueueOfflineSummary(container, entries, downloads, queueFilters)
-    }
-
     Box(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
             QueueHeader(
@@ -157,9 +149,9 @@ internal fun PhoneQueue(
                 },
             )
             if (entries.isEmpty()) {
-                aboveRows()
                 EmptyQueue()
             } else {
+                QueueOfflineSummary(container, entries, downloads, queueFilters)
                 val actions = rememberQueueActions(
                     container = container,
                     queue = queue,
@@ -173,7 +165,7 @@ internal fun PhoneQueue(
                 val reorder = rememberQueueReorder(listState, queue, actions.dragSession) { snapshot }
                 FilterableQueue(
                     listFilter, entries, container, snapshot.currentIndex, isPlaying, progress, listState,
-                    reorder, actions, queueFilters.value, aboveRows,
+                    reorder, actions, queueFilters.value,
                 )
             }
         }
@@ -448,7 +440,6 @@ private fun FilterableQueue(
     reorder: ReorderableLazyListState,
     actions: QueueActions,
     filters: ItemFilters = ItemFilters(),
-    above: @Composable () -> Unit = {},
 ) {
     val indexed = remember(entries) { entries.withIndex().toList() }
     val matches = listFilter.filter(
@@ -490,7 +481,7 @@ private fun FilterableQueue(
                     )
                 }
                 LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
-                    item(key = QUEUE_TOP_KEY) { above() }
+                    item(key = QUEUE_TOP_KEY) { Spacer(Modifier.height(0.dp)) }
                     itemsWithGroupHeaders(
                         layout = layout,
                         availability = availability,
@@ -501,13 +492,9 @@ private fun FilterableQueue(
                 }
             }
         } else if (matches.isEmpty()) {
-            Column {
-                above()
-                NoFilterMatches(listFilter.query)
-            }
+            NoFilterMatches(listFilter.query)
         } else {
             LazyColumn(Modifier.fillMaxSize()) {
-                item(key = QUEUE_TOP_KEY) { above() }
                 items(matches, key = { it.value.item.item.id.value }) { (index, entry) ->
                     QueueRow(entry, index, entries, nowPlaying, availability, drag = null, actions = actions)
                 }

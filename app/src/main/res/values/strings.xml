@@ -260,6 +260,7 @@
     <string name="sponsor_segments_title">SponsorBlock skips</string>
     <string name="chapters_title">Chapters</string>
     <string name="queue_menu">More options</string>
+    <string name="queue_header_menu">Queue options</string>
     <!-- Progress filter chips shown above every feed. -->
     <string name="filter_all">📋 All</string>
     <string name="filter_unplayed">🆕 Unplayed</string>

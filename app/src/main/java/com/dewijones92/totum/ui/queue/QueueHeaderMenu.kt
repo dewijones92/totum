@@ -32,7 +32,7 @@ internal fun QueueHeaderMenu(allCollapsed: Boolean?, onCollapseAll: () -> Unit, 
     var open by remember { mutableStateOf(false) }
     Box {
         IconButton(onClick = { open = true }, modifier = Modifier.testTag(QUEUE_HEADER_MENU_TAG)) {
-            Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.queue_menu))
+            Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.queue_header_menu))
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             val close = { open = false }
