@@ -1,7 +1,7 @@
 ---
 title: Architecture decision records
 kind: index
-updated: 2026-11-06
+updated: 2026-11-07
 ---
 
 # Architecture decision records
@@ -156,3 +156,6 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 138 | [A queue group says how long is left, at the speed it will play](0138-a-queue-group-says-how-long-is-left-at-the-speed-it-will-play.md) | Accepted |
 | 139 | [The decoder and the screen are told the frame rate](0139-the-decoder-and-the-screen-are-told-the-frame-rate.md) | Accepted |
 | 140 | [Ask answers about your own app with jq only, and keeps the data away from the web](0140-ask-answers-about-your-own-app-with-jq-only.md) | Accepted |
+| 152 | [A target is anything the Pi plays to, and each has its own queue](0152-a-target-is-anything-the-pi-plays-to-and-each-has-its-own-queue.md) | Accepted |
+| 153 | [The Pi runs the phone's sound processing](0153-the-pi-runs-the-phones-sound-processing.md) | Accepted |
+| 154 | [Jellyfin is browsed and streamed through the Pi, with the key kept there](0154-jellyfin-is-browsed-and-streamed-through-the-pi.md) | Accepted |

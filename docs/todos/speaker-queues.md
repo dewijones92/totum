@@ -1,10 +1,10 @@
 ---
 title: 🔈 A second queue on the Pi's speakers
 kind: todo
-status: in progress
+status: built 2026-11-07, Batch A (tests owed)
 batch: A (2026-11), phase 6: deploy the Pi side and build the phone side
 area: playback
-updated: 2026-11-06
+updated: 2026-11-07
 ---
 
 # 🔈 Speaker queues on the Pi
@@ -26,7 +26,8 @@ Decided (AskUserQuestion, 2026-11-01):
 
 - ✅ The Pi side ([ADR 116](../adr/0116-speaker-queues-play-on-the-pi.md)): discovery, link, mpv, the queue on
   `QueueSnapshot`, routes, container. Verified on the soundbar 2026-11-01.
-- ⏳ The phone side: the speaker switch in Queue, "where" on play/queue/shuffle all, mini player, notification,
-  diagnostics.
+- ✅ The phone side, as the target chips of [the Pi playing everywhere](pi-plays-everywhere.md) (ADR 152): chips in Queue,
+  Play/Queue/Shuffle all go to the chip being looked at, a colour per speaker. Not built: the mini-player pill,
+  per-target notification, and Home Assistant calling Totum (dot-files).
 
 Whole-batch review (2026-11-06): folded into [the Pi playing everywhere](pi-plays-everywhere.md) — the phone gets one "📡 Play on…" picker, not a separate speaker switch; `SpeakerDeck` becomes the target-agnostic queue.

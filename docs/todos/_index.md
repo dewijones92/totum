@@ -1,7 +1,7 @@
 ---
 title: Backlog
 kind: index
-updated: 2026-11-06
+updated: 2026-11-07
 ---
 
 # Backlog
@@ -17,13 +17,13 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [Stored links no longer carry the old shared token](scrub-old-token-from-links.md) | pi/security | medium | decided 2026-11-06, Batch A |
 | [Queued tracks keep their artist](queued-tracks-keep-their-artist.md) | music/queue | medium | built 2026-11-06, Batch A (tests owed) |
 | [A live stream that hasn't started says so](live-starts-soon.md) | playback | medium | built 2026-11-06, Batch A (tests owed) |
-| [📡 The Pi plays to any TV, browser or speaker](pi-plays-everywhere.md) | casting/pi | high | decided 2026-11-06, Batch A phase 7 |
+| [📡 The Pi plays to any TV, browser or speaker](pi-plays-everywhere.md) | casting/pi | high | built 2026-11-07, Batch A (tests owed) |
 | [A daily 🤖 For you feed](for-you-feed.md) | ai | medium | decided 2026-11-06, Batch A phase 6 |
 | [TL;DR and chapters for long items](tldr-and-chapters.md) | ai | medium | decided 2026-11-06, Batch A phase 6 |
 | [Ask about this video](ask-about-this-video.md) | ai | medium | decided 2026-11-06, Batch A phase 6 |
 | [A morning digest of what's new](morning-digest.md) | ai | low | decided 2026-11-06, Batch A phase 6 |
 | [A spoiler shield for sport](tennis-spoiler-shield.md) | ai/video | medium | decided 2026-11-06, Batch A phase 6 |
-| [Jellyfin's films and series inside Totum](jellyfin-in-totum.md) | home | medium | decided 2026-11-06, Batch A phase 6 |
+| [Jellyfin's films and series inside Totum](jellyfin-in-totum.md) | home | medium | built 2026-11-07, Batch A (tests owed) |
 | [Trip mode](trip-mode.md) | downloads | low | decided 2026-11-06, Batch A phase 6 |
 | [One tap puts the kid playlist on the TV](kid-tv-button.md) | casting/kids | low | decided 2026-11-06, Batch A phase 6 |
 | [A bedtime sleep timer](bedtime-sleep-timer.md) | player | low | built 2026-11-06, Batch A (ADR 133); tests owed |
@@ -223,6 +223,6 @@ command).
 | [Boost by speech: measure (and maybe lift) only detected speech](speech-gated-boost.md) | playback | medium | building 2026-11-01: both variants in Settings with feedback |
 | [A model subscription of Dewi's own for the Pi, and a weekly value check](pi-model-subscription.md) | pi/infra | medium | to discuss 2026-11-01 |
 | [Media3 1.11 plays the silence at the end of an item](media3-1-11-trailing-silence.md) | playback | medium | waiting: rolled back to 1.10.1 on 2026-11-05 |
-- [🔈 A second queue on the Pi's speakers](speaker-queues.md) — decided 2026-11-01
+- [🔈 A second queue on the Pi's speakers](speaker-queues.md) — built 2026-11-07, folded into the Pi playing everywhere
 - [🏠 Move or copy a phone download to home](move-to-home.md) — decided 2026-11-01
 - [✨ Ask about anything, as a chat that knows your taste](ask-everything.md) — decided 2026-11-01

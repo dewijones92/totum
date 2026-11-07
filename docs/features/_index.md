@@ -1,7 +1,7 @@
 ---
 title: Features
 kind: index
-updated: 2026-11-06
+updated: 2026-11-07
 ---
 
 # Features
@@ -12,6 +12,7 @@ alone until they need more.
 
 | Feature | Area | Status | Detail |
 |---|---|---|---|
+| 📡 The Pi plays to targets: speakers, TVs and Chromecasts each with their own queue, chips and colours in the Queue tab, Send to…, the phone's skip-silence and boost run on the Pi, YouTube progress reported only for the owner's phone; plus 🎞️ Jellyfin browse and play from the Library | casting/pi | built 2026-11-07 (ADRs 152-154; tests owed, nothing run on a real TV, speaker or Chromecast) | [pi-plays-everywhere.md](pi-plays-everywhere.md) |
 | Smooth video at any speed: the decoder and the screen are told each video's frame rate (worked out from the frames when the file gives none), and the screen runs at the rate that shows them evenly | playback | ✅ shipped 2026-11-06 (ADR 139) | [video-frame-rate.md](video-frame-rate.md) |
 | Live streams: play from the live head at 1x; one that has not started says "🔴 Starts soon", is waited for politely (progress strip, Cancel) and calls you when live; the 🔴 LIVE / ⏺️ WAS LIVE tag is the same everywhere and kept true | playback | built 2026-11-06 (ADR 69 amended, ADR 132; tests owed) | [live-streams.md](live-streams.md) |
 | 🎥 Totum recorder: screen, voice, face bubble and shown taps from an icon, saved to Movies/Totum with Share and Open | app | built 2026-11-06 (ADR 135; tests owed, not run on a device) | [totum-recorder.md](totum-recorder.md) |

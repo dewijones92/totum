@@ -1,7 +1,7 @@
 ---
 title: Testing
 kind: reference
-updated: 2026-11-06
+updated: 2026-11-07
 ---
 
 # Testing
@@ -756,6 +756,7 @@ cause instead of printing a boolean:
 | `downgraded` | mobile data held, the app dropped the picture on purpose | nobody — a feature |
 | `rescued` | YouTube refused the video stream, the app kept the sound | YouTube, handled |
 | `no` | absent and nothing explains it | **ours** |
+| 📡 The Pi plays to targets (ADRs 152-154): the phone's cutter and boost as one chain (passthrough is exact, chunking changes nothing, a pause is cut and counted, a boost lifts without losing frames); the pump reads ffmpeg's bytes through it in whole frames and stops when told; a deck plays, moves on, jumps, removes, sets volume, restarts at the same second when the sound changes, starts at an item and second, plays now after what plays, remembers who added what across a restart; progress is reported for the owner's phone only (never someone else's, never signed out, never without a length); a target's colour is stable and an edited one is kept; Send to takes the playing item and the rest of its group; the cast wire and content types; Jellyfin's listing is read with the Pi's key, a parent is validated, a ranged stream is passed through | JVM unit | `:core:sound` `PcmChainTest`; `:core:data` `TargetRulesTest`, `TargetEntriesTest`, `JellyfinItemTest`; `:cli` `TargetDeckTest`, `TargetStreamsTest`, `YouTubeProgressTest`, `PcmPumpTest`, `CastWireTest`, `JellyfinRoutesTest`; `:app` `TargetsRepositoryTest`. Owed: the real-device day pass and the app-side tests listed in the todo |
 
 A data-saving feature working perfectly must never read as a missing picture; reading it that way
 would have sent the next session hunting a video bug that does not exist. Unmeter an emulator with

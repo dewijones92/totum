@@ -1,0 +1,67 @@
+---
+title: A target is anything the Pi plays to, and each has its own queue
+kind: adr
+status: accepted
+updated: 2026-11-07
+---
+
+# 152. A target is anything the Pi plays to, and each has its own queue
+
+- Status: Accepted
+- Date: 2026-11-07
+- Amends: [ADR 116](0116-speaker-queues-play-on-the-pi.md) (a speaker becomes one kind of target; `/speakers` becomes
+  `/targets`)
+
+## Context
+
+[The Pi plays everywhere](../todos/pi-plays-everywhere.md) (Dewi, 2026-11-06): the Pi does the work, the phone is a
+remote, and the LG TV, the Chromecast Ultra, PC browsers and the Pi's Bluetooth speakers are all the same kind of thing
+to send a queue to. ADR 116 had built that for speakers only, with its own wire types (`Speaker*`) and no phone side.
+
+## Decision
+
+- **One model, in `:core:data` (`data/targets`).** `Target(id, label, kind)` with `TargetKind` PHONE, SPEAKER, TV,
+  CHROMECAST, BROWSER (`hasPicture` says whether the kind shows a picture). `TargetState` is ADR 116's speaker state plus
+  `sound` (`SoundSettings`: skip silence, boost) and, on each entry, who added it and whether it reports to YouTube.
+  `QueueMode` gained `PLAY` (insert after what plays and start the first inserted item, which is what the phone's
+  "play" does to its own queue). The speaker types were renamed, not copied: nothing but the Pi used them.
+- **One queue per target, one deck per queue on the Pi (`cli/serve/targets`).** `TargetDeck` is ADR 116's `SpeakerDeck`
+  made kind-agnostic: it owns the `QueueSnapshot`, starts items, moves on at an end, saves itself (`DeckStore`) and
+  restores paused. What differs per kind is a `TargetKit` (a `TargetPlayer` and a `TargetLink`) from a `TargetSource`:
+  Bluetooth speakers (BlueZ + mpv, unchanged), Chromecast TVs (`cli/serve/cast`, [ADR 153](0153-the-pi-runs-the-phones-sound-processing.md)).
+  A deck asks for a picture only when its kind has one. Routes: `GET /targets`, `POST /targets/queue?id=`,
+  `POST /targets/control?id=`, behind the same token as the rest.
+- **The phone is a remote.** `TargetsClient` (on `HomePiCall`) and `TargetsRepository` in the app poll `GET /targets`
+  every 2 s while the Queue tab is open. The Queue tab shows chips (📱 This phone, one per target that has a queue, ➕ for
+  the idle ones); a remote chip shows that target's queue on the same `MediaItemRow`, with group headings, jump, remove,
+  previous/play/next/stop, volume, the sound switches and a colour.
+- **Where a play goes is decided in one place.** `PlaybackQueue.destination` (a `QueueDestination`) is asked first by
+  `enqueue`, `playNext`, `enqueueAll`, `playNextAll`, `playNow` and `playAll`; while a remote chip is the one being
+  looked at, `TargetsRepository.take` sends the items there and the phone's queue is untouched. Only deliberate taps
+  (`byYou`) are redirected. "Add to group" is not redirected (a group's position means nothing to a remote queue).
+- **"Send to" moves what plays.** `SendTo.plan` takes the playing item and the rest of its group (not what came before),
+  with the second it was at. The Pi starts it at that item and second; the phone pauses and releases those entries only
+  once the target answers that it is playing, so a failed send leaves the phone playing. It runs as a progress-strip
+  operation (`SEND_TO_TARGET`).
+- **Colours are automatic and editable.** `TargetColours.assign` gives the phone tangerine and every other target the
+  first free colour of an eight-colour palette starting from a hash of its id; the result is stored by the phone, so a
+  new target never recolours an old one, and an edited colour is respected and not given to anyone else.
+- **Only the owner's phone reports to YouTube.** The Pi plays with the account the owner's phone handed over, so each
+  queue request says who sent it (`Requester(id, label, owner)`); `owner` is true on a phone that is signed in to
+  YouTube. An entry carries `reportsToYouTube` from the requester, and `TargetReporting.videoIdToReport` is the one rule:
+  reports only if the entry's requester was the owner, the Pi is signed in, and it is a YouTube video. `YouTubeProgress`
+  reports on pause, skip, an item ending and every 30 s of playing, and logs why for every entry it does not report.
+  Every entry shows "➕ Added by …".
+- **Every phone sees the same queues.** Any phone signed in to the home server reads and edits the targets' queues
+  through the same operations; edits are small operations, never a whole-queue replace.
+
+## Consequences
+
+- Speakers are targets; the leftover `speaker-<id>.json` queue files are not read (the new files are
+  `target-<id>.json`), so a speaker queue saved before this change starts empty once.
+- Home Assistant's brown-noise and jazz switches (`hermes-audio-ctl`, in the Pi's `dot-files`) are still a second player
+  on the same speakers; making them call `POST /targets/queue` is a dot-files change and is not done here.
+- The Pi cannot tell phones apart beyond what the phone says about itself. Anyone with a home-server token can claim to
+  be the owner; this is a household, not a threat model, and the rule is written down so it is not mistaken for one.
+- Not built: PC browsers as targets (the `BROWSER` kind exists, nothing registers one), "Play on…" as a long press on
+  every play button, and the mini-player pill and notification per target.

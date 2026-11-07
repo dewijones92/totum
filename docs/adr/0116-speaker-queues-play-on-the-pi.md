@@ -2,12 +2,12 @@
 title: A speaker's queue plays on the Pi, on the shared queue model
 kind: adr
 status: accepted
-updated: 2026-11-01
+updated: 2026-11-07
 ---
 
 # 116. A speaker's queue plays on the Pi, on the shared queue model
 
-- Status: Accepted (the Pi side is built; the phone side is in progress)
+- Status: Accepted (the Pi side is built). Amended by [ADR 152](0152-a-target-is-anything-the-pi-plays-to-and-each-has-its-own-queue.md): a speaker is one kind of target, `/speakers` is `/targets`, and the phone side is the Queue tab's target chips
 - Date: 2026-11-01
 
 ## Context

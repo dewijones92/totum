@@ -1,10 +1,10 @@
 ---
 title: 📡 The Pi plays to any TV, browser or speaker; the phone is a remote
 kind: todo
-status: decided
+status: built 2026-11-07, Batch A (tests owed)
 batch: A (2026-11), phase 7
 priority: high
-updated: 2026-11-06
+updated: 2026-11-07
 ---
 
 # 📡 The Pi plays to any TV, browser or speaker; the phone is a remote
@@ -89,3 +89,51 @@ same Google-gated home-server sign-in; check her account is admitted by that gat
   target and no syncing. Prove the Pi's adapter holds two A2DP streams at once without stutter (Pi 4's onboard radio
   shares Bluetooth and Wi-Fi).
 - The leftover `totum-speaker-test` container from 2026-11-01 was removed on 2026-11-06.
+
+## Built 2026-11-07 (code first; tests owed)
+
+Feature doc: [pi-plays-everywhere](../features/pi-plays-everywhere.md). Decisions: ADRs
+[152](../adr/0152-a-target-is-anything-the-pi-plays-to-and-each-has-its-own-queue.md) and
+[153](../adr/0153-the-pi-runs-the-phones-sound-processing.md). Built overnight with no Pi, TV, speaker or Chromecast in
+reach, so nothing below has run against a real device.
+
+- **Seams:** the target model (`data/targets`), `PcmChain` in `:core:sound`, the Pi's `TargetDeck`/`TargetDecks`/
+  `TargetRoutes`, queue-per-target on `/targets`, `TargetsClient`, `TargetsRepository`, the `QueueDestination` hook in
+  `PlaybackQueue`.
+- **Pi players:** speakers (mpv, now through `PcmPump` into mpv's stdin when the sound is processed), Chromecast TVs
+  (`pychromecast` helper, `SoundStreams` serving processed AAC and home copies).
+- **Phone:** Queue-tab chips, a coloured remote queue on the same row, 📡 Send to…, redirected Play/Add/Shuffle, the
+  progress-strip operation.
+- **YouTube:** reported from the Pi only for items from the owner's phone.
+
+### Left (nothing half-wired; each is absent, not stubbed)
+
+PC browsers as targets (`TargetKind.BROWSER` exists, nothing registers one); Home Assistant's brown noise and jazz through
+Totum (a `dot-files` and HA change: make `hermes-audio-ctl` call `POST /targets/queue?id=<speaker>`); the mini-player pill
+and per-target notification; "Play on…" as a long press on every play button (the selected chip decides today); processing
+the sound of a video shown on a TV (split `CastStreams`, then the DASH path of ADR 68 on the Pi); playback speed, subtitles,
+TV volume strip and Cast arming on a target; the Pi measuring two A2DP streams at once.
+
+### Pi-side assumptions (not verified)
+
+- `totum-fetch` can publish port 8771 on the LAN and the TVs reach the Pi's LAN address on it; `TOTUM_CAST_BASE` and
+  `TOTUM_CAST_TARGETS` are set in `/var/lib/totum-fetch/fetch.env`.
+- `pychromecast` 14's API (`get_chromecasts(known_hosts=…)`, `media_controller.play_media(…, current_time=…)`,
+  `register_status_listener`) is what `chromecast_helper.py` was written against; it was only compile-checked.
+- The container's bridge network lets it open the Chromecast's port 8009 on the LAN.
+- A Chromecast plays an unseekable ADTS AAC stream sent without a length (processed audio).
+- Pi's PulseAudio and Bluetooth stay as ADR 116 set them up; mpv accepts raw PCM on stdin with `--demuxer=rawaudio`.
+
+### Tests owed
+
+- Real-device day pass (volume rule: TV and speakers at 3% or lower, short silent or very quiet clips, volume restored):
+  send a quiet clip from the phone to the LG, then the Chromecast, then the soundbar; pause, resume, next, jump, remove,
+  volume; skip silences and boost on a speaker and on a TV; two speakers at the same time (stutter); a YouTube video
+  queued from the owner's phone appears in YouTube history, one from another phone does not; the colour of a chip.
+- Compose: `TargetChips` (hidden with no targets, ➕ for idle ones), `RemoteQueue` rows, `SendToButton`; an instrumented
+  test that a redirected `playAll` leaves the phone's queue alone.
+- Unit: `SendToTarget` (does not release on `problem`; `TargetsRepositoryTest` covers colours, `take` and the state
+  replace), `PlaybackQueue.destination` (each of the six entry points,
+  and `byYou = false` is not redirected), `ChromecastPlayer` and `PyCastControl` with a fake helper process,
+  `ChromecastSource`, `SoundStreams` (HEAD/GET, token, withdraw), `MpvPlayer` command line, `ProcessedSound` end to end
+  with a real ffmpeg on a tiny clip, `DeckStore` round trip, Kover for `:core:cast` stays exempt.
