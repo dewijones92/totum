@@ -41,3 +41,7 @@ tasks.named<Jar>("jar") {
 // A single archive to publish beside the APK. `installDist` gives the same tree locally.
 tasks.named<Zip>("distZip") { archiveFileName.set("totum-cli.zip") }
 tasks.named<Tar>("distTar") { archiveFileName.set("totum-cli.tar") }
+
+tasks.named<Test>("test") {
+    inputs.file(rootProject.file("server/totum-cli/jq-sandbox.sh")).withPropertyName("jqSandboxScript")
+}
