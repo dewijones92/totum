@@ -16,8 +16,8 @@ internal class CommandOutput(val exit: Int, val out: String, val err: String)
 internal class YtDlpLiveHls(
     private val python: String,
     private val jsRuntime: String?,
-    private val gate: PoliteGate = PoliteGate(),
-    private val botBackOff: BotBackOff = BotBackOff(),
+    private val gate: PoliteGate,
+    private val botBackOff: BotBackOff,
     private val now: () -> Long = System::currentTimeMillis,
     private val exec: (List<String>) -> CommandOutput = ::runCommand,
 ) : LiveHls {

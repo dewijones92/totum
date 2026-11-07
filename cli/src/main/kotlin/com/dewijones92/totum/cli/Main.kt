@@ -7,6 +7,7 @@ import com.dewijones92.totum.cli.serve.serveAsk
 import com.dewijones92.totum.cli.serve.sidecars
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
+import com.dewijones92.totum.polite.Politeness
 import com.dewijones92.totum.ytdlp.ExtractionResult
 import com.dewijones92.totum.ytdlp.VideoSearchResult
 import com.dewijones92.totum.ytdlp.YtDlpEngine
@@ -30,13 +31,15 @@ internal fun main(args: Array<String>) {
             System.err.println("[$tag] $message${error?.let { " — $it" } ?: ""}")
         }
     }
-    val outcome = runBlocking { Cli(ProcessYtDlpEngine()).run(parse(args.toList())) }
+    val polite = Politeness()
+    val outcome = runBlocking { Cli(polite.gated(ProcessYtDlpEngine()), polite).run(parse(args.toList())) }
     exitProcess(outcome)
 }
 
 /** The commands themselves, with the engine and the terminal injected so they can be tested. */
 internal class Cli(
     private val engine: YtDlpEngine,
+    private val polite: Politeness,
     private val out: (String) -> Unit = ::println,
     private val err: (String) -> Unit = System.err::println,
     private val launch: (List<String>) -> Int = ::runPlayer,
@@ -54,7 +57,7 @@ internal class Cli(
         is Command.Search -> search(command)
         is Command.Resolve -> resolve(command)
         is Command.Play -> play(command)
-        is Command.Serve -> serveAsk(command.port, out)
+        is Command.Serve -> serveAsk(command.port, out, polite)
         is Command.FileCheck -> fileCheck(command, out)
         is Command.AskStateCheck -> askStateCheck(command, out)
         is Command.AiServe -> aiServe(command.port, out)

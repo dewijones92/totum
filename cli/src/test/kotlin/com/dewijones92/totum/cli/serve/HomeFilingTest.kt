@@ -13,6 +13,7 @@ import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
+import com.dewijones92.totum.polite.Politeness
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -87,7 +88,7 @@ class HomeFilingTest {
         PlayHandle.Video(HttpUrl.of("https://www.youtube.com/watch?v=$id")),
     )
 
-    private fun home() = HomeDownloads(data, downloads, scope, freeFloorBytes = 0, filer = filer)
+    private fun home() = HomeDownloads(data, downloads, scope, freeFloorBytes = 0, filer = filer, polite = Politeness())
 
     private suspend fun until(what: String, check: suspend () -> Boolean) = withTimeout(10_000) {
         while (!check()) delay(50)

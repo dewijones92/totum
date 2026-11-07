@@ -39,6 +39,7 @@ import com.dewijones92.totum.innertube.player.SignatureSolver
 import com.dewijones92.totum.playback.cast.CastItem
 import com.dewijones92.totum.playback.cast.CastRung
 import com.dewijones92.totum.playback.cast.LocalManifests
+import com.dewijones92.totum.polite.Politeness
 import com.dewijones92.totum.video.EmbeddedPlayer
 import com.dewijones92.totum.video.FileLookupStore
 import com.dewijones92.totum.video.InnerTubePlayerStreams
@@ -50,6 +51,7 @@ import com.dewijones92.totum.video.StreamStatus
 import com.dewijones92.totum.video.VideoResolver
 import com.dewijones92.totum.video.solvingChallenges
 import com.dewijones92.totum.video.videoAndPodcastDownloads
+import com.dewijones92.totum.ytdlp.YtDlpEngine
 import com.dewijones92.totum.ytdlp.process.ProcessYtDlpEngine
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
@@ -57,6 +59,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.MapSerializer
 import kotlinx.serialization.builtins.serializer
+import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import java.io.File
 import java.io.InputStream
@@ -93,9 +96,13 @@ internal class HomeDownloads(
     private val freeFloorBytes: Long = FREE_FLOOR_BYTES,
     private val filer: LibraryFiler? = null,
     private val health: HomeHealth? = null,
+    private val polite: Politeness,
+    rawEngine: YtDlpEngine = ProcessYtDlpEngine(),
+    transport: Interceptor? = null,
 ) : Home {
-    private val http = OkHttpClient.Builder().readTimeout(READ_TIMEOUT_S, TimeUnit.SECONDS).build()
-    private val engine = ProcessYtDlpEngine()
+    private val http = polite.gated(OkHttpClient.Builder().readTimeout(READ_TIMEOUT_S, TimeUnit.SECONDS))
+        .apply { transport?.let(::addInterceptor) }.build()
+    private val engine: YtDlpEngine = polite.gated(rawEngine)
     private val tokens = FileTokenStore(File(dataDir, "youtube.json"))
     private val ownership = YouTubeOwnership(File(dataDir, "youtube-owner.json"))
     private val account = YouTubeAccount(HttpYouTubeAuth(http), tokens)
@@ -151,6 +158,7 @@ internal class HomeDownloads(
                 solveN = solvingChallenges(stamps, nSolver, signatures),
                 embedded = embedded::player,
                 preferAccount = { true },
+                botBackOff = polite.botBackOff,
                 live = LiveStreamManifest(LiveStreamManifest.headsOver(http), LocalManifests::publish),
             ),
             preferredAudioLanguages = { listOf("en") },
@@ -184,7 +192,7 @@ internal class HomeDownloads(
             jobs,
             free(),
             signedIn,
-            health?.problems(jobs).orEmpty(),
+            health?.problems(jobs, signedIn).orEmpty(),
             uploadLimit(),
             youTubeOwner = ownership.owner()?.label?.takeIf { signedIn },
         )

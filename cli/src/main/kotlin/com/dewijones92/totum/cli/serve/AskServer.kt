@@ -29,9 +29,7 @@ import com.dewijones92.totum.cli.serve.targets.TargetRoutes
 import com.dewijones92.totum.cli.serve.targets.TargetStreams
 import com.dewijones92.totum.cli.serve.targets.YouTubeProgress
 import com.dewijones92.totum.cli.serve.tasks.aiTaskRoutesFrom
-import com.dewijones92.totum.common.BotBackOff
 import com.dewijones92.totum.common.Diag
-import com.dewijones92.totum.common.PoliteGate
 import com.dewijones92.totum.data.ask.AskAnswer
 import com.dewijones92.totum.data.ask.AskJob
 import com.dewijones92.totum.data.ask.AskJson
@@ -40,6 +38,7 @@ import com.dewijones92.totum.data.ask.JobState
 import com.dewijones92.totum.data.ask.VetAnswer
 import com.dewijones92.totum.data.ask.VetRequest
 import com.dewijones92.totum.data.home.HomeProblem
+import com.dewijones92.totum.polite.Politeness
 import com.sun.net.httpserver.HttpExchange
 import com.sun.net.httpserver.HttpServer
 import kotlinx.coroutines.CoroutineScope
@@ -52,6 +51,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
@@ -71,6 +71,7 @@ internal class AskServer(
     private val home: HomeRoutes? = null,
     private val more: List<Routes> = emptyList(),
     private val ask: suspend (AskRequest) -> AskAnswer = { brain.suggest(it) },
+    private val youTube: Politeness? = null,
     private val clock: () -> Long = System::currentTimeMillis,
     private val newId: () -> String = { UUID.randomUUID().toString() },
     concurrent: Int = JobBoard.CONCURRENT,
@@ -89,6 +90,7 @@ internal class AskServer(
         return buildJsonObject {
             put("ok", true)
             put("jobs", board.size)
+            youTube?.let { put("youTube", youTubeState(it)) }
             homeJobs?.let { h ->
                 put("homeJobs", h.jobs.size)
                 put("freeBytes", h.freeBytes)
@@ -96,6 +98,20 @@ internal class AskServer(
                 put("problems", AskJson.encodeToJsonElement(ListSerializer(HomeProblem.serializer()), h.problems))
             }
         }.toString()
+    }
+
+    private fun youTubeState(polite: Politeness): JsonObject {
+        val slow = polite.gate.slowDown.value?.takeIf { it.untilMs > clock() }
+        val bot = polite.botBackOff.until.value?.takeIf { it > clock() }
+        return buildJsonObject {
+            put("inFlight", polite.gate.inFlight)
+            put("maxInFlight", polite.gate.maxInFlight)
+            put("queued", polite.gate.queued)
+            put("backedOff", slow != null || bot != null)
+            put("slowDownUntilMs", slow?.untilMs)
+            put("slowDownReason", slow?.reason)
+            put("botBackOffUntilMs", bot)
+        }
     }
 
     internal fun handle(exchange: HttpExchange) {
@@ -183,7 +199,7 @@ private inline fun HttpExchange.use(block: (HttpExchange) -> Unit) {
 
 private const val DEFAULT_CAST_PORT = 8771
 
-internal suspend fun serveAsk(port: Int, out: (String) -> Unit): Int = coroutineScope {
+internal suspend fun serveAsk(port: Int, out: (String) -> Unit, polite: Politeness): Int = coroutineScope {
     val brain = brainFromEnv()
     val jellyfin = jellyfinFromEnv()
     val downloadDir = File(System.getenv("TOTUM_DOWNLOADS") ?: "${System.getProperty("user.home")}/totum-downloads")
@@ -192,6 +208,7 @@ internal suspend fun serveAsk(port: Int, out: (String) -> Unit): Int = coroutine
             freeBytes = { downloadDir.apply { mkdirs() }.usableSpace },
             ai = aiStateProbe(),
             jellyfin = jellyfin?.let { j -> { withContext(Dispatchers.IO) { j.reachable() } } },
+            youTube = polite,
         ),
     )
     val home = HomeDownloads(
@@ -201,11 +218,10 @@ internal suspend fun serveAsk(port: Int, out: (String) -> Unit): Int = coroutine
         rewrites = rewritesFrom(System.getenv("TOTUM_REWRITE")),
         filer = filerFromEnv(brain, jellyfin),
         health = health,
+        polite = polite,
     )
     val targetsDir = File(home.dataDir, "targets")
     val shell = SystemShell()
-    val youTubeGate = PoliteGate()
-    val youTubeBotBackOff = BotBackOff()
     val streams = PiStreams(
         ProcessedSound(),
         System.getenv("TOTUM_CAST_BASE"),
@@ -214,8 +230,8 @@ internal suspend fun serveAsk(port: Int, out: (String) -> Unit): Int = coroutine
         liveHls = YtDlpLiveHls(
             System.getenv("TOTUM_PYTHON") ?: "python3",
             System.getenv("TOTUM_JS_RUNTIME"),
-            youTubeGate,
-            youTubeBotBackOff,
+            polite.gate,
+            polite.botBackOff,
         ),
     )
     val targets = TargetDecks(
@@ -250,7 +266,8 @@ internal suspend fun serveAsk(port: Int, out: (String) -> Unit): Int = coroutine
         jellyfin?.let { JellyfinRoutes(JellyfinBrowse(it)) } ?: JellyfinNotSetUp(),
         AskStateRoutes(states),
     ) + aiTaskRoutesFrom(this)
-    AskServer(brain, this, HomeRoutes(home), routes, ask = RoutedAsk(brain, states)::answer).start(port)
+    AskServer(brain, this, HomeRoutes(home), routes, ask = RoutedAsk(brain, states)::answer, youTube = polite)
+        .start(port)
     out("totum serve: listening on $port")
     awaitCancellation()
 }

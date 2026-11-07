@@ -681,7 +681,10 @@ differently from an anonymous one — which cannot be tested on a signed-out dev
   touches. Player bytes are outside it, and downloads keep their own cap of 4. A **429** (or `Retry-After`) means
   exponential back-off with jitter, never a tight retry; a **"not a bot"** refusal backs yt-dlp off (1, 2, 4 … 60
   min, reset by a success). Either one shows a banner on every tab while it lasts, and is logged and counted. A new
-  feature that talks to YouTube uses the gate rather than its own `async` fan-out.
+  feature that talks to YouTube uses the gate rather than its own `async` fan-out. **The Pi's `totum serve` and the CLI are
+bound by it too** (2026-11-07): one `Politeness` per process, attached with `Politeness.gated(engine)` and
+`Politeness.gated(clientBuilder)`; `HomeDownloads` and `YtDlpLiveHls` require it, so a new Pi path to YouTube takes it as a
+parameter rather than building its own client or engine.
 - **Anything that asks an AI gets dry runs before it ships** (Dewi, 2026-11-01: *"anything I ask you to do with AI,
   you need to do a few dry runs, test runs … to make sure the AI is going to do the right thing and amend the prompt"*).
   Run the real model on a spread of realistic inputs (several rounds, follow-ups included), read every answer, and fix

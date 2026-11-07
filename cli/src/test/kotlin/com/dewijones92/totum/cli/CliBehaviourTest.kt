@@ -1,6 +1,7 @@
 package com.dewijones92.totum.cli
 
 import com.dewijones92.totum.common.HttpUrl
+import com.dewijones92.totum.polite.Politeness
 import com.dewijones92.totum.ytdlp.ExtractionResult
 import com.dewijones92.totum.ytdlp.MediaFormat
 import com.dewijones92.totum.ytdlp.MediaMetadata
@@ -28,6 +29,7 @@ class CliBehaviourTest {
 
     private fun cli(engine: YtDlpEngine = Engine(), wanted: List<String> = listOf("en")) = Cli(
         engine = engine,
+        polite = Politeness(),
         out = { printed += it },
         err = { errors += it },
         launch = {
@@ -165,6 +167,7 @@ class CliBehaviourTest {
     fun `doctor FAILS when something is missing, so a script can act on it`() = runTest {
         val broken = Cli(
             engine = Engine(),
+            polite = Politeness(),
             out = { printed += it },
             err = { errors += it },
             launch = {

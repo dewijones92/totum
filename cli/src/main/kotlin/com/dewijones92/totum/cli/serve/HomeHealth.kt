@@ -5,6 +5,10 @@ import com.dewijones92.totum.data.home.HomeJob
 import com.dewijones92.totum.data.home.HomeJobState
 import com.dewijones92.totum.data.home.HomeProblem
 import com.dewijones92.totum.data.home.HomeSeverity
+import com.dewijones92.totum.polite.Politeness
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 internal class HomeHealth(
     private val probes: Probes,
@@ -16,6 +20,7 @@ internal class HomeHealth(
         val freeBytes: () -> Long,
         val ai: suspend () -> AiState,
         val jellyfin: (suspend () -> Boolean)? = null,
+        val youTube: Politeness? = null,
     )
 
     enum class AiState { SIGNED_IN, NOT_SIGNED_IN, UNKNOWN, UNREACHABLE, LOCAL }
@@ -34,7 +39,7 @@ internal class HomeHealth(
         }
     }
 
-    suspend fun problems(jobs: List<HomeJob>): List<HomeProblem> {
+    suspend fun problems(jobs: List<HomeJob>, youTubeSignedIn: Boolean = true): List<HomeProblem> {
         noteProgress(jobs)
         val found = buildList {
             val free = probes.freeBytes()
@@ -68,12 +73,49 @@ internal class HomeHealth(
                 )
             }
             addAll(stalled(jobs))
+            probes.youTube?.let { addAll(youTubeBackOffs(it, youTubeSignedIn)) }
         }
         val keys = found.map { it.key }.toSet()
         if (keys != said) Diag.log("health", "home problems now: ${found.joinToString { it.text }.ifEmpty { "none" }}")
         said = keys
         return found
     }
+
+    private fun youTubeBackOffs(polite: Politeness, signedIn: Boolean): List<HomeProblem> {
+        val at = clock()
+        val slow = polite.gate.slowDown.value?.takeIf { it.untilMs > at }
+        val bot = polite.botBackOff.until.value?.takeIf { it > at }
+        return listOfNotNull(
+            slow?.let {
+                HomeProblem(
+                    "youtube-slow-down",
+                    HomeSeverity.WARNING,
+                    "🐢 YouTube says slow down: every YouTube call from the Pi waits until ${timeOfDay(it.untilMs)} " +
+                        "(${it.reason})",
+                )
+            },
+            bot?.let {
+                if (signedIn) {
+                    HomeProblem(
+                        "youtube-bot",
+                        HomeSeverity.WARNING,
+                        "🤖 YouTube bot check: playing as the Pi's account; anonymous YouTube from the Pi waits " +
+                            "until ${timeOfDay(it)}",
+                    )
+                } else {
+                    HomeProblem(
+                        "youtube-bot",
+                        HomeSeverity.BROKEN,
+                        "🤖 YouTube is blocking this network: YouTube will not play from the Pi until it is signed " +
+                            "in to YouTube by a phone",
+                    )
+                }
+            },
+        )
+    }
+
+    private fun timeOfDay(epochMs: Long): String =
+        CLOCK.format(Instant.ofEpochMilli(epochMs).atZone(ZoneId.systemDefault()))
 
     @Synchronized
     private fun stalled(jobs: List<HomeJob>): List<HomeProblem> {
@@ -95,5 +137,6 @@ internal class HomeHealth(
         const val LOW_FREE_BYTES = 30 * GB
         const val MINUTE = 60_000L
         const val STALLED_MS = 10 * MINUTE
+        val CLOCK: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm z")
     }
 }
