@@ -247,6 +247,7 @@ class FakeAppContainer(
     override val readyAhead: ReadyAhead = ReadyAhead({ true }, videoResolver::prefetch, applicationScope),
     override val playbackQueue: PlaybackQueue =
         PlaybackQueue(playbackController, videoPlaybackLauncher, CoroutineScope(SupervisorJob()), queueStore),
+    override val jellyfin: com.dewijones92.totum.data.home.JellyfinApi? = null,
     override val localPlaylistStore: LocalPlaylistStore = InMemoryLocalPlaylistStore(),
     override val appPreferences: AppPreferences = InMemoryAppPreferences(),
     override val youTubeAccount: YouTubeAccount = YouTubeAccount(FakeYouTubeAuth(), InMemoryTokenStore()),
@@ -332,7 +333,6 @@ class FakeAppContainer(
             operations,
         )
     }
-    override val jellyfin: com.dewijones92.totum.data.home.JellyfinApi? = null
     override val sendToTarget: com.dewijones92.totum.targets.SendToTarget by lazy {
         com.dewijones92.totum.targets.SendToTarget(
             targets,
