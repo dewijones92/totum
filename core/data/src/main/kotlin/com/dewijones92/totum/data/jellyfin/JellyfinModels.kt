@@ -49,12 +49,22 @@ public data class JellyfinItem(
 }
 
 @Serializable
-public data class JellyfinListing(val parent: String? = null, val title: String, val items: List<JellyfinItem>)
+public data class JellyfinListing(
+    val parent: String? = null,
+    val title: String,
+    val items: List<JellyfinItem>,
+    val total: Int? = null,
+    val next: Int? = null,
+)
 
 public const val JELLYFIN_SOURCE: String = "jellyfin"
 
+public val JELLYFIN_ID: Regex = Regex("[0-9a-fA-F-]{8,40}")
+
+public val MediaItemId.isJellyfin: Boolean get() = value.startsWith("$JELLYFIN_SOURCE:")
+
 public fun MediaItemId.jellyfinId(): String? =
-    value.removePrefix("$JELLYFIN_SOURCE:").takeIf { value.startsWith("$JELLYFIN_SOURCE:") && it.isNotBlank() }
+    value.removePrefix("$JELLYFIN_SOURCE:").takeIf { isJellyfin && JELLYFIN_ID.matches(it) }
 
 public fun JellyfinItem.streamPath(): String {
     val extension = container?.substringBefore(',')?.ifBlank { null } ?: "mkv"

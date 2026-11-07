@@ -53,4 +53,12 @@ class TargetStreamsTest {
 
         assertNull(none.urlFor(film, picture = true))
     }
+
+    @Test
+    fun `a Jellyfin id that is not an id gets no stream, and is not sent the phone's way either`() = runBlocking {
+        val odd = film.copy(item = film.item.copy(id = MediaItemId("jellyfin:x&api_key=other")))
+
+        assertNull(streams.urlFor(odd, picture = true))
+        assertEquals(emptyList<String>(), asked)
+    }
 }

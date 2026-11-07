@@ -49,6 +49,8 @@ class JellyfinRoutesTest {
 
     private val bytes = ByteArray(100) { it.toByte() }
 
+    private var listBody = series
+
     private val fakeJellyfin = Interceptor { chain ->
         val request = chain.request()
         asked += request.url.encodedPath + (request.url.encodedQuery?.let { "?$it" } ?: "")
@@ -65,7 +67,7 @@ class JellyfinRoutesTest {
                     (if (ranged) bytes.copyOfRange(10, 20) else bytes).toResponseBody("video/x-matroska".toMediaType())
                 )
         } else {
-            builder.code(200).message("ok").body(series.toResponseBody("application/json".toMediaType()))
+            builder.code(200).message("ok").body(listBody.toResponseBody("application/json".toMediaType()))
         }
         builder.build()
     }
@@ -148,5 +150,52 @@ class JellyfinRoutesTest {
 
         assertEquals(400, refused.statusCode())
         assertTrue(asked.isEmpty())
+    }
+
+    @Test
+    fun `a listing is read a page at a time, and says where the next page starts`() {
+        listBody = series.replace("\"TotalRecordCount\":4", "\"TotalRecordCount\":250")
+
+        val first = TargetsJson.decodeFromString(JellyfinListing.serializer(), String(get("/jellyfin/browse").body()))
+        val second = get("/jellyfin/browse?start=4")
+
+        assertEquals(4, first.next)
+        assertEquals(250, first.total)
+        assertTrue(asked[0].endsWith("&Limit=100&StartIndex=0"))
+        assertEquals(200, second.statusCode())
+        assertTrue(asked[1].endsWith("&Limit=100&StartIndex=4"))
+    }
+
+    @Test
+    fun `the last page has no next`() {
+        val listing = TargetsJson.decodeFromString(JellyfinListing.serializer(), String(get("/jellyfin/browse").body()))
+
+        assertEquals(null, listing.next)
+    }
+
+    @Test
+    fun `an answer that is not a library listing is an error, not an empty library`() {
+        listBody = "<html><body>Please sign in</body></html>"
+
+        val answer = get("/jellyfin/browse")
+
+        assertEquals(502, answer.statusCode())
+        assertTrue(String(answer.body()), String(answer.body()).contains("not a library listing"))
+    }
+
+    @Test
+    fun `a Pi with no Jellyfin says so plainly instead of no such route`() {
+        val bare = AskServer(noBrain, scope, null, listOf(JellyfinNotSetUp())).start(0)
+        try {
+            val answer = http.send(
+                HttpRequest.newBuilder(URI.create("http://localhost:${bare.address.port}/jellyfin/browse")).GET().build(),
+                HttpResponse.BodyHandlers.ofString(),
+            )
+
+            assertEquals(503, answer.statusCode())
+            assertTrue(answer.body(), answer.body().contains("Jellyfin isn't set up on the home server"))
+        } finally {
+            bare.stop(0)
+        }
     }
 }

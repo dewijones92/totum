@@ -16,18 +16,37 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
 import okhttp3.Response
 
+internal class JellyfinFailure(message: String) : RuntimeException(message)
+
+internal class Page(val items: List<JellyfinItem>, val total: Int?, val returned: Int)
+
 internal class JellyfinBrowse(private val jellyfin: Jellyfin) {
 
-    fun listing(parent: String?): JellyfinListing? {
-        val path = if (parent == null) TOP_LEVEL else children(parent)
+    fun listing(parent: String?, start: Int = 0): JellyfinListing {
+        val where = "${parent ?: "top level"} from $start"
+        val path = (if (parent == null) TOP_LEVEL else children(parent)) + "&Limit=$PAGE&StartIndex=$start"
         val body = jellyfin.get(path)
         if (body == null) {
-            Diag.warn("jellyfin", "browse ${parent ?: "top level"}: Jellyfin did not answer")
-            return null
+            Diag.warn("jellyfin", "browse $where: Jellyfin did not answer")
+            throw JellyfinFailure("❌ Jellyfin did not answer")
         }
-        val items = parse(body)
-        Diag.log("jellyfin", "browse ${parent ?: "top level"}: ${items.size} item(s)")
-        return JellyfinListing(parent, if (parent == null) "🎞️ Films and series" else titleOf(items), items)
+        val page = parsePage(body)
+        if (page == null) {
+            Diag.warn("jellyfin", "browse $where: the answer was not a library listing: ${body.take(LOGGED)}")
+            throw JellyfinFailure("❌ Jellyfin's answer was not a library listing (is its key right?)")
+        }
+        val items = page.items
+        val total = page.total
+        val end = start + page.returned
+        val next = end.takeIf { page.returned > 0 && total != null && it < total }
+        Diag.log("jellyfin", "browse $where: ${items.size} item(s) of ${total ?: "an unknown number"}, next=$next")
+        return JellyfinListing(
+            parent,
+            if (parent == null) "🎞️ Films and series" else titleOf(items),
+            items,
+            total,
+            next,
+        )
     }
 
     fun open(id: String, range: String?): Response? = jellyfin.open("/Videos/$id/stream?static=true", range)
@@ -50,9 +69,16 @@ internal class JellyfinBrowse(private val jellyfin: Jellyfin) {
             "/Items?Recursive=true&IncludeItemTypes=Movie,Series&SortBy=SortName&Fields=$FIELDS"
         private const val TICKS_PER_MS = 10_000L
 
-        fun parse(body: String): List<JellyfinItem> {
-            val root = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull() ?: return emptyList()
-            return root["Items"]?.jsonArray.orEmpty().mapNotNull { (it as? JsonObject)?.let(::itemOf) }
+        private const val PAGE = 100
+        private const val LOGGED = 200
+
+        fun parse(body: String): List<JellyfinItem> = parsePage(body)?.items.orEmpty()
+
+        fun parsePage(body: String): Page? {
+            val root = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull() ?: return null
+            val items = root["Items"]?.jsonArray ?: return null
+            val total = root["TotalRecordCount"]?.jsonPrimitive?.intOrNull
+            return Page(items.mapNotNull { (it as? JsonObject)?.let(::itemOf) }, total, items.size)
         }
 
         private fun itemOf(obj: JsonObject): JellyfinItem? {

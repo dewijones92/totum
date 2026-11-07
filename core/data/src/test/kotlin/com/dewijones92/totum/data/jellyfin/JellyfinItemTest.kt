@@ -2,6 +2,7 @@ package com.dewijones92.totum.data.jellyfin
 
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.data.targets.TargetsJson
+import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.Picture
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.picture
@@ -68,5 +69,15 @@ class JellyfinItemTest {
 
         assertEquals(listing, back)
         assertTrue(JellyfinKind.EPISODE.playable && !JellyfinKind.SEASON.playable)
+    }
+
+    @Test
+    fun `only a real Jellyfin id is an id, on every path that reads one`() {
+        assertEquals("0123456789abcdef0123456789abcdef", MediaItemId("jellyfin:0123456789abcdef0123456789abcdef").jellyfinId())
+        assertEquals(null, MediaItemId("jellyfin:x&api_key=other").jellyfinId())
+        assertEquals(null, MediaItemId("jellyfin:../../etc").jellyfinId())
+        assertEquals(null, MediaItemId("jellyfin:").jellyfinId())
+        assertEquals(null, MediaItemId("feed:0123456789abcdef").jellyfinId())
+        assertTrue(MediaItemId("jellyfin:x&api_key=other").isJellyfin)
     }
 }

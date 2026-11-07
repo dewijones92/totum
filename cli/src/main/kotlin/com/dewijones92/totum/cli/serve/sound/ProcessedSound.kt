@@ -1,5 +1,6 @@
 package com.dewijones92.totum.cli.serve.sound
 
+import com.dewijones92.totum.cli.serve.targets.withoutApiKeys
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.targets.SoundSettings
 import com.dewijones92.totum.playback.PcmChain
@@ -134,8 +135,17 @@ internal class ProcessedSound(
         return pipeline
     }
 
-    private fun start(command: List<String>): Process =
-        ProcessBuilder(command).redirectError(ProcessBuilder.Redirect.INHERIT).start()
+    private fun start(command: List<String>): Process {
+        val process = ProcessBuilder(command).start()
+        thread(name = "ffmpeg-stderr-${process.pid()}", isDaemon = true) {
+            runCatching {
+                process.errorStream.bufferedReader().forEachLine { line ->
+                    Diag.warn("sound", "ffmpeg ${process.pid()}: ${line.withoutApiKeys()}")
+                }
+            }
+        }
+        return process
+    }
 }
 
 internal data class SoundJob(val label: String, val url: String, val sound: SoundSettings, val startAtMs: Long)

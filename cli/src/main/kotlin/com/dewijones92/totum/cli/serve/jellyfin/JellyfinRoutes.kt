@@ -4,9 +4,11 @@ import com.dewijones92.totum.cli.serve.Routes
 import com.dewijones92.totum.cli.serve.query
 import com.dewijones92.totum.cli.serve.reply
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.data.jellyfin.JELLYFIN_ID
 import com.dewijones92.totum.data.jellyfin.JellyfinListing
 import com.dewijones92.totum.data.targets.TargetsJson
 import com.sun.net.httpserver.HttpExchange
+import kotlinx.serialization.builtins.serializer
 
 internal class JellyfinRoutes(private val browse: JellyfinBrowse) : Routes {
 
@@ -22,18 +24,25 @@ internal class JellyfinRoutes(private val browse: JellyfinBrowse) : Routes {
 
     private fun browse(exchange: HttpExchange) {
         val parent = exchange.query("parent")
-        if (parent != null && !ID.matches(parent)) {
+        if (parent != null && !JELLYFIN_ID.matches(parent)) {
             Diag.warn("jellyfin", "browse refused: not an item id")
             return exchange.reply(BAD_REQUEST, """{"error":"❌ not a Jellyfin item"}""")
         }
-        val listing = browse.listing(parent)
-            ?: return exchange.reply(BAD_GATEWAY, """{"error":"❌ Jellyfin did not answer"}""")
+        val start = exchange.query("start")?.toIntOrNull()?.coerceAtLeast(0) ?: 0
+        val listing = try {
+            browse.listing(parent, start)
+        } catch (failure: JellyfinFailure) {
+            return exchange.reply(
+                BAD_GATEWAY,
+                """{"error":${TargetsJson.encodeToString(String.serializer(), failure.message.orEmpty())}}""",
+            )
+        }
         exchange.reply(OK, TargetsJson.encodeToString(JellyfinListing.serializer(), listing))
     }
 
     private fun stream(exchange: HttpExchange, method: String, path: String) {
         val id = path.removePrefix(STREAM).substringBefore('.')
-        if (!ID.matches(id)) {
+        if (!JELLYFIN_ID.matches(id)) {
             Diag.warn("jellyfin", "stream refused: not an item id")
             return exchange.reply(BAD_REQUEST, """{"error":"❌ not a Jellyfin item"}""")
         }
@@ -64,7 +73,19 @@ internal class JellyfinRoutes(private val browse: JellyfinBrowse) : Routes {
         const val NO_BODY = -1L
         const val CHUNKED = 0L
         const val BUFFER = 64 * 1024
-        val ID = Regex("[0-9a-fA-F-]{8,40}")
         val COPIED = listOf("Content-Type", "Content-Range", "Accept-Ranges")
+    }
+}
+
+internal class JellyfinNotSetUp : Routes {
+    override fun handles(path: String): Boolean = path == "/jellyfin/browse" || path.startsWith("/jellyfin/stream/")
+
+    override fun handle(exchange: HttpExchange, method: String, path: String) {
+        Diag.log("jellyfin", "$method $path: Jellyfin is not configured on this home server")
+        exchange.reply(UNAVAILABLE, """{"error":"ℹ️ Jellyfin isn't set up on the home server"}""")
+    }
+
+    private companion object {
+        const val UNAVAILABLE = 503
     }
 }

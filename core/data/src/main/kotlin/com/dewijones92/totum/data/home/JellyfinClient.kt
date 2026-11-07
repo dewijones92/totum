@@ -10,7 +10,7 @@ import okhttp3.Request
 import java.net.URLEncoder
 
 public interface JellyfinApi {
-    public suspend fun browse(parent: String?): HomeAnswer<JellyfinListing>
+    public suspend fun browse(parent: String?, start: Int = 0): HomeAnswer<JellyfinListing>
     public fun streamUrl(item: JellyfinItem): HttpUrl
 }
 
@@ -21,8 +21,11 @@ public class JellyfinClient(
 ) : JellyfinApi {
     private val pi = HomePiCall(client, token, "jellyfin")
 
-    override suspend fun browse(parent: String?): HomeAnswer<JellyfinListing> {
-        val query = parent?.let { "?parent=${URLEncoder.encode(it, Charsets.UTF_8)}" }.orEmpty()
+    override suspend fun browse(parent: String?, start: Int): HomeAnswer<JellyfinListing> {
+        val query = listOfNotNull(
+            parent?.let { "parent=${URLEncoder.encode(it, Charsets.UTF_8)}" },
+            "start=$start".takeIf { start > 0 },
+        ).joinToString("&").let { if (it.isEmpty()) "" else "?$it" }
         return pi.call("GET /jellyfin/browse$query", Request.Builder().url("$base/jellyfin/browse$query").get()) {
             TargetsJson.decodeFromString(JellyfinListing.serializer(), it)
         }

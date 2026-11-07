@@ -7,6 +7,7 @@ import com.dewijones92.totum.cli.serve.sound.SOUND_RATE
 import com.dewijones92.totum.cli.serve.sound.SoundJob
 import com.dewijones92.totum.cli.serve.targets.PlayRequest
 import com.dewijones92.totum.cli.serve.targets.TargetPlayer
+import com.dewijones92.totum.cli.serve.targets.withoutApiKeys
 import com.dewijones92.totum.common.Diag
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -96,6 +97,7 @@ internal class MpvPlayer(
                 pipeline?.stop()
                 pipeline = null
                 val tail = runCatching { log.readLines().takeLast(LOG_LINES).joinToString(" | ") }.getOrDefault("")
+                    .withoutApiKeys()
                 val failed = code != 0 || pipelineFailed
                 Diag.log(
                     "speakers",

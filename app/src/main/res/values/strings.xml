@@ -1421,7 +1421,7 @@
     <string name="target_position">%1$s of %2$s</string>
     <string name="library_jellyfin">🎞️ Jellyfin</string>
     <string name="jellyfin_back">⬅️ Back</string>
-    <string name="jellyfin_loading">⏳ Reading Jellyfin…</string>
+    <string name="jellyfin_more">⬇️ Show more</string>
     <string name="jellyfin_retry">🔁 Try again</string>
     <string name="jellyfin_empty">📭 Nothing here</string>
 </resources>
