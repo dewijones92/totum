@@ -32,6 +32,8 @@ import com.dewijones92.totum.stats.UseKind
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.dewijones92.totum.pins.titleThrough
+import com.dewijones92.totum.domain.ItemShields
 
 interface PinActions {
     val pinned: List<Pin>
@@ -150,11 +152,11 @@ private class ContainerPinActions(
                 when (outcome) {
                     is PinOutcome.Done -> Toast.makeText(
                         context,
-                        "✅ ${pin.title}: ${outcome.what}",
+                        "✅ ${pin.titleThrough(ItemShields)}: ${outcome.what}",
                         Toast.LENGTH_SHORT
                     ).show()
                     is PinOutcome.Failed ->
-                        Toast.makeText(context, "❌ ${pin.title}: ${outcome.why}", Toast.LENGTH_LONG).show()
+                        Toast.makeText(context, "❌ ${pin.titleThrough(ItemShields)}: ${outcome.why}", Toast.LENGTH_LONG).show()
                     is PinOutcome.Open, is PinOutcome.OpenSource -> Unit
                 }
                 onOutcome(outcome)
@@ -168,7 +170,7 @@ private class ContainerPinActions(
                 is PinPlayed.Started -> if (played.showsPicture) expandPlayer()
                 is PinPlayed.Failed -> {
                     Diag.warn("pin", "${pin.key} did not play: ${played.why}")
-                    say(R.string.pin_could_not_play, pin.title)
+                    say(R.string.pin_could_not_play, pin.titleThrough(ItemShields))
                 }
             }
         }

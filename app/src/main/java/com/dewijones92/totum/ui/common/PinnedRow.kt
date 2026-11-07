@@ -35,6 +35,7 @@ import com.dewijones92.totum.pins.PinAction
 import com.dewijones92.totum.pins.PinOutcome
 import com.dewijones92.totum.pins.RecentActions
 import com.dewijones92.totum.pins.pinMenuFor
+import com.dewijones92.totum.pins.titleThrough
 
 const val RECENTLY_TAG = "recently-row"
 
@@ -87,6 +88,7 @@ internal fun LazyListScope.pinnedSection() {
 private fun PinCard(pin: Pin, pins: PinActions, inRecent: Boolean) {
     var menu by remember { mutableStateOf(false) }
     Box {
+        val shownTitle = pin.titleThrough(LocalItemShield.current)
         Column(
             modifier = Modifier
                 .width(CARD_WIDTH)
@@ -99,10 +101,10 @@ private fun PinCard(pin: Pin, pins: PinActions, inRecent: Boolean) {
         ) {
             MediaThumbnail(
                 url = pin.artUrl?.let(HttpUrl::parse),
-                contentDescription = pin.title,
+                contentDescription = shownTitle,
                 modifier = Modifier.size(CARD_WIDTH),
             )
-            Text(text = pin.title, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 4.dp))
+            Text(text = shownTitle, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 4.dp))
             Text(
                 text = stringResource(pin.kindWords()),
                 style = MaterialTheme.typography.labelSmall,

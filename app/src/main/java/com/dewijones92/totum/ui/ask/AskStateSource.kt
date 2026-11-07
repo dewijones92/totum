@@ -38,6 +38,7 @@ data class AskStatePorts(
     val starredName: String,
     val secrets: () -> List<String> = { emptyList() },
     val hosts: () -> List<String> = { emptyList() },
+    val titleFor: (id: String, title: String, author: String?) -> String = { _, title, _ -> title },
 )
 
 class AskStateSource(
@@ -98,6 +99,7 @@ class AskStateSource(
             sizeOf = sizeOf,
             secrets = ports.secrets(),
             hosts = ports.hosts(),
+            titleFor = ports.titleFor,
         )
     }
 
@@ -112,6 +114,7 @@ class AskStateSource(
         heardMs = listen.heardMs,
         durationMs = listen.durationMs,
         counted = listen.counts,
+        itemId = listen.itemId,
     )
 
     private fun typeOf(event: StatEvent): String = when (event) {

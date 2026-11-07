@@ -2,6 +2,7 @@ package com.dewijones92.totum.data.backup
 
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.domain.AlbumRef
+import com.dewijones92.totum.domain.ItemShield
 import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
@@ -10,6 +11,7 @@ import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.canonicalItemId
 import com.dewijones92.totum.domain.persisted
 import com.dewijones92.totum.domain.playHandleFrom
+import com.dewijones92.totum.domain.titleOf
 import kotlin.time.Duration.Companion.milliseconds
 
 public fun PlayableItem.toBackup(): BackupItem {
@@ -61,3 +63,5 @@ public fun BackupItem.toPlayable(): PlayableItem? {
         playback,
     )
 }
+
+public fun ItemShield.titleOf(item: BackupItem): String = titleOf(MediaItemId(item.itemId), item.title, item.author)

@@ -89,12 +89,13 @@ class ListenRecorder(
             state.kind == MediaKind.PODCAST -> ListenKind.PODCAST
             else -> ListenKind.VIDEO
         }
-        Diag.log(TAG, "listen began: ${state.title} as $kind (queued=${item != null})")
+        val title = item?.title ?: state.realTitle ?: state.title
+        Diag.log(TAG, "listen began: $title as $kind (queued=${item != null})")
         return StatEvent.Listen(
             at = now(),
             playId = UUID.randomUUID().toString(),
             itemId = state.itemId.value,
-            title = state.title,
+            title = title,
             author = item?.author ?: state.artist,
             source = item?.author ?: state.artist?.withoutEndlessMark(),
             album = item?.album?.title,

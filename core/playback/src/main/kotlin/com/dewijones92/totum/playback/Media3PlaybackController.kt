@@ -1299,6 +1299,12 @@ public class Media3PlaybackController(
         // so this adds a fact to the app's own player without changing what the lock screen says.
         .setAlbumArtist(item.publisher)
         .setDescription(item.description.takeUnless { face.shielded })
+        .setExtras(
+            android.os.Bundle().apply {
+                putString(EXTRA_REAL_TITLE, item.title)
+                putBoolean(EXTRA_SHIELDED, face.shielded)
+            },
+        )
         .setArtworkUri((face.artworkUrl)?.value?.let(android.net.Uri::parse))
         // Round-trips the pillar through the session so the UI can label it.
         .setMediaType(
@@ -1357,6 +1363,8 @@ public class Media3PlaybackController(
         PlaybackState(
             itemId = MediaItemId(current.mediaId),
             title = current.mediaMetadata.title?.toString().orEmpty(),
+            realTitle = current.mediaMetadata.extras?.getString(EXTRA_REAL_TITLE),
+            shielded = current.mediaMetadata.extras?.getBoolean(EXTRA_SHIELDED) == true,
             artist = current.mediaMetadata.artist?.toString(),
             publisher = current.mediaMetadata.albumArtist?.toString(),
             artworkUrl = current.mediaMetadata.artworkUri?.toString(),
@@ -1558,6 +1566,8 @@ internal fun recoveryReasonFrom(
     else -> null
 }
 
+private const val EXTRA_REAL_TITLE = "totum.realTitle"
+private const val EXTRA_SHIELDED = "totum.shielded"
 private const val MILLIS_PER_SECOND = 1_000L
 
 /** How long the URL's own lease has left, negative once it is past; null when it carries none. */

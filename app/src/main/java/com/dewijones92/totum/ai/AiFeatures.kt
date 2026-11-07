@@ -3,6 +3,7 @@ package com.dewijones92.totum.ai
 import android.content.Context
 import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.common.HomeServerHosts
 import com.dewijones92.totum.data.ai.AiTasks
 import com.dewijones92.totum.data.ai.HttpAiJobs
 import com.dewijones92.totum.data.ask.AskOutcome
@@ -49,7 +50,7 @@ class AiFeatures(
 internal fun homeAiJobs(c: AppContainer, client: OkHttpClient): HttpAiJobs? {
     val settings = c.appPreferences.settings.value
     val base = settings.homeServerBase.takeIf { it.isNotBlank() } ?: return null
-    return HttpAiJobs(client, "https://totum.$base/fetch", { c.appPreferences.settings.value.homeServerToken })
+    return HttpAiJobs(client, "https://${HomeServerHosts.app(base)}/fetch", { c.appPreferences.settings.value.homeServerToken })
 }
 
 internal fun aiFeaturesOf(
@@ -84,7 +85,7 @@ internal fun aiFeaturesOf(
     val run = MorningRun(
         jobs = { homeAiJobs(c, client) },
         store = morningStore,
-        taste = { morningTaste(c) },
+        taste = { appTaste(c) },
         have = { ownedTitles(c) },
         find = { pick, taste -> findPick(c, pick, taste) },
         replaceForYou = { items -> replaceForYou(c, forYouName, items) },

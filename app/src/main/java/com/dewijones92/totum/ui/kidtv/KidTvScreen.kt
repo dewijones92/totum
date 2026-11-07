@@ -43,6 +43,8 @@ import com.dewijones92.totum.ui.common.BackHeader
 import com.dewijones92.totum.ui.common.kindWords
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import com.dewijones92.totum.pins.titleThrough
+import com.dewijones92.totum.ui.common.LocalItemShield
 
 @Composable
 fun KidTvScreen(container: AppContainer, onBack: () -> Unit, modifier: Modifier = Modifier) {
@@ -102,7 +104,7 @@ private fun PlaylistChoices(kidTv: KidTv, candidates: List<Pin>, chosenKey: Stri
     candidates.forEach { pin ->
         ChoiceRow(
             selected = pin.key == chosenKey,
-            title = pin.title,
+            title = pin.titleThrough(LocalItemShield.current),
             detail = stringResource(pin.kindWords()),
             onSelect = { kidTv.choosePin(pin.key, "the Kid TV page") },
         )

@@ -60,6 +60,8 @@ import com.dewijones92.totum.ui.common.rememberSelection
 import com.dewijones92.totum.ui.common.rememberShuffleStarter
 import com.dewijones92.totum.ui.common.rowCard
 import com.dewijones92.totum.ui.common.selectableClicks
+import com.dewijones92.totum.ui.common.LocalItemShield
+import com.dewijones92.totum.domain.titleOf
 
 @Composable
 fun AllSubscriptionsScreen(container: AppContainer, onBack: () -> Unit, modifier: Modifier = Modifier) {
@@ -188,7 +190,8 @@ private fun SubscriptionRow(activity: SourceActivity, onOpen: ((SourceActivity) 
         Column(Modifier.weight(1f)) {
             Text(source.title, style = MaterialTheme.typography.titleMedium)
             val maker = if (pillar == MediaKind.PODCAST) FactEmoji.PODCAST else FactEmoji.CHANNEL
-            val line = latestUploadLine(activity.latest, LocalNow.current)
+            val shield = LocalItemShield.current
+            val line = latestUploadLine(activity.latest, LocalNow.current) { shield.titleOf(it) }
                 ?: stringResource(R.string.all_subscriptions_no_recent)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 activity.latest?.let { LiveBadge(it.id, it.contentKind, Modifier.padding(end = 6.dp)) }
@@ -206,8 +209,12 @@ private fun SubscriptionRow(activity: SourceActivity, onOpen: ((SourceActivity) 
 
 private val ARTWORK_SIZE = 48.dp
 
-internal fun latestUploadLine(latest: MediaItem?, now: java.time.Instant): String? = latest?.let { upload ->
+internal fun latestUploadLine(
+    latest: MediaItem?,
+    now: java.time.Instant,
+    titleOf: (MediaItem) -> String = MediaItem::title,
+): String? = latest?.let { upload ->
     mediaDateText(upload.publishedText, upload.publishedAt, now)
-        ?.let { "${FactEmoji.PUBLISHED} $it · ${upload.title}" }
-        ?: upload.title
+        ?.let { "${FactEmoji.PUBLISHED} $it · ${titleOf(upload)}" }
+        ?: titleOf(upload)
 }

@@ -26,6 +26,7 @@ import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.queue.PictureOffer
 import kotlinx.coroutines.delay
+import com.dewijones92.totum.domain.titleOf
 
 class PictureOfferUi(
     val offer: PictureOffer?,
@@ -74,7 +75,7 @@ fun PictureOfferStrip(modifier: Modifier = Modifier) {
     ) {
         Column(Modifier.padding(start = 12.dp, end = 8.dp, top = 8.dp, bottom = 4.dp)) {
             Text(
-                stringResource(R.string.picture_offer, offer.item.item.title),
+                stringResource(R.string.picture_offer, LocalItemShield.current.titleOf(offer.item.item)),
                 style = MaterialTheme.typography.labelLarge,
             )
             Row(

@@ -132,6 +132,7 @@ import com.dewijones92.totum.domain.Listening
 import com.dewijones92.totum.domain.LocalCopy
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
+import com.dewijones92.totum.domain.titleOf
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.domain.PlayHandle
@@ -2008,6 +2009,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                     appPreferences.settings.value.let { listOf(it.homeServerToken, it.prowlarrApiKey) }
                 },
                 hosts = { knownHomeHosts(appPreferences.settings.value.homeServerBase) },
+                titleFor = { id, title, author -> aiFeatures.spoilerShield.titleOf(MediaItemId(id), title, author) },
             ),
         )
     }

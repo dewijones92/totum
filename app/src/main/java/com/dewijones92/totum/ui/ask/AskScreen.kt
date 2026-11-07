@@ -83,6 +83,9 @@ import com.dewijones92.totum.ui.search.TorrentHitRow
 import com.dewijones92.totum.ui.search.TorrentMenuSheet
 import com.dewijones92.totum.ui.search.VideoHitRow
 import com.dewijones92.totum.ui.search.rememberTorrentProgress
+import com.dewijones92.totum.ui.common.LocalItemShield
+import com.dewijones92.totum.domain.titleOf
+import com.dewijones92.totum.domain.MediaItemId
 
 @Composable
 fun AskScreen(container: AppContainer, onBack: () -> Unit, modifier: Modifier = Modifier) {
@@ -431,9 +434,14 @@ private fun RejectedCopies(rejected: List<Pair<SearchHit, String>>) {
         style = MaterialTheme.typography.labelMedium,
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
     )
+    val shield = LocalItemShield.current
+    val shownTitle = { hit: SearchHit ->
+        (hit as? SearchHit.Video)?.let { shield.titleOf(MediaItemId(it.watchUrl.value), it.title, it.subtitle) }
+            ?: hit.title
+    }
     rejected.forEach { (hit, why) ->
         Text(
-            stringResource(R.string.ask_skipped_line, hit.title, why),
+            stringResource(R.string.ask_skipped_line, shownTitle(hit), why),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 16.dp),

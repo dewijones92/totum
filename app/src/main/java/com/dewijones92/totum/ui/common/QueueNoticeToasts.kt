@@ -12,6 +12,8 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.queue.QueueNotice
 import kotlin.time.Duration.Companion.milliseconds
+import com.dewijones92.totum.domain.ItemShields
+import com.dewijones92.totum.domain.titleOf
 
 @Composable
 fun QueueNoticeToasts(queue: PlaybackQueue) {
@@ -43,7 +45,7 @@ internal fun Context.noticeMessage(notice: QueueNotice): String = when (notice) 
             notice.next -> R.string.notice_already_next
             else -> R.string.notice_already_queued
         },
-        notice.item.item.title,
+        ItemShields.titleOf(notice.item.item),
         notice.position,
     )
     is QueueNotice.SomeAlreadyQueued ->

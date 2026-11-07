@@ -34,4 +34,18 @@ class ItemShieldTest {
         val face = ItemFace("hidden", item.thumbnailUrl, null, blurThumbnail = true, shielded = true)
         assertNull(face.artworkUrl)
     }
+
+    @Test
+    fun `a recorded title goes through the shield by its id and author`() {
+        val shield = object : ItemShield {
+            override fun face(item: MediaItem): ItemFace = if (item.author == "WTA") {
+                ItemFace("hidden", null, null, shielded = true)
+            } else {
+                NoShield.face(item)
+            }
+        }
+
+        assertEquals("hidden", shield.titleOf(MediaItemId("x"), "A beat B", "WTA"))
+        assertEquals("Plain", shield.titleOf(MediaItemId("y"), "Plain", "Other"))
+    }
 }

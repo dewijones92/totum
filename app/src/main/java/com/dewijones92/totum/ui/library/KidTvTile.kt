@@ -27,6 +27,8 @@ import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.kidlock.KidTvStatus
 import com.dewijones92.totum.ui.kidtv.KidTvToasts
 import com.dewijones92.totum.ui.kidtv.kidTvStatusText
+import com.dewijones92.totum.pins.titleThrough
+import com.dewijones92.totum.ui.common.LocalItemShield
 
 @Composable
 internal fun KidTvTile(container: AppContainer, onSetUp: () -> Unit) {
@@ -36,7 +38,7 @@ internal fun KidTvTile(container: AppContainer, onSetUp: () -> Unit) {
     val pins by container.pinStore.pins.collectAsStateWithLifecycle()
     KidTvToasts(status)
     val scheme = MaterialTheme.colorScheme
-    val pinTitle = pins.firstOrNull { it.key == choice.pinKey }?.title
+    val pinTitle = pins.firstOrNull { it.key == choice.pinKey }?.titleThrough(LocalItemShield.current)
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier

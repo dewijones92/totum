@@ -29,12 +29,15 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.dewijones92.totum.R
 import com.dewijones92.totum.di.AppContainer
+import com.dewijones92.totum.domain.MediaItemId
+import com.dewijones92.totum.domain.titleOf
 import com.dewijones92.totum.stats.ListenKind
 import com.dewijones92.totum.stats.Period
 import com.dewijones92.totum.stats.TopKind
 import com.dewijones92.totum.stats.Totals
 import com.dewijones92.totum.ui.common.BackHeader
 import com.dewijones92.totum.ui.common.ListThenDetail
+import com.dewijones92.totum.ui.common.LocalItemShield
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -197,12 +200,13 @@ private fun UseCard(page: StatsViewModel.Page) = StatCard(R.string.stats_use) {
 private fun StatsDetail(detail: StatsViewModel.Detail, onBack: () -> Unit, modifier: Modifier) {
     val zone = ZoneId.systemDefault()
     val format = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT)
+    val shield = LocalItemShield.current
     LazyColumn(modifier.fillMaxSize()) {
         item { BackHeader(detail.title, onBack) }
         if (detail.listens.isEmpty()) item { Hint(R.string.stats_detail_empty) }
         items(detail.listens, key = { it.playId }) { listen ->
             StatLine(
-                listen.title,
+                shield.titleOf(MediaItemId(listen.itemId), listen.title, listen.author),
                 stringResource(
                     R.string.stats_detail_line,
                     Instant.ofEpochMilli(listen.at).atZone(zone).format(format),

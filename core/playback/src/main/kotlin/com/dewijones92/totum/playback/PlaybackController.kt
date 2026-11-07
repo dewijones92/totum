@@ -293,6 +293,8 @@ public data class PlaybackState(
     val showKey: SourceId? = null,
     val contentKind: MediaContentKind = MediaContentKind.STANDARD,
     val playReason: PlayReason? = null,
+    val realTitle: String? = null,
+    val shielded: Boolean = false,
 ) {
     init {
         require(positionMs >= 0) { "positionMs must not be negative" }

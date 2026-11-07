@@ -7,11 +7,9 @@ import com.dewijones92.totum.data.ask.AskKind
 import com.dewijones92.totum.data.ask.Suggestion
 import com.dewijones92.totum.data.ask.Taste
 import com.dewijones92.totum.data.ask.squashed
-import com.dewijones92.totum.data.ask.tasteOf
 import com.dewijones92.totum.data.morning.MorningResult
 import com.dewijones92.totum.data.morning.MorningRun
 import com.dewijones92.totum.data.podcast.PreviewResult
-import com.dewijones92.totum.data.podcast.subscribedSources
 import com.dewijones92.totum.data.search.SearchHit
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.MediaContentKind
@@ -19,17 +17,13 @@ import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.PlaylistId
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.asPlayable
-import com.dewijones92.totum.innertube.playlists.PlaylistVideosResult
 import com.dewijones92.totum.notifications.HousekeepingNotifier
-import com.dewijones92.totum.stars.LIKED_VIDEOS_BROWSE_ID
-import com.dewijones92.totum.stats.StatEvent
 import com.dewijones92.totum.ui.common.toMediaItem
 import kotlinx.coroutines.flow.first
 
 val FOR_YOU_PLAYLIST: PlaylistId = PlaylistId("for-you")
 private val FOR_YOU_SOURCE = SourceId("for-you")
 private const val TAG = "morning"
-private const val OWNED_TITLES = 200
 
 class MorningJob(
     private val context: Context,
@@ -65,34 +59,6 @@ class MorningJob(
             ?.let { context.resources.getQuantityString(R.plurals.morning_picks_line, it, it) }
         return news + listOfNotNull(picks)
     }
-}
-
-internal suspend fun morningTaste(c: AppContainer): Taste {
-    c.musicFavourites.loadOnce()
-    val shelf = c.musicFavourites.shelf.value
-    val liked = (c.youTubePlaylists.videosIn(LIKED_VIDEOS_BROWSE_ID) as? PlaylistVideosResult.Success)
-        ?.page?.items?.map { it.title }.orEmpty()
-    return tasteOf(
-        sources = subscribedSources(c.podcastRepository, c.accountSubscriptions.channels).first(),
-        artists = shelf.artists.map { it.name },
-        albums = shelf.albums.map { listOfNotNull(it.title, it.artist).joinToString(" — ") },
-        listens = c.statsLog.all().filterIsInstance<StatEvent.Listen>(),
-        now = System.currentTimeMillis(),
-        starred = c.stars.starred.first().map { it.item.title },
-        liked = liked,
-    ).also {
-        Diag.log(
-            TAG,
-            "taste for the morning: ${it.channels.size} channels, ${it.shows.size} shows, " +
-                "${it.starred.size} starred, ${it.liked.size} liked",
-        )
-    }
-}
-
-internal suspend fun ownedTitles(c: AppContainer): List<String> {
-    val downloaded = c.downloadManager.observeDownloaded().first().map { it.playable.item.title }
-    val played = c.statsLog.all().filterIsInstance<StatEvent.Listen>().sortedByDescending { it.at }.map { it.title }
-    return (downloaded + played).distinct().take(OWNED_TITLES)
 }
 
 internal suspend fun findPick(c: AppContainer, pick: Suggestion, taste: Taste): PlayableItem? = when (pick.kind) {

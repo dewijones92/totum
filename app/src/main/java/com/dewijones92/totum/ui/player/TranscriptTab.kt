@@ -19,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -51,7 +52,9 @@ import com.dewijones92.totum.data.transcript.indexAt
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.ui.common.KeepWhenSettled
+import com.dewijones92.totum.ui.common.LocalSpoilerShield
 import com.dewijones92.totum.ui.common.RecentSearchChips
+import com.dewijones92.totum.ui.common.rememberResultHidden
 import com.dewijones92.totum.ui.common.live
 import com.dewijones92.totum.ui.common.rememberRecentSearches
 import java.util.Locale
@@ -59,6 +62,7 @@ import java.util.Locale
 val LocalTranscripts = staticCompositionLocalOf<TranscriptLoader?> { null }
 internal const val TRANSCRIPT_LINE_TAG = "transcriptLine"
 internal const val TRANSCRIPT_SEARCH_TAG = "transcriptSearch"
+internal const val TRANSCRIPT_REVEAL_TAG = "transcriptReveal"
 
 private val language: String get() = Locale.getDefault().language
 
@@ -85,6 +89,10 @@ internal fun rememberHasTranscript(state: PlaybackState): Boolean {
 @Composable
 internal fun TranscriptSection(state: PlaybackState, onSeekTo: (Long) -> Unit) {
     val loader = LocalTranscripts.current ?: return
+    if (rememberResultHidden(state)) {
+        HiddenUntilWatched(state)
+        return
+    }
     val result by produceState<TranscriptResult?>(null, state.itemId) {
         value = null
         value = when (state.kind) {
@@ -104,6 +112,21 @@ internal fun TranscriptSection(state: PlaybackState, onSeekTo: (Long) -> Unit) {
             TranscriptDigestPanel(state, shown.cues, positionMs, onSeekTo)
             TranscriptLines(shown, positionMs, onSeekTo)
         }
+    }
+}
+
+@Composable
+private fun HiddenUntilWatched(state: PlaybackState) {
+    val shield = LocalSpoilerShield.current
+    Column(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(stringResource(R.string.spoiler_transcript_hidden))
+        Button(
+            onClick = {
+                Diag.log("spoiler", "${state.itemId.value}: transcript and digest shown by hand, title revealed with them")
+                shield?.reveal(state.itemId)
+            },
+            modifier = Modifier.testTag(TRANSCRIPT_REVEAL_TAG),
+        ) { Text(stringResource(R.string.spoiler_transcript_show)) }
     }
 }
 

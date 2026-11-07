@@ -34,19 +34,44 @@ winner is named first. Hiding only words such as "beats" would have left every A
   shield, the transcript digests and the morning job). Composables read it through `LocalItemShield`, provided with the
   other row capabilities in `ProvidePlayStates`; because the provided value changes identity whenever the shield's state
   does, every row recomposes when a safe title arrives.
-- **Surfaces now read the seam:** every `MediaItemRow` (title, picture, length), the action sheet's title and the
-  Details lines (the length and the description are hidden while shielded), Carry on, the playback session's metadata
-  (`Media3PlaybackController.metadataFor`: so the mini player, the full player, the notification and the lock screen
-  say the safe title, carry no description and no artwork), the "starting" bar and the refused-tap toast
-  (`PlayAttempts`), the Next line (`nextLineOf(titleOf = …)`, re-evaluated when the shield changes), Share, Copy link and
-  Share list, the not-for-me toast, and the group-news, new-upload and morning notifications (`LiveNoticeLabels`).
-- **Not covered, said plainly:** the player's seek bar (the length is the player's own), the download notifications and
-  the Downloads page rows that do not use `MediaItemRow`, search-result rows built from a `SearchHit` rather than an item,
-  the queue's own "already queued" notices, the cast TV's title (the session metadata carries the safe one, but the
-  Cast receiver may still show the stream's own name), and the watch-page description the Details tab can fetch itself.
-  Each is a one-line change to read the seam; none was done blind. The log lines keep real titles on purpose.
-- **A new surface asks the seam, never the item.** The Ask builder's state pack and the digest should call
-  `titleOf`.
+- **The policy (the coordinator's call; Dewi delegated it, 2026-11-06/07).** The shield applies to every surface that
+  **shows** a title or **sends** one to a model or a screen. **Logs and the stats and history records keep the real
+  title** (they are Dewi's own private record), and the screens that show those records show them through the shield.
+  So the stats log stores the real title (the session carries it beside the face as `PlaybackState.realTitle`; before
+  this the stats stored the placeholder for ever), and the stats drill-down shows each listen through the shield.
+- **Surfaces read the seam, two ways.** A composable reads `LocalItemShield` (so it recomposes when a safe title
+  arrives); code with no composition (notifications, toasts, app-icon shortcuts, the queue's notices) reads
+  `ItemShields`, one process-wide shield set at launch from `TotumApplication` (my call: the alternative was an
+  `ItemShield` constructor parameter on about twenty classes and their wiring in `AppContainer`). Both are the same
+  `SpoilerShield`.
+- **Covered:** every `MediaItemRow` (title, picture, length), the action sheet's title and the Details lines (the length
+  and the description are hidden while shielded), Carry on, the playback session's metadata
+  (`Media3PlaybackController.metadataFor`: the mini player, the full player, the notification and the lock screen say
+  the safe title, carry no description and no artwork), the "starting" bar and the refused-tap toast, the Next line,
+  Share, Copy link and Share list, the not-for-me toast, the group-news, new-upload and morning notifications; and, added
+  after the review: the player's Up next rows (title and a blurred picture), the Back and Forward tiles, the remote
+  queue's now-playing line, All subscriptions' latest-upload line, the star toast, the picture offer, the episode
+  picker, the download question, the delete-with-undo message, pinned cards, pin toasts and app-icon shortcut labels,
+  the Kid TV page and tile (the title text only), Shorts, the clean-up dialog, the 🏠 At home rows and their notices, the
+  upload-to-Pi strip and notices, the download notifications (the summary, each download's own, done and failed), the
+  "already queued" toasts, the Downloads cards, Ask's skipped-copies line, the stats drill-down, and the Ask pack
+  (below).
+- **The Ask pack, the taste and the "already have" list** send the safe title (`AppStateInputs.titleFor`; the taste and
+  `ownedTitles` are one `appTaste`/`ownedTitles` in `ai/AppTaste.kt`, with a title that is only the neutral placeholder
+  left out). Free text in the pack (the event log, other stats' detail) is searched for the real title of every shielded
+  item the pack holds and the safe one is written in its place; an event line that names a title the pack does not hold
+  is not caught. A pack built for a question therefore also asks the shield about every item it holds, which queues a
+  safe-title check for unknown items of shielded channels.
+- **The transcript tab, the TL;DR, chapters and "ask about this" would state the result**, so for an item the shield is
+  hiding and that was not revealed by hand the tab says "🙈 Hidden until watched" with a button, "👁️ Show them anyway",
+  which reveals the title too, in place of the transcript and the digest (`PlaybackState.shielded`, set from the session).
+- **Not covered, said plainly:** the player's seek bar (the length is the player's own), the cast TV's title (the session
+  metadata carries the safe one, but a Cast receiver may still show the stream's own name), the watch-page description the
+  Details tab can fetch itself, and the digest/Ask-about-this-video text when the title was revealed by hand (by design).
+  **Skipped, with the reason:** podcast show hits in search (`PodcastHitRow`) and torrent results (the torrent menu and
+  shelf), because the shield is per YouTube channel and a feed or a torrent release is never an item of one; the
+  Pi-side logs, which keep real titles on purpose.
+- **A new surface asks the seam, never the item.** The log lines and the stats records keep the real title on purpose.
 
 ### The switch and "until watched"
 
@@ -107,7 +132,9 @@ same day. Sent in batches of 25; 20 to 46 s a batch.
 ## Consequences
 
 - A shielded channel's list shows "🙈 Title hidden" for the second or two a first look takes, then the safe title; a
-  phone with no home server shows it for ever (a reveal still works).
+  phone with no home server shows it for ever (a reveal still works), and says why: turning a channel on while no home
+  server is signed in shows "⚠️ Titles from this channel stay hidden until a home server is signed in to write safe
+  ones", as well as the log line.
 - The shield file (`spoiler-shield.json`: the channels, up to 3,000 safe titles, the revealed ids) is not in the Drive
   backup yet.
 - `face()` has a deliberate side effect: seeing an unknown shielded item queues its title for a check. It is

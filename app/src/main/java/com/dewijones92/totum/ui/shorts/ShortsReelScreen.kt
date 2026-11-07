@@ -55,6 +55,8 @@ import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.ui.common.ItemActionSheet
 import com.dewijones92.totum.ui.common.VideoSurface
 import com.dewijones92.totum.ui.common.rememberField
+import com.dewijones92.totum.ui.common.LocalItemShield
+import com.dewijones92.totum.domain.titleOf
 
 /**
  * A full-screen vertical Shorts reel: swipe up/down between shorts, each playing
@@ -248,7 +250,7 @@ private fun ShortPage(
                     ),
             )
             Text(
-                text = short.title,
+                text = LocalItemShield.current.titleOf(short),
                 style = MaterialTheme.typography.titleMedium,
                 color = Color.White,
                 modifier = Modifier

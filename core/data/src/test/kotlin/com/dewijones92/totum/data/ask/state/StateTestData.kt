@@ -140,6 +140,7 @@ object StateTestData {
         events: List<Breadcrumbs.Entry> = this.events,
         secrets: List<String> = emptyList(),
         hosts: List<String> = emptyList(),
+        titleFor: (String, String, String?) -> String = { _, title, _ -> title },
     ): AppStateInputs = AppStateInputs(
         backup = backup,
         queue = QueueSnapshot(queue, currentIndex = 1),
@@ -166,6 +167,7 @@ object StateTestData {
         sizeOf = sizeOf,
         secrets = secrets,
         hosts = hosts,
+        titleFor = titleFor,
     )
 
     private const val MINUTE_MS = 60_000L

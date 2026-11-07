@@ -30,6 +30,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
+import com.dewijones92.totum.domain.ItemShields
+import com.dewijones92.totum.domain.titleOf
 
 interface HomeNotices {
     fun started(title: String)
@@ -129,14 +131,14 @@ class HomeDownloads(
             Diag.log(TAG, "\"${item.item.title}\": sending home as ${choice?.stored ?: "the whole file"}")
             when (val answer = home.start(request)) {
                 is HomeAnswer.Ok -> {
-                    notices.started(item.item.title)
+                    notices.started(ItemShields.titleOf(item.item))
                     refresh("started ${answer.value}")
                     wake.trySend("following ${answer.value}")
                 }
                 is HomeAnswer.No -> {
                     moves.refused(item.item)
                     Diag.warn(TAG, "\"${item.item.title}\": the home server refused: ${answer.reason}")
-                    notices.refused(item.item.title, answer.reason)
+                    notices.refused(ItemShields.titleOf(item.item), answer.reason)
                 }
             }
         }

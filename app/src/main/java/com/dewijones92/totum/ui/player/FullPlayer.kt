@@ -95,6 +95,7 @@ import com.dewijones92.totum.ui.player.WatchViewModel.RepliesState
 import kotlinx.coroutines.delay
 import java.util.concurrent.TimeUnit
 import kotlin.time.Duration
+import com.dewijones92.totum.ui.common.face
 
 /**
  * Leaves fullscreen once the player has settled on something with no picture — and not before.
@@ -450,6 +451,7 @@ internal fun UpNextSection(queue: QueueControls) {
         }
         queue.upNext.take(UP_NEXT_SHOWN).forEachIndexed { index, queued ->
             val item = queued.item.item
+            val face = item.face()
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
@@ -464,6 +466,7 @@ internal fun UpNextSection(queue: QueueControls) {
                     contentDescription = null,
                     modifier = Modifier.size(width = UP_NEXT_THUMB_WIDTH, height = UP_NEXT_THUMB_HEIGHT),
                     shape = MaterialTheme.shapes.small,
+                    blurred = face.blurThumbnail,
                 )
                 Column(
                     modifier = Modifier
@@ -471,7 +474,7 @@ internal fun UpNextSection(queue: QueueControls) {
                         .padding(start = 12.dp),
                 ) {
                     LiveBadge(item.id, item.contentKind, Modifier.padding(bottom = 2.dp))
-                    Text(text = item.title, style = MaterialTheme.typography.titleSmall)
+                    Text(text = face.title, style = MaterialTheme.typography.titleSmall)
                 }
                 IconButton(onClick = { queue.onRemove(index) }) {
                     Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.queue_remove))

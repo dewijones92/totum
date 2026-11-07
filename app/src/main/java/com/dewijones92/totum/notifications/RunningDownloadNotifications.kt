@@ -15,6 +15,8 @@ import com.dewijones92.totum.downloads.DownloadsRequests
 import com.dewijones92.totum.downloads.DownloadsSection
 import com.dewijones92.totum.ui.common.transferRoute
 import com.dewijones92.totum.ui.common.transferText
+import com.dewijones92.totum.domain.ItemShields
+import com.dewijones92.totum.domain.titleOf
 
 internal class RunningDownloadNotifications(
     private val context: Context,
@@ -60,7 +62,7 @@ internal class RunningDownloadNotifications(
     }
 
     private fun child(download: RunningDownload): Notification = base()
-        .setContentTitle(download.item.title)
+        .setContentTitle(ItemShields.titleOf(download.item))
         .setContentText(percentText(download))
         .setProgress(PROGRESS_MAX, download.percent ?: 0, download.percent == null)
         .setContentIntent(DownloadsRequests.pendingIntent(context, DownloadsSection.IN_PROGRESS))

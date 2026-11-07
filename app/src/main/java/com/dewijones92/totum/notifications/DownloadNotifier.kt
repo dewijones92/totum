@@ -16,6 +16,8 @@ import com.dewijones92.totum.downloads.DownloadsSection
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import com.dewijones92.totum.domain.ItemShields
+import com.dewijones92.totum.domain.titleOf
 
 /**
  * Renders download progress, completions and failures into the shade.
@@ -84,14 +86,14 @@ internal class DownloadNotifier(
 
     private fun progress(notice: DownloadNotice): Notification {
         val count = notice.active.size
-        val lines = notice.running.map { "${it.item.title} — ${children.percentText(it)}" } +
+        val lines = notice.running.map { "${ItemShields.titleOf(it.item)} — ${children.percentText(it)}" } +
             listOfNotNull(
                 context.resources.getQuantityString(R.plurals.download_waiting_line, notice.waiting, notice.waiting)
                     .takeIf { notice.waiting > 0 },
             )
         return base()
             .setContentTitle(context.resources.getQuantityString(R.plurals.download_progress_title, count, count))
-            .setContentText(lines.firstOrNull() ?: notice.active.first().title)
+            .setContentText(lines.firstOrNull() ?: ItemShields.titleOf(notice.active.first()))
             .setStyle(inbox(lines))
             .setProgress(PROGRESS_MAX, notice.percent ?: 0, notice.percent == null)
             .setGroupSummary(true)
@@ -108,8 +110,8 @@ internal class DownloadNotifier(
         val count = notice.completed.size
         return base()
             .setContentTitle(context.resources.getQuantityString(R.plurals.download_done_title, count, count))
-            .setContentText(notice.completed.last().title)
-            .setStyle(inbox(notice.completed.map { it.title }))
+            .setContentText(ItemShields.titleOf(notice.completed.last()))
+            .setStyle(inbox(notice.completed.map { ItemShields.titleOf(it) }))
             .setContentIntent(DownloadsRequests.pendingIntent(context, DownloadsSection.ON_THE_PHONE))
             .setAutoCancel(true)
             .setSilent(true)
@@ -120,8 +122,8 @@ internal class DownloadNotifier(
         val count = notice.failed.size
         return base()
             .setContentTitle(context.resources.getQuantityString(R.plurals.download_failed_title, count, count))
-            .setContentText(notice.failed.last().item.title)
-            .setStyle(inbox(notice.failed.map { "${it.item.title} — ${it.reason}" }))
+            .setContentText(ItemShields.titleOf(notice.failed.last().item))
+            .setStyle(inbox(notice.failed.map { "${ItemShields.titleOf(it.item)} — ${it.reason}" }))
             .setContentIntent(DownloadsRequests.pendingIntent(context, DownloadsSection.FAILED))
             .setAutoCancel(true)
             .build()

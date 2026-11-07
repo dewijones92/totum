@@ -12,6 +12,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dewijones92.totum.R
 import com.dewijones92.totum.queue.TrailNavigation
+import com.dewijones92.totum.ui.common.LocalItemShield
+import com.dewijones92.totum.domain.titleOf
 
 val LocalTrail = staticCompositionLocalOf<TrailNavigation?> { null }
 
@@ -19,11 +21,12 @@ val LocalTrail = staticCompositionLocalOf<TrailNavigation?> { null }
 internal fun TrailTiles() {
     val trail = LocalTrail.current ?: return
     val around by trail.around.collectAsStateWithLifecycle()
+    val shield = LocalItemShield.current
     around.back?.let { back ->
         ControlTile(
             icon = Icons.AutoMirrored.Outlined.ArrowBack,
             label = stringResource(R.string.trail_back),
-            value = back.item.title,
+            value = shield.titleOf(back.item),
             active = false,
             onClick = trail::back,
             modifier = Modifier.testTag(TRAIL_BACK_TAG),
@@ -33,7 +36,7 @@ internal fun TrailTiles() {
         ControlTile(
             icon = Icons.AutoMirrored.Outlined.ArrowForward,
             label = stringResource(R.string.trail_forward),
-            value = forward.item.title,
+            value = shield.titleOf(forward.item),
             active = false,
             onClick = trail::forward,
             modifier = Modifier.testTag(TRAIL_FORWARD_TAG),

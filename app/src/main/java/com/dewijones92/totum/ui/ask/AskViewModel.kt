@@ -20,16 +20,15 @@ import com.dewijones92.totum.data.ask.SavedChat
 import com.dewijones92.totum.data.ask.SavedTurn
 import com.dewijones92.totum.data.ask.Taste
 import com.dewijones92.totum.data.ask.keeping
-import com.dewijones92.totum.data.ask.tasteOf
 import com.dewijones92.totum.data.ask.vetRequest
 import com.dewijones92.totum.data.notforme.NotForMe
-import com.dewijones92.totum.data.podcast.subscribedSources
+import com.dewijones92.totum.ai.appTaste
+import com.dewijones92.totum.ai.ownedTitles
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.operations.OperationEnd
 import com.dewijones92.totum.operations.OperationKind
 import com.dewijones92.totum.operations.Operations
-import com.dewijones92.totum.stats.StatEvent
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -341,7 +340,6 @@ class AskViewModel(
         private const val MS_PER_MINUTE = 60_000L
         const val NO_DATA_NOTE = "⚠️ Your app's data could not be sent, so this answer comes from the web only."
         private const val CHAT_ID_RANGE = 1_000_000
-        private const val OWNED_TITLES = 200
 
         fun factory(container: AppContainer): ViewModelProvider.Factory = viewModelFactory {
             initializer {
@@ -350,35 +348,13 @@ class AskViewModel(
                     copies = container.askCopies,
                     have = { ownedTitles(container) },
                     operations = container.operations,
-                    taste = { tasteFor(container) },
+                    taste = { appTaste(container) },
                     latest = container.askLatest::find,
                     chats = container.askChats,
                     notForMe = container.notForMe,
                     appState = container.askStateSource,
                 )
             }
-        }
-
-        private suspend fun tasteFor(container: AppContainer): Taste {
-            container.musicFavourites.loadOnce()
-            val shelf = container.musicFavourites.shelf.value
-            return tasteOf(
-                sources = subscribedSources(
-                    container.podcastRepository,
-                    container.accountSubscriptions.channels
-                ).first(),
-                artists = shelf.artists.map { it.name },
-                albums = shelf.albums.map { listOfNotNull(it.title, it.artist).joinToString(" — ") },
-                listens = container.statsLog.all().filterIsInstance<StatEvent.Listen>(),
-                now = System.currentTimeMillis(),
-            )
-        }
-
-        private suspend fun ownedTitles(container: AppContainer): List<String> {
-            val downloaded = container.downloadManager.observeDownloaded().first().map { it.playable.item.title }
-            val played = container.statsLog.all().filterIsInstance<StatEvent.Listen>()
-                .sortedByDescending { it.at }.map { it.title }
-            return (downloaded + played).distinct().take(OWNED_TITLES)
         }
     }
 }

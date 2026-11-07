@@ -17,6 +17,7 @@ import com.dewijones92.totum.MainActivity
 import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.ui.common.kindWords
+import com.dewijones92.totum.domain.ItemShields
 
 class HomeScreenShortcuts(private val context: Context) {
 
@@ -54,7 +55,7 @@ class HomeScreenShortcuts(private val context: Context) {
 
     private fun labelOf(pin: Pin, lockOnOpen: Boolean): String {
         val kind = context.getString(pin.kindWords()).substringBefore(' ')
-        return (if (lockOnOpen) LOCK_MARK else "") + "$kind ${pin.title}"
+        return (if (lockOnOpen) LOCK_MARK else "") + "$kind ${pin.titleThrough(ItemShields)}"
     }
 
     private fun shortcut(pin: Pin, art: Bitmap?, lockOnOpen: Boolean = false): ShortcutInfoCompat =

@@ -37,6 +37,8 @@ import com.dewijones92.totum.domain.CleanupRules
 import com.dewijones92.totum.domain.CleanupSuggestion
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.formatBytes
+import com.dewijones92.totum.domain.titleOf
+import com.dewijones92.totum.ui.common.LocalItemShield
 
 const val CLEANUP_CARD_TAG = "cleanup-card"
 const val CLEANUP_DELETE_TAG = "cleanup-delete"
@@ -131,7 +133,7 @@ fun CleanupReview(
                         ) {
                             Checkbox(checked = id in ticked, onCheckedChange = { toggle() })
                             Column(modifier = Modifier.weight(1f)) {
-                                Text(entry.item.title, style = MaterialTheme.typography.bodyMedium)
+                                Text(LocalItemShield.current.titleOf(entry.item), style = MaterialTheme.typography.bodyMedium)
                                 Text(
                                     formatBytes(entry.sizeBytes),
                                     style = MaterialTheme.typography.bodySmall,

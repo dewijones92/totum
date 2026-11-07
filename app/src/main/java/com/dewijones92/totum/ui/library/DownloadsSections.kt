@@ -27,6 +27,7 @@ import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.downloads.DownloadsSection
 import com.dewijones92.totum.ui.common.MediaThumbnail
 import com.dewijones92.totum.ui.common.rowCard
+import com.dewijones92.totum.ui.common.face
 
 class Sections(
     val current: DownloadsSection? = null,
@@ -228,15 +229,17 @@ private const val SECONDS_A_MINUTE = 60L
 
 @Composable
 internal fun DownloadCardHeader(item: MediaItem, trailing: @Composable RowScope.() -> Unit = {}) {
+    val face = item.face()
     Row(verticalAlignment = Alignment.CenterVertically) {
         MediaThumbnail(
             url = item.thumbnailUrl,
             contentDescription = null,
             shape = MaterialTheme.shapes.small,
             modifier = Modifier.size(DOWNLOAD_THUMB_WIDTH, DOWNLOAD_THUMB_HEIGHT),
+            blurred = face.blurThumbnail,
         )
         Column(Modifier.weight(1f).padding(start = 12.dp)) {
-            Text(item.title, style = MaterialTheme.typography.bodyMedium)
+            Text(face.title, style = MaterialTheme.typography.bodyMedium)
             item.author?.let {
                 Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }

@@ -34,9 +34,16 @@ class ListenRecorderTest {
 
     private val controller = FakePlaybackController()
 
-    private fun state(id: String, playing: Boolean, kind: MediaKind = MediaKind.PODCAST) = PlaybackState(
+    private fun state(
+        id: String,
+        playing: Boolean,
+        kind: MediaKind = MediaKind.PODCAST,
+        title: String = "title $id",
+        realTitle: String? = null,
+    ) = PlaybackState(
         itemId = MediaItemId(id),
-        title = "title $id",
+        title = title,
+        realTitle = realTitle,
         artist = "A show",
         artworkUrl = null,
         kind = kind,
@@ -102,5 +109,21 @@ class ListenRecorderTest {
         val recovered = second.all().filterIsInstance<StatEvent.Listen>().single()
         assertEquals("ep1", recovered.itemId)
         assertTrue("heard ${recovered.heardMs}", recovered.heardMs >= 30_000)
+    }
+
+    @Test
+    fun `the stats keep the real title while the session shows the shielded one`() = runTest {
+        val work = backgroundScope
+        val log = StatsLog(null, work, StandardTestDispatcher(testScheduler))
+        recorder(log, work).start()
+        runCurrent()
+
+        controller.emitState(state("m1", playing = true, title = "🙈 Title hidden", realTitle = "A beat B in the final"))
+        advanceTimeBy(40_000)
+        controller.emitState(state("m2", playing = true))
+        advanceTimeBy(2_000)
+
+        val listen = log.all().filterIsInstance<StatEvent.Listen>().single()
+        assertEquals("A beat B in the final", listen.title)
     }
 }

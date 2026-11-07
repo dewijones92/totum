@@ -18,6 +18,8 @@ import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentHashMap
+import com.dewijones92.totum.domain.ItemShields
+import com.dewijones92.totum.data.backup.titleOf
 
 internal class HomeReporting(
     val operations: Operations,
@@ -43,7 +45,7 @@ internal class HomeFollower(
                 if (tracked.add(job.id)) strip(job)
             }
             if (job.state == HomeJobState.DONE && job.id in seenBusy && announced.add(job.id)) {
-                reporting.notices.ready(job.item.title)
+                reporting.notices.ready(ItemShields.titleOf(job.item))
             }
         }
         copyWhatIsReady()
@@ -52,7 +54,11 @@ internal class HomeFollower(
     private fun strip(job: HomeJob) = scope.launch {
         var finished = false
         try {
-            reporting.operations.track("home:${job.id}", OperationKind.HOME_DOWNLOAD, job.item.title) { progress ->
+            reporting.operations.track(
+                "home:${job.id}",
+                OperationKind.HOME_DOWNLOAD,
+                ItemShields.titleOf(job.item),
+            ) { progress ->
                 val end = known.map { it[MediaItemId(job.id)] }
                     .onEach { progress.report(step = it?.percent() ?: 0, steps = PERCENT) }
                     .mapNotNull { endOf(it) }

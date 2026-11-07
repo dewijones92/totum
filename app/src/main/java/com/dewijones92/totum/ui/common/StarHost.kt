@@ -27,6 +27,8 @@ import com.dewijones92.totum.stars.starrable
 import com.dewijones92.totum.ui.music.toast
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import com.dewijones92.totum.domain.ItemShields
+import com.dewijones92.totum.domain.titleOf
 
 class StarHost(val stars: Stars, val favourites: MusicFavourites, val scope: CoroutineScope)
 
@@ -53,7 +55,7 @@ internal fun StarAction(item: MediaItem?, onDismiss: () -> Unit) {
             host.scope.launch {
                 val outcome = host.stars.setStarred(playable, !on)
                 likedOnAccount = outcome.starredHere && outcome.account == MusicFavourites.Outcome.DONE
-                context.say(item.title, outcome)
+                context.say(ItemShields.titleOf(item), outcome)
             }
         },
         if (on) Icons.Filled.Star else Icons.Outlined.StarBorder,

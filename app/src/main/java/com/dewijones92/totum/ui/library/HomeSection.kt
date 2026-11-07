@@ -27,6 +27,8 @@ import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.downloadStateOf
 import com.dewijones92.totum.ui.common.homeStateText
 import com.dewijones92.totum.ui.common.rowFacts
+import com.dewijones92.totum.ui.common.LocalItemShield
+import com.dewijones92.totum.data.backup.titleOf
 
 class HomeSection(
     val available: Boolean = false,
@@ -57,7 +59,7 @@ internal fun LazyListScope.homeBody(home: HomeSection) {
                     onPlay = { home.onPlay(playable) },
                 )
             } else {
-                Text(job.item.title, Modifier.padding(horizontal = 16.dp))
+                Text(LocalItemShield.current.titleOf(job.item), Modifier.padding(horizontal = 16.dp))
                 Text(homeStateText(job, onPhone), Modifier.padding(horizontal = 16.dp))
             }
             HomeProgress(job)

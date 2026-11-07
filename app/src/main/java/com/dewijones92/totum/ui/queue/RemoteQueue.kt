@@ -54,6 +54,8 @@ import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.formatClock
 import com.dewijones92.totum.ui.common.rowFacts
 import kotlin.time.Duration.Companion.milliseconds
+import com.dewijones92.totum.ui.common.LocalItemShield
+import com.dewijones92.totum.data.backup.titleOf
 
 @Composable
 fun RemoteQueue(targets: TargetsRepository, id: String, modifier: Modifier = Modifier) {
@@ -98,7 +100,7 @@ private fun RemoteHeader(targets: TargetsRepository, state: TargetState, colour:
             color = colour,
         )
         state.current?.let { current ->
-            Text(current.item.title, style = MaterialTheme.typography.bodyLarge)
+            Text(LocalItemShield.current.titleOf(current.item), style = MaterialTheme.typography.bodyLarge)
             val duration = state.durationMs
             if (duration != null && duration > 0) {
                 LinearProgressIndicator(

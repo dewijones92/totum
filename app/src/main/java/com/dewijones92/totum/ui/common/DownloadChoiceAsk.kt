@@ -21,6 +21,7 @@ import com.dewijones92.totum.domain.QualityLabel
 import com.dewijones92.totum.domain.pillar
 import com.dewijones92.totum.downloads.DownloadChooser
 import com.dewijones92.totum.settings.DownloadChoice
+import com.dewijones92.totum.domain.titleOf
 
 const val DOWNLOAD_CHOICE_TAG = "download-choice"
 
@@ -42,7 +43,7 @@ internal fun DownloadChoiceAsk(chooser: DownloadChooser) {
             asking = null
         },
         modifier = Modifier.testTag(DOWNLOAD_CHOICE_TAG),
-        title = { Text(stringResource(R.string.download_choice_title, ask.item.title)) },
+        title = { Text(stringResource(R.string.download_choice_title, LocalItemShield.current.titleOf(ask.item))) },
         text = {
             Column {
                 if (ask.askWhere) PlaceChips(place) { place = it }

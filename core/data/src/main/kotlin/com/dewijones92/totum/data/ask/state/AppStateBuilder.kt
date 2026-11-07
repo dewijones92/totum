@@ -36,6 +36,7 @@ public data class ListenFact(
     val heardMs: Long,
     val durationMs: Long?,
     val counted: Boolean,
+    val itemId: String = "",
 )
 
 public data class StatFact(val atMs: Long, val type: String, val detail: String)
@@ -59,6 +60,7 @@ public data class AppStateInputs(
     public val sizeOf: (String) -> Long? = { null },
     public val secrets: List<String> = emptyList(),
     public val hosts: List<String> = emptyList(),
+    public val titleFor: (id: String, title: String, author: String?) -> String = { _, title, _ -> title },
 )
 
 public class BuiltState(
@@ -108,15 +110,18 @@ public object AppStateBuilder {
             downloads = facts.downloads(),
             progress = facts.progressRows(),
             listens = listens.take(MAX_LISTENS).map(facts::listen),
-            otherStats = others.take(MAX_OTHER_STATS).map {
-                StatRow(facts.at(it.atMs), it.atMs, it.type, prose.redact(it.detail))
-            },
+            otherStats = others.take(MAX_OTHER_STATS).map { StatRow(facts.at(it.atMs), it.atMs, it.type, it.detail) },
             trail = facts.trail(),
             settings = settings(inputs.backup.settings),
             events = inputs.events.takeLast(
                 MAX_EVENTS
-            ).map { EventRow(facts.at(it.atEpochMs), it.atEpochMs, it.tag, prose.redact(it.message)) },
-        )
+            ).map { EventRow(facts.at(it.atEpochMs), it.atEpochMs, it.tag, it.message) },
+        ).let { built ->
+            built.copy(
+                otherStats = built.otherStats.map { it.copy(detail = prose.redact(facts.withoutHiddenTitles(it.detail))) },
+                events = built.events.map { it.copy(message = prose.redact(facts.withoutHiddenTitles(it.message))) },
+            )
+        }
         val counts = countsOf(state)
         val counted = state.copy(snapshot = state.snapshot.copy(counts = counts))
         val scrubbed = StateScrub.clean(StateJson.encodeToJsonElement(AppState.serializer(), counted), identifiers)
@@ -197,6 +202,14 @@ public object AppStateBuilder {
         private val groupIds: List<Pair<String, List<String>>> =
             inputs.backup.groups.map { it.name to it.sources.map(BackupSubscription::id) }
         private val titles: MutableMap<String, String> = mutableMapOf()
+        private val hiddenTitles: MutableMap<String, String> = mutableMapOf()
+
+        fun shown(id: String, title: String, author: String?): String =
+            inputs.titleFor(id, title, author).also { if (it != title) hiddenTitles[title] = it }
+
+        fun withoutHiddenTitles(text: String): String =
+            hiddenTitles.entries.filter { it.key.length >= MIN_HIDDEN_TITLE }.sortedByDescending { it.key.length }
+                .fold(text) { acc, (real, safe) -> acc.replace(real, safe, ignoreCase = true) }
 
         fun at(ms: Long): String = TIME.format(
             Instant.ofEpochMilli(ms).atZone(inputs.zone).toOffsetDateTime().withNano(0)
@@ -236,14 +249,15 @@ public object AppStateBuilder {
             current: Boolean = false,
         ): ItemRow {
             val id = canonicalItemId(item.itemId)
-            titles.putIfAbsent(id, item.title)
+            val shown = shown(item.itemId, item.title, item.author)
+            titles.putIfAbsent(id, shown)
             val record = progress[id]
             val played = record?.completedAtEpochMs != null
             val position = record?.takeIf { !played && it.positionMs > 0 }?.positionMs
             val length = record?.durationMs ?: item.durationMs
             return ItemRow(
                 itemId = item.itemId,
-                title = item.title,
+                title = shown,
                 author = item.author,
                 publisher = item.publisher,
                 kind = item.contentKind.lowercase(),
@@ -304,7 +318,7 @@ public object AppStateBuilder {
                 val size = inputs.sizeOf(copy.localPath)
                 DownloadRow(
                     itemId = copy.item.id.value,
-                    title = copy.item.title,
+                    title = shown(copy.item.id.value, copy.item.title, copy.item.author),
                     author = copy.item.author,
                     state = "downloaded",
                     audioOnly = copy.audioOnly,
@@ -324,7 +338,7 @@ public object AppStateBuilder {
                     val id = canonicalItemId(record.item.item.id.value)
                     DownloadRow(
                         itemId = record.item.item.id.value,
-                        title = record.item.item.title,
+                        title = shown(record.item.item.id.value, record.item.item.title, record.item.item.author),
                         author = record.item.item.author,
                         state = when (record.state) {
                             is DownloadState.Downloading -> "downloading"
@@ -365,7 +379,7 @@ public object AppStateBuilder {
         fun listen(fact: ListenFact) = ListenRow(
             at = at(fact.atMs),
             atMs = fact.atMs,
-            title = fact.title,
+            title = shown(fact.itemId, fact.title, fact.author),
             author = fact.author,
             source = fact.source,
             album = fact.album,
@@ -397,5 +411,6 @@ public object AppStateBuilder {
     }
 
     private const val PERCENT = 100
+    private const val MIN_HIDDEN_TITLE = 6
     private const val UNGROUPED = "(added by you, no group)"
 }

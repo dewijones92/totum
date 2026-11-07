@@ -4,4 +4,7 @@
     <string name="spoiler_hide_again">🙈 Hide the title again</string>
     <string name="spoiler_channel_on">🙈 Hide spoilers from this channel</string>
     <string name="spoiler_channel_off">👁️ Stop hiding spoilers from this channel</string>
+    <string name="spoiler_transcript_hidden">🙈 Hidden until watched: the transcript, summary and answers could tell you the result.</string>
+    <string name="spoiler_transcript_show">👁️ Show them anyway</string>
+    <string name="spoiler_no_home_server">⚠️ Titles from this channel stay hidden until a home server is signed in to write safe ones.</string>
 </resources>

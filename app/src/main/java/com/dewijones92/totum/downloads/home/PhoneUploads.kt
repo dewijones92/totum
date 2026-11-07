@@ -12,6 +12,8 @@ import com.dewijones92.totum.operations.OperationKind
 import com.dewijones92.totum.operations.Operations
 import kotlinx.coroutines.CancellationException
 import java.io.File
+import com.dewijones92.totum.domain.ItemShields
+import com.dewijones92.totum.domain.titleOf
 
 internal class PhoneUploads(
     private val client: HomeJobsApi?,
@@ -24,7 +26,7 @@ internal class PhoneUploads(
     suspend fun send(copy: DownloadedMedia, file: File, move: Boolean, limitBytes: Long) {
         val home = client ?: return Diag.warn(TAG, "\"${copy.item.title}\": no home server; not sent to the Pi")
         val item = copy.item
-        val title = item.title
+        val title = ItemShields.titleOf(item)
         val key = "home-up:${item.id.value}"
         if (operations.isRunning(key)) {
             Diag.log(TAG, "\"$title\": already being sent to the Pi; not started a second time")

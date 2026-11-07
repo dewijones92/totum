@@ -13,6 +13,8 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
+import com.dewijones92.totum.data.backup.titleOf
+import com.dewijones92.totum.domain.ItemShield
 
 @Serializable
 sealed interface Pin {
@@ -164,3 +166,5 @@ private const val ITEM_PREFIX = "item:"
 /** A key as a pin now writes it, so an icon made before v26 still finds its pin. */
 fun canonicalPinKey(key: String): String =
     if (key.startsWith(ITEM_PREFIX)) ITEM_PREFIX + canonicalItemId(key.removePrefix(ITEM_PREFIX)) else key
+
+fun Pin.titleThrough(shield: ItemShield): String = if (this is Pin.Item) shield.titleOf(item) else title

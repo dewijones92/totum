@@ -9,6 +9,7 @@ import com.dewijones92.totum.cast.startCastScreens
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HomeServerAuth
 import com.dewijones92.totum.common.HomeServerHosts
+import com.dewijones92.totum.domain.ItemShields
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.di.DefaultAppContainer
 import com.dewijones92.totum.diagnostics.MainThreadWatch
@@ -40,6 +41,7 @@ class TotumApplication : Application(), SingletonImageLoader.Factory {
     override fun onCreate() {
         super.onCreate()
         signHomeServerRequests(container.appPreferences)
+        ItemShields.use(container.aiFeatures.spoilerShield)
         // First thing, so a crash during the rest of startup is still captured.
         container.installCrashReporting()
         MainThreadWatch().start(this)

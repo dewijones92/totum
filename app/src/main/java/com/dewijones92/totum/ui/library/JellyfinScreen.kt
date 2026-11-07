@@ -35,6 +35,7 @@ import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.operations.OperationEnd
 import com.dewijones92.totum.operations.OperationKind
 import com.dewijones92.totum.ui.common.MediaItemRow
+import com.dewijones92.totum.ui.common.rowFacts
 import com.dewijones92.totum.ui.common.ScreenHeader
 import kotlinx.coroutines.launch
 
@@ -112,7 +113,7 @@ private fun Items(
                 val playable = item.toPlayable(api.streamUrl(item))
                 MediaItemRow(
                     item = playable.item,
-                    subtitleLines = item.facts,
+                    subtitleLines = rowFacts(playable.item, playable.pillar),
                     pillar = playable.pillar,
                     onPlay = {
                         Diag.log(

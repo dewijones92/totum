@@ -34,6 +34,7 @@ import com.dewijones92.totum.downloads.EpisodeDownloads
 import com.dewijones92.totum.downloads.startsTicked
 import com.dewijones92.totum.settings.DownloadChoice
 import com.dewijones92.totum.settings.DownloadPlace
+import com.dewijones92.totum.domain.titleOf
 
 const val EPISODE_PICKER_TAG = "episode-picker"
 
@@ -61,6 +62,7 @@ internal fun EpisodePicker(
     }
     val onPhone = current.items.count { known[it.item.id] is DownloadState.Downloaded }
     val plays = LocalPlayStates.current
+    val shield = LocalItemShield.current
     AlertDialog(
         onDismissRequest = episodes::dismiss,
         modifier = Modifier.testTag(EPISODE_PICKER_TAG),
@@ -79,12 +81,13 @@ internal fun EpisodePicker(
                 LazyColumn(Modifier.heightIn(max = LIST_MAX_HEIGHT)) {
                     items(current.items, key = { it.item.id.value }) { item ->
                         val id = item.item.id
+                        val shown = shield.titleOf(item.item)
                         val played by remember(plays, id) { derivedStateOf { plays.value[id] } }
                         val note = listOfNotNull(stateNote(known[id]), playNote(played))
                             .joinToString(" · ").ifEmpty { null }
                         LabelledCheckbox(
                             id in ticked,
-                            if (note == null) item.item.title else "${item.item.title} · $note"
+                            if (note == null) shown else "$shown · $note"
                         ) { on ->
                             ticked = if (on) ticked + id else ticked - id
                         }
