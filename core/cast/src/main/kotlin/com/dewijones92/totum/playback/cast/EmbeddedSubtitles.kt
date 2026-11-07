@@ -1,7 +1,5 @@
 package com.dewijones92.totum.playback.cast
 
-import android.content.Context
-import com.dewijones92.totum.common.BundledBinaries
 import com.dewijones92.totum.common.Diag
 import java.io.File
 import java.util.concurrent.TimeUnit
@@ -10,7 +8,7 @@ public object EmbeddedSubtitles {
 
     internal data class Stream(val index: Int, val codec: String, val language: String)
 
-    internal data class Kept(val file: File, val language: String)
+    public data class Kept(val file: File, val language: String)
 
     private const val DIR = "embedded-subs"
     private const val DONE = "done"
@@ -22,35 +20,34 @@ public object EmbeddedSubtitles {
     private const val LANGUAGE_FIELD = 2
     private val TIME_COMMA = Regex("""(\d{2}:\d{2}:\d{2}),(\d{3})""")
 
-    public fun isDone(context: Context, source: File): Boolean = File(dirFor(context, source), DONE).exists()
+    public fun isDone(tools: MediaTools, source: File): Boolean = File(dirFor(tools, source), DONE).exists()
 
-    internal fun kept(context: Context, source: File): List<Kept> {
-        val dir = dirFor(context, source)
+    public fun kept(tools: MediaTools, source: File): List<Kept> {
+        val dir = dirFor(tools, source)
         if (!File(dir, DONE).exists()) return emptyList()
         return dir.listFiles { file -> file.extension == "vtt" }.orEmpty().sortedBy { it.name }
             .map { Kept(it, it.nameWithoutExtension.substringAfter('-', UNKNOWN)) }
     }
 
-    public fun prepare(context: Context, source: File): Int = synchronized(lockFor(source)) {
-        runCatching { prepareNow(context, source) }.getOrElse {
+    public fun prepare(tools: MediaTools, source: File): Int = synchronized(lockFor(source)) {
+        runCatching { prepareNow(tools, source) }.getOrElse {
             Diag.warn("subtitles", "saving ${source.name}'s own subtitles failed; it is tried again next time", it)
             0
         }
     }
 
-    private fun prepareNow(context: Context, source: File): Int {
-        if (isDone(context, source)) return kept(context, source).size
-        val bin = File(context.applicationInfo.nativeLibraryDir)
-        val ffprobe = File(bin, BundledBinaries.FFPROBE)
-        val ffmpeg = File(bin, BundledBinaries.FFMPEG)
-        if (!ffprobe.exists() || !ffmpeg.exists()) {
+    private fun prepareNow(tools: MediaTools, source: File): Int {
+        if (isDone(tools, source)) return kept(tools, source).size
+        val ffprobe = tools.ffprobe
+        val ffmpeg = tools.ffmpeg
+        if (ffprobe == null || ffmpeg == null || !ffprobe.exists() || !ffmpeg.exists()) {
             Diag.warn(
                 "subtitles",
                 "no bundled ffmpeg/ffprobe, so ${source.name}'s own subtitles cannot be saved for the TV"
             )
             return 0
         }
-        val dir = dirFor(context, source).apply {
+        val dir = dirFor(tools, source).apply {
             deleteRecursively()
             mkdirs()
         }
@@ -98,8 +95,8 @@ public object EmbeddedSubtitles {
     internal fun srtToVtt(srt: String): String =
         "WEBVTT\n\n" + srt.replace("\r\n", "\n").replace(TIME_COMMA, "$1.$2").trimStart(BYTE_ORDER_MARK)
 
-    private fun dirFor(context: Context, source: File): File =
-        File(File(context.filesDir, DIR), "${source.name}-${source.length()}")
+    private fun dirFor(tools: MediaTools, source: File): File =
+        File(File(tools.keepDir, DIR), "${source.name}-${source.length()}")
 
     private fun run(command: List<String>): String? {
         val process = ProcessBuilder(command).redirectErrorStream(true).start()

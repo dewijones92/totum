@@ -6,6 +6,7 @@ import com.dewijones92.totum.data.download.DownloadManager
 import com.dewijones92.totum.data.torrent.TorrentProgress
 import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.playback.cast.EmbeddedSubtitles
+import com.dewijones92.totum.playback.cast.castTools
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -34,14 +35,14 @@ internal class EmbeddedSubtitleWarmer(
     }
 
     private fun prepare(files: List<File>) {
-        val waiting = files.filter { it.exists() && !EmbeddedSubtitles.isDone(context, it) }
+        val waiting = files.filter { it.exists() && !EmbeddedSubtitles.isDone(context.castTools(), it) }
         if (waiting.isEmpty()) return
         Diag.log(
             "subtitles",
             "saving the own subtitles of ${waiting.size} downloaded torrent file(s) for casting, one at a time"
         )
         waiting.forEach { file ->
-            runCatching { EmbeddedSubtitles.prepare(context, file) }
+            runCatching { EmbeddedSubtitles.prepare(context.castTools(), file) }
                 .onFailure { Diag.warn("subtitles", "could not save ${file.name}'s own subtitles", it) }
         }
     }

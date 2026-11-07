@@ -223,7 +223,7 @@ internal class CastStreams(
 
         private fun localVideo(source: File): StreamLayout? {
             val durationUs = audio.durationUs.takeIf { it != C.TIME_UNSET }
-            val remuxed = VideoRemux.videoOnly(context, source, "${item.mediaId}/$token", durationUs) { percent ->
+            val remuxed = VideoRemux.videoOnly(context.castTools(), source, "${item.mediaId}/$token", durationUs) { percent ->
                 tvs.stage(item.mediaId, CastStage.REPACKAGING, percent)
             } ?: return null
             videoFile = remuxed
@@ -348,7 +348,7 @@ internal class CastStreams(
         val path = videoUrl?.takeIf { !it.startsWith("http") }?.let { it.toUri().path ?: it } ?: return emptyList()
         val file = File(path).takeIf { it.extension.equals("mkv", true) || it.extension == "media" }
             ?: return emptyList()
-        if (!EmbeddedSubtitles.isDone(context, file)) {
+        if (!EmbeddedSubtitles.isDone(context.castTools(), file)) {
             if (preparing.add(file.path)) {
                 Diag.log(
                     "cast",
@@ -357,7 +357,7 @@ internal class CastStreams(
                 Thread(
                     {
                         try {
-                            EmbeddedSubtitles.prepare(context, file)
+                            EmbeddedSubtitles.prepare(context.castTools(), file)
                         } finally {
                             preparing.remove(file.path)
                         }
@@ -368,7 +368,7 @@ internal class CastStreams(
             }
             return emptyList()
         }
-        return EmbeddedSubtitles.kept(context, file).map { kept ->
+        return EmbeddedSubtitles.kept(context.castTools(), file).map { kept ->
             MediaItem.SubtitleConfiguration.Builder(Uri.fromFile(kept.file))
                 .setMimeType(MimeTypes.TEXT_VTT)
                 .setLanguage(kept.language)

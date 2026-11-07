@@ -1,31 +1,29 @@
 package com.dewijones92.totum.playback.cast
 
-import android.content.Context
-import com.dewijones92.totum.common.BundledBinaries
 import com.dewijones92.totum.common.Diag
 import java.io.File
 import java.util.concurrent.TimeUnit
 
-internal object VideoRemux {
+public object VideoRemux {
 
     private val FORMATS = listOf(
         "mp4" to listOf("-f", "mp4", "-movflags", "+frag_keyframe+empty_moov+default_base_moof+global_sidx"),
         "webm" to listOf("-f", "webm", "-dash", "1", "-cues_to_front", "1"),
     )
 
-    fun videoOnly(
-        context: Context,
+    public fun videoOnly(
+        tools: MediaTools,
         source: File,
         label: String,
         durationUs: Long? = null,
         onProgress: (Int) -> Unit = {},
     ): File? {
-        val ffmpeg = File(context.applicationInfo.nativeLibraryDir, BundledBinaries.FFMPEG)
-        if (!ffmpeg.exists()) {
+        val ffmpeg = tools.ffmpeg
+        if (ffmpeg == null || !ffmpeg.exists()) {
             Diag.warn("cast", "$label: no bundled ffmpeg, so the downloaded video cannot be remuxed for the TV")
             return null
         }
-        val dir = File(context.cacheDir, CACHE_DIR).apply { mkdirs() }
+        val dir = File(tools.cacheDir, CACHE_DIR).apply { mkdirs() }
         val stem = "${source.name}-${source.length()}-${source.lastModified()}"
         FORMATS.map { (ext, _) -> File(dir, "$stem.$ext") }.firstOrNull { it.length() > 0 }?.let {
             Diag.log("cast", "$label: reusing the remuxed video ${it.name} (${it.length() / Http.KB}KB)")

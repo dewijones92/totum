@@ -193,4 +193,5 @@ public object Http {
     internal const val BAD_GATEWAY: Int = 502
     public const val KB: Long = 1024
     public const val MILLIS: Long = 1000
+    public const val MPD: String = "application/dash+xml"
 }

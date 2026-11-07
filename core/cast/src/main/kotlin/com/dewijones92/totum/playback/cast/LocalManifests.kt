@@ -1,6 +1,5 @@
 package com.dewijones92.totum.playback.cast
 
-import androidx.media3.common.MimeTypes
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
 import java.net.InetAddress
@@ -25,7 +24,7 @@ public object LocalManifests {
 
     public fun servesManifest(url: String): Boolean = url.startsWith("http://127.0.0.1:") && url.contains("/live/")
 
-    internal fun manifestAt(url: String): String? {
+    public fun manifestAt(url: String): String? {
         if (!servesManifest(url)) return null
         val id = url.substringAfter("/live/").substringBefore('?').removeSuffix(".mpd")
         return synchronized(manifests) { manifests[id] }
@@ -37,7 +36,7 @@ public object LocalManifests {
             ?: return HttpReply.Bytes(Http.NOT_FOUND, "text/plain", "no manifest for $id".toByteArray()).also {
                 Diag.warn("live", "asked for a manifest nobody published: ${request.path}")
             }
-        return HttpReply.Bytes(Http.OK, MimeTypes.APPLICATION_MPD, manifest.toByteArray())
+        return HttpReply.Bytes(Http.OK, Http.MPD, manifest.toByteArray())
     }
 
     private const val PORT = 8766

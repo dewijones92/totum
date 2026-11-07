@@ -1,6 +1,5 @@
 package com.dewijones92.totum.playback.cast
 
-import androidx.media3.common.MimeTypes
 import com.dewijones92.totum.common.Diag
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
@@ -15,7 +14,7 @@ internal class LiveRelay(private val label: String, manifest: String) {
     }
 
     fun reply(what: String): HttpReply {
-        if (what == "live.mpd") return HttpReply.Bytes(Http.OK, MimeTypes.APPLICATION_MPD, manifest.toByteArray())
+        if (what == "live.mpd") return HttpReply.Bytes(Http.OK, Http.MPD, manifest.toByteArray())
         val parts = what.removePrefix("live/").split('/')
         val base = parts.getOrNull(0)?.toIntOrNull()?.let(bases::getOrNull)
         val number = parts.getOrNull(1)?.toLongOrNull()
@@ -48,20 +47,20 @@ internal class LiveRelay(private val label: String, manifest: String) {
     }
 }
 
-internal class LiveCasts {
+public class LiveCasts {
     private val relays = ConcurrentHashMap<String, LiveRelay>()
 
-    fun open(label: String, manifest: String, base: String, token: String): String {
+    public fun open(label: String, manifest: String, base: String, token: String): String {
         relays[token] = LiveRelay(label, manifest)
         Diag.log("cast", "$label is live: the TV gets Totum's live manifest, segments relayed as they are")
         return "$base/c/$token/live.mpd"
     }
 
-    fun replyTo(request: HttpRequest): HttpReply? {
+    public fun replyTo(request: HttpRequest): HttpReply? {
         val parts = request.path.substringBefore('?').trim('/').split('/')
         val relay = parts.getOrNull(1)?.let(relays::get) ?: return null
         return relay.reply(parts.drop(2).joinToString("/"))
     }
 
-    fun clear() = relays.clear()
+    public fun clear() = relays.clear()
 }
