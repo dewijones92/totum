@@ -1,4 +1,4 @@
-FROM eclipse-temurin:21-jre AS cli
+FROM eclipse-temurin:25-jre AS cli
 
 ARG TOTUM_VERSION
 
