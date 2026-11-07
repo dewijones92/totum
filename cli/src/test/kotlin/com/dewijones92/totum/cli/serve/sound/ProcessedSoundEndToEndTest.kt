@@ -70,7 +70,14 @@ class ProcessedSoundEndToEndTest {
         assertEquals(0xFF, bytes[0].toInt() and 0xFF)
         assertEquals(0xF0, bytes[1].toInt() and 0xF0)
         val probe = ProcessBuilder(
-            "ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=nw=1:nk=1", aac.path,
+            "ffprobe",
+            "-v",
+            "error",
+            "-show_entries",
+            "format=duration",
+            "-of",
+            "default=nw=1:nk=1",
+            aac.path,
         ).redirectErrorStream(true).start()
         val seconds = probe.inputStream.bufferedReader().readText().trim().toDouble()
         assertEquals(2.0, seconds, 0.3)
