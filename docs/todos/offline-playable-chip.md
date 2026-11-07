@@ -1,10 +1,10 @@
 ---
 title: Offline at a glance
 kind: todo
-status: built 2026-11-06, Batch A (tests owed)
+status: built 2026-11-06, Batch A (tests written 2026-11-07)
 batch: A (2026-11)
 priority: medium
-updated: 2026-11-06
+updated: 2026-11-07
 ---
 
 # Offline at a glance
@@ -23,7 +23,13 @@ it (equal to Downloaded outside the queue); the chip says "play with no signal" 
 untrue. The disagreement the todo named was a handle that carries its own file, not audio-only copies, which already
 counted.
 
-## Tests owed
+## Tests (Batch A testing stretch, part A, 2026-11-07)
 
-`PlaysWithNoSignalTest`, the own-file case for `UnavailableOfflineNowTest`, `ItemFiltersTest.PLAYS_OFFLINE`, and an
-instrumented chip toggle.
+`PlaysWithNoSignalTest` (`:core:domain`, 5: downloaded whole and audio-only for a video and a podcast, a handle with its
+own file, nothing local, a torrent with only an audio address, and that the row line, count and filter ask one
+question), `UnavailableOfflineNowTest` (the own-file case), `ItemFiltersTest` (`PLAYS_OFFLINE` by the extra answer and
+by the default, `DOWNLOADED`/`NOT_DOWNLOADED` ignoring it, the live filter). Seen failing with `offline = false` in the
+rule.
+
+Still owed: instrumented, the chip showing and toggling the queue filter (`QUEUE_PLAYABLE_CHIP_TAG`) and the saved
+filter round-tripping `PLAYS_OFFLINE` through `rememberItemFilters`.

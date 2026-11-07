@@ -2,7 +2,7 @@
 title: Trip mode: fill the phone before you leave
 kind: feature
 area: downloads
-status: built 2026-11-07, Batch A (tests owed; not run on a device)
+status: built 2026-11-07, Batch A (tests written; not run on a device)
 updated: 2026-11-07
 ---
 
@@ -56,7 +56,10 @@ has `trip.armed`, `trip.departureAtMs`, `trip.perGroup`, `trip.progress`.
 - The hour and count choices, the 2 GB reserve and two attempts per item are the builder's calls. The two attempts apply
   to fetches, Pi copies and other Pi files alike, and are saved with the trip, so a restart does not reset them.
 
-## Tests owed
+## Tests (Batch A testing stretch, part A, 2026-11-07)
 
-A Compose test of the tile and page; a live run; `EpisodeDownloads.fetchBatch` through the download manager with a fake.
-`TripPlanTest` and `TripModeTest` cover the plan and the controller.
+`TripPlanTest` and `TripModeTest` cover the plan and the controller; new `EpisodeBatchEndTest` covers
+`EpisodeDownloads.fetchBatch` (some failed ends done but partial, all failed ends nothing, the quality passed to every
+item, tracked as a download batch).
+
+Still owed: a Compose test of the tile and page, and a live run on a phone and a Pi; no departure notification yet.

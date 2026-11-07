@@ -4,7 +4,7 @@ kind: todo
 status: built
 batch: A (2026-11)
 priority: medium
-updated: 2026-11-06
+updated: 2026-11-07
 ---
 
 # Already queued? Say so
@@ -19,6 +19,12 @@ The rule is on the queue's entry seam (`addingUnlessQueued`), the prompt is one 
 "moves an already-queued item" assertions are now "leaves it and says so", and the bulk-equals-single property compares
 against an explicit move.
 
-Tests to add: the three `AlreadyQueued` shapes (later, next, playing) and that nothing moves; `moveUp` keeps the group and
-does nothing for the playing entry; `SomeAlreadyQueued` once per bulk call, never for `byYou = false`; the shell collector
-(snackbar with Move up, toast otherwise).
+## Tests (Batch A testing stretch, part A, 2026-11-07)
+
+`AlreadyQueuedNoticesTest` (9): a new add says nothing; later in the queue (`position`, `canMoveUp`), next (`next`, no
+move up) and playing (`playing`) each say so and move nothing; `moveUp` keeps the group and does nothing for the playing
+entry; `SomeAlreadyQueued` once per bulk call and counted once for a repeat inside the list; `addToGroup` and
+`playAll` say so for `byYou = true` and stay silent for `byYou = false`, and `playAll` never counts the playing item.
+The wording of each notice: `BatchAWordsTest` (instrumented). Seen failing with the position shifted by one.
+
+Still owed: the shell collector `QueueNoticeToasts` (a snackbar with Move up, a toast otherwise).

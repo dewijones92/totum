@@ -1,10 +1,10 @@
 ---
 title: A bedtime sleep timer
 kind: todo
-status: built 2026-11-06, Batch A (tests owed)
+status: built 2026-11-06, Batch A (tests written 2026-11-07)
 batch: A (2026-11)
 priority: low
-updated: 2026-11-06
+updated: 2026-11-07
 ---
 
 # A bedtime sleep timer
@@ -26,21 +26,17 @@ that night ends. Also the coordinator's: a night is nights-of-the-week plus a st
 auto-arm for live streams or the kid lock. (The "held in memory only" part was reversed: the cancel is now kept across a
 process death, see ADR 133's amendment.)
 
-## Tests owed
+## Tests (Batch A testing stretch, part A, 2026-11-07)
 
-- `BedtimeSettingsTest` (`:lib:reminders`): `isBedtime` across midnight (Friday 23:00, Saturday 03:00, Saturday 07:00),
-  a start before the end on one day, no nights, start equal to end, `runEnd` through midnight, `nextStart`, `decide`
-  for every branch (off, outside, armed, kid lock, live, declined, arm) and `status`.
-- `BedtimeCodecTest`: round trip, unknown keys, `validated` clamps.
-- `SleepTimerTest` (`:core:playback`, unit): the fade ramps `setFadeLevel` over the last seconds of a countdown and of
-  the last item (position and speed), restores full volume on end, cancel and moving off, never fades with fade 0, on a
-  live item or with no duration; `cancel()` emits on `cancellations` and `firesAfter` does not.
-- `Bedtime` hub tests (fake controller, test scope): arms on play start inside bedtime, not outside, not when a timer
-  is armed, not when kid-locked or live; arms at the start of bedtime if already playing; cancel sticks for the night
-  and the next night arms again; settings change evaluates.
-- A device check of the audible fade, and of the Bedtime page.
-- Sweep fixes (2026-11-06), still owed: `SleepTimerTest` for the cast fade (ramps `setCastVolume` from the starting
-  fraction and puts it back; a cast with no `castVolume` logs and does not ramp; `cancellations` carries the owner
-  of the timer that was cancelled and null for a timer the person set); `Bedtime` hub: the declined night is written
-  to the store and a new `Bedtime` over the same store does not re-arm that night but does the next; the page's
-  status line moves at a boundary while open (an instrumented/UI check). Finding 5's test is written: `BedtimeTest`.
+`BedtimeSettingsTest` (`:lib:reminders`, now 10: nights through midnight, chosen nights, equal times, every decision
+branch and its reason, the status, clamping, the codec ignoring unknown keys, a night ending at its own morning, the
+next start skipping an unchosen night, a declined night arming again the night after), `BedtimeHubTest` (`:app`, 13:
+arms on play inside bedtime and not outside, a timer already armed, the kid lock, live, switched off, already playing
+when bedtime starts, switching it on, cancel sticking for the night and the next night arming, the declined night
+persisted and not re-armed by a restart, a stale decline forgotten, clamped saves, the status moving, the report),
+`SleepTimerFadeTest` (`:core:playback`, 12: countdown fade holds then ramps down and ends silent and paused, fade 0, the
+last seconds of an item, at speed, live and no length, cancel and moving off and restart restoring the volume, the TV
+volume ramped from where it was and put back, a TV with no volume, who armed a cancelled timer), `BedtimeTest`. Seen
+failing with the volume restore removed and the decline no longer saved.
+
+Still owed: the audible fade on a phone, the Bedtime page, the page's status line moving at a boundary while open.

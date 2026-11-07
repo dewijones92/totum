@@ -1,9 +1,9 @@
 ---
 title: Time left per queue group
 kind: feature
-status: built 2026-11-06, Batch A (tests owed)
+status: built 2026-11-06, Batch A (tests written 2026-11-07)
 area: queue
-updated: 2026-11-06
+updated: 2026-11-07
 ---
 
 # Time left per queue group
@@ -33,13 +33,13 @@ and not on an endless radio.
 `queue` line with `dewidebug`: the time left per group (id, duration, how many are of unknown length, whether the speed
 was applied), the cursor's place and the chosen speed, logged when any of them changes.
 
-## Tests owed
+## Tests (Batch A testing stretch, part A, 2026-11-07)
 
-- `TimeLeftTest` in `:core:domain`: unplayed, in progress (state's duration, item's duration), played counted in full,
-  unknown and live giving "at least", all unknown giving null, music at 1x, speed named only when something is sped,
-  rounding up to the minute.
-- `GroupTimesLeftTest` in `:core:data`: only entries at or after `from`, `countsAsLeft` honoured, ungrouped entries
-  skipped, a split group totalled together.
-- `PlaysAtSpeedTest` (every kind) and the existing `tuningFor` tests as the guard that playback did not change.
-- `SharedPrefsPlaybackSpeedStore.chosen` follows `save` and the first `speed()` (androidTest).
-- Instrumented: a group header shows the line, "at least" and the speed, and none on an endless radio.
+`TimeLeftTest` (`:core:domain`, 13: unplayed, at 2x, part-way by the state's length and by the item's, played in full,
+unknown lengths as "at least", live excluded, music never sped, a mix, an audiobook, rounding up to the minute, nothing
+known, a position past the end), `PlaysAtSpeedTest`, `GroupTimesLeftTest` (`:core:data`, 9: per group, from the current
+place, passed-over entries, unknown lengths, a split group), instrumented `BatchAScreensTest` (the four wordings) and
+`BatchAStoresTest` (`SharedPrefsPlaybackSpeedStore.chosen` follows a save and the first read; restores the speed).
+Seen failing with the minute rounding changed.
+
+Still owed: instrumented, the real queue group header showing the line.

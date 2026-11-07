@@ -1,9 +1,9 @@
 ---
 title: A Carry on row in Library
 kind: feature
-status: built 2026-11-06, Batch A (tests owed)
+status: built 2026-11-06, Batch A (tests written 2026-11-07)
 area: library
-updated: 2026-11-06
+updated: 2026-11-07
 ---
 
 # A Carry on row in Library
@@ -42,10 +42,12 @@ It is hidden while there is nothing to carry on.
 `library` logs which items the row shows, with their positions, from how many played items; `carry-on` logs a tap or
 long-press with the item's id and position.
 
-## Tests owed
+## Tests (Batch A testing stretch, part A, 2026-11-07)
 
-- `CarryOnTest` in `:core:domain`: keeps in-progress items in history order; leaves out unplayed, played, nearly-finished
-  (by the state's duration and by the item's when the state has none), music and live; the 12 cap; a missing state.
-- `CarryOnViewModelTest` (`:app` JVM): history without not-for-me items, and `play` calls `playAll` with the item.
-- Instrumented: the row appears with a half-played item, shows its bar and words, is absent with none, and a long press
-  opens the item menu.
+`CarryOnTest` (`:core:domain`, 10: history order, unplayed and played and unknown left out, the finished tail by the
+state's length and by a short item's last tenth, the item's own length when the state has none, no length anywhere,
+music and live left out, the 12 cap, the state carried for the bar), `CarryOnViewModelTest` (the history without
+not-for-me items and following the list, a tap queueing a run of one), instrumented `BatchAScreensTest` (the row's
+title, each card's words and tap, absent when empty). Seen failing with the live exclusion removed.
+
+Still owed: instrumented, the progress bar and the long-press item menu.

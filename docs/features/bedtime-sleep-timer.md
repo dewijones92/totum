@@ -2,8 +2,8 @@
 title: Bedtime sleep timer — the sleep timer arms itself at night, and every sleep timer fades out
 kind: feature
 area: player
-status: built 2026-11-06, Batch A (tests owed) — ships switched off; the fade is on (20 s) for every sleep timer
-updated: 2026-11-06
+status: built 2026-11-06, Batch A (tests written 2026-11-07) — ships switched off; the fade is on (20 s) for every sleep timer
+updated: 2026-11-07
 ---
 
 # 🌙 Bedtime sleep timer
@@ -63,6 +63,17 @@ fires or is cancelled by the person. Reports carry `bedtime.enabled`, `.nights`,
 That a volume change made through the `MediaController` reaches the session's player and is audible as a fade (no phone
 or device run in this build), and the Bedtime page on a screen.
 
-## Tests (code first, 2026-11-06; `BedtimeTest` covers who may decline the night)
+## Tests (Batch A testing stretch, part A, 2026-11-07)
 
-Listed in [todos/bedtime-sleep-timer](../todos/bedtime-sleep-timer.md) under "Tests owed".
+`BedtimeSettingsTest` (`:lib:reminders`, now 10: nights through midnight, chosen nights, equal times, every decision
+branch and its reason, the status, clamping, the codec ignoring unknown keys, a night ending at its own morning, the
+next start skipping an unchosen night, a declined night arming again the night after), `BedtimeHubTest` (`:app`, 13:
+arms on play inside bedtime and not outside, a timer already armed, the kid lock, live, switched off, already playing
+when bedtime starts, switching it on, cancel sticking for the night and the next night arming, the declined night
+persisted and not re-armed by a restart, a stale decline forgotten, clamped saves, the status moving, the report),
+`SleepTimerFadeTest` (`:core:playback`, 12: countdown fade holds then ramps down and ends silent and paused, fade 0, the
+last seconds of an item, at speed, live and no length, cancel and moving off and restart restoring the volume, the TV
+volume ramped from where it was and put back, a TV with no volume, who armed a cancelled timer), `BedtimeTest`. Seen
+failing with the volume restore removed and the decline no longer saved.
+
+Still owed: the audible fade on a phone, the Bedtime page, the page's status line moving at a boundary while open.

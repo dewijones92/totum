@@ -1,10 +1,10 @@
 ---
 title: Slack, Outlook and Teams stay quiet outside work hours
 kind: todo
-status: built 2026-11-06, Batch A (tests owed); groups and change notifications built 2026-11-06 too
+status: built 2026-11-06, Batch A (tests written 2026-11-07); groups and change notifications built 2026-11-06 too
 batch: A (2026-11)
 priority: high
-updated: 2026-11-06
+updated: 2026-11-07
 ---
 
 # Slack, Outlook and Teams stay quiet outside work hours
@@ -39,25 +39,20 @@ Done as an amendment to [ADR 124](../adr/0124-work-apps-are-snoozed-outside-work
 group); the pause is per group; an app belongs to one group; the notification wording is "🔕 Work apps quiet until
 09:00 Mon" / "🔔 Work apps back on", and a change made from the settings page does not announce itself.
 
-## Tests owed
+## Tests (Batch A testing stretch, part A, 2026-11-07)
 
-Beyond the first-build list in the feature doc ("Tests still to write"):
+`WorkAppsSettingsTest` (`:lib:dailyalarms`, 20: every `decide` branch and its reason, the snooze return time with its
+margin, the minute at each edge, a pause, no days set, per-day hours, `status` and `refreshAt` as the earliest boundary,
+group state, `validated` keeping the first claim and dropping duplicate ids, clamped hours, `withApp`, `withGroup`,
+`withoutGroup`, labels, the codec, the tally), `WorkAppsQuietHubTest` (`:app`, 18: a boundary announced once and never
+on the first reading, remembered across a restart, a change made on the page silent, a pause ending by itself
+announced, an edit not swallowing another group's boundary, the whole switch silent, a refused notice counted and not
+retried, `quietEnded` for a pause / switch off / group deleted / app removed / the day beginning and nothing for apps
+that stay quiet, remove and restore keeping their slot, pausing until the next start, the report), with
+`WorkAppsGroupsTest`, `WeeklyWindowTest`; instrumented `BatchAStoresTest` (`SnoozedKeys` add, contains, remove). Seen
+failing with the edited-group rule removed and with calls and alarms no longer exempt.
 
-- `WorkAppsSettingsTest`: groups (`groupOf`, an app moves between groups, `validated` keeps the first claim and drops
-  duplicate ids), per-group `decide` (each group's own window, pause and snooze return time), `status` with several
-  groups and `refreshAt` as the earliest boundary, `GroupState.changedFrom` (first reading, into quiet, back on, into a
-  pause, no days set).
-- `WorkAppsCodecTest`: a stored single list decodes as one default group with the same apps, window and pause; the new
-  shape round-trips; `encodeKinds` and `decodeKinds`.
-- `WorkAppsQuiet` hub tests: `noteBoundaries` announces a time-driven change once, never the first reading or a change
-  made through `update`, and a pause ending by itself is announced; `removeGroup` and `restoreGroup`, `removeApp` and
-  `restoreApp` keep their slot.
-- A device check of the page with two groups, the combined board line and the notification.
-
-Sweep fixes (2026-11-06), owed as tests: `WorkAppsQuiet` hub: an edit to one group does not swallow the boundary a
-second, untouched group crossed (announced once), and announces nothing for the edited group or when the switch moves;
-`quietEnded` emits the packages that stopped being quiet on a pause, a group switched off, an app removed, a group
-deleted, the switch turned off and a boundary (and nothing for an app that stays quiet); a refused notice
-(`announce` returns a reason) is counted in `diagnostics` and not retried by a later `noteBoundaries`; the listener's
-`SnoozedKeys` (add, keepOnly, remove) and a device check that re-snoozing for one second really brings a snoozed
-notification back.
+Still owed: `AlarmBoardTest` for the `workApps` refresh joining `refreshAt`; the listener against a posted
+notification and that re-snoozing for one second brings a snoozed one back (device); the page with two groups, the
+combined board line and the notification (device). `SnoozedKeys.keepOnly` is deliberately not run on a device: it
+would forget the real snoozed notifications.

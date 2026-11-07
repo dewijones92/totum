@@ -1002,3 +1002,38 @@ already runs the crashlog server with a SQLite index behind Google auth; that pa
   Delete → Undo (instrumented), and the screenshot of the snackbar over each screen.
 - **The All subscriptions row wears the live tag (2026-11-06, ADR 132):** `AllSubscriptionsListTest` (instrumented, not
   yet run on a device): from the registry, from the saved kind, an ended stream, and an ordinary upload with no tag.
+
+## Batch A testing stretch, part A (2026-11-07)
+
+The tests owed by the code-first items of Batch A. Each area had at least one test seen failing with the code it covers
+briefly broken, then the code put back. Instrumented classes were compiled (`:app:compileDebugAndroidTestKotlin`,
+`:core:playback:compileDebugAndroidTestKotlin`) but **not run**: an emulator soak was in progress.
+
+| Area | Kind | Tests |
+|---|---|---|
+| Undo everywhere, playlist and history Undo | JVM | `PendingDownloadDeletesTest`, `AskChatUndoTest`, `LocalPlaylistDetailUndoTest` (with `PlaylistRemovalsTest`, `HistoryClearingTest`) |
+| Already queued, no duplicate queueing | JVM + instrumented | `AlreadyQueuedNoticesTest`; the notices' wording in `BatchAWordsTest` |
+| Not for me | JVM | `NotForMeTest` (`:core:data`), `NotForMeSurfacesTest`, `AskNotForMeTest` |
+| Queue tidy-up and its undo | JVM + instrumented | `QueueTidyTest`, `TidyUndoStoreTest`; the line's wording in `BatchAWordsTest` |
+| Next in the notification, why is this playing | JVM + instrumented | `NextLineTest`, `PlayReasonsTest`, `PlayReasonPhraseTest`; `TheNotificationSaysWhatIsNextTest` (`:core:playback`), `BatchAScreensTest` (the dialog and menu), `BatchAWordsTest` |
+| Share link everywhere | JVM + instrumented | `ShareLinkTest`, `HttpUrlTest` (`host`); `shareListMessage` in `BatchAWordsTest` |
+| Offline-playable chip | JVM | `PlaysWithNoSignalTest`, `UnavailableOfflineNowTest`, `ItemFiltersTest` |
+| Carry on row | JVM + instrumented | `CarryOnTest`, `CarryOnViewModelTest`; `BatchAScreensTest` |
+| Time left per group | JVM + instrumented | `TimeLeftTest`, `PlaysAtSpeedTest`, `GroupTimesLeftTest`; `BatchAScreensTest`, `BatchAStoresTest` (the speed store's `chosen`) |
+| 🔴 LIVE registry, live check, refresher, all-subscriptions line | JVM + instrumented | `LiveKindsTest`, `LiveTagTest`, `TheLiveCheckSaysWhatIsHappeningTest`, `TheResolverTellsTheLiveRegistryTest`, `LiveRefresherTest`, `MusicPlaysPlainTest`; `BatchAScreensTest` (the badge), `AllSubscriptionsListTest` |
+| Bedtime sleep timer and fade | JVM | `BedtimeSettingsTest`, `BedtimeHubTest`, `SleepTimerFadeTest` |
+| Work-app quiet hours, groups, change notices | JVM + instrumented | `WorkAppsSettingsTest`, `WorkAppsQuietHubTest`; `BatchAStoresTest` (`SnoozedKeys`) |
+| 🎥 Recorder pure pieces | JVM + instrumented | `RecorderPureRulesTest`; `BatchAStoresTest` (`RecorderChoiceStore`) |
+| Kid TV | JVM + instrumented | `KidTvTest`, `KidModeTest`; `KidTvWordsTest` |
+| Trip mode | JVM | `TripPlanTest`, `TripModeTest`, `EpisodeBatchEndTest` (the batch it starts) |
+| Frame-rate stamp, WebM/MKV | JVM | `FrameRateFromSampleTimesTest` (whole-millisecond times), `StampsFrameRateTest`, `EvenRefreshTest` |
+
+New instrumented classes to run after the soak: `BatchAWordsTest`, `BatchAScreensTest`, `KidTvWordsTest`,
+`BatchAStoresTest` (all `:app`; the last one reads and restores the recorder choices and the playback speed, and adds
+and removes its own snoozed-notification keys), `TheNotificationSaysWhatIsNextTest` (`:core:playback`).
+`AllSubscriptionsListTest`, `MultiSelectTest` and `RoomUndoTest` are still waiting for their first run.
+
+Deliberately not covered, with the reason: `MediaRouterTvConnector` (real `MediaRouter`, no seam to fake), the recorder's
+`Plan` (a private class inside the service), `TapCircles`/`SystemTaps`/`OrphanedRecordings` (device or `adb` grants),
+`SnoozedKeys.keepOnly` (would forget the device's real snoozed notifications), and the real `MatroskaExtractor` on a
+WebM (its `SparseArray` needs a device).

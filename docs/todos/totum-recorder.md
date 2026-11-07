@@ -1,10 +1,10 @@
 ---
 title: 🎥 Totum recorder — screen, mic and an optional face bubble, from one icon
 kind: todo
-status: built 2026-11-06, Batch A (tests owed)
+status: built 2026-11-06, Batch A (tests written 2026-11-07)
 batch: A (2026-11), phase 4
 priority: medium
-updated: 2026-11-06
+updated: 2026-11-07
 ---
 
 # 🎥 Totum recorder — screen, mic and an optional face bubble, from one icon
@@ -32,22 +32,14 @@ it from the speaker), because that needs a hand-built MediaCodec/AudioPlaybackCa
 untested; the recording is a progress-strip task only for its saving step, with the running recording shown by its
 notification.
 
-## Tests owed
+## Tests (Batch A testing stretch, part A, 2026-11-07)
 
-- `captureSize` and `recordingName` (pure): even sizes, the 1920 cap, portrait and landscape, tiny screens.
-- `RecorderChoiceStore` round trip and defaults.
-- `TapCircles`: a press draws a circle, a release fades it out after 450 ms, nothing draws unless the status is
-  `IN_TOTUM`.
-- `SystemTaps`: `show` remembers the previous value once, `restore` puts it back and forgets it, nothing happens
-  without the grant.
-- `RecorderService` plan: which foreground types follow from which permissions (the `Plan` rules), and that a failed
-  start discards the pending file and releases the projection.
-- Instrumented, on a device: consent then a 10 s recording lands in `Movies/Totum` and plays; Stop from the
-  notification, the tile and the system capture chip each finish a playable file; the face bubble preview is upright
-  and mirrored in portrait and landscape and is in the video; Show taps is restored after Stop and after a killed
-  process; a refused microphone, camera or overlay permission records without that part and says so.
-- Sweep fixes (2026-11-06), owed: `orphanVerdict` (empty, no duration, playable); `OrphanedRecordings` against a fake
-  resolver (published, deleted, a recording running leaves it alone, younger than a minute is not listed);
-  `SystemTaps.restoreIfLeftOn` only when a previous value is remembered; `RecorderStatus.Recording.faceLost` shown by
-  `RecorderNotifications` (instrumented); a device check that a camera taken by another app removes the bubble and
-  the notification says so, and that a killed recording is recovered or removed at the next launch.
+`RecorderPureRulesTest` (`:app`, 11: `captureSize` for tall, landscape, within the cap, odd, tiny, another cap and a
+sweep of real screen sizes; `recordingName`; `orphanVerdict` for empty, no duration and playable), instrumented
+`BatchAStoresTest` (`RecorderChoiceStore` round trip and defaults, restoring the choices). Seen failing with the cap
+changed and with an empty file no longer deleted.
+
+Still owed, with the reason: `TapCircles` (needs `RecorderState` set and real touches), `SystemTaps` (needs
+`WRITE_SECURE_SETTINGS`, granted by `adb`), `OrphanedRecordings` against a resolver (MediaStore, device), the `Plan`
+foreground-type rules (a private class inside `RecorderService`; it needs exposing as a pure function to be unit tested),
+`RecorderStatus.Recording.faceLost` in the notification, and every device check listed above.

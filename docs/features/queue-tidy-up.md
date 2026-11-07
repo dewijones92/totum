@@ -1,9 +1,9 @@
 ---
 title: The queue tidies itself
 kind: feature
-status: built 2026-11-06 (tests to follow)
+status: built 2026-11-06 (tests written 2026-11-07)
 area: queue
-updated: 2026-11-06
+updated: 2026-11-07
 ---
 
 # The queue tidies itself
@@ -45,11 +45,15 @@ page's "Clear all" now calls too, so there is one copy of the rule.
 music, locked, playing now, playing group, not finished), up to 50 leaving titles, and the result; `download` line
 `clear failed (queue tidy-up, weekly): N failed download(s) forgotten`; the `jobs` lines.
 
-## Tests still to write
+## Tests (Batch A testing stretch, part A, 2026-11-07)
 
-`TidyUndoStore` (hold, take within and past its window, a dismissed batch, the file round trip) and `QueueTidy.undo`
-(slots restored in order, an entry already back is left alone).
+`QueueTidyTest` (13: age boundary exactly at the cut-off and a moment newer, undated kept, music, locked, in progress,
+unplayed, the playing item and its group kept, failed downloads cleared and counted, undo into the old slots, undo twice,
+an item queued again since, a run that tidies nothing keeping an earlier batch, forgetting the undo, every
+`tidyKeepReason` and their order), `TidyUndoStoreTest` (8: taken once, the window boundary, a late take forgetting the
+batch, a newer batch replacing, the file round trip, a dismissed batch, an unreadable file), and the notice's words in
+`BatchAWordsTest` (instrumented). Seen failing with the cut-off comparison, the canonical window and the undo window
+each changed.
 
-`tidyKeepReason` per rule; `QueueTidy.tidy` against a fake queue and progress store (age boundary, undated, locked,
-playing group, music, in progress); the worker with the setting off and with an unloaded queue; `clearFailed` against
-`FakeDownloadManager`; Settings rows.
+Still owed: the worker (`QueueTidyWorker`, WorkManager) with the setting off and with an unloaded queue,
+`QueueTidyUndoReceiver`, the Settings rows.

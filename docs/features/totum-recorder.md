@@ -1,9 +1,9 @@
 ---
 title: Totum recorder
 kind: feature
-status: built 2026-11-06, Batch A (tests owed; not yet run on a device)
+status: built 2026-11-06, Batch A (pure-rule tests written 2026-11-07; not yet run on a device)
 area: app
-updated: 2026-11-06
+updated: 2026-11-07
 ---
 
 # 🎥 Totum recorder
@@ -11,7 +11,7 @@ updated: 2026-11-06
 Records the phone's screen, with Dewi's voice, an optional face bubble and his taps shown, from an app-icon shortcut
 or a Quick Settings tile. The video lands in `Movies/Totum` (the gallery) with a Share and an Open button on the
 notification that follows. Decisions and reasons: [ADR 135](../adr/0135-totum-records-the-screen-with-voice-face-and-taps.md);
-the original brief and the tests still owed: [the todo](../todos/totum-recorder.md).
+the original brief, the tests written and the tests still owed: [the todo](../todos/totum-recorder.md).
 
 ## What it does
 

@@ -2,7 +2,7 @@
 title: Kid TV: one tap puts the kid playlist on the TV
 kind: feature
 area: casting/kids
-status: built 2026-11-07, Batch A (tests owed; not run on a TV)
+status: built 2026-11-07, Batch A (tests written; not run on a TV)
 updated: 2026-11-07
 ---
 
@@ -56,7 +56,11 @@ name, select it, wait for the session), `CastTarget.device`, `PinPlayer.play` (t
   (with Stop) or goes off. A failed start that opened the cast ends it. It always plays on the phone's own queue, never
   redirected to a target the Queue tab was looking at.
 
-## Tests owed
+## Tests (Batch A testing stretch, part A, 2026-11-07)
 
-A Compose test of the tile and page; `MediaRouterTvConnector` against a fake router; a debug broadcast to start Kid TV
-for a device run. `KidTvTest` (13 cases) covers the orchestrator.
+`KidTvTest` (orchestrator, 18) and `KidModeTest` cover the rules; new instrumented `KidTvWordsTest` (every status and
+failure sentence of the tile and page).
+
+Still owed, with the reason: the tile and page interaction (needs a `KidTv` built on fakes inside an instrumented
+test), `MediaRouterTvConnector` against a fake router (it uses the real `MediaRouter`; faking it needs a port first),
+a debug broadcast, and the daytime run on the LG with tennis.

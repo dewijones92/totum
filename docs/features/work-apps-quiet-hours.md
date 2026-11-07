@@ -2,8 +2,8 @@
 title: Work apps quiet hours — groups of apps stay silent outside their own hours
 kind: feature
 area: side-quest
-status: built 2026-11-06, Batch A (tests owed) — ships switched off; groups of apps and change notifications built the same day
-updated: 2026-11-06
+status: built 2026-11-06, Batch A (tests written 2026-11-07) — ships switched off; groups of apps and change notifications built the same day
+updated: 2026-11-07
 ---
 
 # 🔕 Work apps quiet hours
@@ -107,11 +107,20 @@ A settings edit announces nothing for the groups the edit itself changed (or any
 but a boundary that had been crossed for an untouched group is still announced, as the edit now runs the same boundary
 check as the tick, with the edited groups silent. Before, the edit remembered every group's new state and swallowed it.
 
-## Tests still to write (code first, 2026-11-06)
+## Tests (Batch A testing stretch, part A, 2026-11-07)
 
-`WeeklyWindowTest` (inside, next start across a weekend, end of a run through midnight, per-day hours, a day off);
-`WorkAppsSettingsTest` (`decide` for every branch, `status` for every state, the snooze return time with its margin,
-no window set); `WorkAppsCodecTest` (round trip, unknown keys, `validated`); `AlarmBoardTest` (`workApps` refresh
-time joins `refreshAt`); `WorkAppsQuiet` hub tests (pause, resume, `update` saves and calls `onChanged`); a device
-test that the listener snoozes a posted notification. The groups and change notifications add their own list to
-[todos/work-apps-quiet-hours](../todos/work-apps-quiet-hours.md) under "Tests owed".
+`WorkAppsSettingsTest` (`:lib:dailyalarms`, 20: every `decide` branch and its reason, the snooze return time with its
+margin, the minute at each edge, a pause, no days set, per-day hours, `status` and `refreshAt` as the earliest boundary,
+group state, `validated` keeping the first claim and dropping duplicate ids, clamped hours, `withApp`, `withGroup`,
+`withoutGroup`, labels, the codec, the tally), `WorkAppsQuietHubTest` (`:app`, 18: a boundary announced once and never
+on the first reading, remembered across a restart, a change made on the page silent, a pause ending by itself
+announced, an edit not swallowing another group's boundary, the whole switch silent, a refused notice counted and not
+retried, `quietEnded` for a pause / switch off / group deleted / app removed / the day beginning and nothing for apps
+that stay quiet, remove and restore keeping their slot, pausing until the next start, the report), with
+`WorkAppsGroupsTest`, `WeeklyWindowTest`; instrumented `BatchAStoresTest` (`SnoozedKeys` add, contains, remove). Seen
+failing with the edited-group rule removed and with calls and alarms no longer exempt.
+
+Still owed: `AlarmBoardTest` for the `workApps` refresh joining `refreshAt`; the listener against a posted
+notification and that re-snoozing for one second brings a snoozed one back (device); the page with two groups, the
+combined board line and the notification (device). `SnoozedKeys.keepOnly` is deliberately not run on a device: it
+would forget the real snoozed notifications.

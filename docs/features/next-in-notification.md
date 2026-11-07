@@ -1,9 +1,9 @@
 ---
 title: What's next, in the notification
 kind: feature
-status: built 2026-11-06 (tests to follow; device check owed)
+status: built 2026-11-06 (tests written 2026-11-07; device check owed)
 area: player
-updated: 2026-11-06
+updated: 2026-11-07
 ---
 
 # What's next, in the notification
@@ -50,8 +50,13 @@ item, the effective repeat (the kid lock included), Explore, auto-play, and the 
 - Explore may find nothing related and fall back to the queue; the line still says Explore picks.
 - A reshuffled repeat round has no known first item, so no line.
 
-## Tests still to write
+## Tests (Batch A testing stretch, part A, 2026-11-07)
 
-`nextLineOf` per row of the table (including kind and finished skipping); the context bundle round trip; the
-provider's text with and without an artist, with repeat one, and held back for another item; a device check that
-reordering the queue changes the line within a second and that the lock screen shows it.
+`NextLineTest` (21: queued, the shield's title, nothing playing / nothing after / auto-play off, repeat one, the sleep
+timer outranking everything, explore, repeat queue and group with their reshuffled rounds, items the advance passes
+over, stay-in-kind, and the context the notification is sent), instrumented `TheNotificationSaysWhatIsNextTest`
+(`:core:playback`: the real provider's text for next, no artist, held back for another item, repeat one, explore, live
+badge then next, a refresh once per change, the context bundle round trip; reads the protected text by reflection).
+Seen failing with the sleep-timer rule inverted.
+
+Still owed: a device check that reordering the queue changes the line within a second and that the lock screen shows it.

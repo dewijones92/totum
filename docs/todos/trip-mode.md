@@ -1,7 +1,7 @@
 ---
 title: Trip mode
 kind: todo
-status: built 2026-11-07, Batch A (tests owed; not run on a device)
+status: built 2026-11-07, Batch A (tests written; not run on a device)
 batch: A (2026-11)
 priority: low
 updated: 2026-11-07
@@ -20,6 +20,10 @@ over Wi-Fi as one progress-strip task, and copies what the Pi has ready through 
 `aheadFor`, `EpisodeDownloads.fetchBatch`, `HomeDownloads.copyNow` and a `PeriodicJob`; no new download path. See
 [trip-mode](../features/trip-mode.md). Not run on a device.
 
-## Tests owed
+## Tests (Batch A testing stretch, part A, 2026-11-07)
 
-A Compose test of the tile and page; a live run on a phone and a Pi; no departure notification yet.
+`TripPlanTest` and `TripModeTest` cover the plan and the controller; new `EpisodeBatchEndTest` covers
+`EpisodeDownloads.fetchBatch` (some failed ends done but partial, all failed ends nothing, the quality passed to every
+item, tracked as a download batch).
+
+Still owed: a Compose test of the tile and page, and a live run on a phone and a Pi; no departure notification yet.

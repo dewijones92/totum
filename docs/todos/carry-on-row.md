@@ -1,10 +1,10 @@
 ---
 title: A Carry on row in Library
 kind: todo
-status: built 2026-11-06, Batch A (tests owed)
+status: built 2026-11-06, Batch A (tests written 2026-11-07)
 batch: A (2026-11)
 priority: medium
-updated: 2026-11-06
+updated: 2026-11-07
 ---
 
 # A Carry on row in Library
@@ -22,6 +22,12 @@ My calls: music and live streams are left out (nothing to resume; the todo said 
 exception, recorded in the ADR); the row has 12 cards; a tap queues through `playAll` like the History page rather than
 peeking.
 
-## Tests owed
+## Tests (Batch A testing stretch, part A, 2026-11-07)
 
-`CarryOnTest` (domain), `CarryOnViewModelTest`, and an instrumented check of the row, its bar and its long-press menu.
+`CarryOnTest` (`:core:domain`, 10: history order, unplayed and played and unknown left out, the finished tail by the
+state's length and by a short item's last tenth, the item's own length when the state has none, no length anywhere,
+music and live left out, the 12 cap, the state carried for the bar), `CarryOnViewModelTest` (the history without
+not-for-me items and following the list, a tap queueing a run of one), instrumented `BatchAScreensTest` (the row's
+title, each card's words and tap, absent when empty). Seen failing with the live exclusion removed.
+
+Still owed: instrumented, the progress bar and the long-press item menu.

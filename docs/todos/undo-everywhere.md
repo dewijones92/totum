@@ -4,7 +4,7 @@ kind: todo
 status: built
 batch: A (2026-11)
 priority: medium
-updated: 2026-11-06
+updated: 2026-11-07
 ---
 
 # Undo after every remove
@@ -22,9 +22,7 @@ earlier chats and (through one shell collector) download deletes (`PendingDownlo
 persisted). Playlist item removes offer Undo too.
 
 A playlist Undo puts the item back in its old slot (`LocalPlaylistStore.insertItem(id, item, at)`; Room shifts the later
-positions up by one). Tests to add: `PendingDownloadDeletes` (hide, undo, window end, start-up recovery, locked), the
-helper's no-host and nothing-removed branches, `AskViewModel.forget`/`unforget`,
-`LocalPlaylistDetailViewModel.removeAll`/`restore`, Room `insertItem` (androidTest).
+positions up by one).
 
 ## Whole-playlist delete and History clear (2026-11-06, third pass)
 
@@ -36,3 +34,16 @@ window. Details and the limit (a process death inside the window loses it) are i
 [ADR 128](../adr/0128-undo-already-queued-and-not-for-me-share-the-queue-entry-seam.md). Tests: see
 [tests/_index](../tests/_index.md); owed: the playlist page's Delete → Undo on a device, and a screenshot of the snackbar.
 
+## Tests (Batch A testing stretch, part A, 2026-11-07)
+
+JVM: `PendingDownloadDeletesTest` (hidden at once and everywhere, the file kept until the window ends, undo inside
+the window, a later batch waiting for the earlier window, a locked item, start-up recovery, a new download taking a
+pending delete back, an immediate delete), `AskChatUndoTest` (forget, undo in date order, an unknown chat, undo twice),
+`LocalPlaylistDetailUndoTest` (several items out and back into their slots, nothing offered for a missing item),
+beside `PlaylistRemovalsTest`, `HistoryClearingTest`, `RoomUndoTest` and `LocalPlaylistStoreTest`. Each seen failing
+with the code under it broken (undo made inert, the queued position changed, forget saving the wrong list, the playlist
+slot ignored).
+
+Still owed: the helper's own no-host and nothing-removed branches and the snackbar itself (`rememberRemoveWithUndo`
+is a composable; it needs a Compose host with a `SnackbarHostState`), and the playlist page's Delete then Undo on a
+device with a screenshot.

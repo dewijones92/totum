@@ -1,10 +1,10 @@
 ---
 title: 🔴 LIVE everywhere, kept up to date
 kind: todo
-status: built 2026-11-06, Batch A (tests owed)
+status: built 2026-11-06, Batch A (tests written 2026-11-07)
 batch: A (2026-11), phase 4
 priority: medium
-updated: 2026-11-06
+updated: 2026-11-07
 ---
 
 # 🔴 LIVE everywhere, kept up to date
@@ -36,24 +36,19 @@ reads, so they were not hooked.
 The All subscriptions page's latest-upload line was added the same day (the coordinator's call; Dewi delegated it,
 2026-11-06): `LiveBadge` on the row's latest item. It is not filtered by Not for me (ADR 128).
 
-## Tests owed
+## Tests (Batch A testing stretch, part A, 2026-11-07)
 
-- `AllSubscriptionsListTest` (instrumented): written 2026-11-06 (registry, saved kind, ended stream, no tag), not yet run.
+Written: `LiveKindsTest` (`afterSeeing` for every pair, `canBeLive`, `fillingSilenceFrom` returning the same instance when
+nothing was learned), `LiveTagTest` (every phase against every kind), `TheLiveCheckSaysWhatIsHappeningTest`
+(`liveCheck` live / ended / upcoming with the registry told / unknown / signed-in first, and `contentKindOf`),
+`TheResolverTellsTheLiveRegistryTest` (a resolve tells the registry, a yt-dlp resolve does not turn live into ended,
+the live check records what it found), `LiveRefresherTest` (`:app`: only tagged shown or queued ids, none within four
+minutes, at most six oldest first, learned live / ended handed back, back-off while unknown and its schedule, a check
+that throws), `ItemFiltersTest` (the live filter), `MusicPlaysPlainTest` (an ended stream plays as talk), with the
+earlier `LiveStatesTest`, `LiveStatesPersistenceTest`, `VideoResolverFastPathTest` and `MediaContentKindTest`.
+Instrumented: `BatchAScreensTest` (the badge for live, starts soon with and without a time, ended, saved as ended, none
+for an ordinary video or a song) and the earlier `AllSubscriptionsListTest`. Seen failing with an ended check recorded
+as live, `afterSeeing` not moving a live item to ended, and the re-check interval removed.
 
-- `LiveKindsTest` (`:core:domain`): `afterSeeing` for every pair (STANDARD takes the resolution, LIVE to WAS_LIVE only on
-  WAS_LIVE, WAS_LIVE back to LIVE, SHORT/MUSIC/AUDIOBOOK never change); `fillingSilenceFrom` returns the same instance
-  when nothing changed and a copy with the new kind when it did.
-- `ItemFiltersTest`: `KindFilter.LIVE` uses `liveNow`, defaulting to `contentKind == LIVE`.
-- `LiveStatesTest` and `LiveTagTest` (`:core:video`): each `note*`, `observed` clearing an upcoming entry on a plain
-  resolve and not touching a LIVE one, the 12 h prune of upcoming and live and not of ended, the 500 ended cap;
-  `liveTagOf` for every phase against every kind (SHORT/MUSIC/AUDIOBOOK always null).
-- `ContentKindsTest`: live segments with `isLive` is LIVE, `isLive` without them WAS_LIVE, neither STANDARD.
-- `PlayerStreamsTest`: `liveCheck` returns `Ended` for a playable non-live answer and `Live` for live segments.
-- `VideoResolverTest`: a resolve tells the registry the kind; a yt-dlp resolve does not turn a LIVE entry to ENDED.
-- `LiveRefresherTest` (`:app`): only tagged shown or queued ids are asked, none within 4 minutes, at most 6, back-off
-  while every answer is Unknown, a queued item learned WAS_LIVE is handed to `onLearned`.
-- `MusicPlaysPlainTest`: WAS_LIVE plays with the talk choices.
-- A Compose check that a queued ended stream and a group-page upcoming one show "⏺️ WAS LIVE" / "🔴 STARTS …" in the row,
-  the mini player and the player header, and the "🔴 Live now" filter keeps only live rows.
-- A real-device look: a live stream queued, then ended, flips to "⏺️ WAS LIVE" within two refresh cycles.
-
+Still owed: the badge inside the real queue row, mini player and player header; the "Live now" filter on screen; a
+real-device look that a queued stream flips to "WAS LIVE" within two refresh cycles.

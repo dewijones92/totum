@@ -1,9 +1,9 @@
 ---
 title: Why is this playing?
 kind: feature
-status: built 2026-11-06 (tests to follow; emulator look owed)
+status: built 2026-11-06 (tests written 2026-11-07; emulator look owed)
 area: player
-updated: 2026-11-06
+updated: 2026-11-07
 ---
 
 # Why is this playing?
@@ -61,11 +61,15 @@ caller has to choose one.
 log line `dewidebug why <id> is playing: <reason>` at every start, and `dewidebug why-is-this-playing asked in the
 <full player|mini player> for <id>: <reason>` when the dialog opens.
 
-## Tests still to write
+## Tests (Batch A testing stretch, part A, 2026-11-07)
 
-The reason set by the pinned tile menu's Shuffle and song-seed actions, by each shuffle, and by the notification paths.
+`PlayReasonsTest` (the reason set by `playNow`, `playAll`, `peek`, `jumpTo`, `playNextInQueue`, `playPreviousInQueue`,
+the New group and radio groups, and shown only for the current item), `PlayReasonPhraseTest` (every reason and way maps
+to its own string, with and without a name, and the report's `describe`), instrumented `BatchAWordsTest` (the sentence
+for each reason) and `BatchAScreensTest` (the dialog's text, the unknown case, the mini player's menu asking). Seen
+failing with the previous-reason mapping changed.
 
-The reason set by each `PlaybackQueue` entry point and by `step` for a grouped, radio and New-group entry;
-`playReason` only for the current item and kept across a recovery replay; the dialog text for every reason; an
-emulator look at the title tap and the long-press menu; a check that tapping the title of a playing video in the
-full player does not clash with the player's other gestures.
+Still owed: the reason set by the pinned tile menu's Shuffle and song-seed actions, by each shuffle and by the
+notification paths (each is a call site, not a queue entry point); the dialog kept across a recovery replay (needs the
+Media3 controller); an emulator look at the title tap and long-press menu; whether the title tap clashes with the
+player's other gestures.

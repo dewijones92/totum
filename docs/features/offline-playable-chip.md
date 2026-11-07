@@ -1,9 +1,9 @@
 ---
 title: Offline at a glance
 kind: feature
-status: built 2026-11-06, Batch A (tests owed)
+status: built 2026-11-06, Batch A (tests written 2026-11-07)
 area: queue
-updated: 2026-11-06
+updated: 2026-11-07
 ---
 
 # Offline at a glance
@@ -30,14 +30,16 @@ what playback does.
 `downloads.queuePlaysWithNoSignal` in every report. Toggling the chip logs `queue` ... `offline filter on/off: N of M
 entries play with no signal (offline now=...)` with `dewidebug`.
 
-## Tests owed
+## Tests (Batch A testing stretch, part A, 2026-11-07)
 
-- `PlaysWithNoSignalTest` in `:core:domain`: downloaded (full and audio-only), a handle with its own file but no
-  download state, not downloaded, downloading, a Video handle with nothing local, a torrent with an audio URL only.
-- `UnavailableOfflineNowTest` already covers the state cases through the new extension; add the own-file handle case.
-- `ItemFiltersTest`: `PLAYS_OFFLINE` accepts by the extra answer and defaults to `downloaded`.
-- Instrumented: the chip shows and toggles the queue filter (`QUEUE_PLAYABLE_CHIP_TAG`), and the saved filter
-  round-trips `PLAYS_OFFLINE` through `rememberItemFilters`.
+`PlaysWithNoSignalTest` (`:core:domain`, 5: downloaded whole and audio-only for a video and a podcast, a handle with its
+own file, nothing local, a torrent with only an audio address, and that the row line, count and filter ask one
+question), `UnavailableOfflineNowTest` (the own-file case), `ItemFiltersTest` (`PLAYS_OFFLINE` by the extra answer and
+by the default, `DOWNLOADED`/`NOT_DOWNLOADED` ignoring it, the live filter). Seen failing with `offline = false` in the
+rule.
+
+Still owed: instrumented, the chip showing and toggling the queue filter (`QUEUE_PLAYABLE_CHIP_TAG`) and the saved
+filter round-tripping `PLAYS_OFFLINE` through `rememberItemFilters`.
 
 **Hidden at zero (2026-11-06):** the chip shows only when at least one item would play with no signal, or while its
 filter is on (so it can be switched off). On a short screen "✈️ 0 play with no signal" took a row from the queue and

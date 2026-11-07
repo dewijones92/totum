@@ -1,7 +1,7 @@
 ---
 title: One tap puts the kid playlist on the TV
 kind: todo
-status: built 2026-11-07, Batch A (tests owed; not run on a TV)
+status: built 2026-11-07, Batch A (tests written; not run on a TV)
 batch: A (2026-11)
 priority: low
 updated: 2026-11-07
@@ -17,6 +17,11 @@ A Library tile that starts or stops Kid TV with one tap, and a page (also in Set
 TV. Kid mode now has two doors: the phone lock and the TV (`KidLock.modeOn`). See
 [kid-tv-button](../features/kid-tv-button.md). Not run on a TV; no device was touched.
 
-## Tests owed
+## Tests (Batch A testing stretch, part A, 2026-11-07)
 
-A Compose test of the tile and page; `MediaRouterTvConnector` against a fake router; a daytime run on the LG with tennis.
+`KidTvTest` (orchestrator, 18) and `KidModeTest` cover the rules; new instrumented `KidTvWordsTest` (every status and
+failure sentence of the tile and page).
+
+Still owed, with the reason: the tile and page interaction (needs a `KidTv` built on fakes inside an instrumented
+test), `MediaRouterTvConnector` against a fake router (it uses the real `MediaRouter`; faking it needs a port first),
+a debug broadcast, and the daytime run on the LG with tennis.
