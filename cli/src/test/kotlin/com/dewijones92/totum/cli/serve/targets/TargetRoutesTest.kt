@@ -1,12 +1,14 @@
 package com.dewijones92.totum.cli.serve.targets
 
 import com.dewijones92.totum.data.targets.QueueMode
+import com.dewijones92.totum.data.targets.Requester
 import com.dewijones92.totum.data.targets.TargetAction
 import com.dewijones92.totum.data.targets.TargetControl
 import com.dewijones92.totum.data.targets.TargetQueueRequest
 import com.dewijones92.totum.data.targets.TargetState
 import com.dewijones92.totum.data.targets.TargetsAnswer
 import com.dewijones92.totum.data.targets.TargetsJson
+import com.dewijones92.totum.domain.RepeatMode
 import com.sun.net.httpserver.HttpServer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -149,5 +151,49 @@ class TargetRoutesTest {
         assertEquals(404, call("PUT", "/targets/queue?id=bar", queue(listOf("a"))).first)
         assertEquals(404, call("GET", "/targets/control?id=bar").first)
         assertEquals(404, call("DELETE", "/targets").first)
+    }
+
+    @Test
+    fun `a queue request can ask for a repeat, the answer and the list both show it`() {
+        val body = TargetsJson.encodeToString(
+            TargetQueueRequest.serializer(),
+            TargetQueueRequest(listOf(podcastItem("a")), QueueMode.PLAY, repeat = RepeatMode.ONE),
+        )
+
+        val (code, text) = call("POST", "/targets/queue?id=bar", body)
+
+        assertEquals(200, code)
+        assertEquals(RepeatMode.ONE, stateOf(text).repeat)
+        val listed = TargetsJson.decodeFromString(TargetsAnswer.serializer(), call("GET", "/targets").second)
+        assertEquals(RepeatMode.ONE, listed.targets.single().repeat)
+        assertTrue(call("GET", "/targets").second.contains("\"repeat\":\"ONE\""))
+    }
+
+    @Test
+    fun `a repeat control changes it and a pause leaves it`() {
+        call("POST", "/targets/queue?id=bar", queue(listOf("a")))
+
+        val repeatQueue = control(TargetControl(TargetAction.REPEAT, repeat = RepeatMode.QUEUE))
+        val set = call("POST", "/targets/control?id=bar", repeatQueue)
+        assertEquals(RepeatMode.QUEUE, stateOf(set.second).repeat)
+
+        val paused = call("POST", "/targets/control?id=bar", control(TargetControl(TargetAction.PAUSE)))
+        assertEquals(RepeatMode.QUEUE, stateOf(paused.second).repeat)
+    }
+
+    @Test
+    fun `an item Home Assistant queues shows who added it and never reports to YouTube`() {
+        val home = Requester("home-assistant", "\uD83C\uDFE0 Home Assistant")
+        val body = TargetsJson.encodeToString(
+            TargetQueueRequest.serializer(),
+            TargetQueueRequest(listOf(podcastItem("a")), QueueMode.PLAY, from = home),
+        )
+
+        val (code, text) = call("POST", "/targets/queue?id=bar", body)
+
+        assertEquals(200, code)
+        val entry = stateOf(text).entries.single()
+        assertEquals("\uD83C\uDFE0 Home Assistant", entry.addedBy)
+        assertFalse(entry.reportsToYouTube)
     }
 }

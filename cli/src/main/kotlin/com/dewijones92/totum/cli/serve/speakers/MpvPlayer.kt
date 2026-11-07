@@ -54,6 +54,10 @@ internal class MpvPlayer(
     @Volatile
     private var chosenVolume: Int? = null
 
+    @Volatile
+    override var failure: String? = null
+        private set
+
     override fun play(request: PlayRequest) {
         stop()
         dir.mkdirs()
@@ -77,6 +81,7 @@ internal class MpvPlayer(
         val started = ProcessBuilder(command).redirectErrorStream(true).redirectOutput(log).start()
         process = started
         pipelineFailed = false
+        failure = null
         offsetMs = request.startAtMs
         pipeline = if (piped) {
             processed.toSink(
@@ -103,6 +108,7 @@ internal class MpvPlayer(
                 val tail = runCatching { log.readLines().takeLast(LOG_LINES).joinToString(" | ") }.getOrDefault("")
                     .withoutApiKeys()
                 val failed = code != 0 || pipelineFailed
+                failure = if (failed) failureOf(code, pipelineFailed) else null
                 Diag.log(
                     "speakers",
                     "$id: mpv ${started.pid()} ended, exit $code pipelineFailed=$pipelineFailed" +
@@ -112,6 +118,9 @@ internal class MpvPlayer(
             }
         }
     }
+
+    private fun failureOf(code: Int, pipelineFailed: Boolean): String =
+        "the player exited with code $code" + if (pipelineFailed) " and the sound pipeline failed" else ""
 
     private fun sourceKind(url: String, address: String): String = when {
         url.startsWith("/") -> "file"

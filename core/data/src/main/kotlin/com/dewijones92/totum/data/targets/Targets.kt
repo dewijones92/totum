@@ -6,6 +6,7 @@ import com.dewijones92.totum.data.backup.toPlayable
 import com.dewijones92.totum.data.queue.QueueEntry
 import com.dewijones92.totum.data.queue.QueueGroup
 import com.dewijones92.totum.data.queue.QueueSnapshot
+import com.dewijones92.totum.domain.RepeatMode
 import com.dewijones92.totum.playback.VolumeBoost
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -51,6 +52,7 @@ public data class TargetState(
     val linked: Boolean = false,
     val problem: String? = null,
     val sound: SoundSettings = SoundSettings(),
+    val repeat: RepeatMode = RepeatMode.OFF,
 ) {
     val current: TargetEntry? get() = entries.getOrNull(at)
 }
@@ -71,12 +73,13 @@ public data class TargetQueueRequest(
     val from: Requester? = null,
     val startAtMs: Long = 0,
     val startItemId: String? = null,
+    val repeat: RepeatMode? = null,
 ) {
     val group: QueueGroup? get() = groupOf(groupId, groupTitle)
 }
 
 @Serializable
-public enum class TargetAction { PLAY, PAUSE, NEXT, PREVIOUS, JUMP, SEEK, VOLUME, STOP, REMOVE, SOUND }
+public enum class TargetAction { PLAY, PAUSE, NEXT, PREVIOUS, JUMP, SEEK, VOLUME, STOP, REMOVE, SOUND, REPEAT }
 
 @Serializable
 public data class TargetControl(
@@ -85,6 +88,7 @@ public data class TargetControl(
     val positionMs: Long? = null,
     val volume: Int? = null,
     val sound: SoundSettings? = null,
+    val repeat: RepeatMode? = null,
 )
 
 public fun QueueEntry.toTargetEntry(from: Requester? = null, ownerId: String? = null): TargetEntry = TargetEntry(

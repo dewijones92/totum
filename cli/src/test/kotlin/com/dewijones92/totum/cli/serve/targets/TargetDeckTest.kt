@@ -12,6 +12,7 @@ import com.dewijones92.totum.data.targets.TargetControl
 import com.dewijones92.totum.data.targets.TargetKind
 import com.dewijones92.totum.data.targets.TargetQueueRequest
 import com.dewijones92.totum.data.targets.TargetState
+import com.dewijones92.totum.domain.RepeatMode
 import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
@@ -34,6 +35,7 @@ class TargetDeckTest {
         var paused = false
         var stopped = false
         var vol: Int? = null
+        var failureText: String? = null
         val volumeCommands = mutableListOf<Int>()
         override fun play(request: PlayRequest) {
             requests += request
@@ -52,6 +54,7 @@ class TargetDeckTest {
         override var positionMs: Long? = 1_000
         override val durationMs: Long? = 60_000
         override var onEnded: (failed: Boolean) -> Unit = {}
+        override val failure: String? get() = failureText
     }
 
     private class FakeLink(var sink: String? = "bar-sink") : TargetLink {
@@ -84,6 +87,7 @@ class TargetDeckTest {
         reported += "${entry.item.itemId}@$position finished=$finished"
     }
     private val lookedAhead = mutableListOf<String>()
+    private var now = 1_000_000L
     private fun deck(kind: TargetKind = TargetKind.SPEAKER, ownerId: String? = "dewi") = TargetDeck(
         Target("bar", "LG soundbar", kind),
         player,
@@ -95,6 +99,7 @@ class TargetDeckTest {
         },
         reporter = reporter,
         ownerId = { ownerId },
+        clock = { now },
     )
 
     @Test
@@ -398,5 +403,181 @@ class TargetDeckTest {
 
         assertEquals(1, link.connects)
         assertTrue(deck.state().problem!!.isNotBlank())
+    }
+
+    private fun playedFor(seconds: Long) {
+        now += seconds * 1_000
+    }
+
+    private fun lastUrl() = player.played.last().substringBefore('@')
+
+    @Test
+    fun `repeat this one starts the item again each time it ends`() = runBlocking {
+        val deck = deck()
+        deck.enqueue(TargetQueueRequest(listOf(item("a"), item("b")), QueueMode.REPLACE, repeat = RepeatMode.ONE))
+
+        repeat(3) {
+            playedFor(60)
+            deck.ended(failed = false)
+        }
+
+        assertEquals(List(4) { "https://sound/a@bar-sink" }, player.played)
+        assertEquals("a", deck.state().current?.item?.itemId)
+        assertTrue(deck.state().playing)
+        assertEquals(RepeatMode.ONE, deck.state().repeat)
+        assertEquals("the speaker is kept, not handed back and reconnected", 1, link.connects)
+        assertEquals(0, link.released)
+    }
+
+    @Test
+    fun `repeat the queue goes round again from the top after the last item`() = runBlocking {
+        val deck = deck()
+        deck.enqueue(TargetQueueRequest(listOf(item("a"), item("b")), QueueMode.REPLACE, repeat = RepeatMode.QUEUE))
+
+        repeat(3) {
+            playedFor(60)
+            deck.ended(failed = false)
+        }
+
+        assertEquals(
+            listOf("https://sound/a", "https://sound/b", "https://sound/a", "https://sound/b"),
+            player.played.map { it.substringBefore('@') },
+        )
+        assertTrue(deck.state().playing)
+    }
+
+    @Test
+    fun `with repeat off the end of the queue still stops and hands the speaker back`() = runBlocking {
+        val deck = deck()
+        deck.enqueue(TargetQueueRequest(listOf(item("a")), QueueMode.REPLACE))
+
+        playedFor(60)
+        deck.ended(failed = false)
+
+        assertFalse(deck.state().playing)
+        assertEquals(1, link.released)
+        assertEquals(RepeatMode.OFF, deck.state().repeat)
+    }
+
+    @Test
+    fun `an item that fails is not repeated, so a broken file cannot loop`() = runBlocking {
+        val deck = deck()
+        deck.enqueue(TargetQueueRequest(listOf(item("a"), item("b")), QueueMode.REPLACE, repeat = RepeatMode.ONE))
+
+        playedFor(60)
+        deck.ended(failed = true)
+        assertEquals("moves on to the next", "https://sound/b", lastUrl())
+        deck.ended(failed = true)
+
+        assertEquals(listOf("https://sound/a", "https://sound/b"), player.played.map { it.substringBefore('@') })
+        assertFalse(deck.state().playing)
+    }
+
+    @Test
+    fun `an item that ends within two seconds is not repeated either`() = runBlocking {
+        val deck = deck()
+        deck.enqueue(TargetQueueRequest(listOf(item("a"), item("b")), QueueMode.REPLACE, repeat = RepeatMode.ONE))
+
+        playedFor(1)
+        deck.ended(failed = false)
+
+        assertEquals("https://sound/b", lastUrl())
+        assertEquals(2, player.played.size)
+    }
+
+    @Test
+    fun `the next button still skips under repeat this one`() = runBlocking {
+        val deck = deck()
+        deck.enqueue(TargetQueueRequest(listOf(item("a"), item("b")), QueueMode.REPLACE, repeat = RepeatMode.ONE))
+
+        deck.control(TargetControl(TargetAction.NEXT))
+
+        assertEquals("b", deck.state().current?.item?.itemId)
+        assertEquals(RepeatMode.ONE, deck.state().repeat)
+    }
+
+    @Test
+    fun `a repeat control sets it, a request without one leaves it, and it survives a restart`() = runBlocking {
+        val deck = deck()
+        deck.enqueue(TargetQueueRequest(listOf(item("a")), QueueMode.REPLACE))
+        assertEquals(RepeatMode.OFF, deck.state().repeat)
+
+        val answered = deck.control(TargetControl(TargetAction.REPEAT, repeat = RepeatMode.QUEUE))
+        assertEquals(RepeatMode.QUEUE, answered.repeat)
+        deck.enqueue(TargetQueueRequest(listOf(item("b")), QueueMode.END))
+        assertEquals(RepeatMode.QUEUE, deck.state().repeat)
+
+        assertEquals(RepeatMode.QUEUE, deck().state().repeat)
+        deck.control(TargetControl(TargetAction.REPEAT, repeat = RepeatMode.OFF))
+        assertEquals(RepeatMode.OFF, deck().state().repeat)
+    }
+
+    @Test
+    fun `a mode the target cannot honour yet is refused and the old one kept`() = runBlocking {
+        val deck = deck()
+        deck.enqueue(TargetQueueRequest(listOf(item("a")), QueueMode.REPLACE, repeat = RepeatMode.ONE))
+
+        val answered = deck.control(TargetControl(TargetAction.REPEAT, repeat = RepeatMode.GROUP_SHUFFLED))
+
+        assertEquals(RepeatMode.ONE, answered.repeat)
+        deck.enqueue(TargetQueueRequest(listOf(item("b")), QueueMode.END, repeat = RepeatMode.QUEUE_SHUFFLED))
+        assertEquals(RepeatMode.ONE, deck.state().repeat)
+    }
+
+    @Test
+    fun `an item with no sound is a problem the target shows, in words, until the next item plays`() = runBlocking {
+        val said = object : TargetSounds {
+            override suspend fun urlFor(item: PlayableItem, picture: Boolean): String? =
+                "https://sound/${item.item.id.value}".takeIf { item.item.id.value != "missing" }
+
+            override fun whyNone(item: PlayableItem) = "that stream is not available"
+        }
+        val deck = TargetDeck(speaker(), player, link, said, dir.resolve("problem.json"), clock = { now })
+
+        deck.enqueue(TargetQueueRequest(listOf(item("missing")), QueueMode.REPLACE))
+        assertFalse(deck.state().playing)
+        assertEquals("❌ Couldn't play Bluey missing: that stream is not available", deck.state().problem)
+
+        deck.enqueue(TargetQueueRequest(listOf(item("b")), QueueMode.PLAY))
+        assertTrue(deck.state().playing)
+        assertEquals(null, deck.state().problem)
+    }
+
+    @Test
+    fun `a player that fails shows what it said, and the next item that plays clears it`() = runBlocking {
+        val deck = deck()
+        deck.enqueue(TargetQueueRequest(listOf(item("a")), QueueMode.REPLACE))
+        player.failureText = "the player exited with code 2"
+
+        playedFor(60)
+        deck.ended(failed = true)
+
+        assertFalse(deck.state().playing)
+        assertEquals("❌ Couldn't play Bluey a: the player exited with code 2", deck.state().problem)
+
+        deck.enqueue(TargetQueueRequest(listOf(item("b")), QueueMode.PLAY))
+        assertEquals(null, deck.state().problem)
+    }
+
+    @Test
+    fun `a player that fails without a reason still says it failed`() = runBlocking {
+        val deck = deck()
+        deck.enqueue(TargetQueueRequest(listOf(item("a")), QueueMode.REPLACE))
+
+        deck.ended(failed = true)
+
+        assertEquals("❌ Couldn't play Bluey a: the player stopped with an error", deck.state().problem)
+    }
+
+    @Test
+    fun `stopping from the phone clears a problem that was showing`() = runBlocking {
+        val deck = deck()
+        deck.enqueue(TargetQueueRequest(listOf(item("a")), QueueMode.REPLACE))
+        deck.ended(failed = true)
+        assertTrue(deck.state().problem != null)
+
+        deck.control(TargetControl(TargetAction.STOP))
+
+        assertEquals(null, deck.state().problem)
     }
 }

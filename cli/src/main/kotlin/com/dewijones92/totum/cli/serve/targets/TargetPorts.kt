@@ -24,6 +24,7 @@ internal interface TargetPlayer {
     val positionMs: Long?
     val durationMs: Long?
     var onEnded: (failed: Boolean) -> Unit
+    val failure: String? get() = null
 }
 
 internal interface TargetLink {
@@ -33,6 +34,8 @@ internal interface TargetLink {
 
 internal fun interface TargetSounds {
     suspend fun urlFor(item: PlayableItem, picture: Boolean): String?
+
+    fun whyNone(item: PlayableItem): String = "no stream was found for it"
 }
 
 internal fun interface ProgressReporter {

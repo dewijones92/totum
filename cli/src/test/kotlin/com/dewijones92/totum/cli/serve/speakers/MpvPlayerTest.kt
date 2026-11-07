@@ -199,6 +199,18 @@ class MpvPlayerTest {
     }
 
     @Test
+    fun `a failure says what mpv ended with, and carries no key from its log`() {
+        val p = mpv("""echo "could not open https://jf/stream?api_key=SECRET123&x=1"; exit 2""")
+
+        p.play(request())
+
+        assertTrue(latch.await(WAIT_S, TimeUnit.SECONDS))
+        val said = p.failure.orEmpty()
+        assertTrue(said, said.contains("exited with code 2"))
+        assertFalse(said, said.contains("SECRET123"))
+    }
+
+    @Test
     fun `stopping kills mpv and does not count as the item ending`() {
         val p = mpv("sleep 30")
         p.play(request())

@@ -17,10 +17,13 @@ import com.dewijones92.totum.data.targets.TargetEntry
 import com.dewijones92.totum.data.targets.TargetQueueRequest
 import com.dewijones92.totum.data.targets.TargetReporting
 import com.dewijones92.totum.data.targets.TargetState
+import com.dewijones92.totum.data.targets.nextAfterEnd
+import com.dewijones92.totum.data.targets.onATarget
 import com.dewijones92.totum.data.targets.toSnapshot
 import com.dewijones92.totum.data.targets.toTargetEntry
 import com.dewijones92.totum.domain.Picture
 import com.dewijones92.totum.domain.PlayableItem
+import com.dewijones92.totum.domain.RepeatMode
 import com.dewijones92.totum.domain.picture
 import com.dewijones92.totum.domain.skipsSilence
 import kotlinx.coroutines.sync.Mutex
@@ -39,6 +42,7 @@ internal class TargetDeck(
     private val lookAhead: (PlayableItem) -> Unit = {},
     private val reporter: ProgressReporter = ProgressReporter.NONE,
     private val ownerId: () -> String? = { null },
+    private val clock: () -> Long = System::currentTimeMillis,
 ) {
     private val store = DeckStore(file)
     private val lock = Mutex()
@@ -47,6 +51,8 @@ internal class TargetDeck(
     private var destination: String? = null
     private var problem: String? = null
     private var sound = SoundSettings()
+    private var repeat = RepeatMode.OFF
+    private var startedAtMs = 0L
     private val provenance = Provenances()
     private var reachedAhead: String? = null
 
@@ -65,6 +71,7 @@ internal class TargetDeck(
         linked = destination != null,
         problem = problem,
         sound = sound,
+        repeat = repeat,
     )
 
     suspend fun enqueue(request: TargetQueueRequest): EnqueueResult =
@@ -77,6 +84,8 @@ internal class TargetDeck(
             return EnqueueResult.Refused("❌ Nothing in that was playable on ${target.label}")
         }
         val group = request.group
+        problem = null
+        request.repeat?.let(::setRepeat)
         provenance.note(wanted, request.from, ownerId())
         queue = when (request.mode) {
             QueueMode.REPLACE -> QueueSnapshot(wanted.map { QueueEntry(it, group) })
@@ -127,9 +136,13 @@ internal class TargetDeck(
                 Diag.log("targets", "${target.id}: volume set to $wanted from the phone")
                 player.volume(wanted)
             }
-            TargetAction.STOP -> finish("stopped")
+            TargetAction.STOP -> {
+                problem = null
+                finish("stopped")
+            }
             TargetAction.REMOVE -> control.index?.let { remove(it) }
             TargetAction.SOUND -> control.sound?.let { changeSound(it) }
+            TargetAction.REPEAT -> control.repeat?.let(::setRepeat)
         }
         save()
         return state()
@@ -142,12 +155,31 @@ internal class TargetDeck(
             Diag.log("targets", "${target.id}: an end with nothing playing, ignored (failed=$failed)")
             return
         }
+        val title = queue.current?.item?.item?.title
+        val playedMs = clock() - startedAtMs
+        val next = repeat.nextAfterEnd(queue.currentIndex, queue.entries.size, failed, playedMs >= MIN_REPEAT_PLAY_MS)
+        val tooSoon = !failed && playedMs < MIN_REPEAT_PLAY_MS && repeat != RepeatMode.OFF
         Diag.log(
             "targets",
-            "${target.id}: ${queue.current?.item?.item?.title} ${if (failed) "failed" else "finished"}, moving on"
+            "${target.id}: $title ${if (failed) "failed" else "finished"} after ${playedMs}ms; repeat=$repeat, " +
+                "going to ${next.takeIf { it < queue.entries.size }?.let { "item $it" } ?: "the end"}" +
+                if (tooSoon) " (too soon after starting to repeat)" else "",
         )
-        if (!failed) reportProgress(finished = true)
-        startAt(queue.currentIndex + 1)
+        if (failed) {
+            problem = "❌ Couldn't play $title: ${player.failure ?: "the player stopped with an error"}"
+        } else {
+            reportProgress(finished = true)
+        }
+        startAt(next)
+    }
+
+    private fun setRepeat(wanted: RepeatMode) {
+        if (!wanted.onATarget) {
+            Diag.warn("targets", "${target.id}: repeat $wanted is not offered on a target yet, keeping $repeat")
+            return
+        }
+        Diag.log("targets", "${target.id}: repeat $repeat -> $wanted")
+        repeat = wanted
     }
 
     private suspend fun <T> reachingFirst(needsLink: Boolean, block: suspend () -> T): T {
@@ -201,10 +233,12 @@ internal class TargetDeck(
             val itemSound = sound.copy(skipSilence = item.item.contentKind.skipsSilence(sound.skipSilence))
             val url = sounds.urlFor(item, picture)
             if (url == null) {
+                val why = sounds.whyNone(item)
+                problem = "❌ Couldn't play ${item.item.title}: $why"
                 Diag.warn(
                     "targets",
                     "${target.id}: no stream for ${item.item.id.value} (${item.item.title}) " +
-                        "picture=$picture, passing over"
+                        "picture=$picture, passing over: $why"
                 )
                 at++
                 continue
@@ -221,6 +255,7 @@ internal class TargetDeck(
             player.play(PlayRequest(url, reached, itemSound, startAtMs, picture, item.item.title))
             playing = true
             problem = null
+            startedAtMs = clock()
             Diag.log(
                 "targets",
                 "${target.id}: playing $at/${queue.entries.size} ${item.item.title} on $reached " +
@@ -272,12 +307,15 @@ internal class TargetDeck(
         val saved = store.restore(target.id) ?: return
         queue = saved.entries.toSnapshot(saved.at)
         sound = saved.sound
+        repeat = saved.repeat.takeIf { it.onATarget } ?: RepeatMode.OFF
         provenance.restore(saved.entries)
         Diag.log("targets", "${target.id}: restored ${queue.entries.size} item(s), paused at ${queue.currentIndex}")
     }
 }
 
 private const val MAX_VOLUME = 100
+
+private const val MIN_REPEAT_PLAY_MS = 2_000L
 
 private val STARTING_ACTIONS = setOf(TargetAction.PLAY, TargetAction.NEXT, TargetAction.PREVIOUS, TargetAction.JUMP)
 
