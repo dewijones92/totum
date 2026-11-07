@@ -29,6 +29,11 @@ internal fun upNextControls(queue: PlaybackQueue, upNext: List<QueueEntry>): Que
         upNext = upNext,
         onPlay = { i -> upNext.getOrNull(i)?.let(indexNow)?.let(queue::jumpTo) },
         onRemove = { i -> upNext.getOrNull(i)?.let(removeWithUndo) },
+        onMoveToEdge = { i, top ->
+            upNext.getOrNull(i)?.let(indexNow)?.let { from ->
+                queue.move(from, if (top) 0 else queue.state.value.entries.lastIndex)
+            }
+        },
     )
 }
 

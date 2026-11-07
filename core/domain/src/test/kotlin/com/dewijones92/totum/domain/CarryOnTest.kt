@@ -26,7 +26,7 @@ class CarryOnTest {
         PlayHandle.Podcast(),
     )
 
-    private fun half(durationMs: Long? = 3_600_000L) = PlayState.InProgress(1_000L, durationMs)
+    private fun half(durationMs: Long? = 3_600_000L) = PlayState.InProgress(600_000L, durationMs)
 
     private fun carry(history: List<PlayableItem>, limit: Int = CARRY_ON_LIMIT, states: Map<String, PlayState>) =
         carryOn(history, limit) { states[it.value] ?: PlayState.Unplayed }.map { it.playable.item.id.value }
@@ -94,7 +94,21 @@ class CarryOnTest {
 
         assertEquals(
             listOf("unknown"),
-            carry(listOf(unknown), states = mapOf("unknown" to PlayState.InProgress(5_000L, null))),
+            carry(listOf(unknown), states = mapOf("unknown" to PlayState.InProgress(65_000L, null))),
+        )
+    }
+
+    @Test
+    fun `an item under a minute in was never really started and is left out`() {
+        val started = played("started")
+
+        assertEquals(
+            emptyList<String>(),
+            carry(listOf(started), states = mapOf("started" to PlayState.InProgress(59_999L, 3_600_000L))),
+        )
+        assertEquals(
+            listOf("started"),
+            carry(listOf(started), states = mapOf("started" to PlayState.InProgress(60_000L, 3_600_000L))),
         )
     }
 

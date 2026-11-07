@@ -26,6 +26,7 @@ internal fun ItemActionSheet(
     item: MediaItem,
     onDismiss: () -> Unit,
     pillar: MediaKind = item.pillar,
+    queued: QueuedRowActions? = null,
 ) {
     val actions = LocalItemActions.current ?: return
     val readyAhead = LocalReadyAhead.current
@@ -36,11 +37,11 @@ internal fun ItemActionSheet(
         title = item.face().title,
         onPlayInsteadOfCurrent = null,
         onPlayNext = { actions.queue(listOf(item), next = true) },
-        onAddToQueue = { actions.queue(listOf(item), next = false) },
+        onAddToQueue = { actions.queue(listOf(item), next = false) }.takeIf { queued == null },
         onAddToPlaylist = { actions.addToPlaylist(listOf(item)) },
         // All three belong to a list that has an index or a membership; nothing here has one.
         onRemoveFromPlaylist = null,
-        onRemoveFromQueue = null,
+        onRemoveFromQueue = queued?.onRemove,
         onPeek = { actions.peek(item) },
         onDownloadVideo = { actions.chooseDownload(item, pillar, askAnyway = false, videoOnly = true) }
             .takeIf { video && local !is DownloadState.Downloading && local.mayStillGetThePicture() },
@@ -51,8 +52,8 @@ internal fun ItemActionSheet(
         audioMode = actions.audioMode,
         onGoToSource = actions.sourceLink(item),
         sourcePillar = pillar,
-        onMoveToTop = null,
-        onMoveToBottom = null,
+        onMoveToTop = queued?.onMoveToTop,
+        onMoveToBottom = queued?.onMoveToBottom,
         onSetPlayed = { played -> actions.setPlayed(item.id, played) },
         played = playStateOf(item.id).isPlayed,
         onDismiss = onDismiss,
@@ -63,5 +64,11 @@ internal fun ItemActionSheet(
         ),
     )
 }
+
+internal class QueuedRowActions(
+    val onRemove: () -> Unit,
+    val onMoveToTop: (() -> Unit)?,
+    val onMoveToBottom: (() -> Unit)?,
+)
 
 private fun DownloadState.mayStillGetThePicture(): Boolean = (this as? DownloadState.Downloaded)?.audioOnly != false

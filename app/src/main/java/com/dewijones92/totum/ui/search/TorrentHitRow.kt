@@ -41,6 +41,7 @@ import com.dewijones92.totum.ui.common.LocalDownloadStates
 import com.dewijones92.totum.ui.common.LocalHomeDownloads
 import com.dewijones92.totum.ui.common.LocalHomeJobs
 import com.dewijones92.totum.ui.common.MediaThumbnail
+import com.dewijones92.totum.ui.common.breakableAtDotsAndUnderscores
 import com.dewijones92.totum.ui.common.transferText
 
 /**
@@ -70,7 +71,7 @@ internal fun TorrentHitRow(
     val homeChip = atHome?.let { torrentHomeWords(it) }
     val chips = listOfNotNull(homeChip) + progress + hit.trust
     ListItem(
-        headlineContent = { Text(hit.title) },
+        headlineContent = { Text(hit.title.breakableAtDotsAndUnderscores()) },
         supportingContent = {
             Column {
                 hit.subtitle?.let { Text(it) }

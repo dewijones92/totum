@@ -83,6 +83,7 @@ import com.dewijones92.totum.ui.common.ItemActionSheet
 import com.dewijones92.totum.ui.common.LiveBadge
 import com.dewijones92.totum.ui.common.LocalSourceArtwork
 import com.dewijones92.totum.ui.common.MediaThumbnail
+import com.dewijones92.totum.ui.common.QueuedRowActions
 import com.dewijones92.totum.ui.common.SkipNextButton
 import com.dewijones92.totum.ui.common.SkipPreviousButton
 import com.dewijones92.totum.ui.common.SwitchListeningButton
@@ -436,9 +437,21 @@ const val PLAYER_METADATA_TAG: String = "player-views-and-date"
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun UpNextSection(queue: QueueControls) {
-    var menuFor by remember { mutableStateOf<QueueEntry?>(null) }
-    menuFor?.let { entry ->
-        ItemActionSheet(entry.item.item, onDismiss = { menuFor = null }, pillar = entry.item.pillar)
+    var menuFor by remember { mutableStateOf<Int?>(null) }
+    menuFor?.let { index ->
+        queue.upNext.getOrNull(index)?.let { entry ->
+            ItemActionSheet(
+                entry.item.item,
+                onDismiss = { menuFor = null },
+                pillar = entry.item.pillar,
+                queued = QueuedRowActions(
+                    onRemove = { queue.onRemove(index) },
+                    onMoveToTop = queue.onMoveToEdge?.let { move -> { move(index, true) } },
+                    onMoveToBottom = queue.onMoveToEdge?.takeIf { index < queue.upNext.lastIndex }
+                        ?.let { move -> { move(index, false) } },
+                ),
+            )
+        }
     }
     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -458,7 +471,7 @@ internal fun UpNextSection(queue: QueueControls) {
                     .fillMaxWidth()
                     .clip(MaterialTheme.shapes.medium)
                     .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = UP_NEXT_ALPHA))
-                    .combinedClickable(onClick = { queue.onPlay(index) }, onLongClick = { menuFor = queued })
+                    .combinedClickable(onClick = { queue.onPlay(index) }, onLongClick = { menuFor = index })
                     .padding(start = 8.dp, top = 8.dp, bottom = 8.dp),
             ) {
                 MediaThumbnail(
@@ -529,6 +542,7 @@ data class QueueControls(
     val upNext: List<QueueEntry>,
     val onPlay: (Int) -> Unit,
     val onRemove: (Int) -> Unit,
+    val onMoveToEdge: ((Int, Boolean) -> Unit)? = null,
 ) {
     companion object {
         /** No queue (previews). */

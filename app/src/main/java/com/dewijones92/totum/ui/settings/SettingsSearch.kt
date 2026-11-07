@@ -89,6 +89,11 @@ internal fun ClearUnclaimedTarget(focus: SettingsFocus) {
     }
 }
 
+internal fun resultSecondLine(label: String, section: String, summary: String?): String? =
+    listOfNotNull(section.takeUnless { it.trim().equals(label.trim(), ignoreCase = true) }, summary)
+        .joinToString(" · ")
+        .ifEmpty { null }
+
 @Composable
 internal fun SettingsSearchResults(rows: List<SettingsRow>, onPick: (SettingsRow) -> Unit) {
     Column(Modifier.fillMaxWidth()) {
@@ -101,12 +106,15 @@ internal fun SettingsSearchResults(rows: List<SettingsRow>, onPick: (SettingsRow
                     .testTag(SETTINGS_RESULT_TAG),
             ) {
                 Text(stringResource(row.label), style = MaterialTheme.typography.bodyLarge)
-                val where = stringResource(row.section)
-                Text(
-                    text = row.summary?.let { "$where · ${stringResource(it)}" } ?: where,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                val label = stringResource(row.label)
+                val second = resultSecondLine(label, stringResource(row.section), row.summary?.let { stringResource(it) })
+                if (second != null) {
+                    Text(
+                        text = second,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
     }
