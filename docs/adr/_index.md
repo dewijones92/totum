@@ -162,3 +162,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 146 | [GPL-3.0, and reports go to the Pi only from a phone signed in to the home server](0146-gpl-3-and-reports-go-to-the-pi-only-when-signed-in.md) | Accepted |
 | 147 | [The sponsor link is one build value, and the button is hidden while it is empty](0147-the-sponsor-link-is-one-build-value-and-hidden-when-empty.md) | Accepted |
 | 148 | [Kid TV: one tap casts a pinned playlist to a chosen TV in kid mode, and the phone stays free](0148-kid-tv-is-kid-mode-on-the-tv-and-a-pinned-playlist.md) | Accepted |
+| 149 | [Trip mode fills the phone over Wi-Fi through the existing download paths](0149-trip-mode-fills-the-phone-through-the-existing-download-paths.md) | Accepted |

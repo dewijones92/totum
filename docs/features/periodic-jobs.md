@@ -22,6 +22,7 @@ last ran, whether it succeeded, a detail line and when it last succeeded; `Conte
 | `group-news` | `GroupNewsWorker` | 60 min | connected | done (skipped under instrumentation) |
 | `queue-tidy` | `QueueTidyWorker` | 7 days | none | what moved, see [queue-tidy-up](queue-tidy-up.md) |
 | `backup-check` | `BackupCheckWorker` | 7 days | connected | which copy read, or why not, see [backup-checked](backup-checked.md) |
+| `trip-mode` | `TripWorker` | 15 min | unmetered | one trip pass while a trip is armed ("12 of 18 on the phone"), skipped otherwise, see [trip-mode](trip-mode.md) |
 
 The three older workers kept their unique names, intervals and constraints, so existing scheduled work is kept.
 

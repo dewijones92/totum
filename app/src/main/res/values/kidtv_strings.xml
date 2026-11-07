@@ -23,6 +23,4 @@
     <string name="kidtv_none_seen">📭 No TVs found yet. Is the TV on, on the same Wi-Fi?</string>
     <string name="kidtv_start">▶️ Start on the TV</string>
     <string name="kidtv_stop">⏹️ Stop Kid TV</string>
-    <string name="kidtv_not_set_up">⚙️ Choose a playlist and a TV first.</string>
-    <string name="kidtv_ready_summary">▶️ %1$s on %2$s</string>
 </resources>

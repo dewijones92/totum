@@ -66,8 +66,12 @@ class EpisodeDownloads(
                 "(a few at a time; torrents and podcasts as their files)",
         )
         _asking.value = null
+        fetchBatch(ask.title, picked, choice)
+    }
+
+    fun fetchBatch(title: String, picked: List<PlayableItem>, choice: DownloadChoice) {
         scope.launch {
-            operations.tracking("episodes:${ask.title}", OperationKind.DOWNLOAD_BATCH, ask.title) { progress ->
+            operations.tracking(batchKey(title), OperationKind.DOWNLOAD_BATCH, title) { progress ->
                 progress?.report(step = 0, steps = picked.size)
                 enqueue(picked, choice)
                 followToTheEnd(picked.map { it.item.id }.toSet(), progress)
@@ -112,8 +116,10 @@ class EpisodeDownloads(
         }
     }
 
-    private companion object {
-        const val TAG = "download"
+    companion object {
+        private const val TAG = "download"
+
+        fun batchKey(title: String): String = "episodes:$title"
     }
 }
 

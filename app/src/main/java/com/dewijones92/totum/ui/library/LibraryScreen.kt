@@ -92,9 +92,10 @@ import com.dewijones92.totum.ui.playlist.LocalPlaylistsScreen
 import com.dewijones92.totum.ui.playlist.rememberPlaylistAdder
 import com.dewijones92.totum.ui.stats.StatsScreen
 import com.dewijones92.totum.ui.subscriptions.AllSubscriptionsScreen
+import com.dewijones92.totum.ui.trip.TripScreen
 import kotlinx.coroutines.launch
 
-private enum class LibraryPage { HOME, PLAYLISTS, HISTORY, SUBSCRIPTIONS, ACCOUNT, STATS, DOWNLOADS, JELLYFIN, KID_TV }
+private enum class LibraryPage { HOME, PLAYLISTS, HISTORY, SUBSCRIPTIONS, ACCOUNT, STATS, DOWNLOADS, JELLYFIN, KID_TV, TRIP }
 
 @Composable
 fun LibraryScreen(container: AppContainer, modifier: Modifier = Modifier) {
@@ -138,6 +139,7 @@ fun LibraryScreen(container: AppContainer, modifier: Modifier = Modifier) {
                     onOpenStats = { go(LibraryPage.STATS) },
                     onOpenDownloads = { go(LibraryPage.DOWNLOADS) },
                     onOpenKidTv = { go(LibraryPage.KID_TV) },
+                    onOpenTrip = { go(LibraryPage.TRIP) },
                     onOpenStarred = { openPlaylistId = STARRED_PLAYLIST.value },
                     onOpenGroup = { openGroupId = it },
                     onOpenJellyfin = { go(LibraryPage.JELLYFIN) }.takeIf { container.jellyfin != null },
@@ -173,6 +175,7 @@ private fun LibraryHome(
     onOpenGroup: (String) -> Unit,
     onOpenJellyfin: (() -> Unit)?,
     onOpenKidTv: () -> Unit,
+    onOpenTrip: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val groupList by container.sourceGroupStore.observeGroups().collectAsStateWithLifecycle(initialValue = emptyList())
@@ -214,7 +217,10 @@ private fun LibraryHome(
         onOpenStarred = onOpenStarred,
         modifier = modifier,
         jellyfin = LibraryJellyfin(onOpenJellyfin),
-        kidTv = { KidTvTile(container, onSetUp = onOpenKidTv) },
+        kidTv = {
+            KidTvTile(container, onSetUp = onOpenKidTv)
+            TripTile(container, onOpen = onOpenTrip)
+        },
         downloads = DownloadsSummary(downloaded.size, inProgress.size, failed.size),
         carryOn = LibraryCarryOn(carryOnItems, carryOnModel::play),
         phoneAlbums = PhoneAlbums(albums, viewModel::playAlbum, viewModel::deleteAlbum),
@@ -276,6 +282,7 @@ private fun LibraryPageContent(
         )
         LibraryPage.JELLYFIN -> JellyfinScreen(container, onBack = onBack, modifier = modifier)
         LibraryPage.KID_TV -> KidTvScreen(container, onBack = onBack, modifier = modifier)
+        LibraryPage.TRIP -> TripScreen(container, onBack = onBack, modifier = modifier)
         LibraryPage.HOME -> Unit
     }
 }

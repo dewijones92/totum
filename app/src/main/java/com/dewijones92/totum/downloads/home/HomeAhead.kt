@@ -1,6 +1,7 @@
 package com.dewijones92.totum.downloads.home
 
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.data.queue.QueueEntry
 import com.dewijones92.totum.data.queue.QueueSnapshot
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayableItem
@@ -22,10 +23,11 @@ fun aheadFor(
     keep: Map<String, Int>,
     present: (MediaItemId) -> Boolean,
     finished: (PlayableItem) -> Boolean,
+    groupOf: (QueueEntry) -> String? = { it.group?.id },
 ): List<PlayableItem> = keep.flatMap { (groupId, count) ->
-    val members = snapshot.entries.withIndex().filter { it.value.group?.id == groupId }
+    val members = snapshot.entries.withIndex().filter { groupOf(it.value) == groupId }
     val place = snapshot.place
-    val playingHere = snapshot.entries.getOrNull(place)?.group?.id == groupId
+    val playingHere = snapshot.entries.getOrNull(place)?.let(groupOf) == groupId
     val from = if (playingHere) place + 1 else 0
     members.asSequence()
         .filter { it.index >= from }

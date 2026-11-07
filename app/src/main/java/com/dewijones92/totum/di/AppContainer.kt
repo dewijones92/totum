@@ -301,6 +301,8 @@ import com.dewijones92.totum.targets.PrefsTargetColours
 import com.dewijones92.totum.targets.RequesterIdentity
 import com.dewijones92.totum.targets.SendToTarget
 import com.dewijones92.totum.targets.TargetsRepository
+import com.dewijones92.totum.trip.TripMode
+import com.dewijones92.totum.trip.tripModeFor
 import com.dewijones92.totum.ui.ask.AskLatest
 import com.dewijones92.totum.ui.ask.AskStatePorts
 import com.dewijones92.totum.ui.ask.AskStateSource
@@ -438,6 +440,7 @@ interface AppContainer {
     val pendingDownloadDeletes: PendingDownloadDeletes? get() = null
     val kidLock: KidLock
     val kidTv: KidTv? get() = null
+    val tripMode: TripMode? get() = null
     val downloadChooser: DownloadChooser
 
     /** Full backup / restore of everything that is not re-downloadable. */
@@ -1034,6 +1037,8 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
 
     override val kidTv: KidTv by lazy { kidTvFor(this, context) }
 
+    override val tripMode: TripMode by lazy { tripModeFor(this, context) }
+
     override val downloadChooser: DownloadChooser by lazy {
         DownloadChooser(
             appPreferences,
@@ -1385,7 +1390,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                 exsurge = {
                     exsurge.diagnostics + ExsurgeLiveUpdate.diagnostics(context) + dailyAlarms.diagnostics +
                         workApps.diagnostics + bedtime.diagnostics + RecorderDiagnostics.values(context) +
-                        listCounts() + kidTv.diagnostics
+                        listCounts() + kidTv.diagnostics + tripMode.diagnostics
                 },
                 appUpdate = { appUpdate.diagnostics() + appInstaller.diagnostics() + whatsNew.diagnostics() },
                 polite = { polite.diagnostics() + ("explore.on" to exploreMode.on.value.toString()) },
@@ -1440,6 +1445,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         trail.start()
         KidMode(kidLock, playbackController, applicationScope).start()
         bedtime.start()
+        tripMode.start()
         startActiveModes(this)
         startPlaybackContext(this)
     }

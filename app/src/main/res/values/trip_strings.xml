@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="trip_title">🧳 Trip mode</string>
+    <string name="trip_batch_title">🧳 your trip</string>
+    <string name="trip_intro">🧳 Tell Totum when you leave. Until then, on Wi-Fi, it puts the next few of every queue group on the phone, and copies what your Pi has ready. Films and torrents are never started for you.</string>
+    <string name="trip_tile_off">🧳 Leaving soon? Get the phone ready</string>
+    <string name="trip_tile_leaving">🧳 Leaving %1$s</string>
+    <plurals name="trip_progress">
+        <item quantity="one">✅ %1$d of %2$d queued item is on the phone</item>
+        <item quantity="other">✅ %1$d of %2$d queued items are on the phone</item>
+    </plurals>
+    <string name="trip_progress_none">⏳ Looking at the queue…</string>
+    <string name="trip_waiting_wifi">📶 Waiting for Wi-Fi: the phone fetches nothing on mobile data</string>
+    <plurals name="trip_fetching">
+        <item quantity="one">⬇️ %1$d more on the way</item>
+        <item quantity="other">⬇️ %1$d more on the way</item>
+    </plurals>
+    <plurals name="trip_from_pi">
+        <item quantity="one">🏠 %1$d file from the Pi is being copied</item>
+        <item quantity="other">🏠 %1$d files from the Pi are being copied</item>
+    </plurals>
+    <plurals name="trip_skipped">
+        <item quantity="one">⚠️ %1$d item skipped: a film, a torrent, or one that cannot be fetched</item>
+        <item quantity="other">⚠️ %1$d items skipped: films, torrents, or ones that cannot be fetched</item>
+    </plurals>
+    <plurals name="trip_failed">
+        <item quantity="one">❌ %1$d item failed and will not be asked for again</item>
+        <item quantity="other">❌ %1$d items failed and will not be asked for again</item>
+    </plurals>
+    <string name="trip_low_space">⚠️ Under 2 GB is free, so nothing more is fetched</string>
+    <string name="trip_leaving_in">When are you leaving?</string>
+    <plurals name="trip_hours">
+        <item quantity="one">In %1$d hour</item>
+        <item quantity="other">In %1$d hours</item>
+    </plurals>
+    <string name="trip_how_many">How many from each group?</string>
+    <string name="trip_start">🧳 Get ready</string>
+    <string name="trip_stop">⏹️ Stop trip mode</string>
+</resources>
