@@ -18,6 +18,7 @@ import com.dewijones92.totum.data.queue.removing
 import com.dewijones92.totum.data.queue.removingAt
 import com.dewijones92.totum.data.queue.shuffledAfterCurrent
 import com.dewijones92.totum.data.queue.stampedSince
+import com.dewijones92.totum.data.targets.QueueMode
 import com.dewijones92.totum.domain.ChosenWay
 import com.dewijones92.totum.domain.HomeCopy
 import com.dewijones92.totum.domain.LocalCopy
@@ -232,15 +233,26 @@ class PlaybackQueue(
         }.launchIn(scope)
     }
 
+    @Volatile
+    var destination: QueueDestination? = null
+
+    private fun redirected(
+        items: List<PlayableItem>,
+        mode: QueueMode,
+        group: QueueGroup?,
+        startAt: MediaItemId? = null,
+        byYou: Boolean = true,
+    ): Boolean = byYou && destination?.take(items, mode, group, startAt) == true
+
     /** Adds to the end of the queue, unless it is already queued: then it says so ([QueueNotice.AlreadyQueued]). */
     fun enqueue(item: PlayableItem, group: QueueGroup? = null): Boolean =
-        addingUnlessQueued("add-to-end", item) { snapshot, kept ->
+        redirected(listOf(item), QueueMode.END, group) || addingUnlessQueued("add-to-end", item) { snapshot, kept ->
             snapshot.copy(entries = snapshot.entries + QueueEntry(kept, group))
         }
 
     /** Inserts so it plays immediately after the current entry, unless it is already queued: then it says so. */
     fun playNext(item: PlayableItem, group: QueueGroup? = null): Boolean =
-        addingUnlessQueued("play-next", item) { snapshot, kept ->
+        redirected(listOf(item), QueueMode.NEXT, group) || addingUnlessQueued("play-next", item) { snapshot, kept ->
             snapshot.inserted(listOf(QueueEntry(kept, group)))
         }
 
@@ -307,6 +319,7 @@ class PlaybackQueue(
 
     fun enqueueAll(items: List<PlayableItem>, group: QueueGroup? = null) {
         if (items.isEmpty()) return Diag.log("queue", "add-to-end of nothing: queue left untouched")
+        if (redirected(items, QueueMode.END, group)) return
         val label = group?.let { " as \"${it.title}\"" }.orEmpty()
         noteAlreadyQueued(items, "add-to-end x${items.size}$label")
         mutate("add-to-end x${items.size}$label") { it.appendingAll(items, group) }
@@ -334,6 +347,7 @@ class PlaybackQueue(
 
     fun playNextAll(items: List<PlayableItem>, group: QueueGroup? = null) {
         if (items.isEmpty()) return Diag.log("queue", "play-next of nothing: queue left untouched")
+        if (redirected(items, QueueMode.NEXT, group)) return
         val label = group?.let { " as \"${it.title}\"" }.orEmpty()
         noteAlreadyQueued(items, "play-next x${items.size}$label")
         mutate("play-next x${items.size}$label") { snapshot ->
@@ -370,6 +384,7 @@ class PlaybackQueue(
         // A guard rather than a fix for the caller: whatever is re-firing is still worth
         // finding (the log below names it), but the queue should not be re-entrant on a
         // repeat regardless of who calls it.
+        if (redirected(listOf(item), QueueMode.PLAY, group, item.item.id, byYou)) return true
         repeatTaps.repeatMs(item.item.id)?.let { sinceLast ->
             Diag.warn("queue", "play-now REPEAT ${sinceLast}ms apart — ignored: ${item.item.title.take(TITLE_CHARS)}")
             return true
@@ -399,6 +414,7 @@ class PlaybackQueue(
      * first. Deliberately does not replace the queue — an unwanted run is one
      * "remove these" away, whereas a replaced queue is gone. No-op if empty.
      */
+    @Suppress("CyclomaticComplexMethod")
     fun playAll(
         items: List<PlayableItem>,
         group: QueueGroup? = null,
@@ -408,6 +424,7 @@ class PlaybackQueue(
         reason: PlayReason = PlayReason.Chosen(ChosenWay.TAP),
     ) {
         if (items.isEmpty()) return
+        if (redirected(items.distinctBy { it.item.id }, QueueMode.PLAY, group, startAt, byYou)) return
         if (group != null && endsRepeatOne && repeatOneOffForRun(group.title)) {
             _notices.tryEmit(QueueNotice.RepeatOneOff(group.title))
         }

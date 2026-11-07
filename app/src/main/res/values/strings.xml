@@ -1392,4 +1392,36 @@
     <string name="ops_failed">❌ %1$s: %2$s</string>
     <string name="ops_cancelled">⏹️ %1$s: stopped before anything was queued</string>
     <string name="ops_cancelled_playing">⏹️ %1$s: stopped; what is already playing stays queued</string>
+    <string name="ops_send_to_target">📡 Sending to %1$s</string>
+    <plurals name="ops_send_done">
+        <item quantity="one">✅ Sent %1$d item to %2$s</item>
+        <item quantity="other">✅ Sent %1$d items to %2$s</item>
+    </plurals>
+    <string name="target_chip_phone">📱 This phone</string>
+    <string name="target_chip_more">➕ Play on…</string>
+    <string name="target_send_to">📡 Send to…</string>
+    <string name="target_waiting_headline">⏳ Waiting for %1$s</string>
+    <string name="target_waiting_hint">The home server has not listed it yet.</string>
+    <string name="target_empty_headline">📭 Nothing queued on %1$s</string>
+    <string name="target_empty_hint">Play, queue or shuffle something while looking at it and it plays there.</string>
+    <string name="target_now_playing">▶️ Playing on %1$s</string>
+    <string name="target_paused">⏸️ Paused on %1$s</string>
+    <string name="target_idle">💤 Nothing playing on %1$s</string>
+    <string name="target_row_playing">▶️ Playing now</string>
+    <string name="target_added_by">➕ Added by %1$s</string>
+    <string name="target_skip_silence">✂️ Skip silences</string>
+    <string name="target_boost">🔊 Boost</string>
+    <string name="target_volume">🔈 Volume %1$d%%</string>
+    <string name="target_colour">🎨 Colour</string>
+    <string name="target_previous">Previous</string>
+    <string name="target_next">Next</string>
+    <string name="target_play">Play</string>
+    <string name="target_pause">Pause</string>
+    <string name="target_stop">Stop</string>
+    <string name="target_position">%1$s of %2$s</string>
+    <string name="library_jellyfin">🎞️ Jellyfin</string>
+    <string name="jellyfin_back">⬅️ Back</string>
+    <string name="jellyfin_loading">⏳ Reading Jellyfin…</string>
+    <string name="jellyfin_retry">🔁 Try again</string>
+    <string name="jellyfin_empty">📭 Nothing here</string>
 </resources>

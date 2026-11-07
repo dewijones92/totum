@@ -93,7 +93,7 @@ import com.dewijones92.totum.ui.stats.StatsScreen
 import com.dewijones92.totum.ui.subscriptions.AllSubscriptionsScreen
 import kotlinx.coroutines.launch
 
-private enum class LibraryPage { HOME, PLAYLISTS, HISTORY, SUBSCRIPTIONS, ACCOUNT, STATS, DOWNLOADS }
+private enum class LibraryPage { HOME, PLAYLISTS, HISTORY, SUBSCRIPTIONS, ACCOUNT, STATS, DOWNLOADS, JELLYFIN }
 
 @Composable
 fun LibraryScreen(container: AppContainer, modifier: Modifier = Modifier) {
@@ -138,6 +138,7 @@ fun LibraryScreen(container: AppContainer, modifier: Modifier = Modifier) {
                     onOpenDownloads = { go(LibraryPage.DOWNLOADS) },
                     onOpenStarred = { openPlaylistId = STARRED_PLAYLIST.value },
                     onOpenGroup = { openGroupId = it },
+                    onOpenJellyfin = { go(LibraryPage.JELLYFIN) }.takeIf { container.jellyfin != null },
                     modifier = modifier,
                 )
             }) { open ->
@@ -168,6 +169,7 @@ private fun LibraryHome(
     onOpenDownloads: () -> Unit,
     onOpenStarred: () -> Unit,
     onOpenGroup: (String) -> Unit,
+    onOpenJellyfin: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
     val groupList by container.sourceGroupStore.observeGroups().collectAsStateWithLifecycle(initialValue = emptyList())
@@ -208,6 +210,7 @@ private fun LibraryHome(
         onOpenDownloads = onOpenDownloads,
         onOpenStarred = onOpenStarred,
         modifier = modifier,
+        jellyfin = LibraryJellyfin(onOpenJellyfin),
         downloads = DownloadsSummary(downloaded.size, inProgress.size, failed.size),
         carryOn = LibraryCarryOn(carryOnItems, carryOnModel::play),
         phoneAlbums = PhoneAlbums(albums, viewModel::playAlbum, viewModel::deleteAlbum),
@@ -267,6 +270,7 @@ private fun LibraryPageContent(
             onSection = onDownloadsSection,
             modifier = modifier,
         )
+        LibraryPage.JELLYFIN -> JellyfinScreen(container, onBack = onBack, modifier = modifier)
         LibraryPage.HOME -> Unit
     }
 }

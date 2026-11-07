@@ -107,7 +107,7 @@ import sh.calvin.reorderable.ReorderableLazyListState
  * structure, dragging an entry out simply splits the run — nothing to repair.
  */
 @Composable
-fun QueueScreen(container: AppContainer, modifier: Modifier = Modifier) {
+internal fun PhoneQueue(container: AppContainer, modifier: Modifier = Modifier) {
     val queue = container.playbackQueue
     val snapshot by queue.state.collectAsStateWithLifecycle()
     CountRecompositions("queue")
@@ -147,6 +147,9 @@ fun QueueScreen(container: AppContainer, modifier: Modifier = Modifier) {
                 onCollapseAll = { collapsedGroups = collapseAllLogged(groupIds, collapsedGroups) },
                 onSort = { order: MediaSort -> sortWithUndo(order, null) }.takeIf { snapshot.upNext.size > 1 },
                 filters = queueFilters,
+                sendTo = {
+                    SendToButton(container.sendToTarget, container.targets, snapshot.currentIndex in entries.indices)
+                },
             )
             if (entries.isEmpty()) {
                 EmptyQueue()
@@ -608,8 +611,10 @@ private fun QueueHeader(
     onCollapseAll: () -> Unit = {},
     onSort: ((MediaSort) -> Unit)? = null,
     filters: MutableState<ItemFilters>? = null,
+    sendTo: @Composable () -> Unit = {},
 ) {
     CollapsingTitle(title = stringResource(R.string.queue_title), listState = listState) {
+        sendTo()
         FilterToggle(listFilter, count)
         if (onSort != null || filters != null) {
             SortControl(

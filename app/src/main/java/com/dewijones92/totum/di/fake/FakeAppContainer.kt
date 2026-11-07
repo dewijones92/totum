@@ -321,6 +321,25 @@ class FakeAppContainer(
             MainScope(),
         )
     }
+    override val targets: com.dewijones92.totum.targets.TargetsRepository by lazy {
+        com.dewijones92.totum.targets.TargetsRepository(
+            null,
+            { com.dewijones92.totum.data.targets.Requester("fake", "Fake phone") },
+            com.dewijones92.totum.targets.InMemoryTargetColours(),
+            applicationScope,
+            operations,
+        )
+    }
+    override val jellyfin: com.dewijones92.totum.data.home.JellyfinApi? = null
+    override val sendToTarget: com.dewijones92.totum.targets.SendToTarget by lazy {
+        com.dewijones92.totum.targets.SendToTarget(
+            targets,
+            playbackQueue,
+            playbackController,
+            operations,
+            applicationScope
+        )
+    }
     override val keptArtistSongs: KeptArtistSongs = KeptArtistSongs(null)
 
     override val transcripts: TranscriptLoader = TranscriptLoader(

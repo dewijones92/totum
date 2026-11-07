@@ -1,0 +1,245 @@
+package com.dewijones92.totum.ui.queue
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.QueueMusic
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.dewijones92.totum.R
+import com.dewijones92.totum.data.targets.SoundSettings
+import com.dewijones92.totum.data.targets.TargetAction
+import com.dewijones92.totum.data.targets.TargetColours
+import com.dewijones92.totum.data.targets.TargetControl
+import com.dewijones92.totum.data.targets.TargetEntry
+import com.dewijones92.totum.data.targets.TargetState
+import com.dewijones92.totum.data.targets.toQueueEntry
+import com.dewijones92.totum.playback.VolumeBoost
+import com.dewijones92.totum.targets.TargetsRepository
+import com.dewijones92.totum.ui.common.EmptyState
+import com.dewijones92.totum.ui.common.MediaItemRow
+import com.dewijones92.totum.ui.common.formatClock
+import com.dewijones92.totum.ui.common.rowFacts
+import kotlin.time.Duration.Companion.milliseconds
+
+@Composable
+fun RemoteQueue(targets: TargetsRepository, id: String, modifier: Modifier = Modifier) {
+    val states by targets.targets.collectAsStateWithLifecycle()
+    val colours by targets.colours.collectAsStateWithLifecycle()
+    val state = states.firstOrNull { it.target.id == id }
+    val colour = (colours[id] ?: TargetColours.PHONE).asColour()
+    if (state == null) {
+        EmptyState(
+            icon = Icons.AutoMirrored.Filled.QueueMusic,
+            headline = stringResource(R.string.target_waiting_headline, targets.targetOf(id)?.label ?: id),
+            supportingText = stringResource(R.string.target_waiting_hint),
+            modifier = modifier,
+        )
+        return
+    }
+    Column(modifier = modifier) {
+        RemoteHeader(targets, state, colour)
+        if (state.entries.isEmpty()) {
+            EmptyState(
+                icon = Icons.AutoMirrored.Filled.QueueMusic,
+                headline = stringResource(R.string.target_empty_headline, state.target.label),
+                supportingText = stringResource(R.string.target_empty_hint),
+            )
+        } else {
+            RemoteEntries(targets, state, colour)
+        }
+    }
+}
+
+@Composable
+private fun RemoteHeader(targets: TargetsRepository, state: TargetState, colour: androidx.compose.ui.graphics.Color) {
+    val id = state.target.id
+    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+        Text(
+            text = when {
+                state.current == null -> stringResource(R.string.target_idle, state.target.label)
+                state.playing -> stringResource(R.string.target_now_playing, state.target.label)
+                else -> stringResource(R.string.target_paused, state.target.label)
+            },
+            style = MaterialTheme.typography.titleMedium,
+            color = colour,
+        )
+        state.current?.let { current ->
+            Text(current.item.title, style = MaterialTheme.typography.bodyLarge)
+            val duration = state.durationMs
+            if (duration != null && duration > 0) {
+                LinearProgressIndicator(
+                    progress = { (state.positionMs.toFloat() / duration).coerceIn(0f, 1f) },
+                    color = colour,
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                )
+                Text(
+                    stringResource(
+                        R.string.target_position,
+                        formatClock(state.positionMs.milliseconds),
+                        formatClock(duration.milliseconds),
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+        }
+        state.problem?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        RemoteControls(targets, state)
+        RemoteSound(targets, state)
+        RemoteColours(targets, id)
+    }
+}
+
+@Composable
+private fun RemoteControls(targets: TargetsRepository, state: TargetState) {
+    val id = state.target.id
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        IconButton(onClick = { targets.command(id, TargetAction.PREVIOUS) }) {
+            Icon(Icons.Filled.SkipPrevious, stringResource(R.string.target_previous))
+        }
+        IconButton(onClick = { targets.command(id, if (state.playing) TargetAction.PAUSE else TargetAction.PLAY) }) {
+            Icon(
+                if (state.playing) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                stringResource(if (state.playing) R.string.target_pause else R.string.target_play),
+            )
+        }
+        IconButton(onClick = { targets.command(id, TargetAction.NEXT) }) {
+            Icon(Icons.Filled.SkipNext, stringResource(R.string.target_next))
+        }
+        TextButton(
+            onClick = { targets.command(id, TargetAction.STOP) }
+        ) { Text("⏹️ " + stringResource(R.string.target_stop)) }
+    }
+    var volume by remember(state.volume) { mutableFloatStateOf(state.volume.toFloat()) }
+    Text(stringResource(R.string.target_volume, volume.toInt()), style = MaterialTheme.typography.bodySmall)
+    Slider(
+        value = volume,
+        onValueChange = { volume = it },
+        onValueChangeFinished = {
+            targets.act(id, TargetControl(TargetAction.VOLUME, volume = volume.toInt()))
+        },
+        valueRange = 0f..VOLUME_MAX,
+    )
+}
+
+@Composable
+private fun RemoteSound(targets: TargetsRepository, state: TargetState) {
+    val id = state.target.id
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        FilterChip(
+            selected = state.sound.skipSilence,
+            onClick = {
+                targets.act(
+                    id,
+                    TargetControl(TargetAction.SOUND, sound = state.sound.copy(skipSilence = !state.sound.skipSilence))
+                )
+            },
+            label = { Text(stringResource(R.string.target_skip_silence)) },
+        )
+        val boosted = state.sound.boost != VolumeBoost.OFF
+        FilterChip(
+            selected = boosted,
+            onClick = {
+                val next: SoundSettings = state.sound.copy(boost = if (boosted) VolumeBoost.OFF else VolumeBoost.AUTO)
+                targets.act(id, TargetControl(TargetAction.SOUND, sound = next))
+            },
+            label = { Text(stringResource(R.string.target_boost)) },
+        )
+    }
+}
+
+@Composable
+private fun RemoteColours(targets: TargetsRepository, id: String) {
+    var open by remember { mutableStateOf(false) }
+    TextButton(onClick = { open = !open }) { Text(stringResource(R.string.target_colour)) }
+    if (open) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            TargetColours.palette.forEach { swatch ->
+                Box(
+                    Modifier.size(SWATCH).clip(CircleShape).background(swatch.asColour())
+                        .clickable { targets.recolour(id, swatch) },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RemoteEntries(targets: TargetsRepository, state: TargetState, colour: androidx.compose.ui.graphics.Color) {
+    val id = state.target.id
+    LazyColumn(Modifier.fillMaxWidth()) {
+        itemsIndexed(state.entries, key = { index, entry -> "${entry.item.itemId}#$index" }) { index, entry ->
+            val previous = state.entries.getOrNull(index - 1)
+            val group = entry.groupId
+            if (group != null && group != previous?.groupId) {
+                Text(
+                    text = entry.groupTitle ?: group,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = colour,
+                    modifier = Modifier.padding(start = 16.dp, top = 12.dp, end = 16.dp, bottom = 4.dp),
+                )
+            }
+            RemoteRow(targets, id, index, entry, playing = index == state.at)
+        }
+    }
+}
+
+@Composable
+private fun RemoteRow(targets: TargetsRepository, id: String, index: Int, entry: TargetEntry, playing: Boolean) {
+    val playable = entry.toQueueEntry()?.item ?: return
+    Column {
+        if (playing) {
+            Text(
+                stringResource(R.string.target_row_playing),
+                style = MaterialTheme.typography.labelMedium,
+                modifier = Modifier.padding(start = 16.dp),
+            )
+        }
+        MediaItemRow(
+            item = playable.item,
+            subtitleLines = rowFacts(playable.item, playable.pillar) +
+                listOfNotNull(entry.addedBy?.let { stringResource(R.string.target_added_by, it) }),
+            pillar = playable.pillar,
+            onPlay = { targets.act(id, TargetControl(TargetAction.JUMP, index = index)) },
+            onPlayNext = null,
+            onAddToQueue = null,
+            onPeek = null,
+            onRemoveFromQueue = { targets.act(id, TargetControl(TargetAction.REMOVE, index = index)) },
+        )
+    }
+}
+
+private const val VOLUME_MAX = 100f
+private val SWATCH = 28.dp

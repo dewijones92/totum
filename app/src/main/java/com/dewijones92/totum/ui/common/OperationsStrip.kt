@@ -187,6 +187,7 @@ private fun titleOf(operation: Operation): String = when (operation.kind) {
         transferTitled(LocalResources.current, sendingToPi(TransferPlace.WEB), operation.subject)
     OperationKind.HOME_UPLOAD ->
         transferTitled(LocalResources.current, sendingToPi(TransferPlace.PHONE), operation.subject)
+    OperationKind.SEND_TO_TARGET -> stringResource(R.string.ops_send_to_target, operation.subject)
 }
 
 @Composable
@@ -237,6 +238,7 @@ private fun doneText(kind: OperationKind, partial: Boolean): Int = when (kind) {
     OperationKind.DOWNLOAD_BATCH -> if (partial) R.plurals.ops_downloaded_partial else R.plurals.ops_downloaded
     OperationKind.ASK -> R.plurals.ops_ask_done
     OperationKind.HOME_DOWNLOAD, OperationKind.HOME_UPLOAD -> R.plurals.ops_home_done
+    OperationKind.SEND_TO_TARGET -> R.plurals.ops_send_done
 }
 
 private const val SHOW_AFTER_MS = 1_000L

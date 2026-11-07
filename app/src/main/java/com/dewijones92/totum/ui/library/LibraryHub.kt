@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -54,6 +55,7 @@ internal fun LibraryHub(
     alarms: LibraryAlarms = LibraryAlarms(),
     groups: LibraryGroups = LibraryGroups(),
     carryOn: LibraryCarryOn = LibraryCarryOn(),
+    jellyfin: LibraryJellyfin = LibraryJellyfin(),
 ) {
     Column(modifier = modifier.fillMaxSize()) {
         LazyColumn(modifier = Modifier.weight(1f)) {
@@ -73,6 +75,7 @@ internal fun LibraryHub(
                     onOpenStarred,
                     downloads,
                     alarms,
+                    jellyfin,
                 )
             }
             phoneAlbumsSection(phoneAlbums)
@@ -92,6 +95,7 @@ private fun LibraryTiles(
     onOpenStarred: () -> Unit,
     downloads: DownloadsSummary,
     alarms: LibraryAlarms,
+    jellyfin: LibraryJellyfin,
 ) {
     val scheme = MaterialTheme.colorScheme
     Column(
@@ -134,6 +138,16 @@ private fun LibraryTiles(
                 alarms.onOpen,
                 Modifier.weight(1f).fillMaxHeight().testTag(ALARMS_TILE_TAG),
                 detail = alarms.detail,
+            )
+        }
+        jellyfin.onOpen?.let { open ->
+            LibraryTile(
+                Icons.Outlined.DownloadForOffline,
+                stringResource(R.string.library_jellyfin),
+                scheme.tertiaryContainer,
+                scheme.onTertiaryContainer,
+                open,
+                Modifier.fillMaxWidth().testTag(JELLYFIN_TILE_TAG),
             )
         }
         CollectionRows(onOpenPlaylists, onOpenSubscriptions, onOpenHistory, onOpenAccount)
@@ -234,5 +248,9 @@ private val TILE_HEIGHT = 104.dp
 const val STARRED_TILE_TAG: String = "library-starred"
 
 data class LibraryAlarms(val detail: String? = null, val onOpen: () -> Unit = {})
+
+data class LibraryJellyfin(val onOpen: (() -> Unit)? = null)
+
+const val JELLYFIN_TILE_TAG = "library-jellyfin-tile"
 
 const val ALARMS_TILE_TAG = "library-alarms-tile"

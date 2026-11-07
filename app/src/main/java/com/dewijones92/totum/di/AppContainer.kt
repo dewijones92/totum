@@ -53,6 +53,9 @@ import com.dewijones92.totum.data.group.SourceGroupStore
 import com.dewijones92.totum.data.history.PlayHistoryStore
 import com.dewijones92.totum.data.home.HomeJobState
 import com.dewijones92.totum.data.home.HomeJobsClient
+import com.dewijones92.totum.data.home.JellyfinApi
+import com.dewijones92.totum.data.home.JellyfinClient
+import com.dewijones92.totum.data.home.TargetsClient
 import com.dewijones92.totum.data.importexport.OpmlExporter
 import com.dewijones92.totum.data.importexport.SubscriptionImportParser
 import com.dewijones92.totum.data.net.OkHttpTextFetcher
@@ -290,6 +293,10 @@ import com.dewijones92.totum.shuffle.ShuffleAll
 import com.dewijones92.totum.stars.STARRED_PLAYLIST_NAME
 import com.dewijones92.totum.stars.Stars
 import com.dewijones92.totum.stats.StatsLog
+import com.dewijones92.totum.targets.PrefsTargetColours
+import com.dewijones92.totum.targets.RequesterIdentity
+import com.dewijones92.totum.targets.SendToTarget
+import com.dewijones92.totum.targets.TargetsRepository
 import com.dewijones92.totum.ui.ask.AskLatest
 import com.dewijones92.totum.ui.ask.AskStatePorts
 import com.dewijones92.totum.ui.ask.AskStateSource
@@ -398,6 +405,9 @@ interface AppContainer {
     val torrentSearchSource: SearchSource?
     val askService: AskService?
     val homeDownloads: HomeDownloads
+    val targets: TargetsRepository
+    val sendToTarget: SendToTarget
+    val jellyfin: JellyfinApi?
     val trail: TrailNavigation
     val askCopies: AskCopies
     val askStateSource: AskStateSource?
@@ -857,6 +867,24 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
 
     override val trail: TrailNavigation by lazy {
         TrailNavigation(PlayTrail(PrefsTrailStore(context)), playbackQueue, applicationScope)
+    }
+
+    override val targets: TargetsRepository by lazy {
+        val client = appPreferences.settings.value.homeServerBase.takeIf { it.isNotBlank() }?.let { base ->
+            TargetsClient(httpClient, "https://totum.$base/fetch", { appPreferences.settings.value.homeServerToken })
+        }
+        val identity = RequesterIdentity(context) { SharedPrefsTokenStore(context).load() != null }
+        TargetsRepository(client, identity::requester, PrefsTargetColours(context), applicationScope, operations)
+    }
+
+    override val jellyfin: JellyfinApi? by lazy {
+        appPreferences.settings.value.homeServerBase.takeIf { it.isNotBlank() }?.let { base ->
+            JellyfinClient(httpClient, "https://totum.$base/fetch", { appPreferences.settings.value.homeServerToken })
+        }
+    }
+
+    override val sendToTarget: SendToTarget by lazy {
+        SendToTarget(targets, playbackQueue, playbackController, operations, applicationScope)
     }
 
     override val homeDownloads: HomeDownloads by lazy {
@@ -1444,7 +1472,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                 kidLocked = { kidLock.locked.value },
                 setMode = appPreferences::setRepeatMode,
             )::switchOffForRunOf,
-        )
+        ).also { it.destination = targets }
     }
 
     private val localPlayStatesNow by lazy {
