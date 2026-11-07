@@ -312,7 +312,7 @@ class MultiSelectTest {
         composeTestRule.setContent {
             TotumTheme { ProvidePlayStates(container, onOpenSource = {}) { QueueScreen(container) } }
         }
-        composeTestRule.waitUntil(TIMEOUT_MS) {
+        composeTestRule.waitUntil(FIRST_SHOWN_MS) {
             composeTestRule.onAllNodesWithContentDescription(
                 activity.getString(R.string.queue_reorder),
                 useUnmergedTree = true
@@ -486,6 +486,7 @@ class MultiSelectTest {
 
     private companion object {
         const val TIMEOUT_MS = 5_000L
+        const val FIRST_SHOWN_MS = 15_000L
         const val DISK_WRITE_MS = 30L
         const val HOLD_X = 0.1f
         const val HOLD_Y = 0.5f
