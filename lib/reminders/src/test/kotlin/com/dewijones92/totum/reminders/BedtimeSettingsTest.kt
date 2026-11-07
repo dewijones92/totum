@@ -87,4 +87,40 @@ class BedtimeSettingsTest {
         val custom = on.copy(nights = setOf(DayOfWeek.MONDAY), fadeSeconds = 35)
         assertEquals(custom, BedtimeCodec.decode(BedtimeCodec.encode(custom)))
     }
+
+    @Test
+    fun `the codec ignores keys it does not know and clamps what it reads`() {
+        val read = BedtimeCodec.decode(
+            """{"enabled":true,"startMinuteOfDay":9999,"fadeSeconds":-5,"somethingNew":"x"}""",
+        )
+
+        assertTrue(read.enabled)
+        assertEquals(DayHours.MINUTES_PER_DAY - 1, read.startMinuteOfDay)
+        assertEquals(0, read.fadeSeconds)
+        assertEquals(DayOfWeek.entries.toSet(), read.nights)
+    }
+
+    @Test
+    fun `a night ends at its own morning whether or not the next night is chosen`() {
+        val weekend = on.copy(nights = setOf(DayOfWeek.FRIDAY, DayOfWeek.SATURDAY))
+
+        assertEquals(at(7, 6), weekend.runEnd(at(6, 23), zone))
+        assertEquals(at(7, 6), weekend.copy(nights = setOf(DayOfWeek.FRIDAY)).runEnd(at(6, 23), zone))
+        assertEquals(at(8, 6), weekend.runEnd(at(7, 23), zone))
+    }
+
+    @Test
+    fun `the next start skips a night that is not chosen`() {
+        val fridayOnly = on.copy(nights = setOf(DayOfWeek.FRIDAY))
+
+        assertEquals(at(13, 22), fridayOnly.nextStart(at(7, 23), zone))
+    }
+
+    @Test
+    fun `a decision made inside a night that was declined arms again the night after`() {
+        val declinedTonight = free.copy(declinedRunEnd = at(7, 6))
+
+        assertTrue(on.decide(at(6, 23), zone, declinedTonight) is BedtimeDecision.Skip)
+        assertEquals(BedtimeDecision.Arm(at(8, 6)), on.decide(at(7, 22, 30), zone, declinedTonight))
+    }
 }

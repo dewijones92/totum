@@ -63,4 +63,13 @@ class MusicPlaysPlainTest {
             assertEquals(kind.name, kind != MediaContentKind.AUDIOBOOK && tuning.keepsChanges, tuning.keepsSkipSilence)
         }
     }
+
+    @Test
+    fun `a stream that has ended plays like any talk, with speed and silence cutting allowed again`() {
+        assertEquals(
+            ItemTuning(speed = 1.75f, skipSilence = true, keepsChanges = true),
+            tuningFor(MediaContentKind.WAS_LIVE, choices),
+        )
+        assertEquals(true, tuningFor(MediaContentKind.WAS_LIVE, choices).silentTailEnds)
+    }
 }
