@@ -1,7 +1,7 @@
 ---
 title: Totum docs
 kind: index
-updated: 2026-08-01
+updated: 2026-11-07
 ---
 
 # Totum documentation
@@ -20,6 +20,7 @@ detail and keep it current.
 | [`features/`](features/_index.md) | One doc per feature — status, seam, files, tests | `<feature>.md` + `_index.md` |
 | [`todos/`](todos/_index.md) | The live backlog — one file per item | `<slug>.md` + `_index.md` |
 | [`tests/`](tests/_index.md) | Testing strategy + coverage map | one file |
+| [`drafts/`](drafts/subreddit-post.md) | Text drafted for Dewi to edit and post himself; never posted by Claude | `<subject>.md` |
 | [`adr/`](adr/_index.md) | Architecture decision records — one per decision | `NNNN-title.md` + `_index.md` |
 
 ## Frontmatter
