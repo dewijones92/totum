@@ -82,8 +82,12 @@ live edge into 404s and gives up ("Error when loading first fragment of playlist
 changed, what the old speaker service gave it: the HLS manifest from `yt-dlp -g -f bestaudio/worst --extractor-args
 youtube:player_client=web_embedded` (`YtDlpLiveHls`, using the image's `/opt/venv` and `TOTUM_JS_RUNTIME`), asked for in
 `PiStreams.locally` when the address is one of the core's live manifests. If yt-dlp cannot answer (60 s cap) it falls
-back to the DASH manifest, as before, and logs why. A live item is started at the live edge, with no `--start`. It is one
-yt-dlp call per live play, outside the polite gate of ADR 51 (one request, only when a speaker starts a live item).
+back to the DASH manifest, as before, and logs why. A live item is started at the live edge, with no `--start`. The call goes through the
+one `PoliteGate` (at most 4 in flight, 429 slow-down) and `BotBackOff` of [ADR 51](0051-a-polite-youtube-client.md)'s
+`:lib:common` classes, held by the Pi process as `youTubeGate`/`youTubeBotBackOff` in `AskServer` (the Pi had no gate
+before; its resolver and InnerTube calls do not use one yet, which this change leaves alone). A bot check backs the lookup
+off, and the answer is kept in memory per video until ten minutes before the address's own `expire` (30 minutes when it
+has none), so a looping station does not re-run yt-dlp; failures are not kept.
 Not verified on the Pi's speaker from here: the coordinator runs it.
 
 ## Consequences

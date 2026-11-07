@@ -29,7 +29,9 @@ import com.dewijones92.totum.cli.serve.targets.TargetRoutes
 import com.dewijones92.totum.cli.serve.targets.TargetStreams
 import com.dewijones92.totum.cli.serve.targets.YouTubeProgress
 import com.dewijones92.totum.cli.serve.tasks.aiTaskRoutesFrom
+import com.dewijones92.totum.common.BotBackOff
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.common.PoliteGate
 import com.dewijones92.totum.data.ask.AskAnswer
 import com.dewijones92.totum.data.ask.AskJob
 import com.dewijones92.totum.data.ask.AskJson
@@ -202,12 +204,19 @@ internal suspend fun serveAsk(port: Int, out: (String) -> Unit): Int = coroutine
     )
     val targetsDir = File(home.dataDir, "targets")
     val shell = SystemShell()
+    val youTubeGate = PoliteGate()
+    val youTubeBotBackOff = BotBackOff()
     val streams = PiStreams(
         ProcessedSound(),
         System.getenv("TOTUM_CAST_BASE"),
         System.getenv("TOTUM_CAST_PORT")?.toIntOrNull() ?: DEFAULT_CAST_PORT,
         tools = piMediaTools(File(home.dataDir, "cast")),
-        liveHls = YtDlpLiveHls(System.getenv("TOTUM_PYTHON") ?: "python3", System.getenv("TOTUM_JS_RUNTIME")),
+        liveHls = YtDlpLiveHls(
+            System.getenv("TOTUM_PYTHON") ?: "python3",
+            System.getenv("TOTUM_JS_RUNTIME"),
+            youTubeGate,
+            youTubeBotBackOff,
+        ),
     )
     val targets = TargetDecks(
         targetsDir,
