@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="kidtv_title">👶📺 Kid TV</string>
+    <string name="kidtv_starting">Starting %1$s on %2$s</string>
+    <string name="kidtv_intro">👶📺 One tap puts a playlist you pinned on the TV in kid mode: 1× speed, no skipped silences, the playlist loops, and nothing else plays. The phone stays free.</string>
+    <string name="kidtv_tile_set_up">⚙️ Choose a playlist and a TV</string>
+    <string name="kidtv_tile_ready">▶️ %1$s on %2$s</string>
+    <string name="kidtv_tile_starting">⏳ Starting on %1$s…</string>
+    <string name="kidtv_tile_on">✅ %1$s on %2$s · tap to stop</string>
+    <string name="kidtv_set_up_description">Set up Kid TV</string>
+    <string name="kidtv_toast_on">👶📺 Kid TV is on: %1$s on %2$s</string>
+    <string name="kidtv_failed_gone">❌ The chosen playlist is no longer pinned. Choose one again.</string>
+    <string name="kidtv_failed_not_found">❌ %1$s isn\'t showing up as a cast TV. Is it on? Seen: %2$s</string>
+    <string name="kidtv_failed_none_seen">❌ %1$s isn\'t showing up as a cast TV, and no other TV was found. Is it on, on the same Wi-Fi?</string>
+    <string name="kidtv_failed_network">❌ Android hasn\'t given Totum local network access. Tap Cast once to allow it.</string>
+    <string name="kidtv_failed_cast">❌ Couldn\'t start casting to %1$s: %2$s</string>
+    <string name="kidtv_failed_play">❌ Couldn\'t start %1$s: %2$s</string>
+    <string name="kidtv_playlist_section">Playlist</string>
+    <string name="kidtv_no_pins">📭 Nothing pinned yet that can show a picture. Pin a playlist or video first (its ⋮ menu → Pin).</string>
+    <string name="kidtv_tv_section">TV</string>
+    <string name="kidtv_scan">🔍 Look for TVs</string>
+    <string name="kidtv_scanning">⏳ Looking for TVs…</string>
+    <string name="kidtv_none_seen">📭 No TVs found yet. Is the TV on, on the same Wi-Fi?</string>
+    <string name="kidtv_start">▶️ Start on the TV</string>
+    <string name="kidtv_stop">⏹️ Stop Kid TV</string>
+    <string name="kidtv_not_set_up">⚙️ Choose a playlist and a TV first.</string>
+    <string name="kidtv_ready_summary">▶️ %1$s on %2$s</string>
+</resources>

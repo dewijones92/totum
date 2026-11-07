@@ -32,6 +32,10 @@ object CastTarget {
 
     val screens: StateFlow<CastScreen?> = current
 
+    private val deviceName = MutableStateFlow<String?>(null)
+
+    val device: StateFlow<String?> = deviceName
+
     val screen: CastScreen? get() = current.value
 
     private val listener = object : SessionManagerListener<CastSession> {
@@ -82,6 +86,7 @@ object CastTarget {
 
     private fun casting(session: CastSession, how: String) {
         val chosen = CastScreen.of(session.castDevice?.modelName)
+        deviceName.value = session.castDevice?.friendlyName
         current.value = chosen
         Diag.log("cast", "session $how on ${session.castDevice?.friendlyName}: formats for ${chosen.label}")
     }
@@ -89,6 +94,7 @@ object CastTarget {
     private fun stopped(how: String) {
         if (current.value != null) Diag.log("cast", "session $how: formats are the phone's again")
         current.value = null
+        deviceName.value = null
     }
 }
 

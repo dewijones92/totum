@@ -111,6 +111,11 @@ Logs: `[playback] saving <id> at …ms … under the id Totum sent`, `not saving
 `handed <id> over at …ms, the one kept while casting|the one Totum sent|the one the player has`, `[gapless] … getting
 … in line (… cast=true)`.
 
+## Kid TV (2026-11-07)
+
+A Library tile casts a chosen pinned playlist to a chosen TV by name in kid mode with one tap; see
+[kid-tv-button](kid-tv-button.md) and [ADR 148](../adr/0148-kid-tv-is-kid-mode-on-the-tv-and-a-pinned-playlist.md).
+
 ## On the PC screen (2026-10-23)
 
 🖥️ beside Cast plays on a PC instead of a TV: open the Pi bookmark `https://crashlog.333133333.xyz/screen` in Edge,

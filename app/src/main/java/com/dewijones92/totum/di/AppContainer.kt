@@ -204,6 +204,9 @@ import com.dewijones92.totum.jobs.SharedPrefsLastRunStore
 import com.dewijones92.totum.kidlock.KidLock
 import com.dewijones92.totum.kidlock.KidMode
 import com.dewijones92.totum.kidlock.KidRules
+import com.dewijones92.totum.kidlock.KidTv
+import com.dewijones92.totum.kidlock.kidTvFor
+import com.dewijones92.totum.kidlock.withKidTv
 import com.dewijones92.totum.live.LiveNoticeLabels
 import com.dewijones92.totum.live.LiveNotifier
 import com.dewijones92.totum.live.LiveRefresher
@@ -434,6 +437,7 @@ interface AppContainer {
     val lockingDownloads: LockingDownloadManager
     val pendingDownloadDeletes: PendingDownloadDeletes? get() = null
     val kidLock: KidLock
+    val kidTv: KidTv? get() = null
     val downloadChooser: DownloadChooser
 
     /** Full backup / restore of everything that is not re-downloadable. */
@@ -753,7 +757,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     private val autoPlayNextEnabled: () -> Boolean = { appPreferences.settings.value.autoPlayNext }
 
     private fun repeatNow(): RepeatMode = KidRules.repeat(
-        kidLock.locked.value,
+        kidLock.modeOn.value,
         playbackQueue.state.value.current?.group?.id,
         appPreferences.settings.value.repeatMode,
     )
@@ -999,7 +1003,8 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             settings = appPreferences.asBackupSettings().withPins(
                 pinStore
             ).withRecent(recentActions).withNotForMe(notForMe).withBedtime(bedtime).withWorkApps(workApps)
-                .withDailyAlarms(dailyAlarms).withRecorderChoices(RecorderChoiceStore(context)),
+                .withDailyAlarms(dailyAlarms).withRecorderChoices(RecorderChoiceStore(context))
+                .withKidTv(kidTv),
             appVersion = BuildConfig.VERSION_NAME,
             extras = BackupService.Extras(
                 groups = sourceGroupStore,
@@ -1026,6 +1031,8 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     }
 
     override val kidLock: KidLock = KidLock()
+
+    override val kidTv: KidTv by lazy { kidTvFor(this, context) }
 
     override val downloadChooser: DownloadChooser by lazy {
         DownloadChooser(
@@ -1133,7 +1140,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             SharedPrefsBedtimeStore(context),
             sleepTimer,
             playbackController.state,
-            kidLocked = { kidLock.locked.value },
+            kidLocked = { kidLock.modeOn.value },
             scope = applicationScope,
         )
     }
@@ -1251,14 +1258,14 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             events = playbackController.events,
             advance = { playbackQueue.continueInKind() },
             whenQueueEmpty = ::playRelatedNext,
-            isEnabled = { KidRules.autoPlay(kidLock.locked.value, autoPlayNextEnabled()) },
+            isEnabled = { KidRules.autoPlay(kidLock.modeOn.value, autoPlayNextEnabled()) },
             scope = applicationScope,
             repeat = ::repeatNow,
             replay = { playbackQueue.replayCurrent(positionMs = 0, reason = PlayReason.RepeatOne) },
             fromTheTop = { playbackQueue.playFromTheTop(repeatNow().reshuffles) },
             restartGroup = { ended -> playbackQueue.repeatGroupAfter(ended, repeatNow().reshuffles) },
             sleepsAfter = sleepTimer::firesAfter,
-            explore = { ended -> KidRules.explores(kidLock.locked.value) && exploreMode.afterEnded(ended) },
+            explore = { ended -> KidRules.explores(kidLock.modeOn.value) && exploreMode.afterEnded(ended) },
             otherKindLeft = playbackQueue::onlyOtherKindAhead,
         ).start()
     }
@@ -1378,7 +1385,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                 exsurge = {
                     exsurge.diagnostics + ExsurgeLiveUpdate.diagnostics(context) + dailyAlarms.diagnostics +
                         workApps.diagnostics + bedtime.diagnostics + RecorderDiagnostics.values(context) +
-                        listCounts()
+                        listCounts() + kidTv.diagnostics
                 },
                 appUpdate = { appUpdate.diagnostics() + appInstaller.diagnostics() + whatsNew.diagnostics() },
                 polite = { polite.diagnostics() + ("explore.on" to exploreMode.on.value.toString()) },
@@ -1477,7 +1484,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             },
             repeatOneOffForRun = RepeatOneRule(
                 chosen = { appPreferences.settings.value.repeatMode },
-                kidLocked = { kidLock.locked.value },
+                kidLocked = { kidLock.modeOn.value },
                 setMode = appPreferences::setRepeatMode,
             )::switchOffForRunOf,
         ).also { it.destination = targets }

@@ -29,7 +29,7 @@ internal fun nextLineFor(c: AppContainer): Flow<NextAfter> {
     }
     val stops = combine(
         c.appPreferences.settings.map { it.autoPlayNext }.distinctUntilChanged(),
-        c.kidLock.locked,
+        c.kidLock.modeOn,
         c.sleepTimer.state,
     ) { autoPlay, locked, _ -> KidRules.autoPlay(locked, autoPlay) }
     return combine(queueFacts, modes, stops) { (snapshot, playing), (repeat, explore), autoPlay ->

@@ -11,6 +11,7 @@ internal enum class SettingsSubPage {
     BEDTIME,
     DIAGNOSTICS,
     NOT_FOR_ME,
+    KID_TV,
 }
 
 internal enum class SettingsRow(
@@ -162,6 +163,13 @@ internal enum class SettingsRow(
         R.string.not_for_me_intro,
         "suppress hide never suggest explore ask dislike",
         SettingsSubPage.NOT_FOR_ME,
+    ),
+    KID_TV(
+        R.string.kidtv_title,
+        R.string.kidtv_title,
+        R.string.kidtv_intro,
+        "kid child toddler tv cast playlist loop lock",
+        SettingsSubPage.KID_TV,
     ),
     YOUTUBE_ALERTS(
         R.string.settings_youtube_alerts,

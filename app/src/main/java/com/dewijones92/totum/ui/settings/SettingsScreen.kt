@@ -41,6 +41,7 @@ import com.dewijones92.totum.settings.AppPreferences
 import com.dewijones92.totum.ui.common.BackHeader
 import com.dewijones92.totum.ui.common.ListThenDetail
 import com.dewijones92.totum.ui.importexport.ImportExportScreen
+import com.dewijones92.totum.ui.kidtv.KidTvScreen
 import com.dewijones92.totum.workapps.WorkAppsQuietScreen
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -103,6 +104,7 @@ fun SettingsScreen(container: AppContainer, onBack: () -> Unit, modifier: Modifi
                 BedtimeScreen(container.bedtime, onBack = close, modifier = modifier)
             SettingsSubPage.DIAGNOSTICS -> DiagnosticsScreen(onBack = close, modifier = modifier)
             SettingsSubPage.NOT_FOR_ME -> NotForMeScreen(container.notForMe, onBack = close, modifier = modifier)
+            SettingsSubPage.KID_TV -> KidTvScreen(container, onBack = close, modifier = modifier)
         }
     }
 }
@@ -197,6 +199,9 @@ private fun SideQuestRows(open: (SettingsSubPage?) -> Unit) {
             label = stringResource(R.string.not_for_me_settings_row),
             onClick = { open(SettingsSubPage.NOT_FOR_ME) }
         )
+    }
+    AnchoredRow(SettingsRow.KID_TV) {
+        NavRow(label = stringResource(R.string.kidtv_title), onClick = { open(SettingsSubPage.KID_TV) })
     }
 }
 

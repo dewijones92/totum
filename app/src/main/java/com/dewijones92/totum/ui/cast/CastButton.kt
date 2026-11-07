@@ -70,9 +70,9 @@ private class LocalNetworkCastButton(context: Context, private val ask: () -> Un
     }
 }
 
-private fun needsLocalNetwork(context: Context): Boolean =
+internal fun needsLocalNetwork(context: Context): Boolean =
     Build.VERSION.SDK_INT >= ANDROID_17 &&
         ContextCompat.checkSelfPermission(context, LOCAL_NETWORK) != PackageManager.PERMISSION_GRANTED
 
 private const val ANDROID_17 = 37
-private const val LOCAL_NETWORK = "android.permission.ACCESS_LOCAL_NETWORK"
+internal const val LOCAL_NETWORK = "android.permission.ACCESS_LOCAL_NETWORK"

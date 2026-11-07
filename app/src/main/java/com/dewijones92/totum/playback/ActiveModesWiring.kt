@@ -25,7 +25,7 @@ private const val QUIET_RECHECK_MAX_MS = 5 * 60_000L
 private const val QUIET_RECHECK_MIN_MS = 1_000L
 
 internal fun effectiveRepeatFor(c: AppContainer): Flow<RepeatMode> = combine(
-    c.kidLock.locked,
+    c.kidLock.modeOn,
     c.playbackQueue.state.map { it.current?.group?.id }.distinctUntilChanged(),
     c.appPreferences.settings.map { it.repeatMode }.distinctUntilChanged(),
 ) { locked, group, chosen -> KidRules.repeat(locked, group, chosen) }
@@ -34,7 +34,7 @@ internal fun activeModesFor(c: AppContainer): Flow<List<ActiveMode>> {
     val first = combine(
         effectiveRepeatFor(c),
         c.exploreMode.on,
-        c.kidLock.locked,
+        c.kidLock.modeOn,
         c.playbackController.state.map { it?.speed }.distinctUntilChanged(),
         quietHoursNow(c.workApps),
     ) { chosen, explore, kidLocked, speed, quiet ->

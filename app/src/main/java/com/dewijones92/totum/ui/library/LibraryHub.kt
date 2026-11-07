@@ -56,12 +56,14 @@ internal fun LibraryHub(
     groups: LibraryGroups = LibraryGroups(),
     carryOn: LibraryCarryOn = LibraryCarryOn(),
     jellyfin: LibraryJellyfin = LibraryJellyfin(),
+    kidTv: @Composable () -> Unit = {},
 ) {
     Column(modifier = modifier.fillMaxSize()) {
         LazyColumn(modifier = Modifier.weight(1f)) {
             item { ScreenHeader(stringResource(R.string.destination_library)) }
             carryOnSection(carryOn)
             item { GroupTiles(groups) }
+            item { kidTv() }
             pinnedSection()
             recentlySection()
             item {

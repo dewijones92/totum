@@ -952,7 +952,7 @@
     <string name="mode_shuffle">🔀 Shuffled</string>
     <string name="mode_explore">🧭 Explore on</string>
     <string name="mode_speed">⏩ Playing at %1$s</string>
-    <string name="mode_kid_lock">👶 Kid lock</string>
+    <string name="mode_kid_lock">👶 Kid mode</string>
     <string name="mode_quiet_hours">🔕 Work apps quiet</string>
     <string name="mode_sleep_timer">⏰ Sleep timer on</string>
     <string name="player_tab_up_next">Up next</string>

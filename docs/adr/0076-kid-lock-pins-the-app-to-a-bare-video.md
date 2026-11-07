@@ -50,6 +50,12 @@ volume … by the keys on the side."* He chose: loop what the icon started; a ta
   else is drawn over the video; volume is the side keys only. An ongoing "👶 Kid mode is on" notification.
 - Checked on totum-api35: lock by broadcast, pinned, speed and skip held, the tap badge and slider over the video.
 
+## Amended 2026-11-07
+
+The kid *rules* above (1x, no silence skipping, auto-play, the loop, no Explore) also apply while Kid TV is on, with the
+phone unlocked: they read `KidLock.modeOn`, while the stage, the pin and the shell's back handling read `locked`
+([ADR 148](0148-kid-tv-is-kid-mode-on-the-tv-and-a-pinned-playlist.md)).
+
 ## Consequences
 
 - Verified on totum-api35: tile and broadcast lock, landscape, back ignored, the corner unlock with pinning off, and

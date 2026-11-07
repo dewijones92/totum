@@ -29,11 +29,11 @@ class KidMode(
 ) {
     private var before: Pair<Float, Boolean>? = null
 
-    val locked: Boolean get() = lock.locked.value
+    val locked: Boolean get() = lock.modeOn.value
 
     fun start() {
         scope.launch {
-            combine(lock.locked, controller.state) { locked, state -> locked to state }
+            combine(lock.modeOn, controller.state) { locked, state -> locked to state }
                 .distinctUntilChanged()
                 .collect { (locked, state) ->
                     if (locked) hold(state?.speed, state?.skipSilence) else release()

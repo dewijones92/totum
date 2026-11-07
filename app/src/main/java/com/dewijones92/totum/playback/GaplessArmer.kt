@@ -119,7 +119,7 @@ internal fun startGapless(container: AppContainer, metered: () -> Boolean) {
                 exploring = container.exploreMode.on.value,
                 lastOfItsGroup = controller.state.value?.itemId
                     ?.let { groupRestartIndex(queue.state.value, it) != null } == true,
-                kidLocked = container.kidLock.locked.value,
+                kidLocked = container.kidLock.modeOn.value,
                 playingGroup = queue.state.value.current?.group?.id,
             )
         }
