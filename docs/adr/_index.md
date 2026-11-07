@@ -156,6 +156,9 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 138 | [A queue group says how long is left, at the speed it will play](0138-a-queue-group-says-how-long-is-left-at-the-speed-it-will-play.md) | Accepted |
 | 139 | [The decoder and the screen are told the frame rate](0139-the-decoder-and-the-screen-are-told-the-frame-rate.md) | Accepted |
 | 140 | [Ask answers about your own app with jq only, and keeps the data away from the web](0140-ask-answers-about-your-own-app-with-jq-only.md) | Accepted |
+| 141 | [A spoiler shield hides results in titles, pictures and lengths, through one title seam](0141-a-spoiler-shield-hides-results-in-titles-pictures-and-lengths.md) | Accepted |
+| 142 | [TL;DR, chapters and ask about this video are one transcript digest](0142-tl-dr-chapters-and-ask-about-this-video-are-one-transcript-digest.md) | Accepted |
+| 143 | [🤖 For you and the 🌅 morning digest are one morning job](0143-for-you-and-the-morning-digest-are-one-morning-job.md) | Accepted |
 | 146 | [GPL-3.0, and reports go to the Pi only from a phone signed in to the home server](0146-gpl-3-and-reports-go-to-the-pi-only-when-signed-in.md) | Accepted |
 | 147 | [The sponsor link is one build value, and the button is hidden while it is empty](0147-the-sponsor-link-is-one-build-value-and-hidden-when-empty.md) | Accepted |
 | 148 | [Kid TV: one tap casts a pinned playlist to a chosen TV in kid mode, and the phone stays free](0148-kid-tv-is-kid-mode-on-the-tv-and-a-pinned-playlist.md) | Accepted |
@@ -163,6 +166,3 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 152 | [A target is anything the Pi plays to, and each has its own queue](0152-a-target-is-anything-the-pi-plays-to-and-each-has-its-own-queue.md) | Accepted |
 | 153 | [The Pi runs the phone's sound processing](0153-the-pi-runs-the-phones-sound-processing.md) | Accepted |
 | 154 | [Jellyfin is browsed and streamed through the Pi, with the key kept there](0154-jellyfin-is-browsed-and-streamed-through-the-pi.md) | Accepted |
-| 141 | [A spoiler shield hides results in titles, pictures and lengths, through one title seam](0141-a-spoiler-shield-hides-results-in-titles-pictures-and-lengths.md) | Accepted |
-| 142 | [TL;DR, chapters and ask about this video are one transcript digest](0142-tl-dr-chapters-and-ask-about-this-video-are-one-transcript-digest.md) | Accepted |
-| 143 | [🤖 For you and the 🌅 morning digest are one morning job](0143-for-you-and-the-morning-digest-are-one-morning-job.md) | Accepted |
