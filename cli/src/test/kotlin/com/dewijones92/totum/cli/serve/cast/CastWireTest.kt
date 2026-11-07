@@ -54,6 +54,8 @@ class CastWireTest {
                     """"durationMs":null,"contentId":"https://old"}"""
             ),
         )
+        assertEquals(CastEvent.Volume(1), CastWire.parse("""{"event":"volume","percent":1}"""))
+        assertNull(CastWire.parse("""{"event":"volume"}"""))
         assertNull(CastWire.parse("not json"))
         assertNull(CastWire.parse("""{"event":"mystery"}"""))
     }

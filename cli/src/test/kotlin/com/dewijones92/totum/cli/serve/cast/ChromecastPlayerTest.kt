@@ -24,6 +24,7 @@ class ChromecastPlayerTest {
         val calls = mutableListOf<String>()
         var reading: CastReading? = null
         var reachable = true
+        var deviceVolume: Int? = null
         override fun load(url: String, contentType: String, title: String, startAtMs: Long) {
             loads += Loaded(url, contentType, title, startAtMs)
         }
@@ -36,6 +37,7 @@ class ChromecastPlayerTest {
         override fun volume(percent: Int) {
             calls += "volume=$percent"
         }
+        override fun volumePercent(): Int? = deviceVolume
         override fun stop() {
             calls += "stop"
         }
@@ -59,10 +61,10 @@ class ChromecastPlayerTest {
         sound: SoundSettings = SoundSettings(),
         picture: Boolean = false,
         startAtMs: Long = 0,
-    ) = PlayRequest(url, "10.0.0.5", 40, sound, startAtMs, picture, "Talk")
+    ) = PlayRequest(url, "10.0.0.5", sound, startAtMs, picture, "Talk")
 
     @Test
-    fun `an unprocessed item is loaded from its own address at its own place, then the volume is set`() {
+    fun `an unprocessed item is loaded from its own address at its own place and the volume is left alone`() {
         player().play(request(startAtMs = 9_000))
 
         val load = control.loads.single()
@@ -70,7 +72,7 @@ class ChromecastPlayerTest {
         assertEquals("audio/mpeg", load.type)
         assertEquals("Talk", load.title)
         assertEquals(9_000L, load.startAtMs)
-        assertEquals(listOf("stop", "volume=40"), control.calls)
+        assertEquals(listOf("stop"), control.calls)
     }
 
     @Test
@@ -165,6 +167,29 @@ class ChromecastPlayerTest {
         p.volume(25)
 
         assertEquals(listOf("pause=true", "seek=7000", "volume=25"), control.calls)
+    }
+
+    @Test
+    fun `the volume shown is the TV's own, and unknown until it says`() {
+        val p = player()
+        assertNull(p.volumePercent)
+
+        control.deviceVolume = 1
+
+        assertEquals(1, p.volumePercent)
+    }
+
+    @Test
+    fun `a play of any kind of item leaves the TV's volume alone`() {
+        val file = File(dir, "episode.mkv").apply { writeBytes(ByteArray(10)) }
+        val p = player()
+
+        p.play(request(sound = SoundSettings(boost = VolumeBoost.AUTO)))
+        p.play(request(url = file.path, picture = true))
+        p.play(request(url = "https://r.googlevideo.com/p?mime=video%2Fmp4", picture = true))
+
+        assertEquals(3, control.loads.size)
+        assertTrue(control.calls.toString(), control.calls.none { it.startsWith("volume") })
     }
 
     @Test

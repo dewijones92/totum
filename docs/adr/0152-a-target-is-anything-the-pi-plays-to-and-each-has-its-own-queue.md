@@ -69,6 +69,16 @@ to send a queue to. ADR 116 had built that for speakers only, with its own wire 
   second phone is refused too. Signing out (`DELETE /account?by=<id>`) is refused for anyone but the recorded phone, and
   clearing it lets the next phone sign in. The first hand-over after this change on a Pi that was already signed in
   claims ownership (nothing was recorded before); the owner's phone does that at its next download of a video.
+- **A play never changes a device's volume (amended 2026-11-07).** The first build gave every deck a volume of 70 and
+  pushed it to the TV (`set_volume`) or to mpv on every play, so the first send to Dewi's LG, left at 1%, would have gone to
+  70%. Now only a `VOLUME` action from the phone sets a volume: `PlayRequest` carries none, and `TargetState.volume` is
+  nullable, read from the device (a Chromecast's receiver status through the helper's `volume` event, or the level the
+  phone last chose on a speaker) and unknown, not 70, when the device has not said. The deck saves no volume and ignores
+  the one an older deck file holds (`"volume": 70` still decodes and is never applied). On a speaker, mpv gets
+  `--volume` only after a volume the phone chose, kept for that speaker until the Pi restarts; otherwise it plays untouched.
+  The phone shows "🔈 Volume not known" until a level is known. A Chromecast `stop` is sent only when Totum has something
+  loaded, since `pychromecast` answers a stop with no media session as a failure ("Failed to execute stop"), which the
+  helper used to report as an error before every load.
 - **Every phone sees the same queues.** Any phone signed in to the home server reads and edits the targets' queues
   through the same operations; edits are small operations, never a whole-queue replace.
 

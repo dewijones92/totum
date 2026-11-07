@@ -50,6 +50,9 @@ internal class MpvPlayer(
     @Volatile
     private var offsetMs = 0L
 
+    @Volatile
+    private var chosenVolume: Int? = null
+
     override fun play(request: PlayRequest) {
         stop()
         dir.mkdirs()
@@ -67,8 +70,8 @@ internal class MpvPlayer(
         }
         val command = listOf(
             mpv, "--no-video", "--no-terminal", "--idle=no", "--audio-device=pulse/${request.destination}",
-            "--volume=${request.volume}", "--input-ipc-server=${socket.path}",
-        ) + source
+            "--input-ipc-server=${socket.path}",
+        ) + listOfNotNull(chosenVolume?.let { "--volume=$it" }) + source
         val started = ProcessBuilder(command).redirectErrorStream(true).redirectOutput(log).start()
         process = started
         pipelineFailed = false
@@ -86,7 +89,7 @@ internal class MpvPlayer(
         }
         Diag.log(
             "speakers",
-            "$id: mpv ${started.pid()} on ${request.destination} volume=${request.volume} " +
+            "$id: mpv ${started.pid()} on ${request.destination} volume=${chosenVolume ?: "untouched"} " +
                 "${if (request.url.startsWith("/")) "file" else "stream"} sound=${request.sound} " +
                 "from=${request.startAtMs}ms",
         )
@@ -117,7 +120,10 @@ internal class MpvPlayer(
         ipc(JsonPrimitive("seek"), JsonPrimitive(positionMs / MS_PER_S.toDouble()), JsonPrimitive("absolute"))
     }
 
+    override val volumePercent: Int? get() = chosenVolume
+
     override fun volume(percent: Int) {
+        chosenVolume = percent
         ipc(JsonPrimitive("set_property"), JsonPrimitive("volume"), JsonPrimitive(percent))
     }
 

@@ -11,6 +11,7 @@ import com.dewijones92.totum.data.targets.TargetAction
 import com.dewijones92.totum.data.targets.TargetControl
 import com.dewijones92.totum.data.targets.TargetKind
 import com.dewijones92.totum.data.targets.TargetQueueRequest
+import com.dewijones92.totum.data.targets.TargetState
 import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
@@ -32,17 +33,21 @@ class TargetDeckTest {
         val requests = mutableListOf<PlayRequest>()
         var paused = false
         var stopped = false
-        var vol = -1
+        var vol: Int? = null
+        val volumeCommands = mutableListOf<Int>()
         override fun play(request: PlayRequest) {
             requests += request
             played += "${request.url}@${request.destination}"
             paused = false
             stopped = false
-            vol = request.volume
         }
         override fun pause(paused: Boolean) { this.paused = paused }
         override fun seek(positionMs: Long) = Unit
-        override fun volume(percent: Int) { vol = percent }
+        override fun volume(percent: Int) {
+            volumeCommands += percent
+            vol = percent
+        }
+        override val volumePercent: Int? get() = vol
         override fun stop() { stopped = true }
         override val positionMs: Long? = 1_000
         override val durationMs: Long? = 60_000
@@ -130,6 +135,7 @@ class TargetDeckTest {
         assertEquals("https://sound/c@bar-sink", player.played.last())
         deck.control(TargetControl(TargetAction.VOLUME, volume = 40))
         assertEquals(40, player.vol)
+        assertEquals(listOf(40), player.volumeCommands)
         deck.control(TargetControl(TargetAction.REMOVE, index = 0))
         assertEquals(listOf("b", "c"), deck.state().entries.map { it.item.itemId })
         deck.control(TargetControl(TargetAction.STOP))
@@ -155,6 +161,50 @@ class TargetDeckTest {
         assertEquals(listOf("b"), lookedAhead)
         deck.ended(failed = false)
         assertEquals(listOf("b", "c"), lookedAhead)
+    }
+
+    @Test
+    fun `a play never sends a volume, and only a volume action from the phone does`() = runBlocking {
+        val deck = deck()
+        deck.enqueue(TargetQueueRequest(listOf(item("a"), item("b"), item("c")), QueueMode.REPLACE))
+        deck.control(TargetControl(TargetAction.NEXT))
+        deck.control(TargetControl(TargetAction.JUMP, index = 2))
+        deck.control(TargetControl(TargetAction.PAUSE))
+        deck.control(TargetControl(TargetAction.PLAY))
+        deck.ended(failed = false)
+        assertEquals(emptyList<Int>(), player.volumeCommands)
+
+        deck.control(TargetControl(TargetAction.VOLUME, volume = 40))
+        deck.control(TargetControl(TargetAction.PREVIOUS))
+        deck.control(TargetControl(TargetAction.NEXT))
+        assertEquals(listOf(40), player.volumeCommands)
+    }
+
+    @Test
+    fun `the volume shown is what the device says, and unknown when it cannot say`() = runBlocking {
+        val deck = deck()
+        deck.enqueue(TargetQueueRequest(listOf(item("a")), QueueMode.REPLACE))
+        assertEquals(null, deck.state().volume)
+
+        player.vol = 1
+        assertEquals(1, deck.state().volume)
+    }
+
+    @Test
+    fun `a volume saved by an older deck is neither applied nor saved again`() = runBlocking {
+        val file = dir.resolve("bar.json")
+        DeckStore(file).save(
+            TargetState(Target("bar", "LG soundbar", TargetKind.SPEAKER), volume = 70, sound = SoundSettings()),
+            "bar",
+        )
+        assertTrue(file.readText().contains("\"volume\":70"))
+
+        val deck = deck()
+        deck.enqueue(TargetQueueRequest(listOf(item("a")), QueueMode.REPLACE))
+
+        assertEquals(emptyList<Int>(), player.volumeCommands)
+        assertEquals(null, deck.state().volume)
+        assertEquals(null, DeckStore(file).restore("bar")?.volume)
     }
 
     @Test

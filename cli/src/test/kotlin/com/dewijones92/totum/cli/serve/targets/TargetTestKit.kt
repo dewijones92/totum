@@ -16,20 +16,22 @@ internal class RecordingPlayer : TargetPlayer {
     val requests = mutableListOf<PlayRequest>()
     var paused = false
     var stopped = false
-    var volume = -1
+    var volume: Int? = null
+    val volumeCommands = mutableListOf<Int>()
     override fun play(request: PlayRequest) {
         requests += request
         paused = false
         stopped = false
-        volume = request.volume
     }
     override fun pause(paused: Boolean) {
         this.paused = paused
     }
     override fun seek(positionMs: Long) = Unit
     override fun volume(percent: Int) {
+        volumeCommands += percent
         volume = percent
     }
+    override val volumePercent: Int? get() = volume
     override fun stop() {
         stopped = true
     }

@@ -11,6 +11,7 @@ internal interface CastControl {
     fun pause(paused: Boolean)
     fun seek(positionMs: Long)
     fun volume(percent: Int)
+    fun volumePercent(): Int?
     fun stop()
     fun reading(): CastReading?
     var onEnded: (failed: Boolean) -> Unit
@@ -41,6 +42,8 @@ internal class PyCastControl(
 
     @Volatile private var loadedUrl: String? = null
 
+    @Volatile private var deviceVolume: Int? = null
+
     @Synchronized
     private fun session(): BufferedWriter? {
         writer?.takeIf { process?.isAlive == true }?.let { return it }
@@ -68,6 +71,10 @@ internal class PyCastControl(
                     Diag.log("cast-target", "$label: connected, ${event.name} (${event.model})")
                 }
                 is CastEvent.Status -> status(event)
+                is CastEvent.Volume -> {
+                    deviceVolume = event.percent
+                    Diag.log("cast-target", "$label: the device's volume is ${event.percent}%")
+                }
                 is CastEvent.Failure -> {
                     problem = event.message
                     Diag.warn("cast-target", "$label: ${event.message}")
@@ -146,9 +153,16 @@ internal class PyCastControl(
         send(CastWire.volume(percent))
     }
 
+    override fun volumePercent(): Int? = deviceVolume
+
     override fun stop() {
+        val wasLoaded = loaded
         loaded = false
-        send(CastWire.stop())
+        if (wasLoaded) {
+            send(CastWire.stop())
+        } else {
+            Diag.log("cast-target", "$label: stop not sent, nothing is loaded from Totum")
+        }
         latest = null
     }
 

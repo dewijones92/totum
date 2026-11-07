@@ -28,7 +28,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -145,13 +144,17 @@ private fun RemoteControls(targets: TargetsRepository, state: TargetState) {
             onClick = { targets.command(id, TargetAction.STOP) }
         ) { Text("⏹️ " + stringResource(R.string.target_stop)) }
     }
-    var volume by remember(state.volume) { mutableFloatStateOf(state.volume.toFloat()) }
-    Text(stringResource(R.string.target_volume, volume.toInt()), style = MaterialTheme.typography.bodySmall)
+    var volume by remember(state.volume) { mutableStateOf(state.volume?.toFloat()) }
+    Text(
+        volume?.let { stringResource(R.string.target_volume, it.toInt()) }
+            ?: stringResource(R.string.target_volume_unknown),
+        style = MaterialTheme.typography.bodySmall,
+    )
     Slider(
-        value = volume,
+        value = volume ?: 0f,
         onValueChange = { volume = it },
         onValueChangeFinished = {
-            targets.act(id, TargetControl(TargetAction.VOLUME, volume = volume.toInt()))
+            volume?.let { targets.act(id, TargetControl(TargetAction.VOLUME, volume = it.toInt())) }
         },
         valueRange = 0f..VOLUME_MAX,
     )

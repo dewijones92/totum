@@ -2,7 +2,7 @@
 title: 📡 The Pi plays to any TV, speaker or browser; the phone is a remote
 kind: feature
 area: casting/pi
-status: built 2026-11-07, Batch A (tests written 2026-11-07; nothing run on a real TV, speaker or Chromecast)
+status: built 2026-11-07, Batch A (tests written 2026-11-07; volume rule and the YouTube relay fixed after the first run on the LG; the relay not yet seen on a real TV)
 updated: 2026-11-07
 ---
 
@@ -38,6 +38,10 @@ sound processing on the Pi). Brief: [pi-plays-everywhere.md](../todos/pi-plays-e
 - **YouTube progress** is reported from the Pi for items queued from the phone that signed the Pi in only (the Pi records
   which phone handed the sign-in over), on pause, skip, an item ending and every 30 s; items from another phone are not.
   A second phone's sign-in hand-over is refused until the first phone signs the Pi out.
+- **Volume is the device's own.** A play never changes a TV's or a speaker's volume; only the phone's volume slider does.
+  The slider shows the level the device reports (a Chromecast says it on connect and when it changes), or "🔈 Volume not
+  known" when it has not said; a speaker's is the level last chosen from the phone, until the Pi restarts. A volume saved
+  by an older version is ignored.
 - **TV sound switches** are greyed, with a note, while the TV is showing a picture.
 
 ## Files

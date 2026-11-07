@@ -8,7 +8,6 @@ import com.dewijones92.totum.domain.PlayableItem
 internal data class PlayRequest(
     val url: String,
     val destination: String,
-    val volume: Int,
     val sound: SoundSettings,
     val startAtMs: Long,
     val picture: Boolean,
@@ -20,6 +19,7 @@ internal interface TargetPlayer {
     fun pause(paused: Boolean)
     fun seek(positionMs: Long)
     fun volume(percent: Int)
+    val volumePercent: Int?
     fun stop()
     val positionMs: Long?
     val durationMs: Long?

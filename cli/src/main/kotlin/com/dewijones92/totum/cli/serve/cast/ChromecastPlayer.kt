@@ -52,7 +52,6 @@ internal class ChromecastPlayer(
         sourceUrl = if (processed) url else null
         val startAt = if (processed) 0L else request.startAtMs
         control.load(url, contentTypeOf(url, request.picture, processed), request.title, startAt)
-        control.volume(request.volume)
     }
 
     override fun pause(paused: Boolean) = control.pause(paused)
@@ -60,6 +59,8 @@ internal class ChromecastPlayer(
     override fun seek(positionMs: Long) = control.seek(positionMs)
 
     override fun volume(percent: Int) = control.volume(percent)
+
+    override val volumePercent: Int? get() = control.volumePercent()
 
     override fun stop() {
         control.stop()

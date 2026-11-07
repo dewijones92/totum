@@ -47,7 +47,7 @@ public data class TargetState(
     val playing: Boolean = false,
     val positionMs: Long = 0,
     val durationMs: Long? = null,
-    val volume: Int = DEFAULT_VOLUME,
+    val volume: Int? = null,
     val linked: Boolean = false,
     val problem: String? = null,
     val sound: SoundSettings = SoundSettings(),
@@ -104,8 +104,6 @@ public fun List<TargetEntry>.toSnapshot(at: Int): QueueSnapshot {
     val kept = mapNotNull { it.toQueueEntry() }
     return QueueSnapshot(kept, if (at in kept.indices) at else QueueSnapshot.NOTHING_PLAYING)
 }
-
-public const val DEFAULT_VOLUME: Int = 70
 
 public val TargetsJson: Json = Json {
     ignoreUnknownKeys = true

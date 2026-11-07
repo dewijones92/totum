@@ -58,7 +58,7 @@ class MpvPlayerTest {
         url: String = "https://example.com/talk.mp3",
         sound: SoundSettings = SoundSettings(),
         startAtMs: Long = 0,
-    ) = PlayRequest(url, "bluez_output.AA_BB.1", 55, sound, startAtMs, picture = false, title = "Talk")
+    ) = PlayRequest(url, "bluez_output.AA_BB.1", sound, startAtMs, picture = false, title = "Talk")
 
     @Test
     fun `an unprocessed item is played straight from its address, starting where it was`() {
@@ -69,11 +69,27 @@ class MpvPlayerTest {
         val args = argv("argv.txt")
         assertTrue(args.toString(), args.containsAll(listOf("--no-video", "--no-terminal", "--idle=no")))
         assertTrue(args.contains("--audio-device=pulse/bluez_output.AA_BB.1"))
-        assertTrue(args.contains("--volume=55"))
+        assertFalse(args.toString(), args.any { it.startsWith("--volume") })
         assertTrue(args.contains("--input-ipc-server=${dir.path}/mpv-bar.sock"))
         assertTrue(args.contains("--start=12.5"))
         assertEquals(listOf("--", "https://example.com/talk.mp3"), args.takeLast(2))
         assertFalse(args.any { it.startsWith("--demuxer") })
+    }
+
+    @Test
+    fun `a volume chosen from the phone is kept for the next item, and none is ever invented`() {
+        val p = mpv("""printf '%s\n' "${'$'}@" > "${dir.path}/argv-${'$'}(date +%s%N).txt"; sleep 5""")
+
+        p.play(request())
+        waitFor { dir.listFiles { f -> f.name.startsWith("argv-") }?.size == 1 }
+        p.volume(30)
+        p.play(request(url = "https://example.com/two.mp3"))
+
+        waitFor { dir.listFiles { f -> f.name.startsWith("argv-") }?.size == 2 }
+        val runs = dir.listFiles { f -> f.name.startsWith("argv-") }!!.sortedBy { it.name }.map { it.readLines() }
+        assertFalse(runs.first().toString(), runs.first().any { it.startsWith("--volume") })
+        assertTrue(runs.last().toString(), runs.last().contains("--volume=30"))
+        assertEquals(30, p.volumePercent)
     }
 
     @Test

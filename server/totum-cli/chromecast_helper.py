@@ -28,6 +28,13 @@ class Listener:
         )
 
 
+class DeviceVolume:
+    def new_cast_status(self, status):
+        level = getattr(status, "volume_level", None)
+        if level is not None:
+            say(event="volume", percent=round(level * 100))
+
+
 def connect(host):
     casts, browser = pychromecast.get_chromecasts(known_hosts=[host], timeout=15)
     if not casts:
@@ -36,6 +43,7 @@ def connect(host):
     cast = casts[0]
     cast.wait(timeout=20)
     cast.media_controller.register_status_listener(Listener(cast))
+    cast.register_status_listener(DeviceVolume())
     return cast, browser
 
 
@@ -59,6 +67,8 @@ def main():
     cast, browser = connect(host)
     media = cast.media_controller
     say(event="ready", name=cast.name, model=cast.model_name)
+    if cast.status is not None:
+        DeviceVolume().new_cast_status(cast.status)
     keep_reporting(cast)
     for line in sys.stdin:
         try:
@@ -81,7 +91,8 @@ def main():
             elif name == "volume":
                 cast.set_volume(command["percent"] / 100)
             elif name == "stop":
-                media.stop()
+                if media.status is not None and media.status.media_session_id is not None:
+                    media.stop()
             elif name == "quit":
                 break
         except Exception as problem:

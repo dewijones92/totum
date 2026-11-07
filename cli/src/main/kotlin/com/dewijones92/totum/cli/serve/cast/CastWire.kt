@@ -19,6 +19,7 @@ internal sealed interface CastEvent {
         val durationMs: Long?,
         val contentId: String? = null,
     ) : CastEvent
+    data class Volume(val percent: Int) : CastEvent
     data class Failure(val message: String) : CastEvent
 }
 
@@ -53,6 +54,7 @@ internal object CastWire {
                 obj["durationMs"]?.takeIf { it !is JsonNull }?.jsonPrimitive?.longOrNull,
                 obj.text("contentId"),
             )
+            "volume" -> obj["percent"]?.jsonPrimitive?.longOrNull?.let { CastEvent.Volume(it.toInt()) }
             "error" -> CastEvent.Failure(obj.text("message") ?: "unknown")
             else -> null
         }

@@ -1,5 +1,8 @@
 package com.dewijones92.totum.cli.serve.cast
 
+import com.dewijones92.totum.cli.serve.sound.ProcessedSound
+import com.dewijones92.totum.cli.serve.targets.PlayRequest
+import com.dewijones92.totum.data.targets.SoundSettings
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -78,7 +81,72 @@ class CastControlTest {
         control.stop()
     }
 
+    private fun recordingHelper(log: File, extraEvents: String = "") = helper(
+        """
+        echo '{"event":"ready","name":"LG TV","model":"webOS"}'
+        $extraEvents
+        while read line; do echo "${'$'}line" >> "${log.path}"; done
+        """.trimIndent()
+    )
+
+    private fun sent(log: File): List<String> =
+        if (log.exists()) log.readLines().map { it.substringAfter("\"cmd\":\"").substringBefore('"') } else emptyList()
+
+    private fun waitUntil(condition: () -> Boolean) {
+        repeat(WAIT_TICKS) { if (!condition()) Thread.sleep(TICK_MS) }
+    }
+
+    @Test
+    fun `playing through the Chromecast player sends the helper a load and no volume`() {
+        val log = File(dir, "sent.log")
+        val control = control(recordingHelper(log))
+        val streams = SoundStreams(ProcessedSound("ffmpeg-not-run") { null }, null, 0)
+        val player = ChromecastPlayer("LG TV", control, streams)
+
+        runBlocking { control.reachable() }
+        player.play(PlayRequest("https://example.com/talk.mp3", "10.0.0.5", SoundSettings(), 0, false, "Talk"))
+        player.play(PlayRequest("https://example.com/two.mp3", "10.0.0.5", SoundSettings(), 0, false, "Two"))
+        waitUntil { sent(log).size >= 3 }
+
+        assertEquals(listOf("load", "stop", "load"), sent(log))
+
+        player.volume(25)
+        waitUntil { sent(log).size >= 4 }
+        assertEquals(listOf("load", "stop", "load", "volume"), sent(log))
+        control.stop()
+    }
+
+    @Test
+    fun `a stop with nothing loaded is not sent, because the TV has no session to stop`() {
+        val log = File(dir, "sent.log")
+        val control = control(recordingHelper(log))
+        runBlocking { control.reachable() }
+
+        control.stop()
+        control.load("https://new", "audio/mpeg", "New", 0)
+        waitUntil { sent(log).isNotEmpty() }
+
+        assertEquals(listOf("load"), sent(log))
+        control.stop()
+        waitUntil { sent(log).size >= 2 }
+        assertEquals(listOf("load", "stop"), sent(log))
+    }
+
+    @Test
+    fun `the volume the device reports is remembered, and unknown until it does`() {
+        val log = File(dir, "sent.log")
+        val control = control(recordingHelper(log, """sleep 2; echo '{"event":"volume","percent":1}'"""))
+
+        runBlocking { control.reachable() }
+        assertEquals(null, control.volumePercent())
+        waitUntil { control.volumePercent() != null }
+
+        assertEquals(1, control.volumePercent())
+    }
+
     private companion object {
+        const val WAIT_TICKS = 100
+        const val TICK_MS = 50L
         const val WAIT_S = 10L
         const val SETTLE_MS = 700L
     }
