@@ -61,7 +61,6 @@ import com.dewijones92.totum.data.home.JellyfinClient
 import com.dewijones92.totum.data.home.TargetsClient
 import com.dewijones92.totum.data.importexport.OpmlExporter
 import com.dewijones92.totum.data.importexport.SubscriptionImportParser
-import com.dewijones92.totum.data.morning.InboxEntry
 import com.dewijones92.totum.data.net.OkHttpTextFetcher
 import com.dewijones92.totum.data.notforme.FileNotForMeStore
 import com.dewijones92.totum.data.notforme.NotForMe
@@ -852,10 +851,8 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         val notifier = GroupNewsNotifier(context, LiveNoticeLabels(context, liveStates, shield))
         val morning = aiFeatures.morningStore
         return { group, item ->
-            if (morning.digestOn) {
-                val shielded = shield.face(item).shielded
-                val entry = InboxEntry(group.name, item.id.value, item.title, shielded, System.currentTimeMillis())
-                morning.addToInbox(entry)
+            val held = morning.holdForDigest(group.name, item.id.value, item.title) { shield.face(item).shielded }
+            if (held) {
                 Diag.log(
                     "group",
                     "\"${group.name}\": \"${item.title}\" goes into the morning digest, not a notification"

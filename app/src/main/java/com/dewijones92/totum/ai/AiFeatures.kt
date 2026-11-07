@@ -89,7 +89,7 @@ internal fun aiFeaturesOf(
         store = morningStore,
         taste = { appTaste(c) },
         have = { ownedTitles(c) },
-        find = { pick, taste -> findPick(c, pick, taste) },
+        find = { pick, taste -> findPick(c.askCopies, c.podcastRepository, pick, taste) },
         replaceForYou = { items -> replaceForYou(c, forYouName, items) },
         titleOf = { entry -> if (entry.shielded) spoilers.safeTitleOf(entry.itemId) else entry.title },
     )

@@ -74,6 +74,12 @@ public class MorningStore(private val file: MorningFile, private val clock: () -
         }
     }
 
+    public fun holdForDigest(groupName: String, itemId: String, title: String, shielded: () -> Boolean): Boolean {
+        if (!digestOn) return false
+        addToInbox(InboxEntry(groupName, itemId, title, shielded(), clock()))
+        return true
+    }
+
     public fun consumed(entries: List<InboxEntry>, at: Long) {
         val gone = entries.mapTo(mutableSetOf()) { it.itemId }
         change("inbox emptied of ${entries.size}") { state ->

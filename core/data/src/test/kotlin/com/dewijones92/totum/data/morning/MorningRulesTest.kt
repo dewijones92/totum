@@ -160,6 +160,30 @@ class MorningRulesTest {
     }
 
     @Test
+    fun `with the digest on a new video goes into the inbox and no notification is wanted`() {
+        var asked = 0
+        val store = MorningStore(InMemoryMorningFile(), clock = { 777L })
+        store.setDigest(true)
+
+        val held = store.holdForDigest("Tennis", "v1", "Day 2", shielded = { asked++ >= 0 })
+
+        assertTrue(held)
+        assertEquals(1, asked)
+        val entry = store.state.value.inbox.single()
+        assertEquals(InboxEntry("Tennis", "v1", "Day 2", shielded = true, at = 777L), entry)
+    }
+
+    @Test
+    fun `with the digest off the video is left to notify and the shield is not asked`() {
+        val store = MorningStore(InMemoryMorningFile(), clock = { 777L })
+
+        val held = store.holdForDigest("Tennis", "v1", "Day 2", shielded = { error("must not be asked") })
+
+        assertFalse(held)
+        assertTrue(store.state.value.inbox.isEmpty())
+    }
+
+    @Test
     fun `the switches and the inbox survive a restart through the file`() {
         val file = File(tmp.root, "morning.json")
         val store = MorningStore(FileMorningFile(file), clock = { 10L })

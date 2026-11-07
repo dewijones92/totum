@@ -3,6 +3,7 @@ package com.dewijones92.totum.ai
 import android.content.Context
 import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.data.ask.AskCopies
 import com.dewijones92.totum.data.ask.AskKind
 import com.dewijones92.totum.data.ask.Suggestion
 import com.dewijones92.totum.data.ask.Taste
@@ -10,6 +11,7 @@ import com.dewijones92.totum.data.ask.squashed
 import com.dewijones92.totum.data.morning.MorningResult
 import com.dewijones92.totum.data.morning.MorningRun
 import com.dewijones92.totum.data.morning.replaceContents
+import com.dewijones92.totum.data.podcast.PodcastRepository
 import com.dewijones92.totum.data.podcast.PreviewResult
 import com.dewijones92.totum.data.search.SearchHit
 import com.dewijones92.totum.di.AppContainer
@@ -67,15 +69,20 @@ class MorningJob(
     }
 }
 
-internal suspend fun findPick(c: AppContainer, pick: Suggestion, taste: Taste): PlayableItem? = when (pick.kind) {
-    AskKind.YOUTUBE -> findVideo(c, pick, taste)
-    AskKind.PODCAST -> findLatestEpisode(c, pick, taste)
+internal suspend fun findPick(
+    copies: AskCopies,
+    podcasts: PodcastRepository,
+    pick: Suggestion,
+    taste: Taste,
+): PlayableItem? = when (pick.kind) {
+    AskKind.YOUTUBE -> findVideo(copies, pick, taste)
+    AskKind.PODCAST -> findLatestEpisode(copies, podcasts, pick, taste)
     else -> null
 }
 
-private suspend fun findVideo(c: AppContainer, pick: Suggestion, taste: Taste): PlayableItem? {
+private suspend fun findVideo(copies: AskCopies, pick: Suggestion, taste: Taste): PlayableItem? {
     val followed = taste.channels.map { it.squashed() }
-    val hit = c.askCopies.find(pick).filterIsInstance<SearchHit.Video>().firstOrNull { video ->
+    val hit = copies.find(pick).filterIsInstance<SearchHit.Video>().firstOrNull { video ->
         val channel = video.subtitle.orEmpty().squashed()
         val followedAlready = channel.isNotEmpty() && followed.any { it == channel }
         val ok = video.kind == MediaContentKind.STANDARD && !video.membersOnly && !followedAlready
@@ -91,11 +98,16 @@ private suspend fun findVideo(c: AppContainer, pick: Suggestion, taste: Taste): 
     return hit?.toMediaItem(FOR_YOU_SOURCE)?.asPlayable()
 }
 
-private suspend fun findLatestEpisode(c: AppContainer, pick: Suggestion, taste: Taste): PlayableItem? {
+private suspend fun findLatestEpisode(
+    copies: AskCopies,
+    podcasts: PodcastRepository,
+    pick: Suggestion,
+    taste: Taste,
+): PlayableItem? {
     val followed = taste.shows.map { it.squashed() }
-    val hits = c.askCopies.find(pick).filterIsInstance<SearchHit.Podcast>()
+    val hits = copies.find(pick).filterIsInstance<SearchHit.Podcast>()
     val show = hits.firstOrNull { it.title.squashed() !in followed } ?: return null
-    val preview = c.podcastRepository.preview(show.feedUrl) as? PreviewResult.Loaded ?: return null
+    val preview = podcasts.preview(show.feedUrl) as? PreviewResult.Loaded ?: return null
     return preview.episodes.maxByOrNull { it.publishedAt ?: java.time.Instant.EPOCH }?.asPlayable()
 }
 
