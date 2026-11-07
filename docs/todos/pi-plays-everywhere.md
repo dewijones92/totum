@@ -85,6 +85,8 @@ same Google-gated home-server sign-in; check her account is admitted by that gat
   switches (`hermes-audio-ctl` on the Pi, `127.0.0.1:8099`, in dot-files) were a second player on the same speakers,
   never considered in ADR 116; they will ask Totum to play on a speaker instead, so they show in its queue view and
   cannot fight it for the link. That changes dot-files and the HA config (commit only these files there).
+  Recorded on the Pi as dot-files ADR 0009 (2026-11-07): Totum owns the speakers, `hermes-audio-ctl` gets no new
+  sources, and anyone touching a speaker by hand checks `GET /targets` first.
 - Each speaker plays its own queue at the same time as the other (different things in different rooms); no group
   target and no syncing. Prove the Pi's adapter holds two A2DP streams at once without stutter (Pi 4's onboard radio
   shares Bluetooth and Wi-Fi).
