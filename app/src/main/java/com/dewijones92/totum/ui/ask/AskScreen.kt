@@ -55,6 +55,7 @@ import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.ask.AskCard
 import com.dewijones92.totum.data.ask.AskKind
+import com.dewijones92.totum.data.ask.AskSource
 import com.dewijones92.totum.data.ask.SavedChat
 import com.dewijones92.totum.data.search.SearchHit
 import com.dewijones92.totum.di.AppContainer
@@ -294,13 +295,14 @@ private fun rememberAskHitRow(container: AppContainer, search: SearchViewModel):
     }
 }
 
-private val SELF_RENDERED = setOf(AskKind.LATEST, AskKind.RADIO)
+private val SELF_RENDERED = setOf(AskKind.LATEST, AskKind.RADIO, AskKind.APP)
 
 @Composable
 private fun KindBody(card: AskCard, container: AppContainer, row: @Composable (SearchHit) -> Unit) {
     if (!card.searched) return
     when (card.suggestion.kind) {
         AskKind.LATEST -> LatestBody(card, container)
+        AskKind.APP -> AppItemsBody(card, container)
         AskKind.RADIO -> RadioBody(card, container, row)
         else -> Unit
     }
@@ -327,7 +329,10 @@ private fun TurnHeader(turn: AskViewModel.Turn) {
                 modifier = Modifier.padding(top = 10.dp, end = 32.dp),
             )
         }
+        SourceLine(turn)
         val status = when (turn.stage) {
+            AskViewModel.Stage.PACKING -> stringResource(R.string.ask_packing)
+            AskViewModel.Stage.SENDING -> stringResource(R.string.ask_sending)
             AskViewModel.Stage.ASKING -> stringResource(R.string.ask_asking)
             AskViewModel.Stage.SEARCHING -> stringResource(R.string.ask_searching)
             AskViewModel.Stage.VETTING -> stringResource(R.string.ask_vetting)
@@ -339,6 +344,22 @@ private fun TurnHeader(turn: AskViewModel.Turn) {
         }
         if (turn.stage in BUSY) LinearProgressIndicator(Modifier.fillMaxWidth().padding(top = 4.dp))
     }
+}
+
+@Composable
+private fun SourceLine(turn: AskViewModel.Turn) {
+    val label = when (turn.source) {
+        AskSource.APP -> R.string.ask_source_app
+        AskSource.BOTH -> R.string.ask_source_both
+        AskSource.WEB -> return
+    }
+    if (turn.stage != AskViewModel.Stage.DONE) return
+    Text(
+        stringResource(label),
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(top = 4.dp),
+    )
 }
 
 @Composable
@@ -442,7 +463,13 @@ private fun rememberSpeech(onHeard: (String) -> Unit): (() -> Unit)? {
 private const val EARLIER_CHATS_SHOWN = 3
 private const val EARLIER_CHATS_MAX_HEIGHT = 240
 
-private val BUSY = setOf(AskViewModel.Stage.ASKING, AskViewModel.Stage.SEARCHING, AskViewModel.Stage.VETTING)
+private val BUSY = setOf(
+    AskViewModel.Stage.PACKING,
+    AskViewModel.Stage.SENDING,
+    AskViewModel.Stage.ASKING,
+    AskViewModel.Stage.SEARCHING,
+    AskViewModel.Stage.VETTING,
+)
 
 const val ASK_SCREEN_TAG = "ask-screen"
 const val ASK_INPUT_TAG = "ask-input"

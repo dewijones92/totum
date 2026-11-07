@@ -30,6 +30,8 @@ class TrailNavigation(
         }
     }
 
+    fun snapshot(): Pair<List<PlayableItem>, Int> = trail.snapshot()
+
     fun back() = go("back", trail.back())
 
     fun forward() = go("forward", trail.forward())

@@ -13,6 +13,7 @@ import com.dewijones92.totum.data.ask.AskKind
 import com.dewijones92.totum.data.ask.AskOutcome
 import com.dewijones92.totum.data.ask.AskRequest
 import com.dewijones92.totum.data.ask.AskService
+import com.dewijones92.totum.data.ask.AskSource
 import com.dewijones92.totum.data.ask.AskTurn
 import com.dewijones92.totum.data.ask.InMemoryAskChats
 import com.dewijones92.totum.data.ask.SavedChat
@@ -47,10 +48,11 @@ class AskViewModel(
     private val latest: suspend (String) -> List<PlayableItem> = { emptyList() },
     private val chats: AskChatStore = InMemoryAskChats(),
     private val notForMe: NotForMe = NotForMe(),
+    private val appState: AskStateSource? = null,
     private val now: () -> Long = System::currentTimeMillis,
 ) : ViewModel() {
 
-    enum class Stage { ASKING, SEARCHING, VETTING, DONE, FAILED }
+    enum class Stage { PACKING, SENDING, ASKING, SEARCHING, VETTING, DONE, FAILED }
 
     data class Turn(
         val request: String,
@@ -59,6 +61,7 @@ class AskViewModel(
         val cards: List<AskCard> = emptyList(),
         val error: String? = null,
         val tookMs: Long? = null,
+        val source: AskSource = AskSource.WEB,
     )
 
     data class UiState(
@@ -91,7 +94,9 @@ class AskViewModel(
         Diag.log("ask", "chat \"${chat.title}\" reopened with ${chat.turns.size} turn(s)")
         state.update {
             it.copy(
-                turns = chat.turns.map { t -> Turn(t.request, Stage.DONE, t.reply, t.suggestions.map(::AskCard)) },
+                turns = chat.turns.map { t ->
+                    Turn(t.request, Stage.DONE, t.reply, t.suggestions.map(::AskCard), source = t.source)
+                },
                 recent = saved.filterNot { other -> other.id == chat.id },
             )
         }
@@ -125,7 +130,11 @@ class AskViewModel(
         val turns = state.value.turns.filter { it.stage == Stage.DONE }
         if (turns.isEmpty()) return
         val chat =
-            SavedChat(chatId, now(), turns.map { SavedTurn(it.request, it.reply, it.cards.map { c -> c.suggestion }) })
+            SavedChat(
+                chatId,
+                now(),
+                turns.map { SavedTurn(it.request, it.reply, it.cards.map { c -> c.suggestion }, it.source) },
+            )
         chats.save(chats.load().keeping(chat))
     }
 
@@ -161,8 +170,10 @@ class AskViewModel(
     private suspend fun askAndFind(askService: AskService, request: String, earlier: List<Turn>): OperationEnd =
         operations.track("ask:$request", OperationKind.ASK, request) { progress ->
             progress.report(step = 1, steps = STEPS)
+            val stateId = sendState(askService) { progress.report(step = 2, steps = STEPS) }
+            progress.report(step = 3, steps = STEPS)
             val turns = earlier.map { turn ->
-                AskTurn(turn.request, turn.cards.map { it.suggestion.label }, turn.reply)
+                AskTurn(turn.request, turn.cards.map { it.suggestion.label }, turn.reply, turn.source)
             } + AskTurn(request)
             val owned = (notForMe.titles() + runCatching { have() }.getOrDefault(emptyList())).distinct()
             val known = runCatching { taste() }.getOrElse {
@@ -175,7 +186,8 @@ class AskViewModel(
                     "${known.artists.size} artists, ${known.albums.size} albums, " +
                     "${known.songs.size} songs, ${known.played.size} played",
             )
-            when (val answer = askService.ask(AskRequest(turns, owned, known))) {
+            updateLast { it.copy(stage = Stage.ASKING) }
+            when (val answer = askService.ask(AskRequest(turns, owned, known, stateId))) {
                 is AskOutcome.Failed -> {
                     updateLast { it.copy(stage = Stage.FAILED, error = answer.reason) }
                     return@track OperationEnd.Failed(answer.reason)
@@ -189,22 +201,24 @@ class AskViewModel(
                         "\"$request\" answered in ${answer.elapsedMs}ms, ${owned.size} owned title(s) sent: $picks",
                     )
                     Diag.log("ask", "reply: \"${answer.value.reply}\"")
+                    Diag.log("ask", "routed as ${answer.value.source}: ${answer.value.trace}")
                     val wanted = answer.value.suggestions.filterNot { notForMe.mentions(it.label) }
                     val dropped = answer.value.suggestions.size - wanted.size
                     if (dropped > 0) Diag.log("ask", "dewidebug $dropped suggestion(s) left out: not for me")
                     updateLast {
                         it.copy(
                             stage = Stage.SEARCHING,
-                            reply = answer.value.reply,
+                            reply = answer.value.reply.withNoDataNote(appState != null && stateId == null),
                             cards = wanted.map(::AskCard),
-                            tookMs = answer.elapsedMs
+                            tookMs = answer.elapsedMs,
+                            source = answer.value.source,
                         )
                     }
                 }
             }
-            progress.report(step = 2, steps = STEPS)
+            progress.report(step = 4, steps = STEPS)
             search()
-            progress.report(step = 3, steps = STEPS)
+            progress.report(step = 5, steps = STEPS)
             vet(askService)
             val cards = state.value.turns.last().cards
             updateLast { it.copy(stage = Stage.DONE) }
@@ -240,7 +254,10 @@ class AskViewModel(
         kotlinx.coroutines.coroutineScope {
             cards.mapIndexed { index, card ->
                 async {
-                    if (card.suggestion.kind == AskKind.LATEST) {
+                    if (card.suggestion.kind == AskKind.APP) {
+                        val items = appState?.resolve(card.suggestion.itemIds).orEmpty()
+                        updateCard(turn, index) { it.copy(items = items, searched = true) }
+                    } else if (card.suggestion.kind == AskKind.LATEST) {
                         val items = latest(card.suggestion.searchWords.ifBlank { card.suggestion.title })
                         updateCard(turn, index) { it.copy(items = items, searched = true) }
                     } else {
@@ -249,6 +266,31 @@ class AskViewModel(
                     }
                 }
             }.awaitAll()
+        }
+    }
+
+    private suspend fun sendState(askService: AskService, sending: () -> Unit): String? {
+        val source = appState ?: return null
+        updateLast { it.copy(stage = Stage.PACKING) }
+        val snapshot = runCatching { source.snapshot() }.getOrElse {
+            Diag.warn("ask", "your app's data could not be gathered; asking without it", it)
+            return null
+        }
+        updateLast { it.copy(stage = Stage.SENDING) }
+        sending()
+        return when (val sent = askService.uploadState(snapshot.id, snapshot.packed)) {
+            is AskOutcome.Answered -> {
+                Diag.log(
+                    "ask",
+                    "state ${snapshot.id} sent: ${snapshot.packed.size} bytes gzipped, packed in " +
+                        "${snapshot.tookMs}ms, kept ${sent.value.keptForMs / MS_PER_MINUTE} min on the home server",
+                )
+                snapshot.id
+            }
+            is AskOutcome.Failed -> {
+                Diag.warn("ask", "state ${snapshot.id} not sent (${sent.reason}); asking without it")
+                null
+            }
         }
     }
 
@@ -294,7 +336,9 @@ class AskViewModel(
     }
 
     companion object {
-        private const val STEPS = 3
+        private const val STEPS = 5
+        private const val MS_PER_MINUTE = 60_000L
+        const val NO_DATA_NOTE = "⚠️ Your app's data could not be sent, so this answer comes from the web only."
         private const val CHAT_ID_RANGE = 1_000_000
         private const val OWNED_TITLES = 200
 
@@ -309,6 +353,7 @@ class AskViewModel(
                     latest = container.askLatest::find,
                     chats = container.askChats,
                     notForMe = container.notForMe,
+                    appState = container.askStateSource,
                 )
             }
         }
@@ -336,3 +381,6 @@ class AskViewModel(
         }
     }
 }
+
+private fun String.withNoDataNote(dataMissing: Boolean): String =
+    if (dataMissing) "$this\n\n${AskViewModel.NO_DATA_NOTE}".trim() else this

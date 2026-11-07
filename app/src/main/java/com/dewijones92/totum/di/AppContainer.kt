@@ -11,6 +11,7 @@ import com.dewijones92.totum.backup.asBackupSettings
 import com.dewijones92.totum.backup.drive.DriveBackup
 import com.dewijones92.totum.backup.drive.driveBackupFor
 import com.dewijones92.totum.backup.drive.startDriveBackups
+import com.dewijones92.totum.backup.toBackup
 import com.dewijones92.totum.bedtime.Bedtime
 import com.dewijones92.totum.bedtime.SharedPrefsBedtimeStore
 import com.dewijones92.totum.bedtime.withBedtime
@@ -124,6 +125,7 @@ import com.dewijones92.totum.domain.LocalCopy
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaKind
+import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayReason
 import com.dewijones92.totum.domain.PlayState
@@ -285,9 +287,12 @@ import com.dewijones92.totum.settings.SharedPrefsAppPreferences
 import com.dewijones92.totum.settings.listeningIn
 import com.dewijones92.totum.shuffle.AppSourcePages
 import com.dewijones92.totum.shuffle.ShuffleAll
+import com.dewijones92.totum.stars.STARRED_PLAYLIST_NAME
 import com.dewijones92.totum.stars.Stars
 import com.dewijones92.totum.stats.StatsLog
 import com.dewijones92.totum.ui.ask.AskLatest
+import com.dewijones92.totum.ui.ask.AskStatePorts
+import com.dewijones92.totum.ui.ask.AskStateSource
 import com.dewijones92.totum.ui.common.toMediaItem
 import com.dewijones92.totum.update.AppUpdateInstaller
 import com.dewijones92.totum.update.PrefsLastSeenVersion
@@ -395,6 +400,7 @@ interface AppContainer {
     val homeDownloads: HomeDownloads
     val trail: TrailNavigation
     val askCopies: AskCopies
+    val askStateSource: AskStateSource?
 
     /** Adds a torrent to the home server and turns it into queue items; null when unconfigured. */
     val homeTorrentServer: HomeTorrentServer?
@@ -889,7 +895,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                 AskKind.SONG, AskKind.RADIO -> listOf(musicSearchSource)
                 AskKind.ALBUM -> listOf(musicAlbumSearchSource)
                 AskKind.ARTIST -> listOf(musicArtistSearchSource)
-                AskKind.LATEST -> emptyList()
+                AskKind.LATEST, AskKind.APP -> emptyList()
             }
         })
     }
@@ -1886,6 +1892,25 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             musicCatalogue,
             applicationScope,
             File(context.filesDir, "album-years.txt")
+        )
+    }
+    override val askStateSource: AskStateSource? by lazy {
+        AskStateSource(
+            AskStatePorts(
+                backup = { backupService.create() },
+                queue = { playbackQueue.state.value },
+                downloaded = { downloadManager.observeDownloaded().first() },
+                records = { downloadManager.observeRecords().first() },
+                locked = { lockingDownloads.locks.locked.value.mapTo(mutableSetOf()) { it.value } },
+                stats = { statsLog.all() },
+                trail = { trail.snapshot() },
+                channels = {
+                    subscribedSources(podcastRepository, accountSubscriptions.channels).first()
+                        .filterIsInstance<MediaSource.VideoChannel>().map { it.toBackup(null) }
+                },
+                appVersion = BuildConfig.VERSION_NAME,
+                starredName = STARRED_PLAYLIST_NAME,
+            ),
         )
     }
     override val askChats: AskChatStore by lazy { FileAskChats(File(context.filesDir, "ask-chats.json")) }

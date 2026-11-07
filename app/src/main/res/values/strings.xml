@@ -1301,7 +1301,7 @@
     </plurals>
     <string name="ask_title">✨ Ask</string>
     <string name="ask_action">Ask for anything to play or download</string>
-    <string name="ask_hint">What would you like? A happy funk radio, my latest vlogs, a Gruffalo film…</string>
+    <string name="ask_hint">What would you like? A happy funk radio, my latest vlogs, a Gruffalo film… or ask about your own app</string>
     <string name="ask_refine_hint">Reply: more 70s, something newer, shorter…</string>
     <string name="ask_speak">Speak</string>
     <string name="ask_send">Ask</string>
@@ -1318,6 +1318,11 @@
     <string name="ask_radio_seeds">🌱 Seeded from</string>
     <string name="ask_no_latest">📭 Nothing new from this channel, or it is not one you follow</string>
     <string name="ask_reply">✨ %1$s</string>
+    <string name="ask_packing">📦 Gathering your app\'s data…</string>
+    <string name="ask_sending">📤 Sending it to the home server…</string>
+    <string name="ask_source_app">🗂️ Answered from your app\'s own data</string>
+    <string name="ask_source_both">🗂️🌐 Answered from your app\'s data and, separately, the web</string>
+    <string name="ask_no_app_items">📭 Those items are no longer on this phone</string>
     <string name="ask_asking">✨ Asking the home server… (a minute or two)</string>
     <string name="ask_searching">🔍 Looking for copies…</string>
     <string name="ask_vetting">🕵️ Checking they\'re the right ones…</string>

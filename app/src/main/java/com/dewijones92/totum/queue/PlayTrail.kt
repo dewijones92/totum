@@ -53,6 +53,9 @@ class PlayTrail(private val store: TrailStore = NoTrailStore, private val limit:
     }
 
     @Synchronized
+    fun snapshot(): Pair<List<PlayableItem>, Int> = items to cursor
+
+    @Synchronized
     fun back(): PlayableItem? = step(-1)
 
     @Synchronized

@@ -195,7 +195,7 @@ private fun Backup.summary() =
 
 private fun Subscription.toBackup() = source.toBackup(subscribedAt.toEpochMilli())
 
-private fun MediaSource.toBackup(subscribedAtEpochMs: Long?) = BackupSubscription(
+internal fun MediaSource.toBackup(subscribedAtEpochMs: Long?) = BackupSubscription(
     id = id.value,
     title = title,
     url = when (this) {

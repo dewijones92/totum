@@ -176,6 +176,7 @@ class FakeAppContainer(
     override val torrentSearchSource: SearchSource? = null,
     override val askService: AskService? = null,
     override val askCopies: AskCopies = AskCopies({ emptyList() }),
+    override val askStateSource: com.dewijones92.totum.ui.ask.AskStateSource? = null,
     override val homeTorrentServer: HomeTorrentServer? = null,
     override val torrentSubtitles: TorrentSidecarSubtitles? = null,
     override val torrentsSeen: TorrentsSeen? = null,
