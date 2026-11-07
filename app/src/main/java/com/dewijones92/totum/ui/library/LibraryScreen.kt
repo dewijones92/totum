@@ -95,7 +95,9 @@ import com.dewijones92.totum.ui.subscriptions.AllSubscriptionsScreen
 import com.dewijones92.totum.ui.trip.TripScreen
 import kotlinx.coroutines.launch
 
-private enum class LibraryPage { HOME, PLAYLISTS, HISTORY, SUBSCRIPTIONS, ACCOUNT, STATS, DOWNLOADS, JELLYFIN, KID_TV, TRIP }
+private enum class LibraryPage {
+    HOME, PLAYLISTS, HISTORY, SUBSCRIPTIONS, ACCOUNT, STATS, DOWNLOADS, JELLYFIN, KID_TV, TRIP,
+}
 
 @Composable
 fun LibraryScreen(container: AppContainer, modifier: Modifier = Modifier) {
