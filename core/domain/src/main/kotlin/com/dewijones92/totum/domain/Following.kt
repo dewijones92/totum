@@ -63,6 +63,13 @@ public class FollowedSources(
 
     public companion object {
         public val NOTHING_KNOWN: FollowedSources = FollowedSources(channels = null, feeds = null, signedIn = false)
+
+        public fun nothingToFollow(item: MediaItem): String? = when {
+            item.contentKind == MediaContentKind.AUDIOBOOK -> "book chapters: a book has nothing to follow"
+            item.sourceId == TorrentIds.SOURCE -> "torrent files: they came from no channel or show"
+            item.isJellyfin -> "Jellyfin films and episodes: they came from no channel or show"
+            else -> null
+        }
     }
 }
 

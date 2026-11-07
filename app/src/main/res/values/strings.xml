@@ -360,6 +360,7 @@
     <string name="settings_auto_download_wifi_summary">Never use mobile data for automatic downloads.</string>
     <string name="pillar_video">YouTube</string>
     <string name="pillar_torrent">Torrent</string>
+    <string name="pillar_jellyfin">Jellyfin</string>
     <string name="pillar_podcast">Podcast</string>
     <string name="comment_hint">Add a comment…</string>
     <string name="comment_post">Post</string>
@@ -1423,7 +1424,6 @@
     <string name="target_position">%1$s of %2$s</string>
     <string name="library_jellyfin">Jellyfin</string>
     <string name="library_jellyfin_detail">🏠 Films and shows on the home server</string>
-    <string name="jellyfin_back">⬅️ Back</string>
     <string name="jellyfin_more">⬇️ Show more</string>
     <string name="jellyfin_retry">🔁 Try again</string>
     <string name="jellyfin_empty">📭 Nothing here</string>

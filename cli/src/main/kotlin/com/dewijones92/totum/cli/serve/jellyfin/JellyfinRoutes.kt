@@ -12,13 +12,35 @@ import kotlinx.serialization.builtins.serializer
 
 internal class JellyfinRoutes(private val browse: JellyfinBrowse) : Routes {
 
-    override fun handles(path: String): Boolean = path == BROWSE || path.startsWith(STREAM)
+    override fun handles(path: String): Boolean = path == BROWSE || path.startsWith(STREAM) || path.startsWith(IMAGE)
 
     override fun handle(exchange: HttpExchange, method: String, path: String) {
         when {
             method != "GET" && method != "HEAD" -> exchange.reply(NOT_FOUND, """{"error":"no such route"}""")
             path == BROWSE -> browse(exchange)
+            path.startsWith(IMAGE) -> image(exchange, method, path)
             else -> stream(exchange, method, path)
+        }
+    }
+
+    private fun image(exchange: HttpExchange, method: String, path: String) {
+        val id = path.removePrefix(IMAGE)
+        if (!JELLYFIN_ID.matches(id)) {
+            Diag.warn("jellyfin", "image refused: not an item id")
+            return exchange.reply(BAD_REQUEST, """{"error":"❌ not a Jellyfin item"}""")
+        }
+        val response = browse.image(id)
+            ?: return exchange.reply(BAD_GATEWAY, """{"error":"❌ Jellyfin did not answer"}""")
+        response.use {
+            Diag.log("jellyfin", "image $id -> ${response.code} ${response.header("Content-Type") ?: "no type"}")
+            IMAGE_HEADERS.forEach { name -> response.header(name)?.let { exchange.responseHeaders.add(name, it) } }
+            val length = response.header("Content-Length")?.toLongOrNull()
+            if (method == "HEAD" || response.code != OK) {
+                exchange.sendResponseHeaders(response.code, NO_BODY)
+                return
+            }
+            exchange.sendResponseHeaders(OK, length ?: CHUNKED)
+            exchange.responseBody.use { out -> response.body.byteStream().copyTo(out, BUFFER) }
         }
     }
 
@@ -65,6 +87,7 @@ internal class JellyfinRoutes(private val browse: JellyfinBrowse) : Routes {
     private companion object {
         const val BROWSE = "/jellyfin/browse"
         const val STREAM = "/jellyfin/stream/"
+        const val IMAGE = "/jellyfin/image/"
         const val OK = 200
         const val PARTIAL = 206
         const val BAD_REQUEST = 400
@@ -74,11 +97,13 @@ internal class JellyfinRoutes(private val browse: JellyfinBrowse) : Routes {
         const val CHUNKED = 0L
         const val BUFFER = 64 * 1024
         val COPIED = listOf("Content-Type", "Content-Range", "Accept-Ranges")
+        val IMAGE_HEADERS = listOf("Content-Type", "Cache-Control")
     }
 }
 
 internal class JellyfinNotSetUp : Routes {
-    override fun handles(path: String): Boolean = path == "/jellyfin/browse" || path.startsWith("/jellyfin/stream/")
+    override fun handles(path: String): Boolean =
+        path == "/jellyfin/browse" || path.startsWith("/jellyfin/stream/") || path.startsWith("/jellyfin/image/")
 
     override fun handle(exchange: HttpExchange, method: String, path: String) {
         Diag.log("jellyfin", "$method $path: Jellyfin is not configured on this home server")

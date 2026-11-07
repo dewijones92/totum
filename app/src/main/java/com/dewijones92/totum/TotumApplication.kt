@@ -4,7 +4,6 @@ import android.app.Application
 import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.SingletonImageLoader
-import coil3.request.crossfade
 import com.dewijones92.totum.cast.startCastScreens
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HomeServerAuth
@@ -28,6 +27,7 @@ import com.dewijones92.totum.settings.AppPreferences
 import com.dewijones92.totum.settings.NetworkStatus
 import com.dewijones92.totum.stats.ListenRecorder
 import com.dewijones92.totum.stats.recordFinishedDownloads
+import com.dewijones92.totum.ui.common.homeServerAwareImageLoader
 import com.dewijones92.totum.uploads.NewUploadsWorker
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.combine
@@ -140,10 +140,7 @@ class TotumApplication : Application(), SingletonImageLoader.Factory {
      * registers it automatically — so thumbnails ride the same HTTP stack the
      * rest of the app uses. Crossfade so images fade in rather than pop.
      */
-    override fun newImageLoader(context: PlatformContext): ImageLoader =
-        ImageLoader.Builder(context)
-            .crossfade(true)
-            .build()
+    override fun newImageLoader(context: PlatformContext): ImageLoader = homeServerAwareImageLoader(context)
 }
 
 private fun signHomeServerRequests(prefs: AppPreferences) {

@@ -48,8 +48,7 @@ token-gated `totum.` host).
 
 - The phone plays the original file (`static=true`), so a video the phone cannot decode does not play; transcoding is not
   offered.
-- No posters yet: the image route would need the phone's image loader to send the device token header, which was not
-  checked.
+- Posters: see the amendment below.
 - Where the key goes, exactly: Jellyfin's own API calls carry it in an `Authorization` header from the Pi. A stream
   address for a player (`Jellyfin.streamUrl`) carries it as `api_key=` in the query; that address goes to mpv and ffmpeg
   on the Pi (visible in their argument lists inside the container) and, for a TV target, to the TV over the LAN, so it
@@ -59,3 +58,38 @@ token-gated `totum.` host).
   instead of being inherited. Accepted for a household and written down.
 - Watched state is not read from or written to Jellyfin.
 - Not run against a real Jellyfin: the route tests use a canned Jellyfin response.
+
+## Amended 2026-11-07: Jellyfin items are consistent with every other list
+
+Found on the emulator: the Jellyfin page was the one list that looked different (no pictures, a "❔ unknown" follow chip
+on every film, the podcast microphone on a film, no year, its own "⬅️ Back" text button). Each is now one rule, not a
+Jellyfin special case in the screen:
+
+- **Posters.** `GET /jellyfin/image/<id>` on the Pi is Jellyfin's Primary image (`/Items/<id>/Images/Primary`, 480 px
+  high), read with the Pi's key, behind the device token like the stream, the id checked by `JELLYFIN_ID` before
+  Jellyfin is asked, `Content-Type` and `Cache-Control` passed back, Jellyfin's own 404 for an item with no picture
+  passed back as a 404 (the image loader then shows the neutral placeholder). `JellyfinApi.imageUrl` is the
+  address and `JellyfinApi.playable` builds the `PlayableItem` with it as `thumbnailUrl`, so the row, the queue, Carry
+  on, history, the mini player and the notification show it through the paths every item uses (the queue and history
+  tables already store the thumbnail). The image loader had never sent the device token: the shared Coil loader now
+  rides an OkHttp client with `HomeServerAuthInterceptor` (the token goes only to the home host, ADR 90), the player's
+  backdrop uses that shared loader instead of a fresh default one, and the media session's notification artwork loads
+  through `homeServerAware(DefaultDataSource.Factory)`.
+- **No follow mark.** `FollowedSources.nothingToFollow(item)` in `:core:domain` is the one rule for "this item came from no
+  channel or show": book chapters, torrent files and now Jellyfin films and episodes (id prefix `jellyfin:`); the row's
+  mark reads it. This amends [ADR 22](0022-every-row-says-whether-you-follow-its-source.md).
+- **Shown as a video.** A Jellyfin item still plays through the podcast handle (the Pi's stream address, no extraction,
+  downloads as a file), but `shownAs` says `Shown.JELLYFIN`: the video's icon and channel-style maker line (an episode's
+  series; a film has none) with its own honest label "Jellyfin" (the video's label says "YouTube"), so the row icon, pin
+  kind, player badge and mini-player glyph are a video's, and "About this" says "📺 Video" rather than "Podcast
+  episode". Listen and Watch were already offered by the extension of the address
+  ([ADR 70](0070-listen-and-watch-follow-the-picture-not-the-pillar.md)). A torrent file's "About this" still says
+  "Podcast episode"; not changed here.
+- **Year and overview.** The year is the item's `publishedText`, so "📅 1995" appears in the row's facts and in "About
+  this" ([ADR 65](0065-the-player-says-everything-about-the-item.md)); the overview is its `description`, which the
+  Details tab already reads. Rows rebuilt from the database after a restart keep the year but not the description (the
+  known gap recorded in [ADR 108](0108-consistent-everywhere-and-its-recorded-exceptions.md)).
+- **Back.** The page uses the shared `BackHeader` and `ListThenDetail` ([ADR 88](0088-a-page-opened-over-a-list-keeps-its-place.md)):
+  a series opened over the top level keeps the top level's place, and going back does not read the listing again.
+- A decode failure of the original file now says why and offers Listen: [ADR 156](0156-a-player-error-with-no-recovery-tells-the-user-and-offers-listen.md).
+- The Pi route needs a deploy of `totum serve`; the phone without it shows the placeholder (the route answers 404).

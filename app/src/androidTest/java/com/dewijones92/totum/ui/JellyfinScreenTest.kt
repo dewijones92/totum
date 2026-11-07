@@ -3,6 +3,7 @@ package com.dewijones92.totum.ui
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.platform.app.InstrumentationRegistry
@@ -54,6 +55,8 @@ class JellyfinScreenTest {
         override fun streamUrl(item: JellyfinItem): HttpUrl = HttpUrl.of(
             "https://pi.example/jellyfin/stream/${item.id}.mkv"
         )
+
+        override fun imageUrl(item: JellyfinItem): HttpUrl = HttpUrl.of("https://pi.example/jellyfin/image/${item.id}")
     }
 
     private var backed = false
@@ -104,18 +107,19 @@ class JellyfinScreenTest {
         compose.waitForIdle()
         compose.onNodeWithText("S01E04 · Mr Wolf").assertIsDisplayed()
 
-        compose.onNodeWithText(text(R.string.jellyfin_back)).performClick()
+        compose.onNodeWithContentDescription(text(R.string.back)).performClick()
         compose.waitForIdle()
 
         compose.onNodeWithText("Heat").assertIsDisplayed()
         assertTrue("not left the screen: $backed", !backed)
+        assertEquals("the top level is not read again on the way back", listOf(null to 0, showId to 0), pi.asked)
     }
 
     @Test
     fun backOnTheTopLevelLeavesTheScreen() {
         show(FakeJellyfin(mutableMapOf((null to 0) to top(film))))
 
-        compose.onNodeWithText(text(R.string.jellyfin_back)).performClick()
+        compose.onNodeWithContentDescription(text(R.string.back)).performClick()
 
         assertTrue(backed)
     }
@@ -156,5 +160,7 @@ class JellyfinScreenTest {
         val queued = container.playbackQueue.state.value.entries
         assertEquals(listOf("jellyfin:$filmId"), queued.map { it.item.item.id.value })
         assertEquals("Jellyfin", queued.single().group?.title)
+        assertEquals("1995", queued.single().item.item.publishedText)
+        assertEquals("https://pi.example/jellyfin/image/$filmId", queued.single().item.item.thumbnailUrl?.value)
     }
 }

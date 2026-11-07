@@ -48,6 +48,8 @@ class JellyfinRoutesTest {
     """.trimIndent()
 
     private val bytes = ByteArray(100) { it.toByte() }
+    private val poster = ByteArray(40) { (it * 3).toByte() }
+    private val noPoster = "dddddddddddddddddddddddddddddddd"
 
     private var listBody = series
 
@@ -58,7 +60,16 @@ class JellyfinRoutesTest {
         ranges += request.header("Range")
         val ranged = request.header("Range") != null
         val builder = Response.Builder().request(request).protocol(Protocol.HTTP_1_1)
-        if (request.url.encodedPath.startsWith("/Videos/")) {
+        if (request.url.encodedPath.contains("/Images/")) {
+            if (request.url.encodedPath.contains(noPoster)) {
+                builder.code(404).message("none").body("".toResponseBody("text/plain".toMediaType()))
+            } else {
+                builder.code(200).message("ok")
+                    .header("Content-Type", "image/jpeg")
+                    .header("Cache-Control", "public, max-age=3600")
+                    .body(poster.toResponseBody("image/jpeg".toMediaType()))
+            }
+        } else if (request.url.encodedPath.startsWith("/Videos/")) {
             builder.code(if (ranged) 206 else 200).message("ok")
                 .header("Content-Type", "video/x-matroska")
                 .header("Accept-Ranges", "bytes")
@@ -145,6 +156,34 @@ class JellyfinRoutesTest {
     }
 
     @Test
+    fun `a poster is Jellyfin's primary image, read with the Pi's key and sent back with its type`() {
+        val answer = get("/jellyfin/image/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")
+
+        assertEquals(200, answer.statusCode())
+        assertEquals("image/jpeg", answer.headers().firstValue("Content-Type").get())
+        assertEquals("public, max-age=3600", answer.headers().firstValue("Cache-Control").get())
+        assertEquals(poster.toList(), answer.body().toList())
+        assertEquals("MediaBrowser Token=\"secret-key\"", authorizations.single())
+        assertTrue(asked.single(), asked.single().startsWith("/Items/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/Images/Primary"))
+        assertFalse(answer.headers().map().toString().contains("secret-key"))
+    }
+
+    @Test
+    fun `an item with no poster is a plain not found, which the image loader shows as no picture`() {
+        val answer = get("/jellyfin/image/$noPoster")
+
+        assertEquals(404, answer.statusCode())
+    }
+
+    @Test
+    fun `an image path that is not an item is refused before Jellyfin is asked`() {
+        val refused = get("/jellyfin/image/..%2F..%2Fetc")
+
+        assertEquals(400, refused.statusCode())
+        assertTrue(asked.isEmpty())
+    }
+
+    @Test
     fun `a stream path that is not an item is refused before Jellyfin is asked`() {
         val refused = get("/jellyfin/stream/..%2F..%2Fetc.mkv")
 
@@ -193,8 +232,15 @@ class JellyfinRoutesTest {
                 ).GET().build(),
                 HttpResponse.BodyHandlers.ofString(),
             )
+            val image = http.send(
+                HttpRequest.newBuilder(
+                    URI.create("http://localhost:${bare.address.port}/jellyfin/image/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")
+                ).GET().build(),
+                HttpResponse.BodyHandlers.ofString(),
+            )
 
             assertEquals(503, answer.statusCode())
+            assertEquals(503, image.statusCode())
             assertTrue(answer.body(), answer.body().contains("Jellyfin isn't set up on the home server"))
         } finally {
             bare.stop(0)

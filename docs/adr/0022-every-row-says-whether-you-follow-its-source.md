@@ -2,7 +2,7 @@
 title: Every row says whether you follow its channel or show, and the mark subscribes
 kind: adr
 status: accepted
-updated: 2026-10-31
+updated: 2026-11-07
 ---
 
 # 22. Every row says whether you follow its channel or show, and the mark subscribes
@@ -69,3 +69,6 @@ subscribed to the channel"*. He chose, from options put to him:
 
 - A file from a torrent carries no mark, like a book chapter: it came from no channel or show (it showed ❔).
 - A podcast show in Search wears the same ✅/➕ mark instead of its own Subscribe button.
+- A Jellyfin film or episode carries no mark either (2026-11-07, [ADR 154](0154-jellyfin-is-browsed-and-streamed-through-the-pi.md)).
+  The three exclusions (book chapter, torrent file, Jellyfin item) are one function in `:core:domain`,
+  `FollowedSources.nothingToFollow`, read by the row's mark.

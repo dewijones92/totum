@@ -1,6 +1,7 @@
 package com.dewijones92.totum.data.jellyfin
 
 import com.dewijones92.totum.common.HttpUrl
+import com.dewijones92.totum.domain.JellyfinIds
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayHandle
@@ -43,7 +44,7 @@ public data class JellyfinItem(
     public val facts: List<String>
         get() = listOfNotNull(
             year?.toString(),
-            runtimeMs?.let { "${it / MS_PER_MINUTE} min" },
+            runtimeMs?.takeIf { it > 0 }?.let { "${it / MS_PER_MINUTE} min" },
             seriesName?.takeIf { kind == JellyfinKind.EPISODE },
         )
 }
@@ -57,7 +58,7 @@ public data class JellyfinListing(
     val next: Int? = null,
 )
 
-public const val JELLYFIN_SOURCE: String = "jellyfin"
+public const val JELLYFIN_SOURCE: String = JellyfinIds.SOURCE
 
 public val JELLYFIN_ID: Regex = Regex("[0-9a-fA-F-]{8,40}")
 
@@ -71,12 +72,16 @@ public fun JellyfinItem.streamPath(): String {
     return "jellyfin/stream/$id.$extension"
 }
 
-public fun JellyfinItem.toPlayable(streamUrl: HttpUrl): PlayableItem = PlayableItem(
+public fun JellyfinItem.imagePath(): String = "jellyfin/image/$id"
+
+public fun JellyfinItem.toPlayable(streamUrl: HttpUrl, imageUrl: HttpUrl? = null): PlayableItem = PlayableItem(
     MediaItem(
         id = MediaItemId("$JELLYFIN_SOURCE:$id"),
         sourceId = SourceId("$JELLYFIN_SOURCE:${seriesName ?: "films"}"),
         title = title,
         publishedAt = null,
+        publishedText = year?.toString(),
+        thumbnailUrl = imageUrl,
         duration = runtimeMs?.takeIf { it > 0 }?.milliseconds,
         author = seriesName,
         description = overview,

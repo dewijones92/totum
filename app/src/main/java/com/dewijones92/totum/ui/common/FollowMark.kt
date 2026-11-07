@@ -34,11 +34,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
-import com.dewijones92.totum.data.torrent.TorrentPlayables
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.FollowedSources
 import com.dewijones92.totum.domain.Following
-import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.MediaSource
@@ -57,11 +55,7 @@ internal class RowFollowing(
     private val noted = mutableSetOf<String>()
 
     fun markFor(item: MediaItem, pillar: MediaKind): FollowMarkSpec? {
-        val nothingToFollow = when {
-            item.contentKind == MediaContentKind.AUDIOBOOK -> "book chapters: a book has nothing to follow"
-            item.sourceId == TorrentPlayables.SOURCE -> "torrent files: they came from no channel or show"
-            else -> null
-        }
+        val nothingToFollow = FollowedSources.nothingToFollow(item)
         if (nothingToFollow == null) return FollowMarkSpec(of(item, pillar), set)
         if (noted.add(nothingToFollow)) Diag.log("follow", "no follow mark on $nothingToFollow")
         return null

@@ -115,4 +115,13 @@ class JellyfinClientTest {
         assertEquals("${base()}/jellyfin/stream/0123456789abcdef0123456789abcdef.mp4", url)
         assertTrue(!url.contains("api_key"))
     }
+
+    @Test
+    fun `a poster address is the Pi's, keyed by the item id, with no key in it`() {
+        val item = JellyfinItem("0123456789abcdef0123456789abcdef", "Heat", JellyfinKind.MOVIE)
+
+        val url = client().imageUrl(item)?.value
+
+        assertEquals("${base()}/jellyfin/image/0123456789abcdef0123456789abcdef", url)
+    }
 }

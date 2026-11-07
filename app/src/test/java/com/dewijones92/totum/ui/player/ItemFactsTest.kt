@@ -6,6 +6,7 @@ import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
+import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.SkipSegment
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.playback.PlaybackState
@@ -106,5 +107,17 @@ class ItemFactsTest {
             )
 
         assertEquals(ItemFact.Published(page, null), facts.first())
+    }
+
+    @Test
+    fun `a Jellyfin film is a video in About this though it plays through the podcast handle`() {
+        val film = listed.copy(
+            id = MediaItemId("jellyfin:00112233445566778899aabbccddeeff"),
+            sourceId = SourceId("jellyfin:films"),
+        )
+
+        val facts = itemFacts(film, state.copy(kind = MediaKind.PODCAST), DownloadState.NotDownloaded, null)
+
+        assertEquals(ItemFact.Kind(MediaContentKind.STANDARD, isVideo = true), facts.single { it is ItemFact.Kind })
     }
 }

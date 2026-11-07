@@ -51,6 +51,8 @@ internal class JellyfinBrowse(private val jellyfin: Jellyfin) {
 
     fun open(id: String, range: String?): Response? = jellyfin.open("/Videos/$id/stream?static=true", range)
 
+    fun image(id: String): Response? = jellyfin.open("/Items/$id/Images/Primary?maxHeight=$POSTER_HEIGHT&quality=90")
+
     private fun children(parent: String): String =
         "/Items?ParentId=$parent&SortBy=ParentIndexNumber,IndexNumber,SortName&Fields=$FIELDS"
 
@@ -68,6 +70,7 @@ internal class JellyfinBrowse(private val jellyfin: Jellyfin) {
         private const val TOP_LEVEL =
             "/Items?Recursive=true&IncludeItemTypes=Movie,Series&SortBy=SortName&Fields=$FIELDS"
         private const val TICKS_PER_MS = 10_000L
+        private const val POSTER_HEIGHT = 480
 
         private const val PAGE = 100
         private const val LOGGED = 200

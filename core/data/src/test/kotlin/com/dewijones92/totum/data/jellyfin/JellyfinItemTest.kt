@@ -35,6 +35,19 @@ class JellyfinItemTest {
     }
 
     @Test
+    fun `a series reports no runtime rather than 0 min`() {
+        val series = JellyfinItem(
+            "0123456789abcdef0123456789abcdef",
+            "Adolescence",
+            JellyfinKind.SERIES,
+            year = 2025,
+            runtimeMs = 0,
+        )
+
+        assertEquals(listOf("2025"), series.facts)
+    }
+
+    @Test
     fun `the stream address keeps the file's own extension, so the app knows it has a picture`() {
         assertEquals("jellyfin/stream/0123456789abcdef0123456789abcdef.mkv", episode.streamPath())
         assertEquals(
@@ -49,6 +62,19 @@ class JellyfinItemTest {
         assertEquals("Bluey", playable.item.author)
         assertEquals(7 * 60_000L, playable.item.duration?.inWholeMilliseconds)
         assertTrue(playable.handle is PlayHandle.Podcast)
+    }
+
+    @Test
+    fun `the year is the date text and the poster the thumbnail, so every surface shows them`() {
+        val poster = HttpUrl.of("https://totum.example/jellyfin/image/${episode.id}")
+
+        val item = episode.copy(overview = "Dogs.").toPlayable(HttpUrl.of("https://totum.example/x.mkv"), poster).item
+
+        assertEquals("2020", item.publishedText)
+        assertEquals(poster, item.thumbnailUrl)
+        assertEquals("Dogs.", item.description)
+        assertEquals("jellyfin/image/${episode.id}", episode.imagePath())
+        assertEquals(null, episode.toPlayable(HttpUrl.of("https://totum.example/x.mkv")).item.thumbnailUrl)
     }
 
     @Test

@@ -14,7 +14,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
-import coil3.ImageLoader
+import coil3.SingletonImageLoader
 import coil3.request.ImageRequest
 import coil3.request.allowHardware
 import coil3.toBitmap
@@ -99,7 +99,7 @@ private suspend fun colourOf(context: android.content.Context, url: String): Col
         .size(SAMPLE_PX, SAMPLE_PX)
         .allowHardware(false)
         .build()
-    val bitmap = runCatching { ImageLoader(context).execute(request).image?.toBitmap() }
+    val bitmap = runCatching { SingletonImageLoader.get(context).execute(request).image?.toBitmap() }
         .onFailure { Diag.warn("player", "could not read artwork for its colour", it) }
         .getOrNull() ?: return null
     val pixels = IntArray(bitmap.width * bitmap.height)

@@ -136,6 +136,13 @@ Recorded exceptions from the Pi-plays-everywhere review, 2026-11-07 (the coordin
 - **The Jellyfin tile shows whenever a home server is set**, even when Jellyfin is not configured there; the page then
   says "Jellyfin isn't set up on the home server".
 
+Consistency fixes, 2026-11-07 (Jellyfin, found on the emulator): a Jellyfin film or episode is shown as a video, has no
+follow mark (`FollowedSources.nothingToFollow`, one rule for book chapters, torrent files and Jellyfin items), shows its
+year as its date fact and its overview in Details, wears its poster everywhere (the Pi serves `/jellyfin/image/<id>` and
+the shared image loader sends the device token), and its page uses the shared back header
+([ADR 154](0154-jellyfin-is-browsed-and-streamed-through-the-pi.md)). A player error with no recovery is told to the user
+through the refused-tap message, for every source ([ADR 156](0156-a-player-error-with-no-recovery-tells-the-user-and-offers-listen.md)).
+
 ## Consequences
 
 - New work is reviewed against this list; an exception added later is recorded here.

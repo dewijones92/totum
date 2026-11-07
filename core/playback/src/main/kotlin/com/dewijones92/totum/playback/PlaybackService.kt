@@ -14,6 +14,7 @@ import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DataSourceBitmapLoader
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.drm.DrmSessionManagerProvider
@@ -178,6 +179,11 @@ public class PlaybackService : MediaSessionService() {
         setUpCast(player)
         pictureWatch.start()
         mediaSession = MediaSession.Builder(this, currentPlayer ?: player)
+            .setBitmapLoader(
+                DataSourceBitmapLoader.Builder(this)
+                    .setDataSourceFactory(homeServerAware(DefaultDataSource.Factory(this)))
+                    .build(),
+            )
             .setCallback(SkipSilenceCallback())
             .setMediaButtonPreferences(queueSkip.buttons())
             .apply { openAppIntent()?.let { setSessionActivity(it) } }
