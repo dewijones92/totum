@@ -114,7 +114,7 @@ import com.dewijones92.totum.database.TotumDatabase
 import com.dewijones92.totum.diagnostics.AccountReportValues
 import com.dewijones92.totum.diagnostics.ActivitySnapshotter
 import com.dewijones92.totum.diagnostics.CrashReporter
-import com.dewijones92.totum.diagnostics.DIAGNOSTICS_ENDPOINT
+import com.dewijones92.totum.diagnostics.ReportSink
 import com.dewijones92.totum.diagnostics.DiagnosticSnapshot
 import com.dewijones92.totum.diagnostics.DiagnosticsUploader
 import com.dewijones92.totum.diagnostics.EncodedScreenshot
@@ -366,10 +366,7 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.File
 import java.util.concurrent.TimeUnit
 
@@ -1466,7 +1463,6 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             context,
             transferClient,
             applicationScope,
-            deviceToken = { appPreferences.settings.value.homeServerToken },
         )
     }
 
@@ -2168,7 +2164,7 @@ private fun followLiveStarts(c: DefaultAppContainer, context: Context) {
 }
 
 private fun announceScreens(c: DefaultAppContainer, client: OkHttpClient, context: Context) {
-    val json = "application/json".toMediaType()
+    val sink = ReportSink(client)
     ScreenAnnouncer(
         c.applicationScope,
         post = { body ->
@@ -2177,12 +2173,7 @@ private fun announceScreens(c: DefaultAppContainer, client: OkHttpClient, contex
                     Diag.log("screen", "not telling the Pi where the PC screen page is: signed out of the home server")
                     return@withContext false
                 }
-                runCatching {
-                    val request = Request.Builder().url(DIAGNOSTICS_ENDPOINT)
-                        .header(HomeServerAuth.HEADER, c.appPreferences.settings.value.homeServerToken)
-                        .post(body.toRequestBody(json)).build()
-                    client.newCall(request).execute().use { it.isSuccessful }
-                }.getOrElse {
+                runCatching { sink.post(body, "PC screen address") }.getOrElse {
                     Diag.warn("screen", "telling the Pi where the PC screen page is failed", it)
                     false
                 }

@@ -28,10 +28,18 @@ the stranger's accounts.
 - **One definition of signed in.** `HomeServerAuth.isSignedIn(host, token)` (`:lib:common`): a home server is set and
   there is a device token. The settings read it through `Settings.signedInToHome()`; the global `signedIn()` answers
   for code that has no settings (the uploader, the announcer).
-- **The Pi sink is for signed-in phones.** `DiagnosticsUploader` keeps its pending reports on the phone, logging why,
-  when the phone is not signed in; the PC-screen announce does the same (twice: when it starts, and again before each
-  post, so signing out stops a running announce). Both send the device token as `X-Totum-Token` when they do post.
-  The reports stay on the phone (capped at 50) and go if the phone later signs in.
+- **The Pi sink is for signed-in phones, and it is the configured server's sink.** `DiagnosticsUploader` keeps its
+  pending reports on the phone, logging why, when the phone is not signed in; the PC-screen announce does the same
+  (twice: when it starts, and again before each post, so signing out stops a running announce). The reports stay on the
+  phone (capped at 50) and go if the phone later signs in.
+- **The sink is derived, never hard-coded** (review finding, 2026-11-07: the first build posted to one fixed address,
+  so a stranger self-hosting `server/` would have sent their reports, token and PC-screen address to Dewi). The sink is
+  `crashlog.<home server base>`, registered once beside the home host in `HomeServerAuth.use(…, sinkHost)`
+  (`TotumApplication`), and `HomeServerAuth.reportEndpoint()` is `https://<sink>/ingest`, null with no home server. Both
+  posts go through `ReportSink`, which sends the device token only as `HomeServerAuth.headersFor(<endpoint host>)`
+  gives it, so the token reaches the configured home server's own hosts and no other; an endpoint that is not that
+  sink, a signed-out phone and a phone with no home server send nothing and say why in the log. The sink's address was
+  also removed from the APK's source. This is the coordinator's call; Dewi delegated it, 2026-11-06/07.
 - **A signed-out phone reports on GitHub.** Settings → "🐙 Report on GitHub", and the Quick Settings tile and the
   app-icon shortcut, open the same two steps: the note box, then a preview of exactly what will be given to GitHub,
   with a switch for recent activity (off by default, because it can mention what you were playing). "Copy and open
@@ -61,13 +69,13 @@ unsent reports on the phone, the "opened" list, and leaving the server's `/inges
 - The sink's `/ingest` is still unauthenticated on the server side: this change makes the app send the token, not the
   server require it. Requiring it needs the nginx `auth_request` rule in `dot-files` and the Pi deployed first, which
   would reject every older build; it is a separate change and not made here.
-- The built APK still contains the home-server domain (`BuildConfig.HOME_SERVER`) and the sink's address in source, as
-  before; reports never repeat them.
+- The built APK still contains the home-server domain (`BuildConfig.HOME_SERVER`), as before; reports never repeat it.
 - GitHub issues must be enabled on `dewijones92/totum` for the button to land on a form.
 
 ## Tests
 
-`ReportRedactorTest`, `GitHubReportTest` (including: no token, key, home-server address, email or network address
+`ReportSinkTest` (the token reaches the configured sink only; another endpoint, signed-out and no-server send nothing),
+`HomeServerAuthTest` (a stranger's base gives a stranger's sink and never the fixed one), `ReportRedactorTest`, `GitHubReportTest` (including: no token, key, home-server address, email or network address
 survives in the title, body, link or decoded link), `HomeServerAuthTest` and `ReportSourcesTest` (every address
 the phone knows the home server by). `EmulatorsDoNotUploadTest.aPhoneNotSignedInToAHomeServerKeepsItsReportsAndSendsNothing`
 (instrumented, not run).

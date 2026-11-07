@@ -29,10 +29,8 @@ internal fun reportRedactorFor(
     homeServerToken: String,
     prowlarrKey: String,
     builtInBase: String = BuildConfig.HOME_SERVER,
-    sinkEndpoint: String = DIAGNOSTICS_ENDPOINT,
 ): ReportRedactor {
     val bases = listOf(homeServerBase, builtInBase).map { it.trim() }.filter { it.isNotEmpty() }
-    val sinkHost = sinkEndpoint.substringAfter("://").substringBefore('/')
-    val hosts = bases.flatMap { listOf(it, "totum.$it", "totumauth.$it") } + sinkHost
+    val hosts = bases.flatMap { listOf(it, "totum.$it", "totumauth.$it", "crashlog.$it") }
     return ReportRedactor(secrets = listOf(homeServerToken, prowlarrKey), hosts = hosts)
 }

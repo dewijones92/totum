@@ -13,17 +13,16 @@ class ReportSourcesTest {
         homeServerToken = "tok-abcdef-123456",
         prowlarrKey = "prowl-key-987654",
         builtInBase = "built.example.net",
-        sinkEndpoint = "https://crashlog.sink.example.org/ingest",
     )
 
     @Test
     fun `every address the phone knows the home server by is removed from a report`() {
         val draft = GitHubReport.draft(
             note = "it failed at https://totum.pi.example.org/fetch and totumauth.built.example.net and " +
-                "crashlog.sink.example.org with tok-abcdef-123456 and prowl-key-987654",
+                "crashlog.pi.example.org with tok-abcdef-123456 and prowl-key-987654",
             facts = listOf(GitHubReport.VERSION to "0.1.1"),
             events = listOf(
-                "12:00:00.000 [home] POST https://crashlog.sink.example.org/ingest from person@mail.example.org"
+                "12:00:00.000 [home] POST https://crashlog.pi.example.org/ingest from person@mail.example.org"
             ),
             redactor = redactor,
         )
@@ -37,10 +36,10 @@ class ReportSourcesTest {
     }
 
     @Test
-    fun `a phone with no home server set still hides the built-in address and the sink`() {
-        val bare = reportRedactorFor("", "", "", "built.example.net", "https://crashlog.sink.example.org/ingest")
+    fun `a phone with no home server set still hides the built-in address and its sink`() {
+        val bare = reportRedactorFor("", "", "", "built.example.net")
 
-        val out = bare.redact("totum.built.example.net and crashlog.sink.example.org")
+        val out = bare.redact("totum.built.example.net and crashlog.built.example.net")
 
         assertFalse(out, "example" in out)
     }

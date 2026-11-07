@@ -69,7 +69,7 @@ class EmulatorsDoNotUploadTest {
         onAnEmulator: () -> Boolean = ::runningOnAnEmulator,
         underInstrumentation: () -> Boolean = ::runningUnderInstrumentation,
         signedIn: () -> Boolean = { true },
-    ) = DiagnosticsUploader(context, OkHttpClient(), scope, REFUSED, onAnEmulator, underInstrumentation, signedIn)
+    ) = DiagnosticsUploader(context, OkHttpClient(), scope, { REFUSED }, onAnEmulator, underInstrumentation, signedIn)
 
     /**
      * THE case. A hand-send from a test must not reach the Pi, and this uses the real detector —

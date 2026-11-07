@@ -28,6 +28,24 @@ class HomeServerAuthTest {
     }
 
     @Test
+    fun `reports go to the sink of the configured home server and never to anyone else's`() {
+        HomeServerAuth.use({ "totum.stranger.test" }, { "stranger-token" }, { "crashlog.stranger.test" })
+
+        assertEquals("https://crashlog.stranger.test/ingest", HomeServerAuth.reportEndpoint())
+        assertEquals(mapOf("X-Totum-Token" to "stranger-token"), HomeServerAuth.headersFor("crashlog.stranger.test"))
+        assertEquals(emptyMap<String, String>(), HomeServerAuth.headersFor("crashlog.333133333.xyz"))
+        assertEquals(false, HomeServerAuth.reportEndpoint()!!.contains("333133333"))
+    }
+
+    @Test
+    fun `with no home server there is no report endpoint`() {
+        HomeServerAuth.use({ null }, { "device-token" })
+
+        assertEquals(null, HomeServerAuth.reportEndpoint())
+        assertEquals(emptyMap<String, String>(), HomeServerAuth.headersFor("crashlog.333133333.xyz"))
+    }
+
+    @Test
     fun `signed in needs both a home server and a token`() {
         assertEquals(false, HomeServerAuth.isSignedIn(null, "token"))
         assertEquals(false, HomeServerAuth.isSignedIn("", "token"))

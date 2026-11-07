@@ -7,14 +7,7 @@ import com.dewijones92.totum.common.HomeServerAuth
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
-import java.io.IOException
-
-/** The sink on Dewi's Pi; /ingest is the only unauthenticated path there. */
-public const val DIAGNOSTICS_ENDPOINT: String = "https://crashlog.333133333.xyz/ingest"
 
 /**
  * Sends pending reports to the sink and deletes them once accepted.
@@ -46,14 +39,15 @@ public const val DIAGNOSTICS_ENDPOINT: String = "https://crashlog.333133333.xyz/
  */
 public class DiagnosticsUploader(
     private val context: Context,
-    private val client: OkHttpClient,
+    client: OkHttpClient,
     private val scope: CoroutineScope,
-    private val endpoint: String = DIAGNOSTICS_ENDPOINT,
+    endpoint: () -> String? = HomeServerAuth::reportEndpoint,
     private val onAnEmulator: () -> Boolean = ::runningOnAnEmulator,
     private val underInstrumentation: () -> Boolean = ::runningUnderInstrumentation,
     private val signedIn: () -> Boolean = HomeServerAuth::signedIn,
-    private val deviceToken: () -> String = { "" },
 ) {
+    private val sink = ReportSink(client, endpoint)
+
     /** The automatic upload at launch — suppressed on an emulator. See the class note. */
     public fun uploadPending(): Unit = upload(becauseSomeoneAsked = false)
 
@@ -92,7 +86,7 @@ public class DiagnosticsUploader(
             val waitingKb = pending.sumOf { it.length() } / BYTES_PER_KB
             Diag.log("diagnostics", "uploading ${pending.size} pending report(s), $waitingKb KB on the phone")
             pending.forEach { file ->
-                val sent = runCatching { post(file.readText()) }.getOrElse { error ->
+                val sent = runCatching { sink.post(file.readText(), "report") }.getOrElse { error ->
                     Diag.warn("diagnostics", "upload failed, keeping ${file.name}", error)
                     false
                 }
@@ -102,26 +96,8 @@ public class DiagnosticsUploader(
         }
     }
 
-    private fun post(body: String): Boolean {
-        val request = Request.Builder()
-            .url(endpoint)
-            .apply { deviceToken().takeIf { it.isNotBlank() }?.let { header(HomeServerAuth.HEADER, it) } }
-            .post(body.toRequestBody(JSON))
-            .build()
-        return try {
-            client.newCall(request).execute().use { response ->
-                Diag.log("diagnostics", "report upload -> HTTP ${response.code}")
-                response.isSuccessful
-            }
-        } catch (e: IOException) {
-            Diag.warn("diagnostics", "report upload failed", e)
-            false
-        }
-    }
-
     private companion object {
         const val BYTES_PER_KB = 1024L
-        val JSON = "application/json".toMediaType()
     }
 }
 

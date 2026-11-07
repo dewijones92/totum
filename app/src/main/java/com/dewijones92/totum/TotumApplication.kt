@@ -38,10 +38,10 @@ class TotumApplication : Application(), SingletonImageLoader.Factory {
 
     override fun onCreate() {
         super.onCreate()
+        signHomeServerRequests(container.appPreferences)
         // First thing, so a crash during the rest of startup is still captured.
         container.installCrashReporting()
         MainThreadWatch().start(this)
-        signHomeServerRequests(container.appPreferences)
         // Fetch the latest yt-dlp in the background so YouTube-breaking changes
         // self-heal; the download applies on the next start.
         container.refreshExtractorEngine()
@@ -147,6 +147,7 @@ private fun signHomeServerRequests(prefs: AppPreferences) {
     HomeServerAuth.use(
         host = { prefs.settings.value.homeServerBase.takeIf { it.isNotBlank() }?.let { "totum.$it" } },
         token = { prefs.settings.value.homeServerToken },
+        sinkHost = { prefs.settings.value.homeServerBase.takeIf { it.isNotBlank() }?.let { "crashlog.$it" } },
     )
     val settings = prefs.settings.value
     Diag.log(
