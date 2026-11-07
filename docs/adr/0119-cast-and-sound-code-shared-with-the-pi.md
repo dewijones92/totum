@@ -43,8 +43,8 @@ Android imports; the audio-quality tests already ran them on the JVM, fed by ffm
 - The audio-quality suite is now `:core:sound:test -Ptotum.audioQualityTests`, and its workflow
   (`audio-quality.yml`) and the preflight check follow the new paths. It reads the two test clips from
   `core/playback/src/main/res/raw`, which stay where the preview feature uses them.
-- `:core:cast` is Kover-exempt for now: the moved tests cover 65.2% of its lines against the 75% bar for logic
-  modules (`CastHttpServer`, `Upstream`, `TvVideos`, `CastTimeline`, `WebmLayout`, `LocalRanges` and `Fmp4Aac` are the
-  gaps). The exemption is recorded here and in `build.gradle.kts`; it goes when the testing stretch lifts the module
-  to 75%. `:core:sound` meets the bar.
+- `:core:cast` was Kover-exempt at first: the moved tests covered 65.2% of its lines against the 75% bar for logic
+  modules (`CastHttpServer`, `Upstream`, `TvVideos`, `CastTimeline`, `WebmLayout`, `LocalRanges` and `Fmp4Aac` were the
+  gaps). **Lifted 2026-11-07:** those gaps now have tests, the module covers 87.5%, and it is held by `koverVerify` like
+  `:core:sound`.
 - `CastStreams` is not split yet; it still holds both the plain stream-building and the Android-bound parts.

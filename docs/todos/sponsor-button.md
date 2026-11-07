@@ -1,7 +1,7 @@
 ---
 title: A ❤️ Sponsor button
 kind: todo
-status: built 2026-11-07, Batch A (tests owed); hidden until Dewi sets the link
+status: built 2026-11-07, Batch A (tests written 2026-11-07; device checks owed)
 batch: A (2026-11)
 priority: low
 updated: 2026-11-07
@@ -17,6 +17,12 @@ A Settings row, drawn only when `BuildConfig.SPONSOR_URL` (`totum.sponsorUrl` in
 https link; no URL is invented. Needs Dewi: the Ko-fi or GitHub Sponsors page address, and `.github/FUNDING.yml` once
 the account exists. See [sponsor-button](../features/sponsor-button.md).
 
-## Tests owed
+## Tests
 
-A Compose test of the row (absent with an empty value, present with one, the tap).
+Exist (JVM): `SponsorLinkTest` (an empty value, a non-https link or a bare host hides the row; an https link is used as given).
+
+Instrumented, compiled and not run: `SponsorRowTest` (no row for an empty or non-https value; the title and summary shown for
+an https one).
+
+Still owed, with the reason: the tap opening the page (`rememberLinkOpener` launches a browser, which a Compose test cannot
+observe without a device).

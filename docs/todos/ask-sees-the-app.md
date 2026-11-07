@@ -1,7 +1,7 @@
 ---
 title: ✨ Ask can answer about your own app
 kind: todo
-status: built 2026-11-07, Batch A (tests owed)
+status: built 2026-11-07, Batch A (tests written 2026-11-07; device checks owed)
 batch: A (2026-11)
 priority: high
 updated: 2026-11-07
@@ -57,15 +57,35 @@ come from their stores), `episodeCodeOf`, `HttpAskService`/`HomePiCall`, the Ask
 generalised), `LatestBody`'s play / play all / queue all, the operations strip's ASK kind, `AskStateWire` for the
 shared gzip frame, `StateScrub` on both ends.
 
-## Tests owed
+## Tests
 
-- An instrumented or screenshot check of an app answer on the emulator (the reply, the 🗂️ source line, a card of
-  rows with play / play all / queue all) and of the packing and sending stages in the strip.
+Exist (JVM): the pack, schema, scrub and shield (`AppStateBuilderTest`, `StateSchemaTest`, `StateScrubTest`,
+`PackRedactionTest`, `PackShieldTest`); the gzip frame (`AskStateWireTest`: a round trip, bytes that are not gzip, gzip of
+something that is not a snapshot, a small file that unpacks past the limit, the trace fields); the Pi's snapshot store and
+routes (`AskStatesTest`, `AskStateRoutesTest`, plus `ServeRoutesErrorsTest`: a snapshot declared over the limit is a 413
+before it is read, an unknown job or task is a 404); the router and the state call (`RoutedAskTest`, `StateCallTest`); the
+jq sandbox script itself, run for real (`JqSandboxTest`: queries over files in its own folder, stdin, `--arg`/`--slurpfile`,
+an empty environment, and every refusal: absolute and `~` paths, every spelling of `..`, `-L`/`--library-path`, `import`
+and `include`; seen failing with the `-L`, library-path and tilde refusals removed; the script is a declared input of the
+test task, so editing it reruns the test instead of restoring a cached pass); the view model (`AskAppStateViewModelTest`);
+and `AskStateSource` over fake ports (`AskStateSourceTest`: queue, follows and version packed and unpacked to the same
+thing, the title seam asked for every queued item so a shielded title never leaves, listens apart from other stats, a
+secret and a host taken out, the last snapshot's items resolved without gathering again and a newer id forcing a fresh
+gather).
+
+Still owed, with the reason:
+
+- An instrumented or screenshot check of an app answer on the emulator (the reply, the 🗂️ source line, a card of rows with
+  play / play all / queue all) and of the packing and sending stages in the strip: needs a device (an emulator soak was
+  running when the tests were written).
 - A real phone to real Pi round trip: `PUT /fetch/ask-state` through nginx (the totum server block already allows any body
-  size: `client_max_body_size 0`, checked 2026-11-07) and a real `jq` in the rebuilt ai image (`jq` was installed by the Dockerfile, not yet built).
-- `AskStateSource`'s real wiring (`AppContainer.askStateSource`) against a Room-backed container: the pure builder is
-  tested, the suppliers are not.
+  size: `client_max_body_size 0`, checked 2026-11-07) and a real `jq` in the rebuilt ai image (`jq` was installed by the
+  Dockerfile, not yet built): needs the Pi.
+- `AppContainer.askStateSource`'s real wiring against a Room-backed container: `AskStateSource` is now tested with fake
+  ports, but the suppliers `AppContainer` hands it (Room, the stats log, the trail) are only reachable on a device.
 - A queue group's id in `quietGroups`: the pack's channel groups carry no id (the backup format has none), so the model
   cannot say which group a quiet-group setting means.
 - Downloads held at home on the Pi are not in the snapshot.
-- The sandbox hardening in ADR 140 (bubblewrap) if Dewi wants jq unable to read the service's environment.
+- The sandbox hardening in ADR 140 (bubblewrap) if Dewi wants jq unable to read the service's environment. One known
+  false positive in `jq-sandbox.sh`: any program text containing the word "import" followed by a space (for example a string
+  literal "to import data") is refused as an import.

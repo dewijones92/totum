@@ -1,7 +1,7 @@
 ---
 title: A spoiler shield for sport
 kind: todo
-status: built 2026-11-07, Batch A (tests owed)
+status: built 2026-11-07, Batch A (tests written 2026-11-07; device checks owed)
 batch: A (2026-11)
 priority: medium
 updated: 2026-11-07
@@ -25,16 +25,30 @@ always put in alphabetical order.
 
 Decisions, dry runs and limits: [ADR 141](../adr/0141-a-spoiler-shield-hides-results-in-titles-pictures-and-lengths.md); the feature doc: [spoiler-shield.md](../features/spoiler-shield.md).
 
-## Tests owed
+## Tests
 
-- `SpoilerRulesTest` exists (words, scores, initials, `decide`); owed: more real titles from the dry run as fixtures, and
-  a test that every title in the dry-run file ends up either unchanged or free of `SpoilerRules.reveals`.
-- `SpoilerShieldTest` exists (hidden at once, asked once, retry time, no verdict, persistence); owed: a batch over 25 is
-  split, the 3,000-title cap, `FileShieldStore` (round trip, a corrupt file starts empty), `watched` flipping, a revealed
-  id surviving a restart.
+Exist (JVM): `SpoilerRulesTest` (words, scores, initials, `decide`); `SpoilerTitlesTest` (25 written titles in the shape of
+the dry run: for every title, every model verdict and every offered rewrite, the title that would be shown never names a
+result; titles that state one are caught by a rule rather than left to the model; titles that only name the players are not
+taken for results); `SpoilerShieldTest`; `SpoilerShieldLimitsTest` (sixty titles asked 25 at a time with none twice or
+dropped, the 3,000-title cap keeping the newest, an item turning plain the moment it is watched and hiding again, a title
+revealed by hand surviving a restart and hiding again surviving one, `FileShieldStore` round trip, a corrupt or missing file,
+an unwritable path, a channel matched by id or by name); `ItemShieldTest`; `NextLineTest` (the Next line through
+`titleOf` in the plain, repeat-group and repeat-queue branches); `PlayAttemptsShieldTest` (the starting bar and the refused
+tap named by the safe title). Seen failing: the batch size and the cap changed.
+
+Instrumented, compiled and not run: `SpoilerShieldSurfacesTest` (`shareListMessage(titleOf)` and `LiveNoticeLabels.titled`,
+which need a `Context`).
+
+Still owed, with the reason:
+
+- The dry-run title file is not in the repo, so `SpoilerTitlesTest` uses titles written for it; adding the real dry-run
+  titles as a fixture file is still owed.
 - Compose: a row of a shielded item shows "🙈 Title hidden", a blurred picture and no length; the sheet's reveal, hide again
-  and channel actions; the channel page's toggle; Carry on; Details with the description and length gone.
-- Unit: `nextLineOf` with `titleOf`, `PlayAttempts` with a shield, `LiveNoticeLabels.titled`, `shareListMessage(titleOf)`.
-- Instrumented: `metadataFor` gives the safe title, no description and no artwork for a shielded item.
-- A device check: shield one channel on the phone, open its page, play one video, look at the notification and the
-  lock screen, reveal one.
+  and channel actions; the channel page's toggle; Carry on; Details with the description and length gone. Needs a device.
+- `metadataFor` gives the safe title, no description and no artwork for a shielded item: it is private to
+  `Media3PlaybackController` and needs a real `MediaController`, so it can only be checked on a device.
+- Nothing yet proves that **every** surface reads the seam: a new surface that reads `item.title` directly would not be
+  caught by any test. A scan for it (a lint rule or a source test over the UI package) is not written.
+- A device check: shield one channel on the phone, open its page, play one video, look at the notification and the lock
+  screen, reveal one.

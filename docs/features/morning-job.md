@@ -1,7 +1,7 @@
 ---
 title: The morning job (🤖 For you and the 🌅 digest)
 kind: feature
-status: built 2026-11-07, Batch A (tests owed; not yet seen on a device)
+status: built 2026-11-07, Batch A (JVM tests written 2026-11-07; not yet seen on a device)
 area: ai
 updated: 2026-11-07
 ---
@@ -11,7 +11,7 @@ updated: 2026-11-07
 One job, at about 07:30 every day, with two switches (Settings → Morning, both off by default): a daily **🤖 For you**
 playlist of videos and podcasts from outside Dewi's subscriptions, and a **🌅 digest** notification that says in two lines
 what is new in his groups. One notification tells him both. Decisions, dry runs and limits:
-[ADR 143](../adr/0143-for-you-and-the-morning-digest-are-one-morning-job.md); the briefs and the tests still owed:
+[ADR 143](../adr/0143-for-you-and-the-morning-digest-are-one-morning-job.md); the briefs, tests and what is still owed:
 [for you](../todos/for-you-feed.md), [morning digest](../todos/morning-digest.md).
 
 ## What it does

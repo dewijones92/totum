@@ -17,18 +17,18 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [Stored links no longer carry the old shared token](scrub-old-token-from-links.md) | pi/security | medium | decided 2026-11-06, Batch A |
 | [Queued tracks keep their artist](queued-tracks-keep-their-artist.md) | music/queue | medium | built 2026-11-06, Batch A (tests owed) |
 | [A live stream that hasn't started says so](live-starts-soon.md) | playback | medium | built 2026-11-06, Batch A (tests owed) |
-| [📡 The Pi plays to any TV, browser or speaker](pi-plays-everywhere.md) | casting/pi | high | built 2026-11-07, Batch A (tests owed) |
-| [A daily 🤖 For you feed](for-you-feed.md) | ai | medium | built 2026-11-07, Batch A (tests owed) |
-| [TL;DR and chapters for long items](tldr-and-chapters.md) | ai | medium | built 2026-11-07, Batch A (tests owed) |
-| [Ask about this video](ask-about-this-video.md) | ai | medium | built 2026-11-07, Batch A (tests owed) |
-| [A morning digest of what's new](morning-digest.md) | ai | low | built 2026-11-07, Batch A (tests owed) |
-| [A spoiler shield for sport](tennis-spoiler-shield.md) | ai/video | medium | built 2026-11-07, Batch A (tests owed) |
-| [Jellyfin's films and series inside Totum](jellyfin-in-totum.md) | home | medium | built 2026-11-07, Batch A (tests owed) |
+| [📡 The Pi plays to any TV, browser or speaker](pi-plays-everywhere.md) | casting/pi | high | built 2026-11-07, Batch A (tests written 2026-11-07; device checks owed) |
+| [A daily 🤖 For you feed](for-you-feed.md) | ai | medium | built 2026-11-07, Batch A (tests written 2026-11-07; device checks owed) |
+| [TL;DR and chapters for long items](tldr-and-chapters.md) | ai | medium | built 2026-11-07, Batch A (tests written 2026-11-07; device checks owed) |
+| [Ask about this video](ask-about-this-video.md) | ai | medium | built 2026-11-07, Batch A (tests written 2026-11-07; device checks owed) |
+| [A morning digest of what's new](morning-digest.md) | ai | low | built 2026-11-07, Batch A (tests written 2026-11-07; device checks owed) |
+| [A spoiler shield for sport](tennis-spoiler-shield.md) | ai/video | medium | built 2026-11-07, Batch A (tests written 2026-11-07; device checks owed) |
+| [Jellyfin's films and series inside Totum](jellyfin-in-totum.md) | home | medium | built 2026-11-07, Batch A (tests written 2026-11-07; device checks owed) |
 | [Trip mode](trip-mode.md) | downloads | low | built 2026-11-07, Batch A (ADR 149; tests owed; not run on a device) |
 | [One tap puts the kid playlist on the TV](kid-tv-button.md) | casting/kids | low | built 2026-11-07, Batch A (ADR 148; tests owed; not run on a TV) |
 | [A bedtime sleep timer](bedtime-sleep-timer.md) | player | low | built 2026-11-06, Batch A (ADR 133); tests owed |
-| [Ready for other people: licence and reports](publish-licence-and-reports.md) | publishing | medium | built 2026-11-07, Batch A (tests owed) |
-| [A ❤️ Sponsor button](sponsor-button.md) | publishing | low | built 2026-11-07, Batch A (tests owed); hidden until the link is set |
+| [Ready for other people: licence and reports](publish-licence-and-reports.md) | publishing | medium | built 2026-11-07, Batch A (tests written 2026-11-07; device checks owed) |
+| [A ❤️ Sponsor button](sponsor-button.md) | publishing | low | built 2026-11-07, Batch A (tests written 2026-11-07; device checks owed); hidden until the link is set |
 | [A post and video script for an AI subreddit](subreddit-video-draft.md) | publishing | low | built 2026-11-07, Batch A (drafts only; Dewi edits and posts) |
 | [Live streams play at 1x with no silence skipping](live-plays-at-1x.md) | playback | high | built 2026-11-06, Batch A (tests owed) |
 | [✨ Ask: the restore crash, and a chat list that hides the input](ask-restore-race-and-chat-list.md) | ai | high | built 2026-11-06, Batch A (tests owed) |
@@ -66,7 +66,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [Time left per queue group](group-time-left.md) | queue | low | built 2026-11-06, Batch A (tests owed) |
 | [What's next, in the notification](next-in-notification.md) | player | low | built 2026-11-06, Batch A (tests owed) |
 | [Not for me](not-for-me.md) | queue | medium | built 2026-11-06, Batch A; tests to follow |
-| [✨ Ask can answer about your own app](ask-sees-the-app.md) | ai | high | built 2026-11-07, Batch A (tests owed) |
+| [✨ Ask can answer about your own app](ask-sees-the-app.md) | ai | high | built 2026-11-07, Batch A (tests written 2026-11-07; device checks owed) |
 | [Torrent results say whether they look trustworthy](torrent-trust-badges.md) | torrents | high | ✅ shipped 2026-10-30 (ADR 101) |
 | [Work still done on the main thread](main-thread-work.md) | performance | medium | ⏳ partly fixed 2026-10-30 (parsing, Room maps, diagnostics send) |
 | [Shuffle all across several sources at once](multi-source-shuffle.md) | queue/shuffle | high | ⏳ partly done 2026-10-22 (Subscriptions, queue groups) |

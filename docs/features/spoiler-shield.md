@@ -1,7 +1,7 @@
 ---
 title: Spoiler shield
 kind: feature
-status: built 2026-11-07, Batch A (tests owed; not yet seen on a device)
+status: built 2026-11-07, Batch A (JVM tests written 2026-11-07; not yet seen on a device)
 area: ai/video
 updated: 2026-11-07
 ---
@@ -11,7 +11,7 @@ updated: 2026-11-07
 For channels Dewi chooses (ATP, WTA, Tennis TV, any), Haiku rewrites each title without the result, thumbnails blur and
 lengths hide until the video has been watched. The real title is one tap away. Decisions, the dry runs and what is not
 covered: [ADR 141](../adr/0141-a-spoiler-shield-hides-results-in-titles-pictures-and-lengths.md); the brief and the
-tests still owed: [the todo](../todos/tennis-spoiler-shield.md).
+tests and what is still owed: [the todo](../todos/tennis-spoiler-shield.md).
 
 ## What it does
 

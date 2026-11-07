@@ -1,7 +1,7 @@
 ---
 title: TL;DR, chapters and ask about this video
 kind: feature
-status: built 2026-11-07, Batch A (tests owed; not yet seen on a device)
+status: built 2026-11-07, Batch A (JVM tests written 2026-11-07; not yet seen on a device)
 area: ai/player
 updated: 2026-11-07
 ---
@@ -10,8 +10,8 @@ updated: 2026-11-07
 
 In the player's Transcript tab: a three-line summary with tap-to-jump chapters, and a box that answers "what did they
 say about X?" from the transcript with moments to jump to. Decisions, the dry runs and the limits:
-[ADR 142](../adr/0142-tl-dr-chapters-and-ask-about-this-video-are-one-transcript-digest.md); the briefs and the tests
-still owed: [tl;dr and chapters](../todos/tldr-and-chapters.md), [ask about this video](../todos/ask-about-this-video.md).
+[ADR 142](../adr/0142-tl-dr-chapters-and-ask-about-this-video-are-one-transcript-digest.md); the briefs, tests
+and what is still owed: [tl;dr and chapters](../todos/tldr-and-chapters.md), [ask about this video](../todos/ask-about-this-video.md).
 
 ## What it does
 

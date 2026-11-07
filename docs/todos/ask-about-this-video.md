@@ -1,7 +1,7 @@
 ---
 title: Ask about this video
 kind: todo
-status: built 2026-11-07, Batch A (tests owed)
+status: built 2026-11-07, Batch A (tests written 2026-11-07; device checks owed)
 batch: A (2026-11)
 priority: medium
 updated: 2026-11-07
@@ -23,10 +23,15 @@ Dry-run on ten questions including three the video does not answer and one injec
 
 Decisions, dry runs and limits: [ADR 142](../adr/0142-tl-dr-chapters-and-ask-about-this-video-are-one-transcript-digest.md); the feature doc: [transcript-digest.md](../features/transcript-digest.md).
 
-## Tests owed
+## Tests
 
-- `DigestRulesTest` covers the moment checks (snapping, a quote not in the transcript, nothing for "not found");
-  owed: the Compose answer rows (a moment seeks, "not found" shows with no moments, "no moment confirmed" note, ❌), the
-  Ask box's send button and keyboard action, several questions stacking newest first.
-- `DigestServiceTest` covers a long transcript choosing blocks; owed: the same for a question with no matching words.
+Exist (JVM): `DigestRulesTest` (the moment checks: snapping, a quote not in the transcript, nothing for "not found"),
+`DigestServiceTest` (a long transcript choosing blocks), `TranscriptTextTest` (a question with no matching words still gets a
+glimpse of every block, within the budget) and `HomeAiTasksTest` (the Pi's task drops a moment whose quote is not in the
+transcript).
+
+Still owed, with the reason:
+
+- Compose answer rows (a moment seeks, "not found" shows with no moments, "no moment confirmed" note, ❌), the Ask box's send
+  button and keyboard action, several questions stacking newest first. Needs a device.
 - A device check: ask something of a video and tap its moment.

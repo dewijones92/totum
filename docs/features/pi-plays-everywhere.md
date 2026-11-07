@@ -2,7 +2,7 @@
 title: 📡 The Pi plays to any TV, speaker or browser; the phone is a remote
 kind: feature
 area: casting/pi
-status: built 2026-11-07, Batch A (tests owed; nothing run on a real TV, speaker or Chromecast)
+status: built 2026-11-07, Batch A (tests written 2026-11-07; nothing run on a real TV, speaker or Chromecast)
 updated: 2026-11-07
 ---
 
@@ -62,4 +62,6 @@ path of ADR 68 on the Pi); playback speed and subtitles on a target; TV volume i
 
 Unit: `PcmChainTest`, `TargetRulesTest`, `TargetEntriesTest` (core), `TargetDeckTest`, `YouTubeProgressTest`,
 `PcmPumpTest`, `CastWireTest`, `CastControlTest`, `YouTubeOwnershipTest` (cli); `TargetsRepositoryTest`, `PlayLocallyTest`,
-`SignInHandoverTest`, `RequesterIdentityTest` (app). Owed: see the todo.
+`SignInHandoverTest`, `RequesterIdentityTest` (app); and from the 2026-11-07 testing stretch `TargetRoutesTest`,
+`TargetDecksTest`, `DeckStoreTest`, `MpvPlayerTest`, `SoundStreamsTest`, `ChromecastPlayerTest`,
+`ProcessedSoundEndToEndTest` (cli), `RedirectEntryPointsTest`, `SendToTargetTest` (app). Owed: see the todo.

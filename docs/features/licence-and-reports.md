@@ -2,7 +2,7 @@
 title: Licence, and reporting when you are not signed in to a home server
 kind: feature
 area: publishing
-status: built 2026-11-07, Batch A (tests owed)
+status: built 2026-11-07, Batch A (tests written 2026-11-07; device checks owed)
 updated: 2026-11-07
 ---
 
@@ -63,7 +63,9 @@ telling the Pi where the PC screen page is: not signed in …`.
 - The sink's `/ingest` still accepts anonymous posts; making it require the token is an nginx change in `dot-files`
   that would reject every older build (see the ADR).
 
-## Tests owed
+## Tests
 
-A Compose test of the two steps and the switch; the instrumented uploader case added to `EmulatorsDoNotUploadTest`
-has not been run; a device check that the link opens the form pre-filled; a check that the announce stops on sign-out.
+`GitHubReportTest`, `ReportRedactorTest`, `ReportSourcesTest` and `ReportSinkTest` (JVM); the instrumented
+`ReportDialogTest` (compiled, not run) covers the two steps. Owed: the instrumented uploader case added to
+`EmulatorsDoNotUploadTest` has not been run; a device check that the link opens the form pre-filled; a check that the
+announce stops on sign-out.

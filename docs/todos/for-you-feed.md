@@ -1,7 +1,7 @@
 ---
 title: A daily 🤖 For you feed
 kind: todo
-status: built 2026-11-07, Batch A (tests owed)
+status: built 2026-11-07, Batch A (tests written 2026-11-07; device checks owed)
 batch: A (2026-11)
 priority: medium
 updated: 2026-11-07
@@ -24,11 +24,20 @@ picks listed).
 
 Decisions, dry runs and limits: [ADR 143](../adr/0143-for-you-and-the-morning-digest-are-one-morning-job.md); the feature doc: [morning-job.md](../features/morning-job.md).
 
-## Tests owed
+## Tests
 
-- `MorningRunTest` exists (finding, replacing, a failure's reason, nothing found); owed: `MorningRules.tidyForYou` unit
-  cases (followed channel by name, a repeat, a kind that is not a video or podcast, the caps) beyond the CLI test,
-  `findPick` with fakes (a followed channel's hit is skipped, a short or members-only hit is skipped, a show's newest
-  episode), `replaceForYou` against a fake playlist store, `morningTaste` including the liked page failing.
-- Compose/device: Settings → Morning, "Run the morning job now" fills the playlist and shows in the strip; the playlist
-  in Library.
+Exist (JVM): `MorningRunTest` (finding, replacing, a failure's reason, nothing found); `MorningRulesTest` (`tidyForYou`:
+a followed channel or show by name or by containing it, owned or picked lately, named twice, kinds that are not a video or
+podcast, no title, the caps of six and four, extras cleaned; replacing a playlist with the same items changes nothing and
+with fewer drops the rest); `ForYouPlaylistTest` (the new list is filled before the old is cleared; seen failing when the
+order is reversed, so it can fail); `FindPickTest` (a followed channel's hit skipped by name ignoring case and punctuation,
+members-only, short and live hits skipped, no pick when nothing is suitable, a show's newest episode and a followed show
+skipped, a feed that will not load, other kinds never searched). `findPick` now takes `AskCopies` and a
+`PodcastRepository` instead of the whole container so it can run with fakes.
+
+Still owed, with the reason:
+
+- `appTaste` (the taste the job sends), including the liked page failing: it reads `AppContainer` and a process-wide cache of
+  the liked titles, so it needs the same narrowing `findPick` got, or a device.
+- Compose/device: Settings → Morning, "Run the morning job now" fills the playlist and shows in the strip; the playlist in
+  Library.

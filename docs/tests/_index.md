@@ -19,15 +19,42 @@ an order of magnitude out.
 ```
 
 `koverVerify` covers `:core:*` / `:lib:*` **except** the kover-exempt adapters
-`:core:database`, `:core:playback`, `:lib:ytdlp-chaquopy` (instrumented-verified
-instead), and `:core:cast`, which is exempt until its tests reach 75% (65.2% on 2026-11-06,
-[ADR 119](../adr/0119-cast-and-sound-code-shared-with-the-pi.md)).
+`:core:database`, `:core:playback` and `:lib:ytdlp-chaquopy` (instrumented-verified instead).
+`:core:cast` was exempt until its tests reached 75% and is now held by the gate: 63.8% on 2026-11-07
+before the testing stretch, 87.5% after
+([ADR 119](../adr/0119-cast-and-sound-code-shared-with-the-pi.md)).
+
+## Batch A testing stretch (7 Nov 2026)
+
+Code went first in Batch A and these tests came after, in one stretch. Every row is JVM unless it says otherwise.
+"Seen failing" names the mutant that turned it red. Instrumented classes were compiled
+(`:app:compileDebugAndroidTestKotlin`) and **not run**, because an emulator soak was running.
+
+| Area | Where | What it proves |
+|---|---|---|
+| `:core:cast` at 87.5%, held by `koverVerify` | `:core:cast` `CastHttpServerTest` (real loopback sockets: CORS headers, HEAD, OPTIONS, a throwing handler is a 502, a taken port falls back), `LocalRangesTest`, `UpstreamTest` (range asked and answered, a 200 or 404 to a range is an error, the token goes only to the home host), `CastTimelineTest`, `StallsBeforeStepDownTest`, `TvVideosTest`, `CodecStringsTest`, `Fmp4AacTest`, `WebmLayoutTest` (a synthetic WebM: VP9, Opus, AV1, no cues, a bad codec), `CastStandInTest` | seen failing: the timeline's 30% floor, the stall window |
+| One `VideoCodecFamily` | `:core:domain` `VideoCodecFamilyTest` | every codec string maps to one family; no prefix belongs to two; VP8 is known to the phone and unmeasured (never best, never refused) for a TV |
+| Spoiler shield limits and titles | `:core:data` `SpoilerShieldLimitsTest`, `SpoilerTitlesTest`; `:app` `NextLineTest`, `PlayAttemptsShieldTest`; instrumented `SpoilerShieldSurfacesTest` | 25 titles a batch, the 3,000 cap, watched and revealed state, `FileShieldStore`; whatever the model says a shown title never names a result; the Next line, starting bar and refused tap go through the shield. Seen failing: batch size and cap |
+| Transcript digest | `:core:data` `TranscriptTextTest` | question-shaped transcripts (matching blocks whole with neighbours, glimpses of the rest, within budget), `fit`, sentence-end cuts, `FileDigestStore`. Seen failing: neighbours set to zero |
+| Morning job | `:core:data` `MorningRulesTest`, `ForYouPlaylistTest`; `:app` `FindPickTest` | `tidyForYou`, `tidyDigest`, `fallbackDigest`, the store and its file, `holdForDigest`, the playlist swap (seen failing when reversed), the finder with fakes |
+| Ask sees the app | `:core:data` `AskStateWireTest`; `:app` `AskStateSourceTest`; `:cli` `JqSandboxTest`, `ServeRoutesErrorsTest` | the gzip frame and its bomb guard; the source over fake ports; the real jq sandbox script (seen failing with `-L`, library-path and tilde refusals removed) |
+| Reports | `:app` `ReportSinkTest` (refused and unreachable sinks); instrumented `ReportDialogTest`, `SponsorRowTest` | the existing redactor, GitHub draft and sink tests were already thorough |
+| Pi plays everywhere (phone) | `:app` `RedirectEntryPointsTest`, `SendToTargetTest`; instrumented `TargetChipsTest` | six redirect entry points, `byYou = false` never redirected, send releases only after the target plays. Seen failing: `setPlaying(false)` removed, `byYou` guard removed |
+| Pi plays everywhere (Pi) | `:cli` `TargetRoutesTest`, `TargetDecksTest`, `DeckStoreTest`, `MpvPlayerTest`, `SoundStreamsTest`, `ChromecastPlayerTest`, `ProcessedSoundEndToEndTest` | the target routes, decks and their persistence; mpv's real command line and ffmpeg pipe against recording scripts; processed sound streams; the Chromecast player; a real ffmpeg on a generated clip. Seen failing: mpv's `--`, the Chromecast picture guard |
+| AI service allow-list over HTTP, serve wiring | `:cli` `AiToolAllowListTest`, `ServeEnvTest` | a caller asking beyond its row gets a 403, nothing runs and it is recorded as a failure (seen failing with the check removed); Jellyfin, filing and AI health from the environment |
+| Jellyfin | `:core:data` `JellyfinClientTest`, `HomePiCallTest`; instrumented `JellyfinScreenTest` | the client against a mock server, the emoji rule (this found a real bug, fixed), the screen's trail, retry, paging and play |
+| Targets client | `:core:data` `TargetsClientTest` | the three calls, the token, refusals keep their words |
+
+**Not covered, with the reason:** every Compose and device check in the todos' "still owed" lists (needs a device); `AppContainer`'s
+real wiring of the Ask state supplies and `appTaste` (they read the whole container); `metadataFor` (private to the Media3
+controller); a source scan proving every surface reads the spoiler seam; the real Pi (nginx, the rebuilt AI image, a real
+Chromecast, a real Jellyfin).
 
 ## Where coverage lives
 
 | Area | Kind | Notes |
 |---|---|---|
-| Spoiler shield: the result-word, hype-word, score and initials rules; `decide` (kept, rewritten, neutral on a spoiling rewrite, an invented rewrite, a long rewrite); the shield (hidden at once, asked once, retry after 10 minutes, no verdict stays hidden, persistence, switching off); `ItemShield`/`NoShield` | JVM | `:core:data` `SpoilerRulesTest`, `SpoilerShieldTest`; `:core:domain` `ItemShieldTest`. Owed: Compose rows, sheet actions, `metadataFor`, `FileShieldStore` ([ADR 141](../adr/0141-a-spoiler-shield-hides-results-in-titles-pictures-and-lengths.md)) |
+| Spoiler shield: the result-word, hype-word, score and initials rules; `decide` (kept, rewritten, neutral on a spoiling rewrite, an invented rewrite, a long rewrite); the shield (hidden at once, asked once, retry after 10 minutes, no verdict stays hidden, persistence, switching off); `ItemShield`/`NoShield` | JVM | `:core:data` `SpoilerRulesTest`, `SpoilerShieldTest`; `:core:domain` `ItemShieldTest`. More below, in the Batch A testing stretch table. Owed: Compose rows, sheet actions, `metadataFor` ([ADR 141](../adr/0141-a-spoiler-shield-hides-results-in-titles-pictures-and-lengths.md)) |
 | AI job client (post, poll, token, a bad poll retried, a misshapen answer is a failure) and the Pi's AI task routes (each task's prompt caller and tools allowed by the AI service, the checks applied after the model, a failing model fails the job, an unknown task is 404) | JVM | `:core:data` `HttpAiJobsTest`; `:cli` `HomeAiTasksTest` |
 | Transcript digest: blocks and stamps, thinning, chapter and TL;DR tidying, snapping to real lines, moments confirmed against the transcript, the cache, a long transcript choosing blocks for a question | JVM | `:core:data` `DigestRulesTest`, `DigestServiceTest` ([ADR 142](../adr/0142-tl-dr-chapters-and-ask-about-this-video-are-one-transcript-digest.md)) |
 | Morning job: the run (digest with hidden titles, plain lines when the Pi is down, nothing new, picks found and replaced, a failure's reason), the inbox cap and age, starred and liked in `tasteOf`, the 07:30 delay | JVM | `:core:data` `MorningRunTest`, `TasteOfTest`; `:app` `MorningWorkerTest` ([ADR 143](../adr/0143-for-you-and-the-morning-digest-are-one-morning-job.md)) |

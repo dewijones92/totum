@@ -529,8 +529,8 @@ differently from an anonymous one — which cannot be tested on a signed-out dev
 - `:core:cast` — the plain-Kotlin half of casting (manifest, rung choice, container layouts and remuxers, the cast HTTP
   server, reach, `ScreenLink`, captions, probes, the `CastTvPort`), pure JVM with `explicitApi()`, package
   `…playback.cast`, so the Pi's `:cli` runs the same code as the phone (ADR 119). `:core:playback` keeps what touches
-  Media3, MediaCodec or Android (`CastStreams`, `CastHost`, `CastStatus`, `ScreenPlayer`). Kover-exempt until its tests
-  reach 75%.
+  Media3, MediaCodec or Android (`CastStreams`, `CastHost`, `CastStatus`, `ScreenPlayer`). Held by `koverVerify` (87.5%
+  on 2026-11-07).
 - `:core:sound` — the sound processing (`SilenceCutter`, `SpeechModel`, `SpeechTrack`, `LoudnessBoost`, `VolumeBoost`,
   `LookaheadLimiter`), pure JVM with `explicitApi()`, shared with the Pi (ADR 119). The Silero weights
   (`silero_vad.bin`) are its Java resource, read by `SpeechWeights.bundled()`; the Media3 wrappers

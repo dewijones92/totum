@@ -1,7 +1,7 @@
 ---
 title: A morning digest of what's new
 kind: todo
-status: built 2026-11-07, Batch A (tests owed)
+status: built 2026-11-07, Batch A (tests written 2026-11-07; device checks owed)
 batch: A (2026-11)
 priority: low
 updated: 2026-11-07
@@ -24,12 +24,19 @@ My call: only the per-video **group** notifications are replaced; the subscripti
 
 Decisions, dry runs and limits: [ADR 143](../adr/0143-for-you-and-the-morning-digest-are-one-morning-job.md); the feature doc: [morning-job.md](../features/morning-job.md).
 
-## Tests owed
+## Tests
 
-- `MorningRunTest` covers the digest (hidden titles sent hidden, the model's lines, plain lines when the Pi is down, nothing
-  new makes no call, an old entry is not told again, the inbox cap and age); owed: `MorningRules.tidyDigest` and
-  `fallbackDigest` beyond the CLI test, `MorningStore` (file round trip, `consumed`, `pickedLately`), `groupNewsNotify`
-  (digest on adds to the inbox and returns true; digest off still notifies; a quiet group never reaches it), the
-  notification text (`morning_picks_line` plural, "🆕" prefix once).
+Exist (JVM): `MorningRunTest` (hidden titles sent hidden, the model's lines, plain lines when the Pi is down, nothing new
+makes no call, an old entry is not told again, the inbox cap and age); `MorningRulesTest` (`tidyDigest` keeps two whole
+lines that name something given, `fallbackDigest` tells the busiest two groups plainly with how many more, `MorningStore`
+consumed and `pickedLately` and the month-old forgetting, `FileMorningFile` round trip and a corrupt file, and
+`holdForDigest`: digest on adds to the inbox with the shield's verdict and returns true, digest off returns false and never
+asks the shield). The digest-or-notify choice moved out of `AppContainer.groupNewsNotify` into `MorningStore.holdForDigest`
+so it could be tested; `GroupNewsTest` already covers a quiet group posting nothing.
+
+Still owed, with the reason:
+
+- The notification text (`morning_picks_line` plural, the "🆕" prefix once): it needs `Resources`, so it is an instrumented
+  check.
 - A device check: switch the digest on, let a group get a video, run the job from Settings, see one notification and no
   per-video one.

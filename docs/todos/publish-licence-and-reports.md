@@ -1,7 +1,7 @@
 ---
 title: Ready for other people: licence and reports
 kind: todo
-status: built 2026-11-07, Batch A (tests owed)
+status: built 2026-11-07, Batch A (tests written 2026-11-07; device checks owed)
 batch: A (2026-11)
 priority: medium
 updated: 2026-11-07
@@ -18,8 +18,15 @@ in (and then with the device token); a signed-out phone reports through a two-st
 redacted preview, copied and opened in the browser, with a list of what it opened. See
 [licence-and-reports](../features/licence-and-reports.md).
 
-## Tests owed
+## Tests
 
-A Compose test of the two-step dialog; the new instrumented uploader case (written, not run); a device check that the
-link opens the form pre-filled; the announce stopping on sign-out. Needs Dewi: GitHub issues enabled on the repo; the
-server's `/ingest` is unchanged (still anonymous).
+Exist (JVM): `GitHubReportTest`, `ReportRedactorTest` and `ReportSourcesTest` (the redactor and the GitHub draft: no token,
+key, home address or email leaves it), `ReportSinkTest` (the token goes only to the configured sink; a refusing sink and an
+unreachable one are failures; the body goes as JSON by POST), `SponsorLinkTest`.
+
+Instrumented, compiled and not run: `ReportDialogTest` (a signed-in phone sends to the Pi and offers no GitHub step; a signed-out
+one previews exactly what GitHub is given before anything leaves; Back returns to the note).
+
+Still owed, with the reason: the instrumented uploader case (written earlier, not run); a device check that the link opens the
+form pre-filled; the announce stopping on sign-out. Needs Dewi: GitHub issues enabled on the repo; the server's `/ingest` is
+unchanged (still anonymous).

@@ -1,7 +1,7 @@
 ---
 title: 📡 The Pi plays to any TV, browser or speaker; the phone is a remote
 kind: todo
-status: built 2026-11-07, Batch A (tests owed)
+status: built 2026-11-07, Batch A (tests written 2026-11-07; device checks owed)
 batch: A (2026-11), phase 7
 priority: high
 updated: 2026-11-07
@@ -90,7 +90,7 @@ same Google-gated home-server sign-in; check her account is admitted by that gat
   shares Bluetooth and Wi-Fi).
 - The leftover `totum-speaker-test` container from 2026-11-01 was removed on 2026-11-06.
 
-## Built 2026-11-07 (code first; tests owed)
+## Built 2026-11-07 (code first; tests written 2026-11-07)
 
 Feature doc: [pi-plays-everywhere](../features/pi-plays-everywhere.md). Decisions: ADRs
 [152](../adr/0152-a-target-is-anything-the-pi-plays-to-and-each-has-its-own-queue.md) and
@@ -135,16 +135,39 @@ are greyed over a picture; play next on a remote row; the target poll is lifecyc
 Still owed from them: carrying the phone's silence mode and speech gate to a target; hiding the Jellyfin tile when
 Jellyfin is off; Add to queue and Peek on a remote row (recorded as exceptions).
 
-### Tests owed
+### Tests
+
+Exist (JVM): `TargetDeckTest`, `TargetStreamsTest`, `YouTubeProgressTest`, `PcmPumpTest`, `CastWireTest`, `CastControlTest` (a
+fake helper process), `TargetRulesTest`, `TargetsRepositoryTest`, `PlayLocallyTest`, and, new:
+
+- `TargetRoutesTest` (the list, a queue that starts, a refusal as a 422 with its words, a control, no id, an unknown target,
+  an unreadable body, only GET lists and only POST acts) and `TargetDecksTest` (every source's targets together, a deck kept
+  between asks, a failing source not hiding the others, the sources looked at once a minute, a player's end moving its deck
+  on); `DeckStoreTest`.
+- `RedirectEntryPointsTest` (all six `PlaybackQueue` entry points hand a person's own request to the target with its mode,
+  group and start item; `byYou = false` is never redirected; an empty request is not sent; a target that does not take it
+  leaves the phone to play it; no target means everything plays here); `SendToTargetTest` (what plays and the rest of its
+  group go from the second it was at and leave the phone, a refusal or a target that did not start leaves the phone playing
+  with its queue whole). Seen failing: `setPlaying(false)` removed, and the `byYou` guard removed.
+- `MpvPlayerTest` (the real command line against a script that records its arguments: unprocessed from the address with
+  `--start`, an address that begins with a dash after `--`, boosted items decoded by ffmpeg from where they were and fed as raw
+  48 kHz stereo, a clean exit is not a failure, a failing one is, stopping and replacing report nothing); `SoundStreamsTest`
+  (no base means nothing offered, unguessable addresses, processed AAC and ranged files served, withdraw, ten-minute expiry);
+  `ChromecastPlayerTest` (processing only for sound with a server, a picture never processed, a file offered over HTTP,
+  positions on a processed stream add where it started, content types, configured casts become typed targets);
+  `ProcessedSoundEndToEndTest` (a real ffmpeg on a generated clip: 48 kHz stereo bytes, starting a second in, ADTS AAC that
+  ffprobe reads as the right length; ffmpeg is required and CI installs it). Seen failing: mpv's `--` removed, and the
+  Chromecast picture guard removed.
+- `:core:cast` now reaches 87.5% of its lines and is held by `koverVerify` (it was exempt at 63.8%).
+
+Instrumented, compiled and not run: `TargetChipsTest` (a target with a queue gets a chip, idle ones wait under ➕, a tap moves
+the selection, no targets means no chips).
+
+Still owed, with the reason:
 
 - Real-device day pass (volume rule: TV and speakers at 3% or lower, short silent or very quiet clips, volume restored):
   send a quiet clip from the phone to the LG, then the Chromecast, then the soundbar; pause, resume, next, jump, remove,
   volume; skip silences and boost on a speaker and on a TV; two speakers at the same time (stutter); a YouTube video
   queued from the owner's phone appears in YouTube history, one from another phone does not; the colour of a chip.
-- Compose: `TargetChips` (hidden with no targets, ➕ for idle ones), `RemoteQueue` rows, `SendToButton`; an instrumented
-  test that a redirected `playAll` leaves the phone's queue alone.
-- Unit: `SendToTarget` (does not release on `problem`; `TargetsRepositoryTest` covers colours, `take`, the real answer and
-  the phone fallback; `PlayLocallyTest` covers the local-only entry points), `PlaybackQueue.destination` with
-  `byYou = false`, `ChromecastPlayer` (`PyCastControl` has `CastControlTest` with a fake helper process),
-  `ChromecastSource`, `SoundStreams` (HEAD/GET, token, withdraw), `MpvPlayer` command line, `ProcessedSound` end to end
-  with a real ffmpeg on a tiny clip, `DeckStore` round trip, Kover for `:core:cast` stays exempt.
+- Compose: `RemoteQueue` rows and `SendToButton` (device).
+- `PyCastControl` against a real Chromecast and the real `chromecast_helper.py` (the Pi).

@@ -2,7 +2,7 @@
 title: A ❤️ Sponsor button
 kind: feature
 area: publishing
-status: built 2026-11-07, Batch A (tests owed); hidden until Dewi sets the link
+status: built 2026-11-07, Batch A (tests written 2026-11-07); hidden until Dewi sets the link
 updated: 2026-11-07
 ---
 
@@ -33,7 +33,7 @@ here because the account names are not known and Sponsors rejects a file naming 
 `sponsor` lines: `sponsor button shown for <host>` or `sponsor button hidden: no usable https link in this build (N
 chars configured)` each time Settings opens, and `sponsor page opened (<host>)` on a tap.
 
-## Tests owed
+## Tests
 
-A Compose test of the row (absent with an empty value, present with one, tap opens it). `SponsorLinkTest` covers the
-validation.
+`SponsorLinkTest` covers the validation; the instrumented `SponsorRowTest` (compiled, not run) covers the row absent with an
+empty or non-https value and present with an https one. Owed: the tap opening the page, which needs a device.
