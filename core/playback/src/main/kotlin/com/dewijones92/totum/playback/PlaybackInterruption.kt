@@ -3,7 +3,11 @@ package com.dewijones92.totum.playback
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.domain.MediaItemId
 
-public class PlaybackInterruption(private val controller: PlaybackController, private val tag: String) {
+public class PlaybackInterruption(
+    private val controller: PlaybackController,
+    private val tag: String,
+    private val exemptBecause: () -> String? = { null },
+) {
 
     public sealed interface Released {
         public data class Resumed(val itemId: MediaItemId) : Released
@@ -16,6 +20,10 @@ public class PlaybackInterruption(private val controller: PlaybackController, pr
     public val holding: Boolean get() = held != null
 
     public fun interrupt(): Boolean {
+        exemptBecause()?.let { reason ->
+            Diag.log(tag, "dewidebug interrupt: not pausing, $reason")
+            return false
+        }
         val state = controller.state.value
         if (state == null || !state.wantsToPlay) {
             val seen = state?.let { "wantsToPlay=false item=${it.itemId.value}" } ?: "nothing queued"

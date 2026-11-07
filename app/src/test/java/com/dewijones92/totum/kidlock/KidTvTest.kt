@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -32,6 +33,7 @@ class KidTvTest {
         val device: MutableStateFlow<String?>,
         val playlist: Pin,
         choice: KidTvChoice,
+        running: KidTvRunning,
     ) {
         val lock = KidLock()
         val played = mutableListOf<Pin>()
@@ -40,7 +42,7 @@ class KidTvTest {
         val connectCalls = mutableListOf<String>()
         var pauses = 0
         var endedCasts = 0
-        val store = InMemoryKidTvStore(choice)
+        val store = InMemoryKidTvStore(choice, running)
         val pins = mutableListOf<Pin>(playlist)
 
         val kidTv = KidTv(
@@ -79,9 +81,12 @@ class KidTvTest {
     @After
     fun stopWatchers() = scopes.forEach { it.cancel() }
 
-    private fun TestScope.rig(choice: KidTvChoice = KidTvChoice(playlist.key, "Living room TV")): Rig {
+    private fun TestScope.rig(
+        choice: KidTvChoice = KidTvChoice(playlist.key, "Living room TV"),
+        running: KidTvRunning = KidTvRunning(),
+    ): Rig {
         val scope = CoroutineScope(UnconfinedTestDispatcher(testScheduler) + SupervisorJob()).also { scopes += it }
-        return Rig(scope, device, playlist, choice)
+        return Rig(scope, device, playlist, choice, running)
     }
 
     @Test
@@ -252,5 +257,67 @@ class KidTvTest {
         assertTrue("the phone lock keeps it on", lock.modeOn.value)
         lock.unlock("test")
         assertFalse(lock.modeOn.value)
+    }
+
+    @Test
+    fun `a playlist that will not start ends the cast this start opened`() = runTest {
+        val rig = rig()
+        rig.playResult = PinPlayed.Failed("it would not play")
+
+        rig.kidTv.tap("test")
+        advanceUntilIdle()
+
+        assertTrue(rig.kidTv.status.value is KidTvStatus.Failed)
+        assertEquals(1, rig.endedCasts)
+        assertFalse(rig.lock.modeOn.value)
+    }
+
+    @Test
+    fun `a playlist that will not start leaves a cast that was already there alone`() = runTest {
+        val rig = rig()
+        device.value = "Living room TV"
+        rig.playResult = PinPlayed.Failed("it would not play")
+
+        rig.kidTv.tap("test")
+        advanceUntilIdle()
+
+        assertEquals(0, rig.endedCasts)
+    }
+
+    @Test
+    fun `being on is remembered, and a stop forgets it`() = runTest {
+        val rig = rig()
+
+        rig.kidTv.tap("test")
+        advanceUntilIdle()
+        assertEquals(KidTvRunning("Living room TV", "Peppa"), rig.store.readRunning())
+
+        rig.kidTv.tap("stop")
+        advanceUntilIdle()
+        assertFalse(rig.store.readRunning().on)
+    }
+
+    @Test
+    fun `after a restart with the TV still casting, it is on again and offers Stop`() = runTest {
+        device.value = "Living room TV"
+        val rig = rig(running = KidTvRunning("Living room TV", "Peppa"))
+        advanceUntilIdle()
+
+        assertEquals(KidTvStatus.On("Living room TV", "Peppa"), rig.kidTv.status.value)
+        assertEquals("Living room TV", rig.lock.tv.value)
+        assertTrue(rig.lock.modeOn.value)
+    }
+
+    @Test
+    fun `after a restart with no cast any more, it is off and the memory is cleared`() = runTest {
+        val rig = rig(running = KidTvRunning("Living room TV", "Peppa"))
+        assertTrue(rig.kidTv.status.value is KidTvStatus.Starting)
+
+        advanceTimeBy(20_000)
+        advanceUntilIdle()
+
+        assertEquals(KidTvStatus.Ready, rig.kidTv.status.value)
+        assertFalse(rig.store.readRunning().on)
+        assertFalse(rig.lock.modeOn.value)
     }
 }

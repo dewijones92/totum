@@ -103,4 +103,18 @@ class PlaybackInterruptionTest {
         assertTrue(interruption.release() is PlaybackInterruption.Released.LeftAlone)
         assertFalse(controller.state.value!!.wantsToPlay)
     }
+
+    @Test
+    fun `an exempt interruption pauses nothing and has nothing to release`() {
+        var reason: String? = "Kid TV is playing on the Living room TV"
+        val exempt = PlaybackInterruption(controller, "test") { reason }
+        controller.emitState(playing())
+
+        assertFalse(exempt.interrupt())
+        assertTrue(controller.state.value!!.wantsToPlay)
+        assertEquals(PlaybackInterruption.Released.LeftAlone("nothing was paused"), exempt.release())
+
+        reason = null
+        assertTrue(exempt.interrupt())
+    }
 }

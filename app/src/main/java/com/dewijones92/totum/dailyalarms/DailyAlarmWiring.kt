@@ -15,9 +15,10 @@ fun dailyAlarmController(
     record: (StatEvent) -> Unit = {},
     workApps: () -> WorkAppsStatus? = { null },
     onTick: (String) -> Unit = {},
+    exemptBecause: () -> String? = { null },
 ): DailyAlarmController {
     val interruption by lazy {
-        PlaybackInterruption(playback, DailyAlarmController.TAG).also { interruption ->
+        PlaybackInterruption(playback, DailyAlarmController.TAG, exemptBecause).also { interruption ->
             scope.launch { playback.state.collect(interruption::observe) }
         }
     }

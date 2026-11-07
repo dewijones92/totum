@@ -14,9 +14,10 @@ fun exsurgeController(
     scope: CoroutineScope,
     alarmRinging: () -> Boolean = { (context.applicationContext as TotumApplication).container.dailyAlarms.ringingNow },
     record: (StatEvent) -> Unit = {},
+    exemptBecause: () -> String? = { null },
 ): ExsurgeController {
     val interruption by lazy {
-        PlaybackInterruption(playback, ExsurgeController.TAG).also { interruption ->
+        PlaybackInterruption(playback, ExsurgeController.TAG, exemptBecause).also { interruption ->
             scope.launch { playback.state.collect(interruption::observe) }
         }
     }

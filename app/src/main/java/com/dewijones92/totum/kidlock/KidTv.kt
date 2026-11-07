@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 sealed interface TvConnection {
     data class Connected(val device: String) : TvConnection
@@ -101,6 +102,42 @@ class KidTv(
 
     init {
         Diag.log(TAG, "Kid TV loaded: ${chosen.value}; status ${state.value}")
+        restoreRunning()
+    }
+
+    private fun restoreRunning() {
+        val running = store.readRunning()
+        val tv = running.tv?.takeIf { running.on } ?: return
+        val title = running.title.orEmpty()
+        state.value = KidTvStatus.Starting(tv, title)
+        Diag.log(TAG, "Kid TV was on \"$title\" on $tv when the app last stopped; checking the cast is still there")
+        starting = scope.launch {
+            val device = withTimeoutOrNull(RECONNECT_WAIT_MS) {
+                ports.castDevice.first { it != null && sameTv(it, tv) }
+            }
+            if (device == null) {
+                Diag.warn(
+                    TAG,
+                    "the cast is not on $tv after ${RECONNECT_WAIT_MS}ms (casting to ${ports.castDevice.value}); " +
+                        "Kid TV is off",
+                )
+                store.writeRunning(KidTvRunning())
+                state.value = idleFor(chosen.value)
+                return@launch
+            }
+            lock.tvOn(tv, "restored after the app restarted")
+            state.value = KidTvStatus.On(tv, title)
+            Diag.log(TAG, "Kid TV is still on: \"$title\" on $tv (restored, cast device $device)")
+            watchCast(tv)
+        }
+    }
+
+    private fun watchCast(tv: String) {
+        watching = scope.launch {
+            val device = ports.castDevice.first { it == null || !sameTv(it, tv) }
+            Diag.log(TAG, "the cast moved off $tv (now ${device ?: "nothing"}); leaving kid TV mode")
+            stop("the cast on $tv ended or moved to ${device ?: "nothing"}", endCast = false)
+        }
     }
 
     fun choosePin(key: String?, why: String) = change(why) { it.copy(pinKey = key) }
@@ -154,6 +191,7 @@ class KidTv(
         watching = null
         lock.tvOff(why)
         state.value = idleFor(chosen.value)
+        store.writeRunning(KidTvRunning())
         Diag.log(TAG, "stopped ($why): was $before, ending the cast too=$endCast")
         if (endCast && (before is KidTvStatus.On || before is KidTvStatus.Starting)) {
             scope.launch {
@@ -192,12 +230,9 @@ class KidTv(
             return
         }
         state.value = KidTvStatus.On(tv, pin.title)
+        store.writeRunning(KidTvRunning(tv, pin.title))
         Diag.log(TAG, "Kid TV is on: \"${pin.title}\" on $tv (from $why)")
-        watching = scope.launch {
-            val device = ports.castDevice.first { it == null || !sameTv(it, tv) }
-            Diag.log(TAG, "the cast moved off $tv (now ${device ?: "nothing"}); leaving kid TV mode")
-            stop("the cast on $tv ended or moved to ${device ?: "nothing"}", endCast = false)
-        }
+        watchCast(tv)
     }
 
     private suspend fun connectAndPlay(pin: Pin, tv: String, why: String): KidTvFailure? {
@@ -221,6 +256,12 @@ class KidTv(
             is PinPlayed.Started -> null
             is PinPlayed.Failed -> {
                 lock.tvOff("\"${pin.title}\" would not start: ${played.why}")
+                if (!castingThere) {
+                    Diag.log(TAG, "ending the cast to $tv that this start opened, since nothing is playing on it")
+                    ports.endCast()
+                } else {
+                    Diag.log(TAG, "leaving the cast to $tv as it was: it was already casting there before this start")
+                }
                 KidTvFailure.PlayFailed(pin.title, played.why)
             }
         }
@@ -237,5 +278,6 @@ class KidTv(
         const val TAG = "kidlock"
         const val KEY = "kid-tv"
         const val PAUSE_SETTLE_MS = 800L
+        const val RECONNECT_WAIT_MS = 15_000L
     }
 }
