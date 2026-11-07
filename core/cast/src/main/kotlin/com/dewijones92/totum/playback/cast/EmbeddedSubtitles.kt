@@ -8,7 +8,7 @@ public object EmbeddedSubtitles {
 
     internal data class Stream(val index: Int, val codec: String, val language: String)
 
-    public data class Kept(val file: File, val language: String)
+    internal data class Kept(val file: File, val language: String)
 
     private const val DIR = "embedded-subs"
     private const val DONE = "done"
@@ -22,7 +22,7 @@ public object EmbeddedSubtitles {
 
     public fun isDone(tools: MediaTools, source: File): Boolean = File(dirFor(tools, source), DONE).exists()
 
-    public fun kept(tools: MediaTools, source: File): List<Kept> {
+    internal fun kept(tools: MediaTools, source: File): List<Kept> {
         val dir = dirFor(tools, source)
         if (!File(dir, DONE).exists()) return emptyList()
         return dir.listFiles { file -> file.extension == "vtt" }.orEmpty().sortedBy { it.name }

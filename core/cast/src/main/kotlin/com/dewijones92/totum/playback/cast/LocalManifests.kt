@@ -24,7 +24,7 @@ public object LocalManifests {
 
     public fun servesManifest(url: String): Boolean = url.startsWith("http://127.0.0.1:") && url.contains("/live/")
 
-    public fun manifestAt(url: String): String? {
+    internal fun manifestAt(url: String): String? {
         if (!servesManifest(url)) return null
         val id = url.substringAfter("/live/").substringBefore('?').removeSuffix(".mpd")
         return synchronized(manifests) { manifests[id] }

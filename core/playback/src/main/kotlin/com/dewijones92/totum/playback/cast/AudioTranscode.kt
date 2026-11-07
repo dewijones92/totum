@@ -16,33 +16,6 @@ import com.dewijones92.totum.playback.VolumeBoost
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
-internal class TranscodePlan(
-    val format: AacFormat,
-    val framesPerSegment: Int,
-    val first: Int,
-    val label: String,
-    val startUs: Long,
-    val durationUs: Long,
-    val trustedEndUs: Long? = null,
-) {
-    val segmentSamples: Long get() = framesPerSegment.toLong() * Fmp4Aac.SAMPLES_PER_FRAME
-
-    fun samplesToUs(samples: Long): Long = samples * MICROS / format.sampleRate
-
-    companion object {
-        const val MICROS: Long = 1_000_000L
-    }
-}
-
-internal class EarlyEnd(val atUs: Long, message: String) : java.io.IOException(message)
-
-internal interface TranscodeSink {
-    fun waitWhileAhead(segment: Int)
-    fun stale(): Boolean
-    fun publish(segment: Int, bytes: ByteArray, tvEndUs: Long, sourceEndUs: Long)
-    fun ended(tvEndUs: Long)
-}
-
 @OptIn(markerClass = [UnstableApi::class])
 @Suppress("TooManyFunctions")
 internal class AudioTranscode(

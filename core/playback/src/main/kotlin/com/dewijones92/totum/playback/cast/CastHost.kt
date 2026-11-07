@@ -12,16 +12,16 @@ import com.dewijones92.totum.common.HomeServerAuth
 import java.io.File
 import java.net.Inet4Address
 
-internal class CastHost(private val context: Context) {
+internal class CastHost(private val context: Context) : CastHostPort {
 
     private var wifiLock: WifiManager.WifiLock? = null
     private var wakeLock: PowerManager.WakeLock? = null
 
     @Volatile
-    var vpnInTheWay: Boolean = false
+    override var vpnInTheWay: Boolean = false
         private set
 
-    fun baseUrl(port: Int): String? {
+    override fun baseUrl(port: Int): String? {
         override()?.let {
             Diag.log("cast", "advertising the debug address $it (from ${OVERRIDE_FILE})")
             return it
@@ -60,7 +60,7 @@ internal class CastHost(private val context: Context) {
             address,
             networks,
             HomeServerAuth.homeHost()
-        )?.takeIf { port == CastStreams.PORT }
+        )?.takeIf { port == CastStreamServer.DEFAULT_PORT }
         vpnInTheWay = relay == null && CastAddress.vpnCarries(address, networks)
         when {
             relay != null -> Diag.log(
@@ -88,7 +88,7 @@ internal class CastHost(private val context: Context) {
 
     @SuppressLint("WakelockTimeout", "Wakelock")
     @Synchronized
-    fun hold(active: Boolean) {
+    override fun hold(active: Boolean) {
         if (active && wakeLock == null) {
             wakeLock = context.getSystemService(PowerManager::class.java)
                 ?.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "totum:cast-stream")?.apply {

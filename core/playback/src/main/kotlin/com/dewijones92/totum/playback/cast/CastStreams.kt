@@ -1,21 +1,9 @@
 package com.dewijones92.totum.playback.cast
 
 import android.content.Context
-import android.net.Uri
-import androidx.annotation.OptIn
-import androidx.core.net.toUri
-import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
-import androidx.media3.common.util.UnstableApi
-import com.dewijones92.totum.common.Diag
-import com.dewijones92.totum.domain.Picture
-import com.dewijones92.totum.domain.QualityLabel
-import com.dewijones92.totum.domain.VideoCodecFamily
-import com.dewijones92.totum.domain.pictureAt
 import com.dewijones92.totum.playback.BoostingAudioProcessor
-import com.dewijones92.totum.playback.CastProblem
-import com.dewijones92.totum.playback.CastStage
 import com.dewijones92.totum.playback.EXTRA_AUDIO_ONLY
 import com.dewijones92.totum.playback.EXTRA_AUDIO_URL
 import com.dewijones92.totum.playback.EXTRA_SKIP_SILENCE
@@ -23,577 +11,80 @@ import com.dewijones92.totum.playback.EXTRA_VIDEO_LADDER
 import com.dewijones92.totum.playback.SilenceCuttingAudioProcessor
 import com.dewijones92.totum.playback.SpeechGate
 import com.dewijones92.totum.playback.VolumeBoost
-import java.io.File
-import java.security.SecureRandom
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.ConcurrentLinkedDeque
 
-@OptIn(markerClass = [UnstableApi::class])
-@Suppress("TooManyFunctions")
 internal class CastStreams(
-    private val context: Context,
-    private val boost: () -> VolumeBoost,
-    private val skipSilence: () -> Boolean,
-    private val newCutter: () -> SilenceCuttingAudioProcessor,
-    private val newBooster: () -> BoostingAudioProcessor = { BoostingAudioProcessor() },
-    private val gate: () -> SpeechGate = { SpeechGate.OFF },
-    private val host: CastHost,
-    private val tvs: CastTvPort,
+    context: Context,
+    boost: () -> VolumeBoost,
+    skipSilence: () -> Boolean,
+    newCutter: () -> SilenceCuttingAudioProcessor,
+    newBooster: () -> BoostingAudioProcessor = { BoostingAudioProcessor() },
+    gate: () -> SpeechGate = { SpeechGate.OFF },
+    host: CastHost,
+    tvs: CastTvPort,
 ) {
-    private val videos = TvVideos(tvs)
-
-    @Volatile
-    var screens: ScreenLink? = null
-
-    private val server = CastHttpServer(
-        handle = { request -> live.replyTo(request) ?: screens?.replyTo(request) ?: handle(request) },
+    private val server = CastStreamServer(
+        engines = { request ->
+            MediaCodecAudioEngine(
+                context,
+                request.source,
+                request.label,
+                boost,
+                newCutter.takeIf { request.cuts },
+                newBooster,
+                gate,
+            )
+        },
+        skipSilence = skipSilence,
+        host = host,
+        tvs = tvs,
+        tools = context.castTools(),
     )
 
-    fun serveScreens(): String? {
-        server.start(PORT)
-        return host.baseUrl(PORT)
-    }
-    private val sessions = ConcurrentHashMap<String, Session>()
-    private val order = ConcurrentLinkedDeque<String>()
-    private val latest = ConcurrentHashMap<String, Session>()
-    private val live = LiveCasts()
-
-    fun timelineFor(mediaId: String): CastTimeline? = latest[mediaId]?.audio?.timeline
-
-    private val ceilings = ConcurrentHashMap<String, Int>()
-    private val steppingDown = ConcurrentHashMap.newKeySet<String>()
-
-    fun stepDown(mediaId: String): CastStep? {
-        val rungs = latest[mediaId]?.rungs
-        val from = rungs?.rungs?.firstOrNull()?.first
-        val lower = rungs?.nextLowerHeight()
-        if (from == null || lower == null) {
-            Diag.log(
-                "cast",
-                "$mediaId: stalled, but there is no lower picture to send " +
-                    "(sending ${from?.label ?: "no ladder picture"}); it keeps going as it is",
-            )
-            return null
-        }
-        ceilings[mediaId] = lower
-        steppingDown.add(mediaId)
-        videos.steppedDown(mediaId, from.height)
-        Diag.warn("cast", "$mediaId: stepping down from ${from.label} to ${lower}p because the TV keeps stalling")
-        return CastStep(from.quality, lower)
-    }
-    private val random = SecureRandom()
-    private val reach = CastReach(tvs, vpnInTheWay = { host.vpnInTheWay })
-
-    @Suppress("TooManyFunctions")
-    private inner class Session(
-        val token: String,
-        val item: MediaItem,
-        val videoUrl: String?,
-        val audioSource: String,
-        val ladder: List<CastRung>,
-        val ceiling: Int?,
-    ) {
-        val rungs = CastRungs(
-            item.mediaId,
-            onSent = { label -> if (latest[item.mediaId] === this) videos.sent(item.mediaId, label) },
-            onFetching = { height -> if (latest[item.mediaId] === this) videos.fetching(item.mediaId, height) },
-        )
-
-        val cuts = videoUrl == null && (itemSkipsSilence(item) ?: skipSilence())
-        val audio = ProcessedAudio(
-            context,
-            audioSource,
-            boost,
-            "${item.mediaId}/$token",
-            newCutter.takeIf { cuts },
-            newBooster,
-            gate,
-        )
-        val subtitles = if (cuts) {
-            emptyList()
-        } else {
-            item.localConfiguration?.subtitleConfigurations.orEmpty().filter { it.mimeType == MimeTypes.TEXT_VTT } +
-                fromTheFile(videoUrl, item.mediaId)
+    var screens: ScreenLink?
+        get() = server.screens
+        set(value) {
+            server.screens = value
         }
 
-        @Volatile var videoRequests = 0
+    fun serveScreens(): String? = server.serveScreens()
 
-        @Volatile var flowing = false
+    fun timelineFor(mediaId: String): CastTimeline? = server.timelineFor(mediaId)
 
-        @Volatile var layout: StreamLayout? = null
-
-        @Volatile var remuxed: RemuxedVideo? = null
-
-        @Volatile var videoFile: File? = null
-
-        @Volatile private var videoReader = RangeReader { span -> Upstream.bytes(videoUrl.orEmpty(), span) }
-
-        @Volatile var prepared = false
-
-        @Synchronized
-        fun ready() {
-            if (prepared) return
-            audio.prepare()
-            videoUrl?.let(::pickVideo)
-            prepared = true
-            Diag.log(
-                "cast",
-                "session $token ready: ${item.mediaId} " +
-                    "video=${rungs.describe() ?: layout?.describe() ?: remuxed?.describe ?: "none"} " +
-                    "audio=processed ${audio.format.sampleRate}Hz boost=${boost()}",
-            )
-        }
-
-        private fun pickVideo(url: String) {
-            try {
-                when {
-                    !url.startsWith("http") -> localFile(File(url.toUri().path ?: url))
-                    url.contains(YOUTUBE_STREAMS) && rungs.choose(url, ladder, tvs.current()?.screen, ceiling) -> Unit
-                    url.contains(YOUTUBE_STREAMS) ->
-                        layout = StreamLayouts.probe { span -> Upstream.bytes(url, span) }
-                            .takeIf { shows(it.codecs, it.height) }
-                    else -> remoteFile(url)
-                }
-            } catch (e: UnreadableLayout) {
-                refuse("in a format Totum cannot read for a TV", e.message ?: "unreadable")
-            } catch (e: java.io.IOException) {
-                Diag.warn("cast", "${item.mediaId}: could not look for a picture; sound only", e)
-            }
-        }
-
-        private fun remoteFile(url: String) {
-            videoReader = RangeReader { span -> Upstream.bytes(url, span) }
-            use(VideoProbe.of(videoReader, item.mediaId), file = null)
-        }
-
-        private fun localFile(source: File) {
-            val started = System.currentTimeMillis()
-            videoReader = RangeReader { span -> LocalRanges.bytes(source, span) }
-            try {
-                use(VideoProbe.of(videoReader, item.mediaId), file = source)
-                Diag.log(
-                    "cast",
-                    "${item.mediaId}: the downloaded file is cut for the TV as it asks, no repackaging first " +
-                        "(read in ${System.currentTimeMillis() - started}ms)",
-                )
-            } catch (e: UnreadableLayout) {
-                Diag.warn(
-                    "cast",
-                    "${item.mediaId}: cannot cut the downloaded file as the TV asks (${e.message}); " +
-                        "repackaging it whole",
-                )
-                tvs.stage(item.mediaId, CastStage.REPACKAGING, 0)
-                layout = localVideo(source)?.takeIf { shows(it.codecs, it.height) }
-                tvs.stage(item.mediaId, CastStage.TV_STARTING)
-            }
-        }
-
-        private fun use(found: FoundVideo, file: File?) {
-            when (found) {
-                is FoundVideo.Remuxed -> if (shows(found.video.codecs, found.video.height)) remuxed = found.video
-                is FoundVideo.Fragmented -> layout = found.layout.takeIf { shows(it.codecs, it.height) }
-                    ?.also { videoFile = file }
-                is FoundVideo.NoPicture -> noteNoPicture(found.why)
-            }
-        }
-
-        private fun noteNoPicture(why: String) =
-            Diag.log("cast", "${item.mediaId}: no picture to send the TV — $why; sound only, nothing refused")
-
-        private fun shows(codecs: String, height: Int?): Boolean {
-            val screen = tvs.current()?.screen
-            if (screen != null && !screen.canDecode(codecs, height)) {
-                val family = VideoCodecFamily.of(codecs)?.name ?: codecs
-                refuse(height?.let { QualityLabel.of(it, codecs).text } ?: family, "beyond ${screen.label}")
-                return false
-            }
-            if (latest[item.mediaId] === this && height != null) {
-                videos.sent(item.mediaId, QualityLabel.of(height, codecs))
-            }
-            return true
-        }
-
-        private fun refuse(what: String, why: String) {
-            videoFile = null
-            if (latest[item.mediaId] === this) {
-                videos.refused(item.mediaId, what)
-            }
-            Diag.warn("cast", "${item.mediaId}: the TV gets sound only — its video is $what ($why)")
-        }
-
-        private fun localVideo(source: File): StreamLayout? {
-            val durationUs = audio.durationUs.takeIf { it != C.TIME_UNSET }
-            val remuxed = VideoRemux.videoOnly(context.castTools(), source, "${item.mediaId}/$token", durationUs) { percent ->
-                tvs.stage(item.mediaId, CastStage.REPACKAGING, percent)
-            } ?: return null
-            videoFile = remuxed
-            return StreamLayouts.probe { span -> LocalRanges.bytes(remuxed, span) }
-        }
-
-        fun audioPart(part: String): HttpReply? {
-            ready()
-            val bytes = when {
-                part == "init.mp4" -> audio.init()
-                part.endsWith(".m4s") -> soundSegment(part.removeSuffix(".m4s").toInt())
-                else -> return null
-            }
-            return HttpReply.Bytes(Http.OK, MimeTypes.AUDIO_MP4, bytes)
-        }
-
-        private fun soundSegment(n: Int): ByteArray = try {
-            audio.segment(n)
-        } catch (e: IllegalStateException) {
-            SoundDecoders.missing(e)?.let { mime ->
-                Diag.warn("cast", "${item.mediaId}: this phone has no decoder for its sound ($mime); the strip says so")
-                tvs.problem(CastProblem.SOUND_UNDECODABLE)
-            }
-            throw e
-        }
-
-        fun remuxedPart(part: String): HttpReply {
-            ready()
-            val source = remuxed
-                ?: return HttpReply.Bytes(Http.NOT_FOUND, "text/plain", "no remuxed video".toByteArray())
-            val bytes = if (part == "init.mp4") {
-                source.init()
-            } else {
-                source.segment(part.removeSuffix(".m4s").toInt(), videoReader)
-            }
-            return HttpReply.Bytes(Http.OK, MimeTypes.VIDEO_MP4, bytes)
-        }
-
-        fun manifest(): String {
-            ready()
-            val durationMs = audio.durationUs.takeIf { it != C.TIME_UNSET }?.div(Http.MILLIS)
-                ?: item.mediaMetadata.durationMs ?: 0L
-            val ladder = rungs.rungs.mapIndexed { i, (rung, l) ->
-                CastVideo.Relayed(l, "video/r$i", DashManifest.bandwidthFor(rung.url, l.height))
-            }
-            if (ladder.isNotEmpty()) {
-                Diag.log(
-                    "cast",
-                    "${item.mediaId}: ladder offered at " +
-                        ladder.joinToString { "${it.layout.height}p=${it.bandwidth / KBPS}kbps" },
-                )
-            }
-            return DashManifest.build(
-                durationMs,
-                ladder.takeIf { it.isNotEmpty() }?.let { CastVideo.Ladder(it) }
-                    ?: layout?.let { CastVideo.Relayed(it, "video") }
-                    ?: remuxed?.let {
-                        CastVideo.Segmented(
-                            it.codecs,
-                            it.width,
-                            it.height,
-                            it.timeline,
-                            "video/init.mp4",
-                            "video/\$Number\$.m4s",
-                        )
-                    },
-                CastAudio.Processed(
-                    initUrl = "audio/init.mp4",
-                    mediaTemplate = "audio/\$Number\$.m4s",
-                    sampleRate = audio.format.sampleRate,
-                    channels = audio.format.channels,
-                    codecs = audio.format.codecs,
-                    segmentSamples = audio.segmentSamples,
-                ),
-                subtitles.mapIndexed { i, sub ->
-                    CastSubtitle(
-                        sub.language ?: "und",
-                        "subtitles/$i.vtt",
-                        sub.label?.toString() ?: sub.language ?: "Subtitles",
-                    )
-                },
-            )
-        }
-    }
-
-    private data class Sources(
-        val video: String?,
-        val audio: String,
-        val listening: Boolean,
-        val ladder: List<CastRung> = emptyList(),
-        val pictureWhy: String,
-    )
-
-    private fun sourcesFor(item: MediaItem): Sources? {
-        val uri = item.localConfiguration?.uri?.toString() ?: return null
-        val extras = item.requestMetadata.extras
-        val separateAudio = extras?.getString(EXTRA_AUDIO_URL)
-        val listening = extras?.getBoolean(EXTRA_AUDIO_ONLY) == true
-        val why = givenAsItIs(uri, separateAudio, listening)
-        if (why != null) {
-            Diag.log("cast", "${item.mediaId}: $why; the receiver is given it as it is")
-            return null
-        }
-        val verdict = pictureVerdict(uri)
-        return when {
-            separateAudio != null && !listening ->
-                Sources(uri, separateAudio, listening, ladderIn(extras), "a separate video stream with its own audio")
-            !listening && verdict.mayCarry -> Sources(uri, uri, listening, pictureWhy = verdict.why)
-            separateAudio != null -> Sources(null, separateAudio, listening, pictureWhy = "listening")
-            else -> Sources(
-                null,
-                uri,
-                listening,
-                pictureWhy = if (listening) "listening (the picture is off by choice)" else verdict.why,
-            )
-        }
-    }
-
-    private val preparing = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
-
-    private fun fromTheFile(videoUrl: String?, mediaId: String): List<MediaItem.SubtitleConfiguration> {
-        val path = videoUrl?.takeIf { !it.startsWith("http") }?.let { it.toUri().path ?: it } ?: return emptyList()
-        val file = File(path).takeIf { it.extension.equals("mkv", true) || it.extension == "media" }
-            ?: return emptyList()
-        if (!EmbeddedSubtitles.isDone(context.castTools(), file)) {
-            if (preparing.add(file.path)) {
-                Diag.log(
-                    "cast",
-                    "$mediaId: the film's own subtitles are not saved yet; saving them now for the next cast"
-                )
-                Thread(
-                    {
-                        try {
-                            EmbeddedSubtitles.prepare(context.castTools(), file)
-                        } finally {
-                            preparing.remove(file.path)
-                        }
-                    },
-                    "embedded-subs"
-                )
-                    .start()
-            }
-            return emptyList()
-        }
-        return EmbeddedSubtitles.kept(context.castTools(), file).map { kept ->
-            MediaItem.SubtitleConfiguration.Builder(Uri.fromFile(kept.file))
-                .setMimeType(MimeTypes.TEXT_VTT)
-                .setLanguage(kept.language)
-                .build()
-        }.also { Diag.log("cast", "$mediaId: ${it.size} subtitle track(s) from the film itself") }
-    }
-
-    private fun itemSkipsSilence(item: MediaItem): Boolean? =
-        item.requestMetadata.extras?.takeIf { it.containsKey(EXTRA_SKIP_SILENCE) }?.getBoolean(EXTRA_SKIP_SILENCE)
+    fun stepDown(mediaId: String): CastStep? = server.stepDown(mediaId)
 
     fun urlFor(item: MediaItem): String? {
-        val manifest = item.localConfiguration?.uri?.toString()?.let(LocalManifests::manifestAt)
-        val sources = if (manifest == null) sourcesFor(item) ?: return null else null
-        val base = host.baseUrl(PORT) ?: run {
-            Diag.warn("cast", "${item.mediaId}: no address the TV can reach (not on Wi-Fi?); given as it is")
-            reach.noAddress()
-            return null
-        }
-        if (manifest != null || sources == null) {
-            server.start(PORT)
-            host.hold(true)
-            return manifest?.let { live.open(item.mediaId, it, base, random.token()) }
-        }
-        server.start(PORT)
-        val token = random.token()
-        val session = sessionFor(token, item, sources)
-        tvs.stage(item.mediaId, CastStage.PREPARING)
-        sessions[token] = session
-        latest[item.mediaId] = session
-        order.addLast(token)
-        while (order.size > MAX_SESSIONS) order.pollFirst()?.let { sessions.remove(it)?.audio?.close() }
-        host.hold(true)
-        val url = "$base/c/$token/manifest.mpd"
-        reach.handedOver(item.mediaId, token)
-        Diag.log(
-            "cast",
-            "${item.mediaId} -> $url (video=${if (sources.video != null) "passed through" else "none"}, " +
-                "picture because ${sources.pictureWhy}, " +
-                "audio=processed from ${if (sources.audio.startsWith("http")) "stream" else "disk"}, " +
-                "listening=${sources.listening}, " +
-                "silences ${if (session.audio.timeline.cutsSilences) "cut" else "kept"})",
-        )
-        return url
+        val uri = item.localConfiguration?.uri?.toString() ?: return null
+        return server.urlFor(item.toCastItem(uri))
     }
 
-    private fun sessionFor(token: String, item: MediaItem, sources: Sources): Session {
-        val reload = steppingDown.remove(item.mediaId)
-        if (!reload) {
-            ceilings.remove(item.mediaId)
-            videos.forget(item.mediaId)
-        }
-        return Session(token, item, sources.video, sources.audio, sources.ladder, ceilings[item.mediaId])
-    }
-
-    fun stopAll() {
-        reach.clear()
-        live.clear()
-        sessions.values.forEach { it.audio.close() }
-        sessions.clear()
-        ceilings.clear()
-        steppingDown.clear()
-        order.clear()
-        latest.clear()
-        videos.clear()
-        if (screens == null) {
-            server.stop()
-        } else {
-            Diag.log(
-                "cast",
-                "still serving the PC screen page; the server stays up"
-            )
-        }
-        host.hold(false)
-    }
-
-    private fun handle(request: HttpRequest): HttpReply {
-        val parts = request.path.substringBefore('?').trim('/').split('/')
-        val session = parts.getOrNull(1)?.let(sessions::get)
-        if (parts.firstOrNull() != "c" || session == null) {
-            Diag.log("cast", "${request.from} asked for ${request.path}: no such session")
-            return HttpReply.Bytes(Http.NOT_FOUND, "text/plain", "no such cast".toByteArray())
-        }
-        val what = parts.drop(2).joinToString("/")
-        reach.reached(session.item.mediaId, request.from)
-        val started = System.currentTimeMillis()
-        val reply = when {
-            what == "manifest.mpd" -> HttpReply.Bytes(
-                Http.OK,
-                MimeTypes.APPLICATION_MPD,
-                session.manifest().toByteArray()
-            )
-            what.startsWith("video") -> videoPart(session, what, request.header("range")) ?: return notFound()
-            what.startsWith("subtitles/") -> subtitle(session, what)
-            what.startsWith("audio/") -> session.audioPart(what.removePrefix("audio/")) ?: notFound()
-            else -> notFound()
-        }
-        if (what != "video") {
-            Diag.log(
-                "cast",
-                "${request.from} ${request.method} $what in ${System.currentTimeMillis() - started}ms"
-            )
-        }
-        stageAfter(session, what)
-        return reply
-    }
-
-    private fun stageAfter(session: Session, what: String) {
-        when {
-            session.flowing -> Unit
-            what == "manifest.mpd" -> tvs.stage(session.item.mediaId, CastStage.TV_STARTING)
-            what.startsWith("video") || what.startsWith("audio/") && what != "audio/init.mp4" -> {
-                session.flowing = true
-                tvs.stage(session.item.mediaId, null)
-            }
-        }
-    }
-
-    private fun subtitle(session: Session, what: String): HttpReply {
-        val index = what.removePrefix("subtitles/").removeSuffix(".vtt").toIntOrNull()
-        val config = index?.let(session.subtitles::getOrNull) ?: return notFound()
-        val text = if (config.uri.scheme == "file") {
-            Diag.log("cast", "subtitles ${config.language} for ${session.item.mediaId}: from the film's own track")
-            File(config.uri.path.orEmpty()).readText()
-        } else {
-            val reply = Upstream.get(config.uri.toString(), null)
-            Diag.log("cast", "subtitles ${config.language} for ${session.item.mediaId}: upstream ${reply.status}")
-            if (reply.status != Http.OK) {
-                return HttpReply.Stream(reply.status, "text/vtt", reply.contentLength, emptyMap(), reply::body)
-            }
-            reply.body().use { it.readBytes() }.toString(Charsets.UTF_8)
-        }
-        val cleaned = TvCaptions.clean(text)
-        Diag.log(
-            "cast",
-            "subtitles ${config.language} for ${session.item.mediaId} cleaned for the TV, " +
-                "placed at ${TvCaptions.SAFE_PLACE}: " +
-                "cue settings removed ${cleaned.settingsRemoved.ifEmpty { "none" }}, " +
-                "${cleaned.inlineTagsRemoved} word-timing tag(s) removed",
-        )
-        return HttpReply.Bytes(Http.OK, "text/vtt", cleaned.text.toByteArray(Charsets.UTF_8))
-    }
-
-    private fun videoPart(session: Session, what: String, range: String?): HttpReply? = when {
-        what.startsWith("video/r") -> what.removePrefix("video/r").toIntOrNull()?.let { i ->
-            session.ready()
-            session.rungs.urlOf(i)?.let { url ->
-                session.rungs.fetched(i)
-                proxy(session, url, range)
-            }
-        }
-        what.startsWith("video/") -> session.remuxedPart(what.removePrefix("video/"))
-        what == "video" -> session.videoFile?.let { file ->
-            val n = ++session.videoRequests
-            if (n <= VIDEO_LOG_FIRST || n % VIDEO_LOG_EVERY == 0) {
-                Diag.log("cast", "video request #$n ($range) from the file ${file.name} (${file.length() / Http.KB}KB)")
-            }
-            LocalRanges.reply(file, range)
-        }
-            ?: session.videoUrl?.let { proxy(session, it, range) }
-        else -> null
-    }
-
-    private fun proxy(session: Session, upstream: String, range: String?): HttpReply {
-        val asked = System.currentTimeMillis()
-        val reply = Upstream.get(upstream, range)
-        val n = ++session.videoRequests
-        if (n <= VIDEO_LOG_FIRST || n % VIDEO_LOG_EVERY == 0) {
-            Diag.log(
-                "cast",
-                "video request #$n ($range): upstream ${reply.status} in ${System.currentTimeMillis() - asked}ms",
-            )
-        }
-        val extra = buildMap {
-            put("Accept-Ranges", "bytes")
-            reply.contentRange?.let { put("Content-Range", it) }
-        }
-        if (reply.failed) Diag.warn("cast", "video upstream answered ${reply.status} for range=$range")
-        return HttpReply.Stream(reply.status, reply.contentType, reply.contentLength, extra, reply::body)
-    }
+    fun stopAll() = server.stopAll()
 
     companion object {
-        private fun notFound() = HttpReply.Bytes(Http.NOT_FOUND, "text/plain", ByteArray(0))
-
-        private fun ladderIn(extras: android.os.Bundle?): List<CastRung> =
-            extras?.getStringArrayList(EXTRA_VIDEO_LADDER).orEmpty().mapNotNull { line ->
-                val (height, codec, url) = line.split('\t', limit = LADDER_FIELDS).takeIf { it.size == LADDER_FIELDS }
-                    ?: return@mapNotNull null
-                height.toIntOrNull()?.let { CastRung(url, it, codec.ifEmpty { null }) }
-            }
-
-        private data class PictureVerdict(val mayCarry: Boolean, val why: String)
-
-        private fun pictureVerdict(uri: String): PictureVerdict {
-            val picture = pictureAt(uri)
-            val name = uri.substringBefore('?').substringBefore('#').substringAfterLast('/')
-            return when {
-                uri.contains(YOUTUBE_STREAMS) -> PictureVerdict(false, "a YouTube address that carries no picture")
-                !uri.startsWith("http") -> PictureVerdict(true, "a file on the phone; its bytes will say ($name)")
-                picture == Picture.NO -> PictureVerdict(false, "the file name says sound ($name)")
-                picture == Picture.YES -> PictureVerdict(true, "the file name says video ($name)")
-                else -> PictureVerdict(true, "the address names no file type ($name); its bytes will say")
-            }
-        }
-
-        private fun givenAsItIs(uri: String, separateAudio: String?, listening: Boolean): String? = when {
-            MANIFEST_HINTS.any(uri::contains) -> "a live or adaptive manifest"
-            listening -> null
-            separateAudio == null && uri.contains("googlevideo.com") && !uri.contains("mime=audio") ->
-                "a single muxed stream"
-            else -> null
-        }
-
-        const val PORT: Int = 8765
-        private const val MAX_SESSIONS = 6
-        private const val VIDEO_LOG_FIRST = 3
-        private const val VIDEO_LOG_EVERY = 25
-        private val MANIFEST_HINTS = listOf(".m3u8", ".mpd", "/manifest/")
-        private const val LADDER_FIELDS = 3
-        private const val YOUTUBE_STREAMS = "googlevideo.com"
+        const val PORT: Int = CastStreamServer.DEFAULT_PORT
     }
 }
 
-private fun SecureRandom.token(): String = ByteArray(
-    TOKEN_BYTES
-).also(::nextBytes).joinToString("") { "%02x".format(it) }
+private fun MediaItem.toCastItem(uri: String): CastItem {
+    val extras = requestMetadata.extras
+    return CastItem(
+        mediaId = mediaId,
+        uri = uri,
+        separateAudioUrl = extras?.getString(EXTRA_AUDIO_URL),
+        listening = extras?.getBoolean(EXTRA_AUDIO_ONLY) == true,
+        skipsSilence = extras?.takeIf { it.containsKey(EXTRA_SKIP_SILENCE) }?.getBoolean(EXTRA_SKIP_SILENCE),
+        ladder = ladderIn(extras),
+        durationMs = mediaMetadata.durationMs,
+        subtitles = localConfiguration?.subtitleConfigurations.orEmpty()
+            .filter { it.mimeType == MimeTypes.TEXT_VTT }
+            .map { CastSubtitleSource(it.uri.toString(), it.language, it.label?.toString()) },
+    )
+}
 
-private const val TOKEN_BYTES = 8
-private const val KBPS = 1000
+private const val LADDER_FIELDS = 3
+
+private fun ladderIn(extras: android.os.Bundle?): List<CastRung> =
+    extras?.getStringArrayList(EXTRA_VIDEO_LADDER).orEmpty().mapNotNull { line ->
+        val (height, codec, url) = line.split('\t', limit = LADDER_FIELDS).takeIf { it.size == LADDER_FIELDS }
+            ?: return@mapNotNull null
+        height.toIntOrNull()?.let { CastRung(url, it, codec.ifEmpty { null }) }
+    }

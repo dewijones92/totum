@@ -47,20 +47,20 @@ internal class LiveRelay(private val label: String, manifest: String) {
     }
 }
 
-public class LiveCasts {
+internal class LiveCasts {
     private val relays = ConcurrentHashMap<String, LiveRelay>()
 
-    public fun open(label: String, manifest: String, base: String, token: String): String {
+    fun open(label: String, manifest: String, base: String, token: String): String {
         relays[token] = LiveRelay(label, manifest)
         Diag.log("cast", "$label is live: the TV gets Totum's live manifest, segments relayed as they are")
         return "$base/c/$token/live.mpd"
     }
 
-    public fun replyTo(request: HttpRequest): HttpReply? {
+    fun replyTo(request: HttpRequest): HttpReply? {
         val parts = request.path.substringBefore('?').trim('/').split('/')
         val relay = parts.getOrNull(1)?.let(relays::get) ?: return null
         return relay.reply(parts.drop(2).joinToString("/"))
     }
 
-    public fun clear() = relays.clear()
+    fun clear() = relays.clear()
 }

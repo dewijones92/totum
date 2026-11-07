@@ -9,6 +9,7 @@ public class CastTv(public val name: String, public val screen: CastScreen)
 
 public interface CastTvPort {
     public fun current(): CastTv?
+    public fun current(mediaId: String): CastTv? = current()
     public fun videos(
         refused: Map<String, String>,
         sent: Map<String, QualityLabel>,
