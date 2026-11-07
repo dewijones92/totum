@@ -32,7 +32,7 @@ sound processing on the Pi). Brief: [pi-plays-everywhere.md](../todos/pi-plays-e
   target says it is playing; if the target does not start, the phone keeps its queue and the strip says why.
 - **Speakers are targets.** Any paired Bluetooth device with an Audio Sink is listed, linked only while it plays
   (ADR 116, unchanged), each with its own queue at the same time as the others.
-- **TVs and Chromecasts** listed in `TOTUM_CAST_TARGETS` (name=address, `;`-separated) are driven through `pychromecast`.
+- **TVs and Chromecasts** listed in `TOTUM_CAST_TARGETS` (name=address, optionally `@mac`, `;`-separated) are driven through `pychromecast`.
   **A TV loads what the phone would load** ([ADR 156](../adr/0156-one-casting-brain-the-pi-casts-with-the-phones-own-code.md)):
   `…/c/<token>/manifest.mpd` (`application/dash+xml`, stream type buffered) served by the same `CastStreamServer` as the
   phone's. A YouTube video is the phone's inputs (the chosen video stream, its own audio, the ladder), so the TV gets the
@@ -50,6 +50,15 @@ sound processing on the Pi). Brief: [pi-plays-everywhere.md](../todos/pi-plays-e
   known" when it has not said; a speaker's is the level last chosen from the phone, until the Pi restarts. A volume saved
   by an older version is ignored.
 - **TV sound switches** are greyed, with a note, while the TV is showing a picture.
+- **A TV that is off is listed and wakes on a play.** `TOTUM_CAST_TARGETS` accepts `name=address@aa:bb:cc:dd:ee:ff`; such a
+  TV shows 💤 on its chip and "💤 Off · tap to wake" in its header while it is off. Playing to it (or tapping that) sends
+  Wake-on-LAN, shows "⏰ Waking LG TV…" on the progress strip, waits up to 25 s for it to answer, then plays; if it never
+  does the strip says "❌ LG TV didn't wake: check 'Turn on via Wi-Fi' in its settings". Untested from the container (see
+  ADR 152).
+- **Live on a speaker** plays YouTube's HLS manifest for the video (via yt-dlp on the Pi), from the live edge; TVs get
+  the DASH manifest as before ([ADR 156](../adr/0156-one-casting-brain-the-pi-casts-with-the-phones-own-code.md)).
+- **A reason stays visible.** When an item fails and the queue moves on, the target's problem stays on screen until the
+  next item ends or you act ([ADR 155](../adr/0155-a-target-repeats-plays-files-on-the-pi-and-says-why-it-could-not-play.md)).
 - **STOP clears the TV.** If Totum opened the receiver app (the TV was idle or on its backdrop), STOP, or a queue that
   runs out, quits it, so the TV is not left on a blank "Default Media Receiver" screen; if another app was running first
   (YouTube, say) the TV is left alone.
@@ -81,6 +90,8 @@ not either); playback speed on a target; the phone's silence mode and speech gat
 Not seen on a real TV or speaker yet: the manifest, the relayed picture, the Pi's segments, live on a TV and on mpv.
 
 ## Tests
+
+Unit (wake, hand back, live, ADR 152 amendments of 2026-11-07): `WakeOnLanTest`, `TvWakeTest`, `WakeThenPlayTest`, `YtDlpLiveHlsTest`, `LiveForSpeakersTest`, `CastWireTest`, `CastControlTest`, `ChromecastPlayerTest`, `TargetDeckTest`, `MpvPlayerTest` (cli), `TargetRulesTest` (core), `TargetsRepositoryTest`, `TargetChipLabelTest` (app), `server/totum-cli/chromecast_helper_test.py`.
 
 Unit: `PcmChainTest`, `TargetRulesTest`, `TargetEntriesTest` (core), `TargetDeckTest`, `YouTubeProgressTest`,
 `PcmPumpTest`, `CastWireTest`, `CastControlTest`, `YouTubeOwnershipTest` (cli); `TargetsRepositoryTest`, `PlayLocallyTest`,

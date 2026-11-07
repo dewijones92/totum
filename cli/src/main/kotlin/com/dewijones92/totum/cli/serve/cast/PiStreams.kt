@@ -16,6 +16,7 @@ internal class PiStreams(
     port: Int,
     private val relay: StreamRelay = StreamRelay(),
     tools: MediaTools? = null,
+    private val liveHls: LiveHls? = null,
 ) {
     private class Playing(val sound: SoundSettings, val durationUs: Long?)
 
@@ -78,6 +79,12 @@ internal class PiStreams(
 
     fun locally(label: String, url: String): String {
         if (LocalManifests.servesManifest(url)) {
+            val videoId = url.substringAfter("/live/").substringBefore('?').removeSuffix(".mpd")
+            liveHls?.urlFor(videoId)?.let { hls ->
+                Diag.log("cast-target", "$label: a live stream, played from YouTube's own HLS manifest")
+                return hls
+            }
+            Diag.log("cast-target", "$label: no HLS manifest for $videoId; playing Totum's DASH manifest instead")
             val loopback = "http://127.0.0.1:${server.start()}"
             val opened = server.relayLive(CastItem(label, url), loopback)
             Diag.log("cast-target", "$label: a live manifest, played from ${opened ?: "its own address"}")

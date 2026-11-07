@@ -44,10 +44,11 @@ import com.dewijones92.totum.data.targets.TargetAction
 import com.dewijones92.totum.data.targets.TargetColours
 import com.dewijones92.totum.data.targets.TargetControl
 import com.dewijones92.totum.data.targets.TargetEntry
+import com.dewijones92.totum.data.targets.TargetPower
 import com.dewijones92.totum.data.targets.TargetState
 import com.dewijones92.totum.data.targets.isLive
-import com.dewijones92.totum.data.targets.showsPicture
 import com.dewijones92.totum.data.targets.shownLengthMs
+import com.dewijones92.totum.data.targets.showsPicture
 import com.dewijones92.totum.data.targets.toQueueEntry
 import com.dewijones92.totum.playback.VolumeBoost
 import com.dewijones92.totum.targets.TargetsRepository
@@ -125,10 +126,22 @@ private fun RemoteHeader(targets: TargetsRepository, state: TargetState, colour:
                 )
             }
         }
+        RemotePower(targets, state)
         state.problem?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         RemoteControls(targets, state)
         RemoteSound(targets, state)
         RemoteColours(targets, id)
+    }
+}
+
+@Composable
+private fun RemotePower(targets: TargetsRepository, state: TargetState) {
+    when (state.power) {
+        TargetPower.ON -> Unit
+        TargetPower.ASLEEP -> TextButton(onClick = { targets.command(state.target.id, TargetAction.WAKE) }) {
+            Text(stringResource(R.string.target_asleep_wake))
+        }
+        TargetPower.WAKING -> Text(stringResource(R.string.target_waking, state.target.label))
     }
 }
 

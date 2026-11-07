@@ -11,6 +11,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.net.URLEncoder
+import java.util.concurrent.TimeUnit
 
 public interface TargetsApi {
     public suspend fun targets(): HomeAnswer<TargetsAnswer>
@@ -24,6 +25,11 @@ public class TargetsClient(
     token: () -> String,
 ) : TargetsApi {
     private val pi = HomePiCall(client, token, "targets")
+    private val patient = HomePiCall(
+        client.newBuilder().readTimeout(WAKE_PATIENCE_SECONDS, TimeUnit.SECONDS).build(),
+        token,
+        "targets",
+    )
 
     override suspend fun targets(): HomeAnswer<TargetsAnswer> =
         pi.call("GET /targets", Request.Builder().url("$base/targets").get()) {
@@ -51,7 +57,7 @@ public class TargetsClient(
         body: T,
     ): HomeAnswer<TargetState> {
         val json = TargetsJson.encodeToString(serializer, body).toRequestBody(JSON)
-        return pi.call(what, Request.Builder().url("$base/$path").post(json)) {
+        return patient.call(what, Request.Builder().url("$base/$path").post(json)) {
             TargetsJson.decodeFromString(TargetState.serializer(), it)
         }
     }
@@ -60,5 +66,6 @@ public class TargetsClient(
 
     private companion object {
         val JSON = "application/json".toMediaType()
+        const val WAKE_PATIENCE_SECONDS = 60L
     }
 }

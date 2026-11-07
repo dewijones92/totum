@@ -12,6 +12,7 @@ import com.dewijones92.totum.data.targets.TargetAction
 import com.dewijones92.totum.data.targets.TargetColours
 import com.dewijones92.totum.data.targets.TargetControl
 import com.dewijones92.totum.data.targets.TargetEntry
+import com.dewijones92.totum.data.targets.TargetPower
 import com.dewijones92.totum.data.targets.TargetQueueRequest
 import com.dewijones92.totum.data.targets.TargetState
 import com.dewijones92.totum.domain.MediaItemId
@@ -27,6 +28,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.util.concurrent.ConcurrentHashMap
 
 @Suppress("TooManyFunctions")
 class TargetsRepository(
@@ -48,6 +50,8 @@ class TargetsRepository(
 
     private val painted = MutableStateFlow(TargetColours.assign(emptyList(), colourStore.load()))
     val colours: StateFlow<Map<String, Long>> = painted.asStateFlow()
+
+    private val waking = ConcurrentHashMap.newKeySet<String>()
 
     private val trouble = MutableStateFlow<String?>(null)
     private var failures = 0
@@ -90,6 +94,7 @@ class TargetsRepository(
                 failures = 0
                 trouble.value = null
                 live.value = answer.value.targets
+                showWakes(answer.value.targets)
                 paint(answer.value.targets.map { it.target })
                 val summary = answer.value.targets.joinToString { "${it.target.label}[${it.entries.size}]" }
                 if (summary != lastSummary) {
@@ -169,7 +174,7 @@ class TargetsRepository(
                 )
                 when {
                     queued == 0 -> fallBack(play, "it queued none of them")
-                    starts && (state.problem != null || !state.playing) ->
+                    starts && !state.playing ->
                         fallBack(play, state.problem ?: "it did not start")
                     else -> OperationEnd.Done(queued, note = state.problem)
                 }
@@ -207,6 +212,40 @@ class TargetsRepository(
         }
     }
 
+    private fun showWakes(states: List<TargetState>) {
+        val shown = operations ?: return
+        states.filter { it.power == TargetPower.WAKING && waking.add(it.target.id) }.forEach { state ->
+            val id = state.target.id
+            Diag.log("targets", "${state.target.label} is waking; showing it on the progress strip")
+            scope.launch {
+                try {
+                    shown.track("wake:$id", OperationKind.WAKE_TARGET, state.target.label) { awaitWake(id) }
+                } finally {
+                    waking.remove(id)
+                }
+            }
+        }
+    }
+
+    private suspend fun awaitWake(id: String): OperationEnd {
+        var waited = 0L
+        while (powerOf(id) == TargetPower.WAKING && waited < WAKE_WATCH_CAP_MS) {
+            delay(WAKE_POLL_MS)
+            waited += WAKE_POLL_MS
+        }
+        val state = live.value.firstOrNull { it.target.id == id }
+        Diag.log("targets", "$id: wake watched for ${waited}ms, power now ${state?.power}, problem=${state?.problem}")
+        return when (state?.power) {
+            TargetPower.ON -> OperationEnd.Done(1)
+            TargetPower.ASLEEP -> OperationEnd.Failed(
+                state.problem?.dropWhile { !it.isLetterOrDigit() } ?: "it did not wake"
+            )
+            else -> OperationEnd.Failed("the home server stopped saying whether it woke")
+        }
+    }
+
+    private fun powerOf(id: String): TargetPower? = live.value.firstOrNull { it.target.id == id }?.power
+
     private fun replace(state: TargetState) {
         live.update { all ->
             if (all.any { it.target.id == state.target.id }) {
@@ -228,6 +267,8 @@ class TargetsRepository(
 
     private companion object {
         const val WATCH_MS = 2_000L
+        const val WAKE_POLL_MS = 500L
+        const val WAKE_WATCH_CAP_MS = 45_000L
         const val FAILURE_LOG_EVERY = 30
         const val HEX = 16
     }

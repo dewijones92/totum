@@ -24,7 +24,7 @@ fun SendToButton(sender: SendToTarget, targets: TargetsRepository, playingFromQu
     DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
         states.forEach { state ->
             DropdownMenuItem(
-                text = { Text(state.target.chipLabel()) },
+                text = { Text(state.target.chipLabel(state.power)) },
                 onClick = {
                     open = false
                     sender.send(state.target.id)

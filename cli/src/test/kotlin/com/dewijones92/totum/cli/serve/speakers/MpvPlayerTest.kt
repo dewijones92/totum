@@ -71,7 +71,7 @@ class MpvPlayerTest {
         p.play(request(startAtMs = 12_500))
 
         val args = argv("argv.txt")
-        assertTrue(args.toString(), args.containsAll(listOf("--no-video", "--no-terminal", "--idle=no")))
+        assertTrue(args.toString(), args.containsAll(listOf("--no-video", "--no-input-terminal", "--idle=no")))
         assertTrue(args.contains("--audio-device=pulse/bluez_output.AA_BB.1"))
         assertFalse(args.toString(), args.any { it.startsWith("--volume") })
         assertTrue(args.contains("--input-ipc-server=${dir.path}/mpv-bar.sock"))
@@ -208,6 +208,49 @@ class MpvPlayerTest {
         val said = p.failure.orEmpty()
         assertTrue(said, said.contains("exited with code 2"))
         assertFalse(said, said.contains("SECRET123"))
+    }
+
+    @Test
+    fun `mpv prints its warnings and errors, and what it said is in the failure`() {
+        val p = mpv("""echo "[ffmpeg/demuxer] dash: Error when loading first fragment"; exit 2""")
+
+        p.play(request())
+
+        assertTrue(latch.await(WAIT_S, TimeUnit.SECONDS))
+        val said = p.failure.orEmpty()
+        assertTrue(said, said.contains("exited with code 2"))
+        assertTrue(said, said.contains("Error when loading first fragment"))
+    }
+
+    @Test
+    fun `mpv is told to say warnings and errors and nothing else, and to read no keys`() {
+        val p = mpv("""printf '%s\n' "${'$'}@" > "${dir.path}/argv.txt"""")
+
+        p.play(request())
+
+        val args = argv("argv.txt")
+        assertTrue(
+            args.toString(),
+            args.containsAll(listOf("--no-input-terminal", "--msg-level=all=warn", "--term-status-msg="))
+        )
+        assertFalse(args.toString(), args.contains("--no-terminal"))
+    }
+
+    @Test
+    fun `a live stream is played from its live edge, not from a start offset`() {
+        val p = mpv(
+            """printf '%s\n' "${'$'}@" > "${dir.path}/argv.txt"""",
+            locally = { _, _ -> "https://manifest.googlevideo.com/api/manifest/hls_playlist/x/index.m3u8" },
+        )
+
+        p.play(request(url = "http://127.0.0.1:8771/live/Dx5qFachd3A.mpd", startAtMs = 5_000))
+
+        val args = argv("argv.txt")
+        assertFalse(args.toString(), args.any { it.startsWith("--start") })
+        assertEquals(
+            listOf("--", "https://manifest.googlevideo.com/api/manifest/hls_playlist/x/index.m3u8"),
+            args.takeLast(2),
+        )
     }
 
     @Test

@@ -7,6 +7,7 @@ import com.dewijones92.totum.cli.serve.ai.RemoteCompleter
 import com.dewijones92.totum.cli.serve.ai.UsageLog
 import com.dewijones92.totum.cli.serve.cast.ChromecastSource
 import com.dewijones92.totum.cli.serve.cast.PiStreams
+import com.dewijones92.totum.cli.serve.cast.YtDlpLiveHls
 import com.dewijones92.totum.cli.serve.cast.knownCastsFrom
 import com.dewijones92.totum.cli.serve.cast.piMediaTools
 import com.dewijones92.totum.cli.serve.filing.FileCheck
@@ -206,6 +207,7 @@ internal suspend fun serveAsk(port: Int, out: (String) -> Unit): Int = coroutine
         System.getenv("TOTUM_CAST_BASE"),
         System.getenv("TOTUM_CAST_PORT")?.toIntOrNull() ?: DEFAULT_CAST_PORT,
         tools = piMediaTools(File(home.dataDir, "cast")),
+        liveHls = YtDlpLiveHls(System.getenv("TOTUM_PYTHON") ?: "python3", System.getenv("TOTUM_JS_RUNTIME")),
     )
     val targets = TargetDecks(
         targetsDir,
@@ -218,7 +220,11 @@ internal suspend fun serveAsk(port: Int, out: (String) -> Unit): Int = coroutine
         ),
         listOf(
             SpeakerSource(shell, targetsDir, streams::locally),
-            ChromecastSource(knownCastsFrom(System.getenv("TOTUM_CAST_TARGETS")), streams),
+            ChromecastSource(
+                knownCastsFrom(System.getenv("TOTUM_CAST_TARGETS")),
+                streams,
+                System.getenv("TOTUM_WAKE_BROADCAST").orEmpty().split(','),
+            ),
         ),
         YouTubeProgress(home.watchHistory, home::signedInToYouTube),
         ownerId = home::youTubeOwnerId,

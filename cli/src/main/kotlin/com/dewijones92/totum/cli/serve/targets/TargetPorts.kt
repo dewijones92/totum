@@ -3,6 +3,7 @@ package com.dewijones92.totum.cli.serve.targets
 import com.dewijones92.totum.data.targets.SoundSettings
 import com.dewijones92.totum.data.targets.Target
 import com.dewijones92.totum.data.targets.TargetEntry
+import com.dewijones92.totum.data.targets.TargetPower
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.playback.cast.CastItem
 
@@ -31,11 +32,13 @@ internal interface TargetPlayer {
     val failure: String? get() = null
     val notice: String? get() = null
     val live: Boolean get() = false
+    val power: TargetPower get() = TargetPower.ON
 }
 
 internal interface TargetLink {
     suspend fun connect(): String?
     suspend fun release()
+    val unreachable: String? get() = null
 }
 
 internal fun interface TargetSounds {

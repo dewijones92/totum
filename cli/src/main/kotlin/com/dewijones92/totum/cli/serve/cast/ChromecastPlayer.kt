@@ -9,6 +9,7 @@ import com.dewijones92.totum.cli.serve.targets.TargetSource
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.targets.Target
 import com.dewijones92.totum.data.targets.TargetKind
+import com.dewijones92.totum.data.targets.TargetPower
 import com.dewijones92.totum.playback.cast.CastItem
 import com.dewijones92.totum.playback.cast.Http
 import com.dewijones92.totum.playback.cast.LocalManifests
@@ -18,6 +19,7 @@ internal class ChromecastPlayer(
     private val label: String,
     private val control: CastControl,
     private val streams: PiStreams,
+    private val wake: TvWake? = null,
     private val clock: () -> Long = System::currentTimeMillis,
     private val watch: (check: () -> Boolean) -> Unit = ::watchWhileTrue,
 ) : TargetPlayer {
@@ -35,6 +37,8 @@ internal class ChromecastPlayer(
     override val notice: String? get() = tv.notice
 
     override val live: Boolean get() = liveNow
+
+    override val power: TargetPower get() = wake?.power ?: TargetPower.ON
 
     override var onEnded: (failed: Boolean) -> Unit
         get() = control.onEnded
@@ -150,25 +154,64 @@ internal fun contentTypeOf(url: String, picture: Boolean, processed: Boolean): S
     }
 }
 
-internal class CastLink(private val host: String, private val control: CastControl) : TargetLink {
-    override suspend fun connect(): String? = host.takeIf { control.reachable() }
+internal class CastLink(
+    private val host: String,
+    private val control: CastControl,
+    private val wake: TvWake? = null,
+) : TargetLink {
+
+    @Volatile override var unreachable: String? = null
+        private set
+
+    override suspend fun connect(): String? {
+        unreachable = null
+        if (wake != null && !wake.ensureAwake()) {
+            unreachable = wake.failure
+            return null
+        }
+        val tries = if (wake?.sentWake == true) TRIES_AFTER_A_WAKE else 1
+        repeat(tries) { attempt ->
+            if (control.reachable()) return host
+            Diag.log("cast-target", "$host: receiver not connected (try ${attempt + 1} of $tries)")
+        }
+        return null
+    }
 
     override suspend fun release() {
         Diag.log("cast-target", "$host: handing the TV back")
         control.release()
     }
+
+    private companion object {
+        const val TRIES_AFTER_A_WAKE = 2
+    }
 }
 
-internal class KnownCasts(val name: String, val host: String)
+internal class KnownCasts(val name: String, val host: String, val mac: String? = null)
 
 internal fun knownCastsFrom(spec: String?): List<KnownCasts> = spec.orEmpty().split(';').mapNotNull { pair ->
-    pair.split('=', limit = 2).takeIf { it.size == 2 && it[0].isNotBlank() && it[1].isNotBlank() }
-        ?.let { KnownCasts(it[0].trim(), it[1].trim()) }
+    val parts = pair.split('=', limit = 2)
+    val name = parts.first().trim()
+    val where = parts.getOrNull(1)?.substringBefore('@')?.trim().orEmpty()
+    if (name.isEmpty() || where.isEmpty()) return@mapNotNull null
+    val macText = parts[1].substringAfter('@', "").trim()
+    val mac = macText.takeIf { it.isNotEmpty() }?.let { text ->
+        WakeOnLan.parseMac(text)?.let(WakeOnLan::show).also {
+            if (it == null) {
+                Diag.warn(
+                    "cast-target",
+                    "$name: '$text' is not a MAC (aa:bb:cc:dd:ee:ff), so no wake-on-LAN"
+                )
+            }
+        }
+    }
+    KnownCasts(name, where, mac)
 }
 
 internal class ChromecastSource(
     private val known: List<KnownCasts>,
     private val streams: PiStreams,
+    private val extraBroadcasts: List<String> = emptyList(),
 ) : TargetSource {
 
     override suspend fun find(fresh: Boolean): List<FoundTarget> = known.map { cast ->
@@ -176,12 +219,28 @@ internal class ChromecastSource(
         val id = cast.name.lowercase().replace(Regex("[^a-z0-9]+"), "-").trim('-')
         FoundTarget(Target(id, cast.name, kind)) {
             val control = PyCastControl(cast.host, cast.name)
-            TargetKit(ChromecastPlayer(cast.name, control, streams), CastLink(cast.host, control))
+            val wake = wakeFor(cast)
+            TargetKit(ChromecastPlayer(cast.name, control, streams, wake), CastLink(cast.host, control, wake))
         }
     }.also {
         Diag.log(
             "cast-target",
-            "configured ${it.size} cast target(s): ${known.joinToString { "${it.name}=${it.host}" }}"
+            "configured ${it.size} cast target(s): " +
+                known.joinToString { cast -> "${cast.name}=${cast.host}${wakeNote(cast)}" },
         )
+    }
+
+    private fun wakeNote(cast: KnownCasts): String = cast.mac?.let { " (wake $it)" }.orEmpty()
+
+    private fun wakeFor(cast: KnownCasts): TvWake? {
+        val mac = cast.mac?.let(WakeOnLan::parseMac) ?: return null
+        val broadcasts = WakeOnLan.broadcastsFor(cast.host, extraBroadcasts)
+        return TvWake(
+            cast.name,
+            mac,
+            broadcasts,
+            UdpWakeSender(),
+            ReceiverProbe(cast.host)::answers
+        ).also { it.watch() }
     }
 }

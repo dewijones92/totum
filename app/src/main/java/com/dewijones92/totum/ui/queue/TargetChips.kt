@@ -28,11 +28,19 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.dewijones92.totum.R
 import com.dewijones92.totum.data.targets.Target
 import com.dewijones92.totum.data.targets.TargetColours
+import com.dewijones92.totum.data.targets.TargetPower
 import com.dewijones92.totum.targets.TargetsRepository
 
 internal fun Long.asColour(): Color = Color(toInt())
 
-internal fun Target.chipLabel(): String = "${kind.label.substringBefore(' ')} $label"
+internal fun Target.chipLabel(power: TargetPower = TargetPower.ON): String {
+    val name = "${kind.label.substringBefore(' ')} $label"
+    return when (power) {
+        TargetPower.ON -> name
+        TargetPower.ASLEEP -> "$name 💤"
+        TargetPower.WAKING -> "$name ⏰"
+    }
+}
 
 @Composable
 fun WatchTargetsWhileShown(targets: TargetsRepository) {
@@ -51,6 +59,7 @@ fun TargetChips(targets: TargetsRepository, modifier: Modifier = Modifier, watch
     val colours by targets.colours.collectAsStateWithLifecycle()
     if (watching) WatchTargetsWhileShown(targets)
     if (states.isEmpty()) return
+    val power = states.associate { it.target.id to it.power }
     val inUse = states.filter { it.entries.isNotEmpty() || it.target.id == selected }.map { it.target }
     val idle = states.map { it.target } - inUse.toSet()
     var picking by remember { mutableStateOf(false) }
@@ -66,7 +75,7 @@ fun TargetChips(targets: TargetsRepository, modifier: Modifier = Modifier, watch
         )
         inUse.forEach { target ->
             TargetChip(
-                label = target.chipLabel(),
+                label = target.chipLabel(power[target.id] ?: TargetPower.ON),
                 colour = (colours[target.id] ?: TargetColours.PHONE).asColour(),
                 selected = selected == target.id,
                 onClick = { targets.select(target.id) },
@@ -82,7 +91,7 @@ fun TargetChips(targets: TargetsRepository, modifier: Modifier = Modifier, watch
             DropdownMenu(expanded = picking, onDismissRequest = { picking = false }) {
                 idle.forEach { target ->
                     DropdownMenuItem(
-                        text = { Text(target.chipLabel()) },
+                        text = { Text(target.chipLabel(power[target.id] ?: TargetPower.ON)) },
                         onClick = {
                             picking = false
                             targets.select(target.id)

@@ -562,6 +562,52 @@ class TargetDeckTest {
     }
 
     @Test
+    fun `when an item fails and the queue moves on, the next item plays and the problem stays in view until it ends`() =
+        runBlocking {
+            val deck = deck()
+            deck.enqueue(TargetQueueRequest(listOf(item("a"), item("b"), item("c")), QueueMode.REPLACE))
+            player.failureText = "mpv could not open the stream"
+
+            playedFor(60)
+            deck.ended(failed = true)
+
+            assertTrue("b plays", deck.state().playing)
+            assertEquals("https://sound/b@bar-sink", player.played.last())
+            assertEquals(
+                "❌ Couldn't play Bluey a: mpv could not open the stream",
+                deck.state().problem,
+            )
+
+            playedFor(60)
+            deck.ended(failed = false)
+
+            assertTrue("c plays", deck.state().playing)
+            assertEquals("the next item ending well clears it", null, deck.state().problem)
+        }
+
+    @Test
+    fun `an item passed over for want of a stream stays named while the next one plays`() = runBlocking {
+        val deck = deck()
+
+        deck.enqueue(TargetQueueRequest(listOf(item("missing"), item("b")), QueueMode.REPLACE))
+
+        assertTrue(deck.state().playing)
+        assertTrue(deck.state().problem!!.contains("Couldn't play Bluey missing"))
+    }
+
+    @Test
+    fun `skipping to another item from the phone clears a problem that was showing`() = runBlocking {
+        val deck = deck()
+        deck.enqueue(TargetQueueRequest(listOf(item("a"), item("b"), item("c")), QueueMode.REPLACE))
+        deck.ended(failed = true)
+        assertTrue(deck.state().problem != null)
+
+        deck.control(TargetControl(TargetAction.NEXT))
+
+        assertEquals(null, deck.state().problem)
+    }
+
+    @Test
     fun `a player that fails without a reason still says it failed`() = runBlocking {
         val deck = deck()
         deck.enqueue(TargetQueueRequest(listOf(item("a")), QueueMode.REPLACE))

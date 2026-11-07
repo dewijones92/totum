@@ -12,6 +12,7 @@ import com.dewijones92.totum.data.targets.TargetColours
 import com.dewijones92.totum.data.targets.TargetControl
 import com.dewijones92.totum.data.targets.TargetEntry
 import com.dewijones92.totum.data.targets.TargetKind
+import com.dewijones92.totum.data.targets.TargetPower
 import com.dewijones92.totum.data.targets.TargetQueueRequest
 import com.dewijones92.totum.data.targets.TargetState
 import com.dewijones92.totum.data.targets.TargetsAnswer
@@ -22,11 +23,13 @@ import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.operations.Ended
 import com.dewijones92.totum.operations.OperationEnd
+import com.dewijones92.totum.operations.OperationKind
 import com.dewijones92.totum.operations.Operations
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -245,5 +248,73 @@ class TargetsRepositoryTest {
 
         assertTrue(playedHere.isEmpty())
         assertEquals(OperationEnd.Done(2), ended.single().end)
+    }
+
+    @Test
+    fun `a target the Pi says is waking shows on the progress strip until it is awake`() = runTest {
+        api.answer = HomeAnswer.Ok(TargetsAnswer(listOf(tv.copy(power = TargetPower.WAKING))))
+
+        repository.refresh("test")
+
+        assertEquals(
+            listOf(OperationKind.WAKE_TARGET to "LG TV"),
+            operations.running.value.map { it.kind to it.subject },
+        )
+
+        api.answer = HomeAnswer.Ok(TargetsAnswer(listOf(tv)))
+        repository.refresh("test")
+        scope.advanceUntilIdle()
+
+        assertTrue(operations.running.value.isEmpty())
+        val end = ended.single { it.kind == OperationKind.WAKE_TARGET }
+        assertEquals(OperationEnd.Done(1), end.end)
+    }
+
+    @Test
+    fun `a target that keeps waking over several reads is on the strip once`() = runTest {
+        api.answer = HomeAnswer.Ok(TargetsAnswer(listOf(tv.copy(power = TargetPower.WAKING))))
+
+        repository.refresh("one")
+        repository.refresh("two")
+        repository.refresh("three")
+
+        assertEquals(1, operations.running.value.count { it.kind == OperationKind.WAKE_TARGET })
+    }
+
+    @Test
+    fun `a TV that did not wake ends the strip with the reason the Pi gave`() = runTest {
+        api.answer = HomeAnswer.Ok(TargetsAnswer(listOf(tv.copy(power = TargetPower.WAKING))))
+        repository.refresh("test")
+
+        val failed = tv.copy(
+            power = TargetPower.ASLEEP,
+            problem = "❌ LG TV didn't wake: check 'Turn on via Wi-Fi' in its settings",
+        )
+        api.answer = HomeAnswer.Ok(TargetsAnswer(listOf(failed)))
+        repository.refresh("test")
+        scope.advanceUntilIdle()
+
+        val end = ended.single { it.kind == OperationKind.WAKE_TARGET }.end
+        assertEquals(OperationEnd.Failed("LG TV didn't wake: check 'Turn on via Wi-Fi' in its settings"), end)
+    }
+
+    @Test
+    fun `a wake the phone stops hearing about does not sit on the strip for ever`() = runTest {
+        api.answer = HomeAnswer.Ok(TargetsAnswer(listOf(tv.copy(power = TargetPower.WAKING))))
+        repository.refresh("test")
+
+        scope.advanceUntilIdle()
+
+        assertTrue(operations.running.value.isEmpty())
+        assertTrue(ended.single { it.kind == OperationKind.WAKE_TARGET }.end is OperationEnd.Failed)
+    }
+
+    @Test
+    fun `a target that is asleep is not on the strip, only waking is`() = runTest {
+        api.answer = HomeAnswer.Ok(TargetsAnswer(listOf(tv.copy(power = TargetPower.ASLEEP))))
+
+        repository.refresh("test")
+
+        assertTrue(operations.running.value.isEmpty())
     }
 }

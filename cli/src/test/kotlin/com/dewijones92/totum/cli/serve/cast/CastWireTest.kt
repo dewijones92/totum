@@ -107,4 +107,22 @@ class CastWireTest {
         )
         assertEquals(emptyList<KnownCasts>(), knownCastsFrom(null))
     }
+
+    @Test
+    fun `a cast can carry the MAC to wake it with, after an at sign`() {
+        val casts = knownCastsFrom(
+            "LG TV=192.168.0.219@20:28:BC:6B:F7:F8;Living Room=192.168.0.13;Bad MAC=192.168.0.14@nope;" +
+                "Dashes=192.168.0.15@20-28-bc-6b-f7-f9"
+        )
+
+        assertEquals(
+            listOf(
+                Triple("LG TV", "192.168.0.219", "20:28:bc:6b:f7:f8"),
+                Triple("Living Room", "192.168.0.13", null),
+                Triple("Bad MAC", "192.168.0.14", null),
+                Triple("Dashes", "192.168.0.15", "20:28:bc:6b:f7:f9"),
+            ),
+            casts.map { Triple(it.name, it.host, it.mac) },
+        )
+    }
 }

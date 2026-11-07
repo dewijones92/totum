@@ -43,7 +43,7 @@ class SendToTarget(
                     is HomeAnswer.No -> OperationEnd.Failed(answer.reason)
                     is HomeAnswer.Ok -> {
                         val state = answer.value
-                        if (state.problem != null || !state.playing) {
+                        if (!state.playing) {
                             Diag.warn(
                                 "targets",
                                 "send to $label: it did not start (playing=${state.playing}, " +

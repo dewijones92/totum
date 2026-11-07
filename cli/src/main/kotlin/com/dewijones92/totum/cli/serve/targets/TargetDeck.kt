@@ -14,6 +14,7 @@ import com.dewijones92.totum.data.targets.Target
 import com.dewijones92.totum.data.targets.TargetAction
 import com.dewijones92.totum.data.targets.TargetControl
 import com.dewijones92.totum.data.targets.TargetEntry
+import com.dewijones92.totum.data.targets.TargetPower
 import com.dewijones92.totum.data.targets.TargetQueueRequest
 import com.dewijones92.totum.data.targets.TargetReporting
 import com.dewijones92.totum.data.targets.TargetState
@@ -75,6 +76,7 @@ internal class TargetDeck(
         sound = sound,
         repeat = repeat,
         live = isLive(),
+        power = player.power,
     )
 
     private fun isLive(): Boolean = queue.current?.item?.item?.contentKind == MediaContentKind.LIVE || player.live
@@ -126,7 +128,10 @@ internal class TargetDeck(
             "${target.id}: ${control.action} index=${control.index} at=${queue.currentIndex} playing=$playing"
         )
         when (control.action) {
-            TargetAction.PLAY -> resume()
+            TargetAction.PLAY -> {
+                problem = null
+                resume()
+            }
             TargetAction.PAUSE -> if (playing) {
                 reportProgress(finished = false)
                 player.pause(true)
@@ -148,6 +153,7 @@ internal class TargetDeck(
             TargetAction.REMOVE -> control.index?.let { remove(it) }
             TargetAction.SOUND -> control.sound?.let { changeSound(it) }
             TargetAction.REPEAT -> control.repeat?.let(::setRepeat)
+            TargetAction.WAKE -> woken()
         }
         save()
         return state()
@@ -173,9 +179,28 @@ internal class TargetDeck(
         if (failed) {
             problem = "❌ Couldn't play $title: ${player.failure ?: "the player stopped with an error"}"
         } else {
+            problem = null
             reportProgress(finished = true)
         }
         startAt(next)
+    }
+
+    private fun unreachableReason(): String = link.unreachable ?: "⚠️ Couldn't reach ${target.label}"
+
+    private suspend fun woken() {
+        if (destination != null) {
+            Diag.log("targets", "${target.id}: wake asked, but it is already linked")
+            return
+        }
+        val reached = reachedAhead
+        if (reached == null) {
+            problem = unreachableReason()
+            Diag.warn("targets", "${target.id}: wake asked, $problem")
+            return
+        }
+        problem = null
+        link.release()
+        Diag.log("targets", "${target.id}: woken and reachable at $reached; nothing queued to play")
     }
 
     private fun setRepeat(wanted: RepeatMode) {
@@ -205,6 +230,7 @@ internal class TargetDeck(
     }
 
     private suspend fun moveTo(index: Int) {
+        problem = null
         if (playing) reportProgress(finished = false)
         startAt(index)
     }
@@ -251,7 +277,7 @@ internal class TargetDeck(
             val reached = destination ?: reachedAhead?.also { destination = it }
             queue = queue.copy(currentIndex = at)
             if (reached == null) {
-                problem = "⚠️ Couldn't reach ${target.label}"
+                problem = unreachableReason()
                 playing = false
                 Diag.warn("targets", "${target.id}: target unreachable, holding at $at")
                 save()
@@ -261,7 +287,6 @@ internal class TargetDeck(
                 PlayRequest(stream.url, reached, itemSound, startAtMs, picture, item.item.title, stream.cast)
             )
             playing = true
-            problem = null
             startedAtMs = clock()
             Diag.log(
                 "targets",
@@ -308,7 +333,10 @@ internal class TargetDeck(
         save()
     }
 
-    private fun save() = store.save(state().copy(playing = false, problem = null, volume = null, live = false), target.id)
+    private fun save() = store.save(
+        state().copy(playing = false, problem = null, volume = null, live = false, power = TargetPower.ON),
+        target.id
+    )
 
     private fun restore() {
         val saved = store.restore(target.id) ?: return
@@ -324,7 +352,8 @@ private const val MAX_VOLUME = 100
 
 private const val MIN_REPEAT_PLAY_MS = 2_000L
 
-private val STARTING_ACTIONS = setOf(TargetAction.PLAY, TargetAction.NEXT, TargetAction.PREVIOUS, TargetAction.JUMP)
+private val STARTING_ACTIONS =
+    setOf(TargetAction.PLAY, TargetAction.NEXT, TargetAction.PREVIOUS, TargetAction.JUMP, TargetAction.WAKE)
 
 private fun TargetQueueRequest.playables(random: Random, targetId: String): List<PlayableItem> = items
     .mapNotNull { backup ->

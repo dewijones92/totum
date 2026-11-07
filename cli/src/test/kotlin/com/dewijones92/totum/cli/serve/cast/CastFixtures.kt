@@ -143,5 +143,11 @@ internal class FakeCastControl : CastControl {
 
     override var onEnded: (failed: Boolean) -> Unit = {}
 
-    override suspend fun reachable(): Boolean = reachable
+    val reachableAnswers = ArrayDeque<Boolean>()
+    var reachableAsked = 0
+
+    override suspend fun reachable(): Boolean {
+        reachableAsked++
+        return reachableAnswers.removeFirstOrNull() ?: reachable
+    }
 }

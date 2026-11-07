@@ -9,6 +9,7 @@ import com.dewijones92.totum.cli.serve.targets.PlayRequest
 import com.dewijones92.totum.cli.serve.targets.TargetPlayer
 import com.dewijones92.totum.cli.serve.targets.withoutApiKeys
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.playback.cast.LocalManifests
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -65,18 +66,12 @@ internal class MpvPlayer(
         val log = File(dir, "mpv-$id.log")
         val piped = request.sound.changesSound
         val address = locally(id, request.url)
-        val source = if (piped) {
-            PIPED_SOURCE
-        } else {
-            listOf(
-                "--start=${request.startAtMs / MS_PER_S.toDouble()}",
-                "--",
-                address
-            )
-        }
+        val live = LocalManifests.isLive(request.url) || LocalManifests.isLive(address)
+        val startAt = if (live) emptyList() else listOf("--start=${request.startAtMs / MS_PER_S.toDouble()}")
+        val source = if (piped) PIPED_SOURCE else startAt + listOf("--", address)
         val command = listOf(
-            mpv, "--no-video", "--no-terminal", "--idle=no", "--audio-device=pulse/${request.destination}",
-            "--input-ipc-server=${socket.path}",
+            mpv, "--no-video", "--no-input-terminal", "--msg-level=all=warn", "--term-status-msg=", "--idle=no",
+            "--audio-device=pulse/${request.destination}", "--input-ipc-server=${socket.path}",
         ) + listOfNotNull(chosenVolume?.let { "--volume=$it" }) + source
         val started = ProcessBuilder(command).redirectErrorStream(true).redirectOutput(log).start()
         process = started
@@ -97,7 +92,8 @@ internal class MpvPlayer(
         Diag.log(
             "speakers",
             "$id: mpv ${started.pid()} on ${request.destination} volume=${chosenVolume ?: "untouched"} " +
-                "${sourceKind(request.url, address)} sound=${request.sound} from=${request.startAtMs}ms",
+                "${sourceKind(request.url, address)}${if (live) " live" else ""} sound=${request.sound} " +
+                "from=${if (live) "the live edge" else "${request.startAtMs}ms"}",
         )
         thread(name = "mpv-$id", isDaemon = true) {
             val code = started.waitFor()
@@ -108,7 +104,7 @@ internal class MpvPlayer(
                 val tail = runCatching { log.readLines().takeLast(LOG_LINES).joinToString(" | ") }.getOrDefault("")
                     .withoutApiKeys()
                 val failed = code != 0 || pipelineFailed
-                failure = if (failed) failureOf(code, pipelineFailed) else null
+                failure = if (failed) failureOf(code, pipelineFailed, tail) else null
                 Diag.log(
                     "speakers",
                     "$id: mpv ${started.pid()} ended, exit $code pipelineFailed=$pipelineFailed" +
@@ -119,8 +115,9 @@ internal class MpvPlayer(
         }
     }
 
-    private fun failureOf(code: Int, pipelineFailed: Boolean): String =
-        "the player exited with code $code" + if (pipelineFailed) " and the sound pipeline failed" else ""
+    private fun failureOf(code: Int, pipelineFailed: Boolean, tail: String): String =
+        "the player exited with code $code" + (if (pipelineFailed) " and the sound pipeline failed" else "") +
+            (if (tail.isNotBlank()) ": ${tail.takeLast(FAILURE_CHARS)}" else "")
 
     private fun sourceKind(url: String, address: String): String = when {
         url.startsWith("/") -> "file"
@@ -214,6 +211,7 @@ internal class MpvPlayer(
         const val STOP_WAIT_S = 2L
         const val ANSWER_MS = 500L
         const val BUFFER = 4_096
-        const val LOG_LINES = 3
+        const val LOG_LINES = 4
+        const val FAILURE_CHARS = 300
     }
 }

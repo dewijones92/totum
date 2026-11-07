@@ -246,4 +246,24 @@ class TargetRulesTest {
 
         assertFalse(TargetsJson.decodeFromString(TargetState.serializer(), old).live)
     }
+
+    @Test
+    fun `a state from an older Pi with no power reads as on, and a sleeping one survives the wire`() {
+        val old = """{"target":{"id":"tv","label":"LG TV","kind":"TV"}}"""
+        assertEquals(TargetPower.ON, TargetsJson.decodeFromString(TargetState.serializer(), old).power)
+
+        val asleep = TargetState(Target("tv", "LG TV", TargetKind.TV), power = TargetPower.ASLEEP)
+        val back = TargetsJson.decodeFromString(
+            TargetState.serializer(),
+            TargetsJson.encodeToString(TargetState.serializer(), asleep),
+        )
+        assertEquals(TargetPower.ASLEEP, back.power)
+    }
+
+    @Test
+    fun `the wake control survives the wire`() {
+        val text = TargetsJson.encodeToString(TargetControl.serializer(), TargetControl(TargetAction.WAKE))
+
+        assertEquals(TargetAction.WAKE, TargetsJson.decodeFromString(TargetControl.serializer(), text).action)
+    }
 }

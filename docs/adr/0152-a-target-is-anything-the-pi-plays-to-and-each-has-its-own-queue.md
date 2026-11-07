@@ -95,6 +95,33 @@ to send a queue to. ADR 116 had built that for speakers only, with its own wire 
   Receiver (`CC1AD845`) at that moment; any other app running before (YouTube, say), a different app on screen now, a
   receiver that was already open before the helper's first load, or nothing loaded at all leaves the TV alone, as
   before. Every decision is a `note` or `handback` event that `PyCastControl` logs with its reason.
+- **A TV that is off is listed, and a play wakes it (amended 2026-11-07).** Dewi: with the TV off its cast receiver is
+  off too, so he had to wake it by hand. HDMI-CEC does not reliably wake the LG (1 in 5, measured for `firetv-ctl`);
+  Wake-on-LAN does, in about 5 s, on the right input.
+  - **Config.** `TOTUM_CAST_TARGETS` takes an optional MAC after an `@`: `LG TV=192.168.0.219@20:28:bc:6b:f7:f8;Living
+    Room=192.168.0.13`. The old `name=address` form is unchanged. A MAC is validated (six hex pairs, `:` or `-`); a bad
+    one is logged and ignored, and the target is still listed without a wake. Extra broadcast addresses can be given
+    in `TOTUM_WAKE_BROADCAST` (comma-separated).
+  - **Presence.** A target with a MAC probes its receiver port (TCP 8009, 1.5 s) every 5 s in the background and says it in
+    `TargetState.power`: `ON`, `ASLEEP` or `WAKING` (absent from an older Pi's answer reads as `ON`). It is always listed;
+    asleep it is not an error. The phone's chip wears 💤 (asleep) or ⏰ (waking), and the Remote queue header shows
+    "💤 Off · tap to wake", a button that sends the new control `WAKE`.
+  - **A play or queue request to a sleeping target wakes it first** (`CastLink.connect`, before the deck's lock is taken,
+    so `GET /targets` keeps answering): `TvWake.ensureAwake` sends the magic packet to `255.255.255.255`, the target's own
+    /24 broadcast (derived from an IPv4 address) and any configured ones, on UDP ports 9 and 7, again every 5 s, and
+    polls port 8009 once a second for up to 25 s; one wake at a time per TV, so two phones send one. Once the port
+    answers the helper's own connect gets one more try (20 s) before the play goes ahead. On timeout the deck's
+    `problem` is "❌ LG TV didn't wake: check 'Turn on via Wi-Fi' in its settings", `playing` is false, and the phone
+    plays the items itself as for any target that could not start. A TV already on gets no packet.
+  - **The phone shows it.** While `power` is `WAKING` the repository puts "⏰ Waking LG TV…" on the progress strip
+    (`OperationKind.WAKE_TARGET`, driven by the polled state, so whichever phone asked, and capped at 45 s if the
+    polling stops), ending ✅ "LG TV is awake" or ❌ with the Pi's reason. The phone's POSTs to `/targets` have a 60 s
+    read timeout (the rest of the app's is 20 s) so a wake does not look like a dead Pi.
+  - **Not built / untested:** `totum-fetch` is on the `bin_private` bridge, so a broadcast from inside the container may
+    not reach the LAN; the subnet broadcast is used for that reason. Not tested from the container (nor on the real TV
+    from here): the coordinator tests it. If it does not reach, put `TOTUM_WAKE_BROADCAST` right or give the container
+    host networking for the packet. Linked decks (already playing) skip the wake: a TV switched off mid-queue is not
+    woken until the deck is stopped. Speakers need nothing: Bluetooth already links on demand.
 - **Every phone sees the same queues.** Any phone signed in to the home server reads and edits the targets' queues
   through the same operations; edits are small operations, never a whole-queue replace.
 

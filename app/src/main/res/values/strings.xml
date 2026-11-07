@@ -1401,6 +1401,13 @@
         <item quantity="one">✅ Sent %1$d item to %2$s</item>
         <item quantity="other">✅ Sent %1$d items to %2$s</item>
     </plurals>
+    <string name="ops_wake_target">⏰ Waking %1$s…</string>
+    <plurals name="ops_wake_done">
+        <item quantity="one">✅ %2$s is awake</item>
+        <item quantity="other">✅ %2$s is awake</item>
+    </plurals>
+    <string name="target_asleep_wake">💤 Off · tap to wake</string>
+    <string name="target_waking">⏰ Waking %1$s…</string>
     <string name="target_chip_phone">📱 This phone</string>
     <string name="target_chip_more">➕ Play on…</string>
     <string name="target_send_to">📡 Send to…</string>

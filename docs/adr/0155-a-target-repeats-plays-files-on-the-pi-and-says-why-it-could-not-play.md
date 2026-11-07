@@ -52,6 +52,17 @@ that is not a phone, and the caller (HA) has to be reachable and recognisable.
   "➕ Added by 🏠 Home Assistant", and as it is never the YouTube owner nothing it queues reports to YouTube
   (already so; now a test).
 
+## Amended 2026-11-07: a problem outlives the item that moves the queue on
+
+When an item failed (or had no stream) the deck moved to the next one and cleared `problem` as it started, so the reason
+was gone before anyone could read it. `problem` is now cleared only by something that means "start again": a new queue
+request, STOP, PLAY, NEXT, PREVIOUS or a jump, or the next item **ending** well. While the following item plays the
+message is still in `GET /targets`. mpv no longer runs `--no-terminal` (which discarded all of its output): it gets
+`--msg-level=all=warn --term-status-msg= --no-input-terminal`, so its own warnings and errors go to the log file and the
+last lines are in `TargetPlayer.failure` ("the player exited with code 2: [ffmpeg/demuxer] ...", no keys), as well as in
+the Pi's log. The phone decides "did it start?" from `playing` alone (it used to also treat any `problem` as a failure,
+which would now play on the phone as well as the Pi), and shows a remaining `problem` as the result's note.
+
 ## Consequences
 
 - Home Assistant's `hermes-audio-ctl` can become a thin adapter (the handoff is `tools/handoff/hermes-audio/`); until

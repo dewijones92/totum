@@ -41,6 +41,9 @@ public data class TargetEntry(
 )
 
 @Serializable
+public enum class TargetPower { ON, ASLEEP, WAKING }
+
+@Serializable
 public data class TargetState(
     val target: Target,
     val entries: List<TargetEntry> = emptyList(),
@@ -54,6 +57,7 @@ public data class TargetState(
     val sound: SoundSettings = SoundSettings(),
     val repeat: RepeatMode = RepeatMode.OFF,
     val live: Boolean = false,
+    val power: TargetPower = TargetPower.ON,
 ) {
     val current: TargetEntry? get() = entries.getOrNull(at)
 }
@@ -80,7 +84,7 @@ public data class TargetQueueRequest(
 }
 
 @Serializable
-public enum class TargetAction { PLAY, PAUSE, NEXT, PREVIOUS, JUMP, SEEK, VOLUME, STOP, REMOVE, SOUND, REPEAT }
+public enum class TargetAction { PLAY, PAUSE, NEXT, PREVIOUS, JUMP, SEEK, VOLUME, STOP, REMOVE, SOUND, REPEAT, WAKE }
 
 @Serializable
 public data class TargetControl(

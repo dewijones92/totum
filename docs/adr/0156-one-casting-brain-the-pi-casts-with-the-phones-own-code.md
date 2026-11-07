@@ -71,6 +71,21 @@ phone's cast would have been missing from it.
   and the case the core declines to build a manifest for (a single muxed YouTube stream, a third party's manifest),
   which the phone also hands over as it is.
 
+## Amended 2026-11-07: a live stream on a speaker is YouTube's HLS manifest, not Totum's DASH
+
+The first live item on a speaker (a jazz radio, 09:23) ended after about three seconds with mpv exit 2 although the core
+had built and served the manifest (`upstream 200`). mpv's DASH demuxer is ffmpeg's `dash`, which reads Totum's
+`type="static"` 12-hour manifest as a recording: reproduced on this laptop with the same mpv (0.37, the image's Ubuntu
+package is 0.37 too) against a stand-in origin, it asks for every segment from the start of the timeline, runs past the
+live edge into 404s and gives up ("Error when loading first fragment of playlist"). The TV is not a demuxer problem
+(the LG plays it, verified) and stays on the DASH path. For a speaker the Pi now gives mpv, or ffmpeg when the sound is
+changed, what the old speaker service gave it: the HLS manifest from `yt-dlp -g -f bestaudio/worst --extractor-args
+youtube:player_client=web_embedded` (`YtDlpLiveHls`, using the image's `/opt/venv` and `TOTUM_JS_RUNTIME`), asked for in
+`PiStreams.locally` when the address is one of the core's live manifests. If yt-dlp cannot answer (60 s cap) it falls
+back to the DASH manifest, as before, and logs why. A live item is started at the live edge, with no `--start`. It is one
+yt-dlp call per live play, outside the polite gate of ADR 51 (one request, only when a speaker starts a live item).
+Not verified on the Pi's speaker from here: the coordinator runs it.
+
 ## Consequences
 
 - A fix to rung choice, the manifest, captions, live or the sound-only fallback is made once. The phone's behaviour is
