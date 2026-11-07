@@ -62,4 +62,13 @@ class UnavailableOfflineNowTest {
         )
         assertFalse(episode.unavailableOfflineNow(DownloadState.Downloaded("/data/a.mp3"), offline = false))
     }
+
+    @Test
+    fun `offline with a file of its own is available even with no download record`() {
+        val own = episode.copy(handle = PlayHandle.Podcast(localPath = "/data/own.mp3"))
+        val ownVideo = episode.copy(handle = PlayHandle.LocalVideo("/data/own.mp4"))
+
+        assertFalse(own.unavailableOfflineNow(DownloadState.NotDownloaded, offline = true))
+        assertFalse(ownVideo.unavailableOfflineNow(DownloadState.NotDownloaded, offline = true))
+    }
 }

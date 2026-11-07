@@ -44,4 +44,20 @@ class HttpUrlTest {
     fun `of throws on invalid input`() {
         assertThrows(IllegalArgumentException::class.java) { HttpUrl.of("not a url") }
     }
+
+    @Test
+    fun `host is the machine name without port, path or query`() {
+        assertEquals("example.com", HttpUrl.of("https://example.com:8443/feed.xml?x=1").host)
+        assertEquals("pi.home.example", HttpUrl.of("http://pi.home.example/audio/a.mp3").host)
+    }
+
+    @Test
+    fun `host keeps its case so callers compare ignoring case`() {
+        assertEquals("Example.COM", HttpUrl.of("https://Example.COM/a").host)
+    }
+
+    @Test
+    fun `host of an address with an ip is the ip`() {
+        assertEquals("192.168.0.20", HttpUrl.of("http://192.168.0.20:8080/x").host)
+    }
 }

@@ -66,4 +66,45 @@ class ItemFiltersTest {
         assertFalse(videos.accepts(item("p", 5.minutes, null, video = false), false, now))
         assertFalse(videos.accepts(item("s", 5.minutes, null, music = true), false, now))
     }
+
+    @Test
+    fun `plays offline accepts by the extra answer and not by the download answer`() {
+        val offline = ItemFilters(downloaded = DownloadedFilter.PLAYS_OFFLINE)
+        val a = item("a", 5.minutes, null)
+
+        assertTrue(offline.accepts(a, downloaded = false, now, playsOffline = true))
+        assertFalse(offline.accepts(a, downloaded = true, now, playsOffline = false))
+        assertTrue(offline.isActive)
+        assertEquals(1, offline.activeCount)
+    }
+
+    @Test
+    fun `plays offline defaults to downloaded wherever the caller has no better answer`() {
+        val offline = ItemFilters(downloaded = DownloadedFilter.PLAYS_OFFLINE)
+        val a = item("a", 5.minutes, null)
+
+        assertTrue(offline.accepts(a, downloaded = true, now))
+        assertFalse(offline.accepts(a, downloaded = false, now))
+    }
+
+    @Test
+    fun `downloaded and not downloaded ignore the plays offline answer`() {
+        val a = item("a", 5.minutes, null)
+
+        assertTrue(ItemFilters(downloaded = DownloadedFilter.DOWNLOADED).accepts(a, true, now, playsOffline = false))
+        assertTrue(ItemFilters(downloaded = DownloadedFilter.NOT_DOWNLOADED).accepts(a, false, now, playsOffline = true))
+        assertFalse(ItemFilters(downloaded = DownloadedFilter.NOT_DOWNLOADED).accepts(a, true, now, playsOffline = true))
+    }
+
+    @Test
+    fun `the live filter keeps what is live now, by the registry's answer when there is one`() {
+        val live = ItemFilters(kind = KindFilter.LIVE)
+        val standard = item("a", 5.minutes, null)
+        val streaming = standard.copy(contentKind = MediaContentKind.LIVE)
+
+        assertFalse(live.accepts(standard, false, now))
+        assertTrue(live.accepts(streaming, false, now))
+        assertTrue("the registry says it is live though the item was saved standard", live.accepts(standard, false, now, liveNow = true))
+        assertFalse("the registry says it ended", live.accepts(streaming, false, now, liveNow = false))
+    }
 }
