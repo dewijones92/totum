@@ -209,4 +209,36 @@ class TripPlanTest {
         assertTrue(plan.wanted.isEmpty())
         assertTrue(plan.fetch.isEmpty())
     }
+
+    @Test
+    fun `a Pi copy that has failed twice is left alone, one that failed once is tried again`() {
+        val failed = DownloadState.Failed("the copy broke")
+        val twice = planTrip(
+            inputs(queue, home = setOf("e1"), states = mapOf("e1" to failed), attempts = mapOf("e1" to MAX_ATTEMPTS)),
+        )
+        val once = planTrip(
+            inputs(queue, home = setOf("e1"), states = mapOf("e1" to failed), attempts = mapOf("e1" to 1)),
+        )
+
+        assertTrue(twice.copyFromPi.isEmpty())
+        assertEquals(listOf("e1"), twice.skipped.map { it.item.item.id.value })
+        assertEquals(1, twice.failed)
+        assertEquals(listOf("e1"), once.copyFromPi.map { it.value })
+    }
+
+    @Test
+    fun `other Pi files that have failed twice are not asked for again`() {
+        val failed = DownloadState.Failed("the copy broke")
+        val files = listOf(PiFile(MediaItemId("f1"), "a", 10), PiFile(MediaItemId("f2"), "b", 10))
+        val plan = planTrip(
+            inputs(
+                queue,
+                pi = files,
+                states = mapOf("f1" to failed, "f2" to failed),
+                attempts = mapOf("f1" to MAX_ATTEMPTS, "f2" to 1),
+            ),
+        )
+
+        assertEquals(listOf("f2"), plan.piExtras.map { it.id.value })
+    }
 }

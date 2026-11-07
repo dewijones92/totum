@@ -25,7 +25,11 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
 @Serializable
-data class TripSettings(val departureAtMs: Long? = null, val perGroup: Int = DEFAULT_PER_GROUP) {
+data class TripSettings(
+    val departureAtMs: Long? = null,
+    val perGroup: Int = DEFAULT_PER_GROUP,
+    val attempts: Map<String, Int> = emptyMap(),
+) {
     val armed: Boolean get() = departureAtMs != null
 
     companion object {
@@ -121,7 +125,7 @@ class TripMode(
     val status: StateFlow<TripStatus> = state.asStateFlow()
 
     private val passing = Mutex()
-    private val attempts = mutableMapOf<MediaItemId, Int>()
+    private val attempts = saved.value.attempts.mapKeysTo(mutableMapOf()) { MediaItemId(it.key) }
     private val explained = mutableSetOf<MediaItemId>()
     private var watching: Job? = null
     private val said = mutableMapOf<String, String>()
@@ -253,8 +257,15 @@ class TripMode(
                 ports.fetch(ports.batchTitle, plan.fetch, ports.choice())
             }
         }
-        plan.copyFromPi.forEach { ports.copyFromPi(it) }
-        plan.piExtras.forEach { ports.copyFromPi(it.id) }
+        plan.copyFromPi.forEach {
+            attempts.merge(it, 1, Int::plus)
+            ports.copyFromPi(it)
+        }
+        plan.piExtras.forEach {
+            attempts.merge(it.id, 1, Int::plus)
+            ports.copyFromPi(it.id)
+        }
+        rememberAttempts()
         if (plan.copyFromPi.isNotEmpty() || plan.piExtras.isNotEmpty()) {
             Diag.log(
                 TAG,
@@ -262,6 +273,12 @@ class TripMode(
                     "(the Pi's own copy-now path)",
             )
         }
+    }
+
+    private fun rememberAttempts() {
+        val now = attempts.mapKeys { it.key.value }
+        if (now == saved.value.attempts) return
+        update(saved.value.copy(attempts = now))
     }
 
     private fun progressOf(plan: TripPlan) = TripProgress(

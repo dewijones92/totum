@@ -85,12 +85,16 @@ fun planTrip(inputs: TripInputs): TripPlan {
 
 private fun skipReason(item: PlayableItem, state: DownloadState?, inputs: TripInputs): String? = when {
     item.handle is PlayHandle.LocalVideo -> "it is already a file on the phone"
-    inputs.atHome(item) -> null
+    inputs.atHome(item) -> givenUpReason(item.item.id, state, inputs)
     !inputs.fetchesAudioOnly(item) -> "a film or a torrent is a download you ask for, never one the trip starts"
     item.fetchUrl == null -> "it has nothing to fetch yet"
+    else -> givenUpReason(item.item.id, state, inputs)
+}
+
+private fun givenUpReason(id: MediaItemId, state: DownloadState?, inputs: TripInputs): String? = when {
     state is DownloadState.Failed && state.isPermanent -> "asking again cannot help: ${state.reason.take(REASON_CHARS)}"
-    state is DownloadState.Failed && (inputs.attempts[item.item.id] ?: 0) >= inputs.maxAttempts ->
-        "gave up after ${inputs.attempts[item.item.id]} attempts"
+    state is DownloadState.Failed && (inputs.attempts[id] ?: 0) >= inputs.maxAttempts ->
+        "gave up after ${inputs.attempts[id]} attempts"
     else -> null
 }
 
@@ -99,7 +103,9 @@ private fun piExtras(inputs: TripInputs, queued: Set<MediaItemId>, alreadyCopyin
     val copying = inputs.piFiles.filter { it.id in alreadyCopying }.sumOf { it.bytes }
     var room = inputs.freeBytes?.let { it - inputs.reserveBytes - copying }
     val chosen = mutableListOf<PiFile>()
-    inputs.piFiles.filter { it.id !in taken && !onPhoneOrComing(inputs.states[it.id]) }.forEach { file ->
+    inputs.piFiles.filter {
+        it.id !in taken && !onPhoneOrComing(inputs.states[it.id]) && givenUpReason(it.id, inputs.states[it.id], inputs) == null
+    }.forEach { file ->
         val left = room
         if (left == null) {
             chosen += file

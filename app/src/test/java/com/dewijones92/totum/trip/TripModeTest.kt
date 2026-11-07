@@ -59,7 +59,12 @@ class TripModeTest {
         group,
     )
 
-    private class Rig(scope: CoroutineScope, queue: List<QueueEntry>, val now: MutableStateFlow<Long>) {
+    private class Rig(
+        scope: CoroutineScope,
+        queue: List<QueueEntry>,
+        val now: MutableStateFlow<Long>,
+        val store: InMemoryTripStore = InMemoryTripStore(),
+    ) {
         val queueState = MutableStateFlow(QueueSnapshot(queue))
         val changes = MutableSharedFlow<Unit>(extraBufferCapacity = 8)
         val cancelled = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
@@ -70,7 +75,6 @@ class TripModeTest {
         var home: Set<String> = emptySet()
         val fetched = mutableListOf<List<String>>()
         val copied = mutableListOf<String>()
-        val store = InMemoryTripStore()
 
         val trip = TripMode(
             store = store,
@@ -96,9 +100,9 @@ class TripModeTest {
         )
     }
 
-    private fun TestScope.rig(vararg ids: String): Rig {
+    private fun TestScope.rig(vararg ids: String, store: InMemoryTripStore = InMemoryTripStore()): Rig {
         val scope = CoroutineScope(UnconfinedTestDispatcher(testScheduler) + SupervisorJob()).also { scopes += it }
-        return Rig(scope, ids.map(::entry), MutableStateFlow(START))
+        return Rig(scope, ids.map(::entry), MutableStateFlow(START), store)
     }
 
     @Test
@@ -166,6 +170,44 @@ class TripModeTest {
         assertEquals(listOf(listOf("b")), rig.fetched)
         assertEquals(listOf("a", "z"), rig.copied)
         assertEquals(2, (rig.trip.status.value as TripStatus.On).progress?.fromPi)
+    }
+
+    @Test
+    fun `a Pi copy that keeps failing is asked for twice and then left alone`() = tripTest {
+        val rig = rig("a", "b")
+        rig.home = setOf("a")
+        rig.states = mapOf(MediaItemId("a") to DownloadState.Failed("the copy broke"))
+
+        rig.trip.arm(START + HOUR, perGroup = 2, why = "test")
+        runCurrent()
+        repeat(4) {
+            rig.changes.tryEmit(Unit)
+            runCurrent()
+        }
+
+        assertEquals(listOf("a", "a"), rig.copied)
+        assertEquals(1, (rig.trip.status.value as TripStatus.On).progress?.failed)
+    }
+
+    @Test
+    fun `the goes already used are remembered across a restart`() = tripTest {
+        val store = InMemoryTripStore()
+        val first = rig("a", store = store)
+        first.home = setOf("a")
+        first.states = mapOf(MediaItemId("a") to DownloadState.Failed("the copy broke"))
+        first.trip.arm(START + HOUR, perGroup = 2, why = "test")
+        runCurrent()
+        first.changes.tryEmit(Unit)
+        runCurrent()
+        assertEquals(listOf("a", "a"), first.copied)
+
+        val relaunched = rig("a", store = store)
+        relaunched.home = setOf("a")
+        relaunched.states = first.states
+        relaunched.trip.start()
+        runCurrent()
+
+        assertTrue("a relaunch does not start the copies again", relaunched.copied.isEmpty())
     }
 
     @Test
