@@ -188,7 +188,9 @@ class JellyfinRoutesTest {
         val bare = AskServer(noBrain, scope, null, listOf(JellyfinNotSetUp())).start(0)
         try {
             val answer = http.send(
-                HttpRequest.newBuilder(URI.create("http://localhost:${bare.address.port}/jellyfin/browse")).GET().build(),
+                HttpRequest.newBuilder(
+                    URI.create("http://localhost:${bare.address.port}/jellyfin/browse")
+                ).GET().build(),
                 HttpResponse.BodyHandlers.ofString(),
             )
 

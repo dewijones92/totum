@@ -265,7 +265,9 @@ class TripMode(
             attempts.merge(it.id, 1, Int::plus)
             ports.copyFromPi(it.id)
         }
-        rememberAttempts()
+        attempts.mapKeys { it.key.value }.takeIf { it != saved.value.attempts }?.let {
+            update(saved.value.copy(attempts = it))
+        }
         if (plan.copyFromPi.isNotEmpty() || plan.piExtras.isNotEmpty()) {
             Diag.log(
                 TAG,
@@ -273,12 +275,6 @@ class TripMode(
                     "(the Pi's own copy-now path)",
             )
         }
-    }
-
-    private fun rememberAttempts() {
-        val now = attempts.mapKeys { it.key.value }
-        if (now == saved.value.attempts) return
-        update(saved.value.copy(attempts = now))
     }
 
     private fun progressOf(plan: TripPlan) = TripProgress(

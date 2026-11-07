@@ -118,7 +118,12 @@ class PinPlayer(
         return PinPlayed.Started(showsPicture = false)
     }
 
-    private suspend fun start(playable: PlayableItem, showsPicture: Boolean, way: ChosenWay, local: Boolean): PinPlayed =
+    private suspend fun start(
+        playable: PlayableItem,
+        showsPicture: Boolean,
+        way: ChosenWay,
+        local: Boolean,
+    ): PinPlayed =
         if (queue.playNow(
                 playable,
                 quiet = true,

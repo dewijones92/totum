@@ -80,6 +80,7 @@ internal interface Home {
     suspend fun signOut(by: String?): Admission
 }
 
+@Suppress("TooManyFunctions")
 internal class HomeDownloads(
     val dataDir: File,
     private val downloadDir: File,

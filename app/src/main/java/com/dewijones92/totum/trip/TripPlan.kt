@@ -104,7 +104,8 @@ private fun piExtras(inputs: TripInputs, queued: Set<MediaItemId>, alreadyCopyin
     var room = inputs.freeBytes?.let { it - inputs.reserveBytes - copying }
     val chosen = mutableListOf<PiFile>()
     inputs.piFiles.filter {
-        it.id !in taken && !onPhoneOrComing(inputs.states[it.id]) && givenUpReason(it.id, inputs.states[it.id], inputs) == null
+        val state = inputs.states[it.id]
+        it.id !in taken && !onPhoneOrComing(state) && givenUpReason(it.id, state, inputs) == null
     }.forEach { file ->
         val left = room
         if (left == null) {

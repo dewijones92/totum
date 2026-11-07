@@ -28,6 +28,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+@Suppress("TooManyFunctions")
 class TargetsRepository(
     private val client: TargetsApi?,
     private val requester: suspend () -> Requester,
@@ -138,62 +139,52 @@ class TargetsRepository(
         if (items.isEmpty()) return true
         Diag.log("targets", "redirecting $mode of ${items.size} to $label (the one being looked at)")
         scope.launch {
-            val run: suspend (Operations.Progress?) -> OperationEnd = { redirect(id, label, items, mode, group, startAt) }
+            val play = Redirected(id, label, items, mode, group, startAt)
+            val run: suspend (Operations.Progress?) -> OperationEnd = { redirect(play) }
             operations?.track("target:$id", OperationKind.SEND_TO_TARGET, label) { run(it) } ?: run(null)
         }
         return true
     }
 
-    internal suspend fun redirect(
-        id: String,
-        label: String,
-        items: List<PlayableItem>,
-        mode: QueueMode,
-        group: QueueGroup?,
-        startAt: MediaItemId?,
-    ): OperationEnd {
+    internal suspend fun redirect(play: Redirected): OperationEnd {
         val request = TargetQueueRequest(
-            items = items.map { it.toBackup() },
-            mode = mode,
-            groupId = group?.id,
-            groupTitle = group?.title,
+            items = play.items.map { it.toBackup() },
+            mode = play.mode,
+            groupId = play.group?.id,
+            groupTitle = play.group?.title,
             from = requester(),
-            startItemId = startAt?.value,
+            startItemId = play.startAt?.value,
         )
-        return when (val answer = queue(id, request)) {
-            is HomeAnswer.No -> fallBack(label, items, mode, group, startAt, answer.reason)
+        return when (val answer = queue(play.id, request)) {
+            is HomeAnswer.No -> fallBack(play, answer.reason)
             is HomeAnswer.Ok -> {
                 val state = answer.value
-                val asked = items.mapTo(HashSet()) { it.item.id.value }
+                val asked = play.items.mapTo(HashSet()) { it.item.id.value }
                 val queued = state.entries.count { it.item.itemId in asked }
-                val starts = mode == QueueMode.PLAY || mode == QueueMode.REPLACE
+                val starts = play.mode == QueueMode.PLAY || play.mode == QueueMode.REPLACE
                 Diag.log(
                     "targets",
-                    "$label answered $mode of ${items.size}: queued=$queued playing=${state.playing} " +
-                        "problem=${state.problem}",
+                    "${play.label} answered ${play.mode} of ${play.items.size}: queued=$queued " +
+                        "playing=${state.playing} problem=${state.problem}",
                 )
                 when {
-                    queued == 0 -> fallBack(label, items, mode, group, startAt, "it queued none of them")
+                    queued == 0 -> fallBack(play, "it queued none of them")
                     starts && (state.problem != null || !state.playing) ->
-                        fallBack(label, items, mode, group, startAt, state.problem ?: "it did not start")
+                        fallBack(play, state.problem ?: "it did not start")
                     else -> OperationEnd.Done(queued, note = state.problem)
                 }
             }
         }
     }
 
-    private fun fallBack(
-        label: String,
-        items: List<PlayableItem>,
-        mode: QueueMode,
-        group: QueueGroup?,
-        startAt: MediaItemId?,
-        why: String,
-    ): OperationEnd {
-        Diag.warn("targets", "$label did not take $mode of ${items.size} ($why); playing them on this phone instead")
-        playHere(items, mode, group, startAt)
+    private fun fallBack(play: Redirected, why: String): OperationEnd {
+        Diag.warn(
+            "targets",
+            "${play.label} did not take ${play.mode} of ${play.items.size} ($why); playing them on this phone instead",
+        )
+        playHere(play.items, play.mode, play.group, play.startAt)
         val plain = why.dropWhile { !it.isLetterOrDigit() }
-        return OperationEnd.Failed("⚠️ $label didn't take it ($plain). Playing on this phone instead.")
+        return OperationEnd.Failed("⚠️ ${play.label} didn't take it ($plain). Playing on this phone instead.")
     }
 
     fun command(id: String, action: TargetAction) = act(id, TargetControl(action))
@@ -241,3 +232,12 @@ class TargetsRepository(
         const val HEX = 16
     }
 }
+
+internal data class Redirected(
+    val id: String,
+    val label: String,
+    val items: List<PlayableItem>,
+    val mode: QueueMode,
+    val group: QueueGroup?,
+    val startAt: MediaItemId?,
+)

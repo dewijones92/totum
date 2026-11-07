@@ -30,7 +30,8 @@ class SignInHandoverTest {
 
     @Test
     fun `a hand-over the Pi refuses is not repeated, and the phone says so once`() = runTest {
-        home.refuseHandover = "🔒 The home server is signed in to YouTube from another phone (Pixel 7 (77c1)); sign that one out first"
+        home.refuseHandover =
+            "🔒 The home server is signed in to YouTube from another phone (Pixel 7 (77c1)); sign that one out first"
 
         handover.ensure(home)
         handover.ensure(home)

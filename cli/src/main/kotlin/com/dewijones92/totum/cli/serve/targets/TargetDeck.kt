@@ -29,6 +29,7 @@ import kotlinx.coroutines.sync.withLock
 import java.io.File
 import kotlin.random.Random
 
+@Suppress("TooManyFunctions")
 internal class TargetDeck(
     private val target: Target,
     private val player: TargetPlayer,
@@ -88,7 +89,8 @@ internal class TargetDeck(
         Diag.log(
             "targets",
             "${target.id}: ${request.mode} ${wanted.size} item(s) group=${group?.title} shuffle=${request.shuffle} " +
-                "from=${request.from?.label}(owner=${request.from?.id == ownerId()}) startItem=${request.startItemId} " +
+                "from=${request.from?.label}(owner=${request.from?.id == ownerId()}) " +
+                "startItem=${request.startItemId} " +
                 "startAtMs=${request.startAtMs} queue=${queue.entries.size} playing=$playing",
         )
         if (request.mode == QueueMode.REPLACE || request.mode == QueueMode.PLAY || !playing) {

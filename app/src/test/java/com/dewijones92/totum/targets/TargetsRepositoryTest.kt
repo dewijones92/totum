@@ -193,7 +193,9 @@ class TargetsRepositoryTest {
             TargetState(tv.target, entries = listOf(TargetEntry(item("a").toBackup())), at = 0, playing = true),
         )
 
-        val end = repository.redirect("lg-tv", "LG TV", listOf(item("a"), item("b")), QueueMode.PLAY, null, null)
+        val end = repository.redirect(
+            Redirected("lg-tv", "LG TV", listOf(item("a"), item("b")), QueueMode.PLAY, null, null)
+        )
 
         assertEquals(OperationEnd.Done(1), end)
         assertTrue(playedHere.isEmpty())
@@ -205,7 +207,12 @@ class TargetsRepositoryTest {
         repository.refresh("test")
         repository.select("lg-tv")
         api.queueAnswer = HomeAnswer.Ok(
-            TargetState(tv.target, entries = listOf(TargetEntry(item("a").toBackup())), at = 0, problem = "⚠️ Couldn't reach LG TV"),
+            TargetState(
+                tv.target,
+                entries = listOf(TargetEntry(item("a").toBackup())),
+                at = 0,
+                problem = "⚠️ Couldn't reach LG TV",
+            ),
         )
 
         repository.take(listOf(item("a"), item("b")), QueueMode.PLAY, null, MediaItemId("a"))

@@ -15,7 +15,10 @@ class ApiKeysTest {
             "mpv: failed to open http://j/a?api_key=*** | exit 2",
             "mpv: failed to open http://j/a?api_key=s3cr3t | exit 2".withoutApiKeys(),
         )
-        assertEquals("[http @ 0x1] HTTP error 401 at ?ApiKey=***", "[http @ 0x1] HTTP error 401 at ?ApiKey=abc".withoutApiKeys())
+        assertEquals(
+            "[http @ 0x1] HTTP error 401 at ?ApiKey=***",
+            "[http @ 0x1] HTTP error 401 at ?ApiKey=abc".withoutApiKeys()
+        )
     }
 
     @Test

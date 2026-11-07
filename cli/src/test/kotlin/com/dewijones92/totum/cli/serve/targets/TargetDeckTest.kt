@@ -264,7 +264,9 @@ class TargetDeckTest {
     @Test
     fun `skip silence is applied to talk and never to music or a book, by the same rule as the phone`() = runBlocking {
         val deck = deck()
-        deck.control(TargetControl(TargetAction.SOUND, sound = SoundSettings(skipSilence = true, boost = VolumeBoost.AUTO)))
+        deck.control(
+            TargetControl(TargetAction.SOUND, sound = SoundSettings(skipSilence = true, boost = VolumeBoost.AUTO))
+        )
         deck.enqueue(
             TargetQueueRequest(
                 listOf(item("talk"), item("song", MediaContentKind.MUSIC), item("book", MediaContentKind.AUDIOBOOK)),
@@ -318,7 +320,9 @@ class TargetDeckTest {
     fun `a request with nothing playable is refused, not answered as if it worked`() = runBlocking {
         val deck = deck()
 
-        val result = deck.enqueue(TargetQueueRequest(listOf(item("x").copy(playbackType = "VIDEO", handle = null)), QueueMode.PLAY))
+        val result = deck.enqueue(
+            TargetQueueRequest(listOf(item("x").copy(playbackType = "VIDEO", handle = null)), QueueMode.PLAY)
+        )
 
         assertTrue(result is EnqueueResult.Refused)
         assertTrue((result as EnqueueResult.Refused).why.contains("LG soundbar"))

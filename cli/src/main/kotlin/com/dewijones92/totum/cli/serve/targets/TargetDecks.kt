@@ -45,7 +45,12 @@ internal class TargetDecks(
 
     suspend fun deck(id: String): TargetDeck? {
         val found = found(fresh = false).firstOrNull { it.target.id == id }
-        if (found == null) Diag.warn("targets", "no target $id among ${known.joinToString { it.target.id }}; not scanning")
+        if (found == null) {
+            Diag.warn(
+                "targets",
+                "no target $id among ${known.joinToString { it.target.id }}; not scanning"
+            )
+        }
         return found?.let(::deckFor)
     }
 

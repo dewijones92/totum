@@ -10,8 +10,8 @@ import com.dewijones92.totum.data.home.HomeJobRequest
 import com.dewijones92.totum.data.home.HomeJobState
 import com.dewijones92.totum.data.home.HomeJobsApi
 import com.dewijones92.totum.data.home.HomeProblem
-import com.dewijones92.totum.data.targets.Requester
 import com.dewijones92.totum.data.home.PhoneDecoder
+import com.dewijones92.totum.data.targets.Requester
 import com.dewijones92.totum.domain.HomeCopy
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayHandle
@@ -96,7 +96,8 @@ class HomeDownloads(
     )
     private val phoneDownloads = downloads
     val kept: StateFlow<Set<String>> get() = phone.kept.ids
-    private val handover = SignInHandover(phone.youTubeTokens, phone.identity) { text -> notices.problem("youtube-owner", text) }
+    private val handover =
+        SignInHandover(phone.youTubeTokens, phone.identity) { text -> notices.problem("youtube-owner", text) }
     private var uploadLimitBytes = 0L
     private val wake = Channel<String>(Channel.CONFLATED)
     private val moves = HomeMoves(phone.moving) { deleteOnPhoneOnly(it) }

@@ -50,7 +50,8 @@ class CastWireTest {
         assertEquals(
             CastEvent.Status("IDLE", "CANCELLED", 0, null, contentId = "https://old"),
             CastWire.parse(
-                """{"event":"status","state":"IDLE","idle":"CANCELLED","positionMs":0,"durationMs":null,"contentId":"https://old"}"""
+                """{"event":"status","state":"IDLE","idle":"CANCELLED","positionMs":0,""" +
+                    """"durationMs":null,"contentId":"https://old"}"""
             ),
         )
         assertNull(CastWire.parse("not json"))

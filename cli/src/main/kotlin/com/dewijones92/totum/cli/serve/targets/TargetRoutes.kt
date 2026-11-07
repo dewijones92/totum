@@ -52,7 +52,10 @@ internal class TargetRoutes(private val decks: TargetDecks) : Routes {
         try {
             exchange.reply(OK, TargetsJson.encodeToString(TargetState.serializer(), act(deck, body)))
         } catch (refused: Refusal) {
-            exchange.reply(UNPROCESSABLE, """{"error":${AskJson.encodeToString(String.serializer(), refused.message)}}""")
+            exchange.reply(
+                UNPROCESSABLE,
+                """{"error":${AskJson.encodeToString(String.serializer(), refused.message)}}"""
+            )
         }
     }
 

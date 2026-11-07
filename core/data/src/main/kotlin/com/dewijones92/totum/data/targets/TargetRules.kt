@@ -6,8 +6,8 @@ import com.dewijones92.totum.data.backup.BackupItem
 import com.dewijones92.totum.data.backup.toBackup
 import com.dewijones92.totum.data.backup.toPlayable
 import com.dewijones92.totum.data.queue.QueueSnapshot
-import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.Picture
+import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.picture
 
 public val TargetState.showsPicture: Boolean
@@ -26,7 +26,8 @@ public object TargetReporting {
     }
 
     public fun why(entry: TargetEntry, signedIn: Boolean): String = when {
-        !entry.reportsToYouTube -> "not queued from the phone that signed the Pi in (added by ${entry.addedBy ?: "unknown"})"
+        !entry.reportsToYouTube ->
+            "not queued from the phone that signed the Pi in (added by ${entry.addedBy ?: "unknown"})"
         !signedIn -> "the Pi is not signed in to YouTube"
         videoIdToReport(entry, signedIn = true) == null -> "not a YouTube video"
         else -> "reported"

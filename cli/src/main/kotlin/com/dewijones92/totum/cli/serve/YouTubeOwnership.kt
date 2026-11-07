@@ -68,7 +68,8 @@ internal class YouTubeOwnership(private val file: File) {
     private fun refuse(why: String, current: Requester?, from: Requester?): Admission {
         Diag.warn(
             "home",
-            "YouTube sign-in handover refused: from=${from?.label}(${from?.id}) owner=${current?.label}(${current?.id})",
+            "YouTube sign-in handover refused: from=${from?.label}(${from?.id}) " +
+                "owner=${current?.label}(${current?.id})",
         )
         return Admission.Refused(why)
     }
