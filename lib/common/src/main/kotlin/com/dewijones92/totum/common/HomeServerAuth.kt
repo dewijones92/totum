@@ -16,6 +16,10 @@ public object HomeServerAuth {
 
     public fun homeHost(): String? = host()
 
+    public fun signedIn(): Boolean = isSignedIn(host(), token())
+
+    public fun isSignedIn(host: String?, token: String): Boolean = !host.isNullOrBlank() && token.isNotBlank()
+
     public fun headersFor(requestHost: String?): Map<String, String> {
         val home = host() ?: return emptyMap()
         if (requestHost == null || !requestHost.equals(home, ignoreCase = true)) return emptyMap()

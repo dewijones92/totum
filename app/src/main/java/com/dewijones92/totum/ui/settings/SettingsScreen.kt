@@ -291,11 +291,14 @@ private fun DiagnosticsRow(container: AppContainer) {
     val saving by diagnosticsSaving.collectAsStateWithLifecycle()
     var asking by rememberSaveable { mutableStateOf(false) }
     val fallback = stringResource(R.string.settings_diagnostics_note)
+    val appSettings by container.appPreferences.settings.collectAsStateWithLifecycle()
+    val toGitHub = !appSettings.signedInToHome()
 
     if (asking) {
-        DiagnosticsNoteDialog(
+        ReportDialog(
+            container = container,
             onDismiss = { asking = false },
-            onSend = { typed, screenshots ->
+            onSendToPi = { typed, screenshots ->
                 // The label says SAVED, not sent, and that is the whole point: it is set once the
                 // report is written, before the upload has even started, so "Diagnostics sent" was a
                 // claim the app could not possibly have checked — and offline, or on a 5xx, it
@@ -328,13 +331,16 @@ private fun DiagnosticsRow(container: AppContainer) {
                     when {
                         sent -> R.string.settings_diagnostics_sent
                         saving -> R.string.settings_diagnostics_saving
+                        toGitHub -> R.string.report_github_row
                         else -> R.string.settings_diagnostics_send
                     },
                 ),
                 style = MaterialTheme.typography.bodyLarge,
             )
             Text(
-                text = stringResource(R.string.settings_diagnostics_summary),
+                text = stringResource(
+                    if (toGitHub) R.string.report_github_row_summary else R.string.settings_diagnostics_summary
+                ),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

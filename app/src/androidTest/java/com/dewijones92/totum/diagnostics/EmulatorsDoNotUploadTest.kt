@@ -68,7 +68,8 @@ class EmulatorsDoNotUploadTest {
     private fun uploader(
         onAnEmulator: () -> Boolean = ::runningOnAnEmulator,
         underInstrumentation: () -> Boolean = ::runningUnderInstrumentation,
-    ) = DiagnosticsUploader(context, OkHttpClient(), scope, REFUSED, onAnEmulator, underInstrumentation)
+        signedIn: () -> Boolean = { true },
+    ) = DiagnosticsUploader(context, OkHttpClient(), scope, REFUSED, onAnEmulator, underInstrumentation, signedIn)
 
     /**
      * THE case. A hand-send from a test must not reach the Pi, and this uses the real detector —
@@ -129,6 +130,20 @@ class EmulatorsDoNotUploadTest {
             "the Settings button did nothing on an emulator, while the UI says Sent",
             awaitTrail("pending report"),
         )
+    }
+
+    @Test
+    fun aPhoneNotSignedInToAHomeServerKeepsItsReportsAndSendsNothing() = runBlocking {
+        aPendingReport()
+        val before = DiagnosticsStore.pending(context).toSet()
+
+        uploader(onAnEmulator = { false }, underInstrumentation = { false }, signedIn = { false }).sendDiagnosticsNow()
+
+        assertTrue(
+            "a signed-out phone did not say why it kept its report",
+            awaitTrail("not signed in to a home server"),
+        )
+        assertEquals("a signed-out phone must keep its reports", before, DiagnosticsStore.pending(context).toSet())
     }
 
     private companion object {

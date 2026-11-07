@@ -26,4 +26,21 @@ class HomeServerAuthTest {
 
         assertEquals(emptyMap<String, String>(), HomeServerAuth.headersFor("totum.home.test"))
     }
+
+    @Test
+    fun `signed in needs both a home server and a token`() {
+        assertEquals(false, HomeServerAuth.isSignedIn(null, "token"))
+        assertEquals(false, HomeServerAuth.isSignedIn("", "token"))
+        assertEquals(false, HomeServerAuth.isSignedIn("totum.home.test", ""))
+        assertEquals(false, HomeServerAuth.isSignedIn("totum.home.test", "  "))
+        assertEquals(true, HomeServerAuth.isSignedIn("totum.home.test", "token"))
+    }
+
+    @Test
+    fun `the registered sources answer signed in`() {
+        HomeServerAuth.use({ "totum.home.test" }, { "token" })
+        assertEquals(true, HomeServerAuth.signedIn())
+        HomeServerAuth.use({ "totum.home.test" }, { "" })
+        assertEquals(false, HomeServerAuth.signedIn())
+    }
 }

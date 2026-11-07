@@ -230,6 +230,12 @@ about four shortcuts per launcher, counting the dynamic pinned and recent ones, 
 the fold. Log lines: `[diagnostics] report box opened from the … `, `… dismissed without sending`, `report from the …:
 sending N chars and M screenshot(s)`, `… is saved on the phone`.
 
+## Who it goes to (2026-11-07)
+
+Only a phone signed in to a home server sends reports to the Pi (with its device token as `X-Totum-Token`); any other
+phone keeps them and offers "🐙 Report on GitHub" instead. See [licence-and-reports](licence-and-reports.md) and
+[ADR 146](../adr/0146-gpl-3-and-reports-go-to-the-pi-only-when-signed-in.md).
+
 ## A note on log volume
 
 The silence detector enters silence every few seconds during speech. Logging each one

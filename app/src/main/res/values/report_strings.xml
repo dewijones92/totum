@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="report_github_row">🐙 Report on GitHub</string>
+    <string name="report_github_row_summary">🐙 Opens a GitHub issue with what you wrote. You read exactly what it says first, and nothing is sent until you submit it there.</string>
+    <string name="report_github_note_supporting">🐙 This opens a GitHub issue you can read and edit before you submit it. Screenshots can be attached on the GitHub page.</string>
+    <string name="report_github_preview_button">👀 Preview the report</string>
+    <string name="report_github_preview_title">👀 This is what GitHub will be given</string>
+    <string name="report_github_preview_supporting">🔒 Tokens, the home server\'s address, email addresses and network addresses are removed. Nothing is sent until you press Submit on the GitHub page.</string>
+    <string name="report_github_events_title">📋 Include recent activity</string>
+    <string name="report_github_events_summary">⚠️ It can mention what you were playing.</string>
+    <plurals name="report_github_events_kept">
+        <item quantity="one">📋 %1$d line of recent activity is included.</item>
+        <item quantity="other">📋 %1$d lines of recent activity are included.</item>
+    </plurals>
+    <plurals name="report_github_events_trimmed">
+        <item quantity="one">⚠️ Only the newest %1$d of the %2$d lines fit in the link.</item>
+        <item quantity="other">⚠️ Only the newest %1$d of the %2$d lines fit in the link.</item>
+    </plurals>
+    <string name="report_github_note_cut">⚠️ Your note was too long for the link and was cut. Paste the rest on the GitHub page.</string>
+    <string name="report_github_open">🐙 Copy and open GitHub</string>
+    <string name="report_github_back">Back</string>
+    <string name="report_github_what">report</string>
+    <string name="report_github_mine">📂 My issues on GitHub</string>
+    <plurals name="report_github_earlier">
+        <item quantity="one">🕘 You opened %1$d report on GitHub from this phone:</item>
+        <item quantity="other">🕘 You opened %1$d reports on GitHub from this phone, newest first:</item>
+    </plurals>
+    <string name="report_github_earlier_line">%1$s · %2$s</string>
+</resources>

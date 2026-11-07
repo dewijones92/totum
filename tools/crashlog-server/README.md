@@ -53,6 +53,10 @@ Tests: `python -m unittest discover -s tests` from this directory (needs the pac
 
 ## Why `/ingest` is unauthenticated
 
+Since 2026-11-07 the app posts here only from a phone signed in to the home server, and sends its device token as
+`X-Totum-Token`. The server does not check it yet: requiring it means an `auth_request` in nginx (`dot-files`) and
+would reject older builds ([ADR 146](../../docs/adr/0146-gpl-3-and-reports-go-to-the-pi-only-when-signed-in.md)).
+
 The app has to post without a human present, so it can't use the Google login that
 gates everything else. A shared secret would have to ship inside the APK — and this
 repo is public, so it would be extractable and therefore not a secret. The exposure is

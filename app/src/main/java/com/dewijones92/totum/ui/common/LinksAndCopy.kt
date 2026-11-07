@@ -93,19 +93,28 @@ fun rememberLinkOpener(): (String) -> Unit {
 }
 
 @Composable
-fun rememberCopier(): (text: String, what: String) -> Unit {
+fun rememberSuspendCopier(): suspend (text: String, what: String) -> Unit {
     val clipboard = LocalClipboard.current
     val context = LocalContext.current
     val resources = LocalResources.current
-    val scope = rememberCoroutineScope()
-    return remember(clipboard, context, resources, scope) {
+    return remember(clipboard, context, resources) {
         {
                 text: String, what: String ->
-            scope.launch {
-                clipboard.setClipEntry(ClipEntry(ClipData.newPlainText(what, text)))
-                Toast.makeText(context, resources.getString(R.string.copied, what), Toast.LENGTH_SHORT).show()
-                Diag.log("ui", "copied the $what")
-            }
+            clipboard.setClipEntry(ClipEntry(ClipData.newPlainText(what, text)))
+            Toast.makeText(context, resources.getString(R.string.copied, what), Toast.LENGTH_SHORT).show()
+            Diag.log("ui", "copied the $what")
+        }
+    }
+}
+
+@Composable
+fun rememberCopier(): (text: String, what: String) -> Unit {
+    val copy = rememberSuspendCopier()
+    val scope = rememberCoroutineScope()
+    return remember(copy, scope) {
+        {
+                text: String, what: String ->
+            scope.launch { copy(text, what) }
             Unit
         }
     }

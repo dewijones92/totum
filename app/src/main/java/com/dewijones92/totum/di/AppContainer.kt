@@ -19,6 +19,7 @@ import com.dewijones92.totum.busy.BusyInterceptor
 import com.dewijones92.totum.busy.BusyYtDlpEngine
 import com.dewijones92.totum.cast.CastTarget
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.common.HomeServerAuth
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.common.PoliteGate
 import com.dewijones92.totum.common.SubtitleTrack
@@ -1401,7 +1402,14 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
 
     private fun diagnosticState(): Map<String, String> = diagnosticSnapshot.capture()
 
-    private val diagnosticsUploader by lazy { DiagnosticsUploader(context, transferClient, applicationScope) }
+    private val diagnosticsUploader by lazy {
+        DiagnosticsUploader(
+            context,
+            transferClient,
+            applicationScope,
+            deviceToken = { appPreferences.settings.value.homeServerToken },
+        )
+    }
 
     override fun sendDiagnostics(note: String, screenshots: List<EncodedScreenshot>) =
         sendDiagnostics(crashReporter, diagnosticsUploader, note, screenshots)
@@ -2104,8 +2112,14 @@ private fun announceScreens(c: DefaultAppContainer, client: OkHttpClient, contex
         c.applicationScope,
         post = { body ->
             withContext(Dispatchers.IO) {
+                if (!HomeServerAuth.signedIn()) {
+                    Diag.log("screen", "not telling the Pi where the PC screen page is: signed out of the home server")
+                    return@withContext false
+                }
                 runCatching {
-                    val request = Request.Builder().url(DIAGNOSTICS_ENDPOINT).post(body.toRequestBody(json)).build()
+                    val request = Request.Builder().url(DIAGNOSTICS_ENDPOINT)
+                        .header(HomeServerAuth.HEADER, c.appPreferences.settings.value.homeServerToken)
+                        .post(body.toRequestBody(json)).build()
                     client.newCall(request).execute().use { it.isSuccessful }
                 }.getOrElse {
                     Diag.warn("screen", "telling the Pi where the PC screen page is failed", it)
@@ -2116,6 +2130,7 @@ private fun announceScreens(c: DefaultAppContainer, client: OkHttpClient, contex
         identity = { PhoneIdentity(InstallId.get(context), thisDevice()) },
         muted = {
             when {
+                !HomeServerAuth.signedIn() -> "not signed in to a home server"
                 runningUnderInstrumentation() -> "a test run"
                 runningOnAnEmulator() -> "an emulator (its address would replace the phone's)"
                 else -> null

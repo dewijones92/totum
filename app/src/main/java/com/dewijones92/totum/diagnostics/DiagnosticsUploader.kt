@@ -3,6 +3,7 @@ package com.dewijones92.totum.diagnostics
 import android.content.Context
 import android.os.Build
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.common.HomeServerAuth
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -50,6 +51,8 @@ public class DiagnosticsUploader(
     private val endpoint: String = DIAGNOSTICS_ENDPOINT,
     private val onAnEmulator: () -> Boolean = ::runningOnAnEmulator,
     private val underInstrumentation: () -> Boolean = ::runningUnderInstrumentation,
+    private val signedIn: () -> Boolean = HomeServerAuth::signedIn,
+    private val deviceToken: () -> String = { "" },
 ) {
     /** The automatic upload at launch — suppressed on an emulator. See the class note. */
     public fun uploadPending(): Unit = upload(becauseSomeoneAsked = false)
@@ -77,6 +80,15 @@ public class DiagnosticsUploader(
                 Diag.log("diagnostics", "suppressed ${pending.size} report(s) — this is an emulator")
                 return@launch
             }
+            if (!signedIn()) {
+                Diag.log(
+                    "diagnostics",
+                    "kept ${pending.size} report(s) on the phone: not signed in to a home server, so nothing " +
+                        "is sent to one (asked by a person=$becauseSomeoneAsked); a signed-out phone reports " +
+                        "through GitHub from Settings",
+                )
+                return@launch
+            }
             val waitingKb = pending.sumOf { it.length() } / BYTES_PER_KB
             Diag.log("diagnostics", "uploading ${pending.size} pending report(s), $waitingKb KB on the phone")
             pending.forEach { file ->
@@ -93,6 +105,7 @@ public class DiagnosticsUploader(
     private fun post(body: String): Boolean {
         val request = Request.Builder()
             .url(endpoint)
+            .apply { deviceToken().takeIf { it.isNotBlank() }?.let { header(HomeServerAuth.HEADER, it) } }
             .post(body.toRequestBody(JSON))
             .build()
         return try {

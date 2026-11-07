@@ -1,6 +1,8 @@
 package com.dewijones92.totum.ui.settings
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
@@ -30,8 +32,17 @@ import com.dewijones92.totum.diagnostics.NOTE_MAX_CHARS
  * See [diagnosticsNote].
  */
 @Composable
-internal fun DiagnosticsNoteDialog(onDismiss: () -> Unit, onSend: (String, List<EncodedScreenshot>) -> Unit) {
-    var typed by rememberSaveable { mutableStateOf("") }
+@Suppress("LongParameterList")
+internal fun DiagnosticsNoteDialog(
+    onDismiss: () -> Unit,
+    onSend: (String, List<EncodedScreenshot>) -> Unit,
+    @StringRes supporting: Int = R.string.settings_diagnostics_note_supporting,
+    @StringRes confirm: Int = R.string.settings_diagnostics_send,
+    withScreenshots: Boolean = true,
+    initial: String = "",
+    extra: @Composable ColumnScope.() -> Unit = {},
+) {
+    var typed by rememberSaveable { mutableStateOf(initial) }
     val shots = rememberScreenshotPicker()
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -39,7 +50,7 @@ internal fun DiagnosticsNoteDialog(onDismiss: () -> Unit, onSend: (String, List<
         text = {
             Column {
                 Text(
-                    text = stringResource(R.string.settings_diagnostics_note_supporting),
+                    text = stringResource(supporting),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -54,12 +65,13 @@ internal fun DiagnosticsNoteDialog(onDismiss: () -> Unit, onSend: (String, List<
                     minLines = 3,
                     maxLines = 6,
                 )
-                ScreenshotPickerRow(shots)
+                if (withScreenshots) ScreenshotPickerRow(shots)
+                extra()
             }
         },
         confirmButton = {
             TextButton(enabled = !shots.preparing, onClick = { onSend(typed, shots.ready) }) {
-                Text(stringResource(R.string.settings_diagnostics_send))
+                Text(stringResource(confirm))
             }
         },
         dismissButton = {

@@ -13,7 +13,7 @@ import com.dewijones92.totum.operations.OperationEnd
 import com.dewijones92.totum.operations.OperationKind
 import com.dewijones92.totum.operations.tracking
 import com.dewijones92.totum.theme.TotumTheme
-import com.dewijones92.totum.ui.settings.DiagnosticsNoteDialog
+import com.dewijones92.totum.ui.settings.ReportDialog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -30,12 +30,13 @@ class SendReportActivity : ComponentActivity() {
         )
         setContent {
             TotumTheme {
-                DiagnosticsNoteDialog(
+                ReportDialog(
+                    container = container,
                     onDismiss = {
                         Diag.log(TAG, "report box dismissed without sending")
                         finish()
                     },
-                    onSend = { typed, screenshots ->
+                    onSendToPi = { typed, screenshots ->
                         Diag.log(
                             TAG,
                             "report from the $from: sending ${typed.length} chars and ${screenshots.size} screenshot(s)"
