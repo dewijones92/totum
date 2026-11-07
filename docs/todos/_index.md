@@ -18,10 +18,10 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [Queued tracks keep their artist](queued-tracks-keep-their-artist.md) | music/queue | medium | built 2026-11-06, Batch A (tests owed) |
 | [A live stream that hasn't started says so](live-starts-soon.md) | playback | medium | built 2026-11-06, Batch A (tests owed) |
 | [📡 The Pi plays to any TV, browser or speaker](pi-plays-everywhere.md) | casting/pi | high | built 2026-11-07, Batch A (tests owed) |
-| [A daily 🤖 For you feed](for-you-feed.md) | ai | medium | decided 2026-11-06, Batch A phase 6 |
+| [A daily 🤖 For you feed](for-you-feed.md) | ai | medium | built 2026-11-07, Batch A (tests owed) |
 | [TL;DR and chapters for long items](tldr-and-chapters.md) | ai | medium | built 2026-11-07, Batch A (tests owed) |
 | [Ask about this video](ask-about-this-video.md) | ai | medium | built 2026-11-07, Batch A (tests owed) |
-| [A morning digest of what's new](morning-digest.md) | ai | low | decided 2026-11-06, Batch A phase 6 |
+| [A morning digest of what's new](morning-digest.md) | ai | low | built 2026-11-07, Batch A (tests owed) |
 | [A spoiler shield for sport](tennis-spoiler-shield.md) | ai/video | medium | built 2026-11-07, Batch A (tests owed) |
 | [Jellyfin's films and series inside Totum](jellyfin-in-totum.md) | home | medium | built 2026-11-07, Batch A (tests owed) |
 | [Trip mode](trip-mode.md) | downloads | low | built 2026-11-07, Batch A (ADR 149; tests owed; not run on a device) |

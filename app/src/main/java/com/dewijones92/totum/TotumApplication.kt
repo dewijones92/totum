@@ -16,6 +16,7 @@ import com.dewijones92.totum.exsurge.ExsurgeEvent
 import com.dewijones92.totum.exsurge.FlatPhoneNudge
 import com.dewijones92.totum.groups.GroupNewsWorker
 import com.dewijones92.totum.jobs.BackupCheckWorker
+import com.dewijones92.totum.jobs.MorningWorker
 import com.dewijones92.totum.jobs.QueueTidyWorker
 import com.dewijones92.totum.jobs.TripWorker
 import com.dewijones92.totum.notifications.NewContentWorker
@@ -67,6 +68,7 @@ class TotumApplication : Application(), SingletonImageLoader.Factory {
         QueueTidyWorker.schedule(this)
         BackupCheckWorker.schedule(this)
         TripWorker.schedule(this)
+        MorningWorker.schedule(this)
         container.applicationScope.launch { container.groupNews.warm() }
         val metered = NetworkStatus(this)::isMetered
         container.applicationScope.launch {

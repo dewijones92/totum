@@ -123,6 +123,7 @@ private fun MainSettings(
         SkipSilenceSection(container, settings.silenceMode, prefs::setSilenceMode)
         SpeechBoostSection(container, settings.speechGate, prefs::setSpeechGate)
         DownloadSettings(settings, prefs)
+        MorningSettings(container)
         SideQuestRows(open)
         Text(
             text = stringResource(R.string.settings_subscriptions_section),

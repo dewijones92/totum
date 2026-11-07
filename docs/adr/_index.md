@@ -165,3 +165,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 154 | [Jellyfin is browsed and streamed through the Pi, with the key kept there](0154-jellyfin-is-browsed-and-streamed-through-the-pi.md) | Accepted |
 | 141 | [A spoiler shield hides results in titles, pictures and lengths, through one title seam](0141-a-spoiler-shield-hides-results-in-titles-pictures-and-lengths.md) | Accepted |
 | 142 | [TL;DR, chapters and ask about this video are one transcript digest](0142-tl-dr-chapters-and-ask-about-this-video-are-one-transcript-digest.md) | Accepted |
+| 143 | [🤖 For you and the 🌅 morning digest are one morning job](0143-for-you-and-the-morning-digest-are-one-morning-job.md) | Accepted |

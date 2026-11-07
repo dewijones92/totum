@@ -60,6 +60,8 @@ public data class Taste(
     val albums: List<String> = emptyList(),
     val songs: List<String> = emptyList(),
     val played: List<String> = emptyList(),
+    val starred: List<String> = emptyList(),
+    val liked: List<String> = emptyList(),
 )
 
 @Serializable

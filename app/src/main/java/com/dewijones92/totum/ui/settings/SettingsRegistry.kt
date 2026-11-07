@@ -224,4 +224,16 @@ internal enum class SettingsRow(
         R.string.drive_backup_section,
         keywords = "google drive restore folder",
     ),
+    MORNING_DIGEST(
+        R.string.settings_morning_digest,
+        R.string.settings_morning_section,
+        R.string.settings_morning_digest_summary,
+        "notification news groups summary daily",
+    ),
+    MORNING_FOR_YOU(
+        R.string.settings_morning_for_you,
+        R.string.settings_morning_section,
+        R.string.settings_morning_for_you_summary,
+        "recommendations suggestions picks playlist daily ai",
+    ),
 }

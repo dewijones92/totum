@@ -61,6 +61,7 @@ import com.dewijones92.totum.data.home.JellyfinClient
 import com.dewijones92.totum.data.home.TargetsClient
 import com.dewijones92.totum.data.importexport.OpmlExporter
 import com.dewijones92.totum.data.importexport.SubscriptionImportParser
+import com.dewijones92.totum.data.morning.InboxEntry
 import com.dewijones92.totum.data.net.OkHttpTextFetcher
 import com.dewijones92.totum.data.notforme.FileNotForMeStore
 import com.dewijones92.totum.data.notforme.NotForMe
@@ -137,6 +138,7 @@ import com.dewijones92.totum.domain.PlayReason
 import com.dewijones92.totum.domain.PlayState
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.ReconciledAccountProgress
+import com.dewijones92.totum.domain.SourceGroup
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.accountAwarePlayState
 import com.dewijones92.totum.domain.artworkById
@@ -840,9 +842,29 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         GroupNews(
             FileGroupNewsStore(File(context.filesDir, "group_news.json")),
             latest = latestUploads::of,
-            notify = GroupNewsNotifier(context, LiveNoticeLabels(context, liveStates, aiFeatures.spoilerShield))::notify,
+            notify = groupNewsNotify(),
             muted = { group -> group.id.value in appPreferences.settings.value.quietGroups },
         )
+    }
+
+    private fun groupNewsNotify(): (SourceGroup, MediaItem) -> Boolean {
+        val shield = aiFeatures.spoilerShield
+        val notifier = GroupNewsNotifier(context, LiveNoticeLabels(context, liveStates, shield))
+        val morning = aiFeatures.morningStore
+        return { group, item ->
+            if (morning.digestOn) {
+                val shielded = shield.face(item).shielded
+                val entry = InboxEntry(group.name, item.id.value, item.title, shielded, System.currentTimeMillis())
+                morning.addToInbox(entry)
+                Diag.log(
+                    "group",
+                    "\"${group.name}\": \"${item.title}\" goes into the morning digest, not a notification"
+                )
+                true
+            } else {
+                notifier.notify(group, item)
+            }
+        }
     }
 
     private val publishDays by lazy {
@@ -871,7 +893,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     }
 
     override val aiFeatures: AiFeatures by lazy {
-        aiFeaturesOf(this, httpClient, context.filesDir) { id -> playStatesNow.value[id]?.isPlayed == true }
+        aiFeaturesOf(this, context, httpClient, context.filesDir) { id -> playStatesNow.value[id]?.isPlayed == true }
     }
 
     override val askService: AskService? by lazy {

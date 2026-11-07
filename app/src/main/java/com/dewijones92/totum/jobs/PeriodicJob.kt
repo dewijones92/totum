@@ -26,13 +26,15 @@ class PeriodicJob(
     private val network: NetworkType,
     private val skipsUnderInstrumentation: Boolean = false,
 ) {
-    fun schedule(context: Context, worker: Class<out ListenableWorker>) {
+    fun schedule(context: Context, worker: Class<out ListenableWorker>, firstRunIn: Duration = Duration.ZERO) {
         val request = PeriodicWorkRequest.Builder(worker, interval)
             .setConstraints(Constraints.Builder().setRequiredNetworkType(network).build())
+            .setInitialDelay(firstRunIn)
             .build()
         WorkManager.getInstance(context)
             .enqueueUniquePeriodicWork(name, ExistingPeriodicWorkPolicy.KEEP, request)
-        Diag.log("jobs", "$name scheduled every ${interval.toMinutes()} min [network=$network]")
+        val timing = "every ${interval.toMinutes()} min, first in ${firstRunIn.toMinutes()} min"
+        Diag.log("jobs", "$name scheduled $timing [network=$network]")
     }
 
     suspend fun run(lastRuns: LastRuns, work: suspend () -> JobOutcome): ListenableWorker.Result {

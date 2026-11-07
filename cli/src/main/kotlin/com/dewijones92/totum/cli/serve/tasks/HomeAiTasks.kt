@@ -10,6 +10,10 @@ import com.dewijones92.totum.data.digest.TranscriptAnswer
 import com.dewijones92.totum.data.digest.TranscriptAskRequest
 import com.dewijones92.totum.data.digest.TranscriptDigest
 import com.dewijones92.totum.data.digest.TranscriptDigestRequest
+import com.dewijones92.totum.data.morning.ForYouAnswer
+import com.dewijones92.totum.data.morning.ForYouRequest
+import com.dewijones92.totum.data.morning.MorningDigestAnswer
+import com.dewijones92.totum.data.morning.MorningDigestRequest
 import com.dewijones92.totum.data.spoiler.SpoilerAnswer
 import com.dewijones92.totum.data.spoiler.SpoilerRequest
 import kotlinx.coroutines.CoroutineScope
@@ -32,7 +36,23 @@ internal class HomeAiTasks(private val runner: AiTaskRunner) {
             TranscriptAnswer.serializer(),
             ::transcriptAnswer,
         ),
+        AiTasks.FOR_YOU to task(ForYouRequest.serializer(), ForYouAnswer.serializer(), ::forYou),
+        AiTasks.MORNING_DIGEST to task(
+            MorningDigestRequest.serializer(),
+            MorningDigestAnswer.serializer(),
+            ::morningDigest,
+        ),
     )
+
+    private suspend fun forYou(request: ForYouRequest): ForYouAnswer {
+        val raw = runner.run(MorningPrompts.forYouPrompt(request), ForYouAnswer.serializer())
+        return MorningPrompts.enforcedForYou(request, raw)
+    }
+
+    private suspend fun morningDigest(request: MorningDigestRequest): MorningDigestAnswer {
+        val raw = runner.run(MorningPrompts.digestPrompt(request), MorningDigestAnswer.serializer())
+        return MorningPrompts.enforcedDigest(request, raw)
+    }
 
     private suspend fun transcriptDigest(request: TranscriptDigestRequest): TranscriptDigest {
         val raw = runner.run(TranscriptPrompts.digestPrompt(request), TranscriptDigest.serializer())

@@ -20,6 +20,7 @@ import com.dewijones92.totum.data.ask.SavedChat
 import com.dewijones92.totum.data.ask.SavedTurn
 import com.dewijones92.totum.data.ask.Taste
 import com.dewijones92.totum.data.ask.keeping
+import com.dewijones92.totum.data.ask.tasteOf
 import com.dewijones92.totum.data.ask.vetRequest
 import com.dewijones92.totum.data.notforme.NotForMe
 import com.dewijones92.totum.data.podcast.subscribedSources

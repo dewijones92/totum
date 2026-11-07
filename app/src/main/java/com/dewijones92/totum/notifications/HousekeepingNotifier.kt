@@ -68,6 +68,7 @@ class HousekeepingNotifier(private val context: Context) {
     companion object {
         const val TIDY_ID = 4301
         const val BACKUP_CHECK_ID = 4302
+        const val MORNING_ID = 4303
         private const val CHANNEL_ID = "housekeeping"
     }
 }
