@@ -13,6 +13,11 @@ def say(**event):
     sys.stdout.flush()
 
 
+def now_of(status):
+    adjusted = getattr(status, "adjusted_current_time", None)
+    return adjusted if adjusted is not None else status.current_time
+
+
 class Listener:
     def __init__(self, cast):
         self.cast = cast
@@ -22,7 +27,7 @@ class Listener:
             event="status",
             state=status.player_state,
             idle=status.idle_reason,
-            positionMs=int((status.current_time or 0) * MS),
+            positionMs=int((now_of(status) or 0) * MS),
             durationMs=int(status.duration * MS) if status.duration else None,
             contentId=status.content_id,
         )

@@ -237,8 +237,8 @@ internal class TargetDeck(
     private suspend fun reportProgress(finished: Boolean) {
         val index = queue.currentIndex
         val entry = state().entries.getOrNull(index) ?: return
-        val position = (player.positionMs ?: 0)
         val duration = player.durationMs ?: entry.item.durationMs
+        val position = if (finished && duration != null) duration else (player.positionMs ?: 0)
         val videoId = TargetReporting.videoIdToReport(entry, signedIn = true)
         Diag.log(
             "targets",

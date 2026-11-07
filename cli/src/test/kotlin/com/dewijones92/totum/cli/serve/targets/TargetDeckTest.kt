@@ -49,7 +49,7 @@ class TargetDeckTest {
         }
         override val volumePercent: Int? get() = vol
         override fun stop() { stopped = true }
-        override val positionMs: Long? = 1_000
+        override var positionMs: Long? = 1_000
         override val durationMs: Long? = 60_000
         override var onEnded: (failed: Boolean) -> Unit = {}
     }
@@ -236,13 +236,24 @@ class TargetDeckTest {
     }
 
     @Test
+    fun `an item that played to its end is reported at its length, not at a finished TV's 0`() = runBlocking {
+        val deck = deck(TargetKind.TV)
+        deck.enqueue(TargetQueueRequest(listOf(youtube("aaaaaaaaaaa")), QueueMode.REPLACE, from = owner))
+        player.positionMs = 0
+
+        deck.ended(failed = false)
+
+        assertEquals(listOf("aaaaaaaaaaa@60000 finished=true"), reported)
+    }
+
+    @Test
     fun `progress of an item the owner queued is reported when it ends, one the wife queued is not`() = runBlocking {
         val deck = deck(TargetKind.TV)
         deck.enqueue(
             TargetQueueRequest(listOf(youtube("aaaaaaaaaaa")), QueueMode.REPLACE, from = owner)
         )
         deck.ended(failed = false)
-        assertEquals(listOf("aaaaaaaaaaa@1000 finished=true"), reported)
+        assertEquals(listOf("aaaaaaaaaaa@60000 finished=true"), reported)
 
         reported.clear()
         deck.enqueue(TargetQueueRequest(listOf(youtube("bbbbbbbbbbb")), QueueMode.REPLACE, from = wife))
