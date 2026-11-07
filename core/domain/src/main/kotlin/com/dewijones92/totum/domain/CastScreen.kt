@@ -1,22 +1,17 @@
 package com.dewijones92.totum.domain
 
-public enum class VideoCodecFamily {
-    AV1,
-    VP9,
-    HEVC,
-    AVC,
+public enum class VideoCodecFamily(public val prefixes: List<String>) {
+    AVC(listOf("avc", "h264")),
+    HEVC(listOf("hev", "hvc", "h265")),
+    VP9(listOf("vp9", "vp09")),
+    VP8(listOf("vp8", "vp08")),
+    AV1(listOf("av01", "av1")),
     ;
 
     public companion object {
         public fun of(codec: String?): VideoCodecFamily? {
             val c = codec?.lowercase()?.trim() ?: return null
-            return when {
-                c.startsWith("av01") || c == "av1" -> AV1
-                c.startsWith("vp09") || c == "vp9" -> VP9
-                c.startsWith("hev1") || c.startsWith("hvc1") || c == "hevc" -> HEVC
-                c.startsWith("avc1") || c.startsWith("avc3") || c == "h264" -> AVC
-                else -> null
-            }
+            return entries.firstOrNull { family -> family.prefixes.any(c::startsWith) }
         }
     }
 }
@@ -31,7 +26,7 @@ public data class CastScreen(
     public fun maxHeightOf(family: VideoCodecFamily): Int = minOf(maxHeight, codecHeights[family] ?: maxHeight)
 
     public fun canDecode(codec: String?, height: Int?): Boolean {
-        val family = VideoCodecFamily.of(codec) ?: return true
+        val family = VideoCodecFamily.of(codec)?.takeIf { it in PREFERRED } ?: return true
         return family in codecs && (height == null || height <= maxHeightOf(family))
     }
 
@@ -63,7 +58,7 @@ public data class CastScreen(
         private val LG_2020_ON = Regex("""^(OLED|QNED|NANO)\d{2}[A-Z]\d""", RegexOption.IGNORE_CASE)
 
         public fun rank(codec: String?): Int =
-            VideoCodecFamily.of(codec)?.let { PREFERRED.indexOf(it) } ?: Int.MAX_VALUE
+            VideoCodecFamily.of(codec)?.let { PREFERRED.indexOf(it) }?.takeIf { it >= 0 } ?: Int.MAX_VALUE
 
         public fun of(modelName: String?): CastScreen {
             val model = modelName?.trim().orEmpty()

@@ -1,6 +1,7 @@
 package com.dewijones92.totum.video
 
 import com.dewijones92.totum.data.home.PhoneDecoder
+import com.dewijones92.totum.domain.VideoCodecFamily
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

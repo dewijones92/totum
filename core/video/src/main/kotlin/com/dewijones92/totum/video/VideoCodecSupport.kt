@@ -1,6 +1,7 @@
 package com.dewijones92.totum.video
 
 import com.dewijones92.totum.domain.CastScreen
+import com.dewijones92.totum.domain.VideoCodecFamily
 
 /**
  * Whether this device can actually decode a given video stream.
@@ -58,22 +59,6 @@ internal fun String?.codecPreference(hardware: Boolean = false): Int {
     }
     // Anything in hardware beats anything that is not, whatever the codec.
     return if (hardware) rank else SOFTWARE_PENALTY + rank
-}
-
-enum class VideoCodecFamily(val prefixes: List<String>) {
-    AVC(listOf("avc", "h264")),
-    HEVC(listOf("hev", "hvc", "h265")),
-    VP9(listOf("vp9", "vp09")),
-    VP8(listOf("vp8", "vp08")),
-    AV1(listOf("av01", "av1")),
-    ;
-
-    companion object {
-        fun of(codec: String?): VideoCodecFamily? {
-            val c = codec?.lowercase() ?: return null
-            return entries.firstOrNull { family -> family.prefixes.any(c::startsWith) }
-        }
-    }
 }
 
 fun VideoCodecSupport.codecsToAvoid(height: Int?): List<String> {
