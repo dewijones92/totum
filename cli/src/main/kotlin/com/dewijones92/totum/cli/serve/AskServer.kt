@@ -30,6 +30,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Semaphore
@@ -56,6 +57,7 @@ internal class AskServer(
     private val scope: CoroutineScope,
     private val home: HomeRoutes? = null,
     private val more: List<Routes> = emptyList(),
+    private val ask: suspend (AskRequest) -> AskAnswer = { brain.suggest(it) },
     private val clock: () -> Long = System::currentTimeMillis,
     private val newId: () -> String = { UUID.randomUUID().toString() },
     concurrent: Int = CONCURRENT,
@@ -91,7 +93,7 @@ internal class AskServer(
         val method = exchange.requestMethod
         when {
             method == "GET" && path == "/health" -> exchange.reply(OK, healthJson())
-            method == "POST" && path == "/ask" -> start(exchange, "ask", AskRequest.serializer()) { brain.suggest(it) }
+            method == "POST" && path == "/ask" -> start(exchange, "ask", AskRequest.serializer()) { ask(it) }
             method == "POST" && path == "/vet" -> start(exchange, "vet", VetRequest.serializer()) { brain.vet(it) }
             method == "GET" && path.startsWith("/job/") -> job(exchange, path.removePrefix("/job/"))
             home != null && home.handles(path) -> home.handle(exchange, method, path)
@@ -193,7 +195,20 @@ internal suspend fun serveAsk(port: Int, out: (String) -> Unit): Int = coroutine
         health = health,
     )
     val speakers = SpeakerDecks(File(home.dataDir, "speakers"), this, SpeakerSounds(home::soundOf))
-    AskServer(brain, this, HomeRoutes(home), listOf(SpeakerRoutes(speakers))).start(port)
+    val states = AskStates()
+    launch {
+        while (true) {
+            delay(STATE_SWEEP_MS)
+            states.prune()
+        }
+    }
+    AskServer(
+        brain,
+        this,
+        HomeRoutes(home),
+        listOf(SpeakerRoutes(speakers), AskStateRoutes(states)),
+        ask = RoutedAsk(brain, states)::answer,
+    ).start(port)
     out("totum serve: listening on $port")
     awaitCancellation()
 }
@@ -305,6 +320,7 @@ internal suspend fun aiServe(port: Int, out: (String) -> Unit): Int {
 }
 
 private const val AI_READ_TIMEOUT_S = 330L
+private const val STATE_SWEEP_MS = 60_000L
 private const val AI_HEALTH_TIMEOUT_S = 5L
 
 internal fun sidecars(files: List<String>, out: (String) -> Unit): Int {

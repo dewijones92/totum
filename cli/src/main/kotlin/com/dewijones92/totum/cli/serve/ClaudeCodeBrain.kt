@@ -3,6 +3,7 @@ package com.dewijones92.totum.cli.serve
 import com.dewijones92.totum.cli.BuildInfo
 import com.dewijones92.totum.cli.serve.ai.CallerTools
 import com.dewijones92.totum.cli.serve.ai.ClaudeCodeCompleter
+import com.dewijones92.totum.cli.serve.ai.Completed
 import com.dewijones92.totum.cli.serve.ai.Completer
 import com.dewijones92.totum.cli.serve.ai.Completion
 import com.dewijones92.totum.cli.serve.ai.ProblemReport
@@ -12,6 +13,7 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.ask.AskAnswer
 import com.dewijones92.totum.data.ask.AskJson
 import com.dewijones92.totum.data.ask.AskRequest
+import com.dewijones92.totum.data.ask.AskTurn
 import com.dewijones92.totum.data.ask.VetAnswer
 import com.dewijones92.totum.data.ask.VetRequest
 import com.dewijones92.totum.data.ask.tidied
@@ -66,6 +68,39 @@ internal class PromptBrain(private val completer: Completer, private val service
         FilePlan.serializer(),
     )
 
+    override suspend fun route(turns: List<AskTurn>): RouteDecision {
+        val answer = askDetailed(
+            CallerTools.ASK_ROUTE,
+            "route",
+            StatePrompts.ROUTE_SYSTEM,
+            StatePrompts.routeMessage(turns),
+            StatePrompts.ROUTE_SCHEMA,
+            tools = "",
+            RouteAnswer.serializer(),
+        ).first
+        return RouteDecision(
+            answer.route,
+            answer.appQuestion.trim(),
+            answer.webQuestion.trim(),
+            answer.webNeedsAppData,
+            answer.why
+        )
+    }
+
+    override suspend fun answerFromApp(question: String, earlier: List<AskTurn>, state: StoredState): AppReply {
+        val (answer, completed) = askDetailed(
+            CallerTools.ASK_STATE,
+            "state",
+            StatePrompts.STATE_SYSTEM,
+            StatePrompts.stateMessage(question, earlier, state.schema),
+            StatePrompts.STATE_SCHEMA,
+            tools = "Bash(jq:*)",
+            StateAnswer.serializer(),
+            files = mapOf(STATE_FILE to state.state),
+        )
+        return AppReply(answer.reply, answer.cards, completed.toolCalls, completed.denied)
+    }
+
     @Suppress("LongParameterList")
     private suspend fun <T> ask(
         caller: String,
@@ -75,7 +110,19 @@ internal class PromptBrain(private val completer: Completer, private val service
         schema: String,
         tools: String,
         serializer: KSerializer<T>,
-    ): T {
+    ): T = askDetailed(caller, what, system, message, schema, tools, serializer).first
+
+    @Suppress("LongParameterList")
+    private suspend fun <T> askDetailed(
+        caller: String,
+        what: String,
+        system: String,
+        message: String,
+        schema: String,
+        tools: String,
+        serializer: KSerializer<T>,
+        files: Map<String, String> = emptyMap(),
+    ): Pair<T, Completed> {
         var last: BrainFailure? = null
         repeat(ATTEMPTS) { attempt ->
             try {
@@ -89,8 +136,10 @@ internal class PromptBrain(private val completer: Completer, private val service
                     version = BuildInfo.VERSION,
                     requestId = UUID.randomUUID().toString(),
                     meta = mapOf("attempt" to "${attempt + 1}", "service" to service),
+                    files = files,
                 )
-                return decoded(serializer, completer.complete(call))
+                val completed = completer.completeDetailed(call)
+                return decoded(serializer, completed.structured) to completed
             } catch (e: NotRetried) {
                 Diag.warn("ask", "$what as $caller: not retrying: ${e.message}")
                 throw e
@@ -120,9 +169,10 @@ internal class PromptBrain(private val completer: Completer, private val service
 
 internal data class ProcessResult(val exitCode: Int, val stdout: String, val stderr: String, val timedOut: Boolean)
 
-internal fun runProcess(args: List<String>, timeoutMs: Long): ProcessResult {
+internal fun runProcess(args: List<String>, timeoutMs: Long, directory: File? = null): ProcessResult {
     val process = ProcessBuilder(args)
         .redirectInput(ProcessBuilder.Redirect.from(File("/dev/null")))
+        .apply { directory?.let { directory(it) } }
         .start()
     var out = ""
     var err = ""

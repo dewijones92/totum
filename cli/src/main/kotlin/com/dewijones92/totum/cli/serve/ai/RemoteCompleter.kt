@@ -17,7 +17,9 @@ import java.io.IOException
 
 internal class RemoteCompleter(private val base: String, private val http: OkHttpClient) : Completer {
 
-    override suspend fun complete(completion: Completion): JsonObject = withContext(Dispatchers.IO) {
+    override suspend fun complete(completion: Completion): JsonObject = completeDetailed(completion).structured
+
+    override suspend fun completeDetailed(completion: Completion): Completed = withContext(Dispatchers.IO) {
         val request = Request.Builder()
             .url(base.trimEnd('/') + "/complete")
             .post(AskJson.encodeToString(Completion.serializer(), completion).toRequestBody(JSON))
@@ -28,7 +30,7 @@ internal class RemoteCompleter(private val base: String, private val http: OkHtt
             throw BrainFailure("the AI service could not be reached: ${failure.message}", failure)
         }
         when (code) {
-            OK -> runCatching { AskJson.decodeFromString(Completed.serializer(), body).structured }
+            OK -> runCatching { AskJson.decodeFromString(Completed.serializer(), body) }
                 .getOrElse { throw BrainFailure("the AI service answered something unreadable") }
             NOT_SIGNED_IN -> throw NotSignedIn()
             FORBIDDEN -> throw CallerRefused(refusalIn(body))

@@ -16,6 +16,7 @@ internal class CallerTools(private val allowed: Map<String, Set<String>>) {
         const val ASK = "ask"
         const val VET = "vet"
         const val FILE = "file"
+        const val ASK_ROUTE = "ask-route"
         const val ASK_STATE = "ask-state"
         const val FOR_YOU = "for-you"
         const val DIGEST = "digest"
@@ -27,6 +28,7 @@ internal class CallerTools(private val allowed: Map<String, Set<String>>) {
                 ASK to setOf("WebSearch", "WebFetch"),
                 VET to emptySet(),
                 FILE to setOf("WebSearch"),
+                ASK_ROUTE to emptySet(),
                 ASK_STATE to setOf("Bash(jq:*)"),
                 FOR_YOU to emptySet(),
                 DIGEST to emptySet(),
@@ -54,6 +56,9 @@ internal class CallerTools(private val allowed: Map<String, Set<String>>) {
             found += current.toString()
             return found.map { it.trim() }.filter { it.isNotEmpty() }.toSet()
         }
+
+        fun namesOf(tools: String): String =
+            toolsOf(tools).map { it.substringBefore('(') }.distinct().joinToString(",")
 
         fun describe(tools: Set<String>): String = if (tools.isEmpty()) "no tools" else tools.sorted().joinToString()
     }

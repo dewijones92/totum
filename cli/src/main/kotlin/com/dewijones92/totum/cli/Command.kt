@@ -26,6 +26,13 @@ internal sealed interface Command {
 
     data class Sidecars(val files: List<String>) : Command
 
+    data class AskStateCheck(
+        val backup: String,
+        val questions: List<String>,
+        val events: String?,
+        val packOut: String?,
+    ) : Command
+
     data class FileCheck(
         val listing: String,
         val samples: Int,
@@ -80,6 +87,7 @@ private fun homeServer(name: String, rest: List<String>, flags: Set<String>): Co
     "ai-serve" -> Command.AiServe(portFrom(flags, AI_PORT))
     "sidecars" -> Command.Sidecars(rest)
     "file-check" -> fileCheck(rest, flags)
+    "ask-state-check" -> askStateCheck(rest, flags)
     else -> null
 }
 
@@ -118,6 +126,16 @@ private fun fileCheck(rest: List<String>, flags: Set<String>): Command {
         "--rules" in flags,
         flags.firstOrNull { it.startsWith("--out=") }?.removePrefix("--out="),
         flags.filter { it.startsWith("--try=") }.map { it.removePrefix("--try=") },
+    )
+}
+
+private fun askStateCheck(rest: List<String>, flags: Set<String>): Command {
+    val backup = rest.firstOrNull() ?: return Command.Help("ask-state-check needs a backup file")
+    return Command.AskStateCheck(
+        backup,
+        rest.drop(1),
+        flags.firstOrNull { it.startsWith("--events=") }?.removePrefix("--events="),
+        flags.firstOrNull { it.startsWith("--pack-out=") }?.removePrefix("--pack-out="),
     )
 }
 

@@ -68,14 +68,15 @@ internal class AiServer(
         Diag.log(
             "ai",
             "${completion.caller} ${completion.version ?: "(no version)"} asks for ${completion.what} " +
-                "[request ${completion.requestId ?: "-"}] tools=\"${completion.tools}\" meta=${completion.meta}",
+                "[request ${completion.requestId ?: "-"}] tools=\"${completion.tools}\" meta=${completion.meta} " +
+                "files=${completion.files.mapValues { it.value.length }}",
         )
         val (code, body) = runBlocking {
             permits.withPermit {
                 try {
-                    val structured = completer.complete(completion)
+                    val completed = completer.completeDetailed(completion)
                     signedIn = true
-                    OK to AskJson.encodeToString(Completed.serializer(), Completed(structured))
+                    OK to AskJson.encodeToString(Completed.serializer(), completed)
                 } catch (e: NotSignedIn) {
                     signedIn = false
                     NOT_SIGNED_IN to error(e.message)

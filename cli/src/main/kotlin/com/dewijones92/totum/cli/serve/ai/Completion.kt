@@ -14,6 +14,7 @@ data class Completion(
     val version: String? = null,
     val requestId: String? = null,
     val meta: Map<String, String> = emptyMap(),
+    val files: Map<String, String> = emptyMap(),
 )
 
 fun callerProblem(caller: String, what: String): String? = when {
@@ -27,7 +28,7 @@ fun callerProblem(caller: String, what: String): String? = when {
 private val CALLER_TAG = Regex("[a-z0-9][a-z0-9-]{1,39}")
 
 @Serializable
-data class Completed(val structured: JsonObject)
+data class Completed(val structured: JsonObject, val toolCalls: Int = 0, val denied: Int = 0)
 
 @Serializable
 data class ProblemReport(
@@ -40,6 +41,8 @@ data class ProblemReport(
 
 internal interface Completer {
     suspend fun complete(completion: Completion): JsonObject
+
+    suspend fun completeDetailed(completion: Completion): Completed = Completed(complete(completion))
 
     suspend fun report(problem: ProblemReport) = Unit
 }
@@ -59,4 +62,5 @@ data class UsageRecord(
     val version: String? = null,
     val requestId: String? = null,
     val meta: Map<String, String> = emptyMap(),
+    val toolCalls: Long? = null,
 )
