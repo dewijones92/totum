@@ -8,6 +8,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.domain.Refusal
@@ -27,6 +28,7 @@ fun RefusedTapToasts(queue: PlaybackQueue, signedIn: Boolean) {
     val liveStates = LocalLiveStates.current
     val offers by rememberUpdatedState(LocalSnackbarOffers.current)
     val actions by rememberUpdatedState(LocalItemActions.current)
+    val listenLabel by rememberUpdatedState(stringResource(R.string.play_audio_only))
     LaunchedEffect(queue) {
         queue.refusedTaps.collect { tap ->
             val message = context.refusalMessage(
@@ -39,7 +41,7 @@ fun RefusedTapToasts(queue: PlaybackQueue, signedIn: Boolean) {
             val shell = offers
             if (listen != null && shell != null && rows != null) {
                 Diag.log("ui", "snackbar with 🎧 Listen: $message")
-                shell.offer(message, context.getString(R.string.play_audio_only), "listen", SnackbarDuration.Long) {
+                shell.offer(message, listenLabel, "listen", SnackbarDuration.Long) {
                     Diag.log("listen", "🎧 Listen tapped on the failure of ${listen.item.id.value}")
                     rows.switchMode(listen.item)
                 }
