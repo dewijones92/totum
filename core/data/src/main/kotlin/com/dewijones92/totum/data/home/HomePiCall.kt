@@ -53,11 +53,15 @@ public class HomePiCall(
 
     public companion object {
         public fun emojiLed(reason: String): String {
-            val first = reason.trim().codePointAt(0)
-            return if (first < ASCII || Character.isLetterOrDigit(first)) "❌ ${reason.trim()}" else reason.trim()
+            val text = reason.trim()
+            val first = text.codePointAt(0)
+            val drawnAsEmoji = text.getOrNull(Character.charCount(first)) == VARIATION_SELECTOR_16
+            val plainWord = first < ASCII || Character.isLetterOrDigit(first) && !drawnAsEmoji
+            return if (plainWord) "❌ $text" else text
         }
 
         private const val ASCII = 128
+        private const val VARIATION_SELECTOR_16 = '️'
         public const val NOT_SIGNED_IN: String = "❌ Not signed in to the home server"
         private const val DEFAULT_TAG = "home"
         private const val LOGGED = 200
