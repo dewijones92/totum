@@ -40,7 +40,6 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.style.Hyphens
 import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
 import com.dewijones92.totum.common.HttpUrl
@@ -204,7 +203,7 @@ private fun NowPlayingText(state: PlaybackState, starting: Starting?, modifier: 
             if (starting == null) LiveBadge(state.itemId, state.contentKind, Modifier.padding(end = 6.dp))
             Text(
                 text = starting?.title ?: state.title,
-                style = MaterialTheme.typography.titleSmall.copy(hyphens = Hyphens.None),
+                style = MaterialTheme.typography.titleSmall,
                 modifier = Modifier.weight(1f, fill = false),
             )
         }
@@ -220,7 +219,7 @@ private fun NowPlayingText(state: PlaybackState, starting: Starting?, modifier: 
         state.artist?.let { artist ->
             Text(
                 text = artist,
-                style = MaterialTheme.typography.bodySmall.copy(hyphens = Hyphens.None),
+                style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
