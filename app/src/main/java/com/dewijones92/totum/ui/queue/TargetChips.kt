@@ -35,15 +35,21 @@ internal fun Long.asColour(): Color = Color(toInt())
 internal fun Target.chipLabel(): String = "${kind.label.substringBefore(' ')} $label"
 
 @Composable
-fun TargetChips(targets: TargetsRepository, modifier: Modifier = Modifier) {
+fun WatchTargetsWhileShown(targets: TargetsRepository) {
     if (!targets.available) return
-    val states by targets.targets.collectAsStateWithLifecycle()
-    val selected by targets.selected.collectAsStateWithLifecycle()
-    val colours by targets.colours.collectAsStateWithLifecycle()
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     LaunchedEffect(targets, lifecycle) {
         lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) { targets.watchWhile() }
     }
+}
+
+@Composable
+fun TargetChips(targets: TargetsRepository, modifier: Modifier = Modifier, watching: Boolean = true) {
+    if (!targets.available) return
+    val states by targets.targets.collectAsStateWithLifecycle()
+    val selected by targets.selected.collectAsStateWithLifecycle()
+    val colours by targets.colours.collectAsStateWithLifecycle()
+    if (watching) WatchTargetsWhileShown(targets)
     if (states.isEmpty()) return
     val inUse = states.filter { it.entries.isNotEmpty() || it.target.id == selected }.map { it.target }
     val idle = states.map { it.target } - inUse.toSet()

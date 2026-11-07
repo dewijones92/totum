@@ -4,7 +4,6 @@ import android.content.Context
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -20,7 +19,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -66,7 +64,6 @@ import com.dewijones92.totum.ui.common.CollapsingTitle
 import com.dewijones92.totum.ui.common.CountRecompositions
 import com.dewijones92.totum.ui.common.EmptyState
 import com.dewijones92.totum.ui.common.EqualiserSize
-import com.dewijones92.totum.ui.common.ExploreToggle
 import com.dewijones92.totum.ui.common.FilterField
 import com.dewijones92.totum.ui.common.FilterToggle
 import com.dewijones92.totum.ui.common.ListFilter
@@ -81,7 +78,6 @@ import com.dewijones92.totum.ui.common.SelectableMediaList
 import com.dewijones92.totum.ui.common.Selection
 import com.dewijones92.totum.ui.common.ShuffleAsk
 import com.dewijones92.totum.ui.common.SortControl
-import com.dewijones92.totum.ui.common.SwitchListeningButton
 import com.dewijones92.totum.ui.common.downloadStateOf
 import com.dewijones92.totum.ui.common.filter
 import com.dewijones92.totum.ui.common.filteredByItems
@@ -107,7 +103,11 @@ import sh.calvin.reorderable.ReorderableLazyListState
  * structure, dragging an entry out simply splits the run — nothing to repair.
  */
 @Composable
-internal fun PhoneQueue(container: AppContainer, modifier: Modifier = Modifier) {
+internal fun PhoneQueue(
+    container: AppContainer,
+    modifier: Modifier = Modifier,
+    above: @Composable () -> Unit = {},
+) {
     val queue = container.playbackQueue
     val snapshot by queue.state.collectAsStateWithLifecycle()
     CountRecompositions("queue")
@@ -133,6 +133,11 @@ internal fun PhoneQueue(container: AppContainer, modifier: Modifier = Modifier) 
     val groupIds = remember(entries) { entries.mapNotNullTo(linkedSetOf()) { it.group?.id } }
     val jump = rememberJumpToPlaying(listState, snapshot, collapsedGroups) { collapsedGroups = it }
 
+    val aboveRows: @Composable () -> Unit = {
+        above()
+        if (entries.isNotEmpty()) QueueOfflineSummary(container, entries, downloads, queueFilters)
+    }
+
     Box(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
             QueueHeader(
@@ -152,9 +157,9 @@ internal fun PhoneQueue(container: AppContainer, modifier: Modifier = Modifier) 
                 },
             )
             if (entries.isEmpty()) {
+                aboveRows()
                 EmptyQueue()
             } else {
-                QueueOfflineSummary(container, entries, downloads, queueFilters)
                 val actions = rememberQueueActions(
                     container = container,
                     queue = queue,
@@ -168,7 +173,7 @@ internal fun PhoneQueue(container: AppContainer, modifier: Modifier = Modifier) 
                 val reorder = rememberQueueReorder(listState, queue, actions.dragSession) { snapshot }
                 FilterableQueue(
                     listFilter, entries, container, snapshot.currentIndex, isPlaying, progress, listState,
-                    reorder, actions, queueFilters.value,
+                    reorder, actions, queueFilters.value, aboveRows,
                 )
             }
         }
@@ -443,6 +448,7 @@ private fun FilterableQueue(
     reorder: ReorderableLazyListState,
     actions: QueueActions,
     filters: ItemFilters = ItemFilters(),
+    above: @Composable () -> Unit = {},
 ) {
     val indexed = remember(entries) { entries.withIndex().toList() }
     val matches = listFilter.filter(
@@ -484,7 +490,7 @@ private fun FilterableQueue(
                     )
                 }
                 LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
-                    item(key = QUEUE_TOP_KEY) { Spacer(Modifier.height(0.dp)) }
+                    item(key = QUEUE_TOP_KEY) { above() }
                     itemsWithGroupHeaders(
                         layout = layout,
                         availability = availability,
@@ -495,9 +501,13 @@ private fun FilterableQueue(
                 }
             }
         } else if (matches.isEmpty()) {
-            NoFilterMatches(listFilter.query)
+            Column {
+                above()
+                NoFilterMatches(listFilter.query)
+            }
         } else {
             LazyColumn(Modifier.fillMaxSize()) {
+                item(key = QUEUE_TOP_KEY) { above() }
                 items(matches, key = { it.value.item.item.id.value }) { (index, entry) ->
                     QueueRow(entry, index, entries, nowPlaying, availability, drag = null, actions = actions)
                 }
@@ -627,13 +637,12 @@ private fun QueueHeader(
             )
         }
         onJump?.let { JumpToPlayingButton(it) }
-        if (groups.first.isNotEmpty()) CollapseAllButton(groups.first.all { it in groups.second }, onCollapseAll)
-        SwitchListeningButton("queue header")
-        ExploreToggle("queue header")
         onShuffle?.let { QueueShuffleButton(it, onShuffleGroups) }
-        if (count > 0) {
-            TextButton(onClick = onClear) { Text(stringResource(R.string.queue_clear_all)) }
-        }
+        QueueHeaderMenu(
+            allCollapsed = groups.first.takeIf { it.isNotEmpty() }?.let { ids -> ids.all { it in groups.second } },
+            onCollapseAll = onCollapseAll,
+            onClear = onClear.takeIf { count > 0 },
+        )
     }
 }
 

@@ -3,8 +3,6 @@ package com.dewijones92.totum.ui.queue
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MyLocation
-import androidx.compose.material.icons.filled.UnfoldLess
-import androidx.compose.material.icons.filled.UnfoldMore
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
@@ -87,18 +85,6 @@ internal fun rememberJumpToPlaying(
 internal fun JumpToPlayingButton(onClick: () -> Unit) {
     IconButton(onClick = onClick, modifier = Modifier.testTag(JUMP_TO_PLAYING_TAG)) {
         Icon(Icons.Filled.MyLocation, contentDescription = stringResource(R.string.queue_jump_to_playing))
-    }
-}
-
-@Composable
-internal fun CollapseAllButton(allCollapsed: Boolean, onClick: () -> Unit) {
-    IconButton(onClick = onClick, modifier = Modifier.testTag(COLLAPSE_ALL_TAG)) {
-        Icon(
-            if (allCollapsed) Icons.Filled.UnfoldMore else Icons.Filled.UnfoldLess,
-            contentDescription = stringResource(
-                if (allCollapsed) R.string.queue_expand_all else R.string.queue_collapse_all
-            ),
-        )
     }
 }
 

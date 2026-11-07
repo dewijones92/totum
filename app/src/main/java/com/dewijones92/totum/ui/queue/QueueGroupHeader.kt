@@ -263,10 +263,14 @@ private fun GroupMenu(model: GroupHeaderModel, actions: GroupHeaderActions) {
 }
 
 @Composable
-private fun MenuItem(label: Int, close: () -> Unit, action: () -> Unit) = MenuItem(stringResource(label), close, action)
+internal fun MenuItem(label: Int, close: () -> Unit, action: () -> Unit) = MenuItem(
+    stringResource(label),
+    close,
+    action
+)
 
 @Composable
-private fun MenuItem(label: String, close: () -> Unit, action: () -> Unit) {
+internal fun MenuItem(label: String, close: () -> Unit, action: () -> Unit) {
     DropdownMenuItem(text = { Text(label) }, onClick = {
         close()
         action()
