@@ -7,6 +7,11 @@ import com.dewijones92.totum.data.backup.toBackup
 import com.dewijones92.totum.data.backup.toPlayable
 import com.dewijones92.totum.data.queue.QueueSnapshot
 import com.dewijones92.totum.domain.PlayHandle
+import com.dewijones92.totum.domain.Picture
+import com.dewijones92.totum.domain.picture
+
+public val TargetState.showsPicture: Boolean
+    get() = target.kind.hasPicture && current?.toQueueEntry()?.item?.picture.let { it != null && it != Picture.NO }
 
 public object TargetReporting {
 

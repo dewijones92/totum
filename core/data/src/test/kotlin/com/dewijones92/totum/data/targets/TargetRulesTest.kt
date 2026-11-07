@@ -176,4 +176,20 @@ class TargetRulesTest {
         )
         assertEquals(state, back)
     }
+
+    @Test
+    fun `a target shows a picture only when its kind has one and what plays is not plain sound`() {
+        val tv = Target("tv", "LG TV", TargetKind.TV)
+        val speaker = Target("bar", "Soundbar")
+        fun state(target: Target, item: PlayableItem?) = TargetState(
+            target,
+            entries = listOfNotNull(item?.let { QueueEntry(it).toTargetEntry() }),
+            at = if (item == null) -1 else 0,
+        )
+
+        assertTrue(state(tv, video("aaaaaaaaaaa")).showsPicture)
+        assertFalse(state(tv, podcast("p1")).showsPicture)
+        assertFalse(state(speaker, video("aaaaaaaaaaa")).showsPicture)
+        assertFalse(state(tv, null).showsPicture)
+    }
 }

@@ -1189,7 +1189,13 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     }
 
     override val exsurge: ExsurgeController by lazy {
-        exsurgeController(context, playbackController, applicationScope, record = statsLog::record)
+        exsurgeController(
+            context,
+            playbackController,
+            applicationScope,
+            record = statsLog::record,
+            exemptBecause = ::kidTvPlaying,
+        )
     }
     override val dailyAlarms by lazy {
         dailyAlarmController(
@@ -1199,8 +1205,11 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             statsLog::record,
             workApps = { workApps.status() },
             onTick = workApps::noteBoundaries,
+            exemptBecause = ::kidTvPlaying,
         )
     }
+
+    private fun kidTvPlaying(): String? = kidLock.tv.value?.let { "Kid TV is playing on $it and is left alone" }
     override val workApps: WorkAppsQuiet by lazy {
         WorkAppsQuiet(
             SharedPrefsWorkAppsStore(context),

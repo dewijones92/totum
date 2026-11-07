@@ -300,4 +300,38 @@ class TargetDeckTest {
 
         assertEquals(listOf(false), deck.state().entries.map { it.reportsToYouTube })
     }
+
+    @Test
+    fun `play next of an item already queued moves it to just after what plays, and nothing restarts`() = runBlocking {
+        val deck = deck()
+        deck.enqueue(TargetQueueRequest(listOf(item("a"), item("b"), item("c")), QueueMode.REPLACE))
+        val starts = player.played.size
+
+        deck.enqueue(TargetQueueRequest(listOf(item("c")), QueueMode.NEXT))
+
+        assertEquals(listOf("a", "c", "b"), deck.state().entries.map { it.item.itemId })
+        assertEquals("a", deck.state().current?.item?.itemId)
+        assertEquals(starts, player.played.size)
+    }
+
+    @Test
+    fun `a request with nothing playable is refused, not answered as if it worked`() = runBlocking {
+        val deck = deck()
+
+        val result = deck.enqueue(TargetQueueRequest(listOf(item("x").copy(playbackType = "VIDEO", handle = null)), QueueMode.PLAY))
+
+        assertTrue(result is EnqueueResult.Refused)
+        assertTrue((result as EnqueueResult.Refused).why.contains("LG soundbar"))
+    }
+
+    @Test
+    fun `an unreachable target is connected to before the deck is locked, once per request`() = runBlocking {
+        link.sink = null
+        val deck = deck()
+
+        deck.enqueue(TargetQueueRequest(listOf(item("a")), QueueMode.REPLACE))
+
+        assertEquals(1, link.connects)
+        assertTrue(deck.state().problem!!.isNotBlank())
+    }
 }

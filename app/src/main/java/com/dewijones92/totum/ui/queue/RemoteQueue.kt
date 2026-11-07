@@ -45,6 +45,7 @@ import com.dewijones92.totum.data.targets.TargetColours
 import com.dewijones92.totum.data.targets.TargetControl
 import com.dewijones92.totum.data.targets.TargetEntry
 import com.dewijones92.totum.data.targets.TargetState
+import com.dewijones92.totum.data.targets.showsPicture
 import com.dewijones92.totum.data.targets.toQueueEntry
 import com.dewijones92.totum.playback.VolumeBoost
 import com.dewijones92.totum.targets.TargetsRepository
@@ -157,8 +158,10 @@ private fun RemoteControls(targets: TargetsRepository, state: TargetState) {
 @Composable
 private fun RemoteSound(targets: TargetsRepository, state: TargetState) {
     val id = state.target.id
+    val picture = state.showsPicture
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         FilterChip(
+            enabled = !picture,
             selected = state.sound.skipSilence,
             onClick = {
                 targets.act(
@@ -170,12 +173,19 @@ private fun RemoteSound(targets: TargetsRepository, state: TargetState) {
         )
         val boosted = state.sound.boost != VolumeBoost.OFF
         FilterChip(
+            enabled = !picture,
             selected = boosted,
             onClick = {
                 val next: SoundSettings = state.sound.copy(boost = if (boosted) VolumeBoost.OFF else VolumeBoost.AUTO)
                 targets.act(id, TargetControl(TargetAction.SOUND, sound = next))
             },
             label = { Text(stringResource(R.string.target_boost)) },
+        )
+    }
+    if (picture) {
+        Text(
+            stringResource(R.string.target_sound_picture_note, state.target.label),
+            style = MaterialTheme.typography.bodySmall,
         )
     }
 }
@@ -233,7 +243,7 @@ private fun RemoteRow(targets: TargetsRepository, id: String, index: Int, entry:
                 listOfNotNull(entry.addedBy?.let { stringResource(R.string.target_added_by, it) }),
             pillar = playable.pillar,
             onPlay = { targets.act(id, TargetControl(TargetAction.JUMP, index = index)) },
-            onPlayNext = null,
+            onPlayNext = { targets.playNextOn(id, entry) },
             onAddToQueue = null,
             onPeek = null,
             onRemoveFromQueue = { targets.act(id, TargetControl(TargetAction.REMOVE, index = index)) },

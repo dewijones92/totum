@@ -1411,6 +1411,7 @@
     <string name="target_added_by">➕ Added by %1$s</string>
     <string name="target_skip_silence">✂️ Skip silences</string>
     <string name="target_boost">🔊 Boost</string>
+    <string name="target_sound_picture_note">🎬 Skip silences and boost only work on sound for now; %1$s is showing a picture, so it plays as it comes.</string>
     <string name="target_volume">🔈 Volume %1$d%%</string>
     <string name="target_colour">🎨 Colour</string>
     <string name="target_previous">Previous</string>

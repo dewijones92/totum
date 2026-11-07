@@ -11,6 +11,7 @@ import com.dewijones92.totum.data.targets.Target
 import com.dewijones92.totum.data.targets.TargetAction
 import com.dewijones92.totum.data.targets.TargetColours
 import com.dewijones92.totum.data.targets.TargetControl
+import com.dewijones92.totum.data.targets.TargetEntry
 import com.dewijones92.totum.data.targets.TargetQueueRequest
 import com.dewijones92.totum.data.targets.TargetState
 import com.dewijones92.totum.domain.MediaItemId
@@ -196,6 +197,24 @@ class TargetsRepository(
     }
 
     fun command(id: String, action: TargetAction) = act(id, TargetControl(action))
+
+    fun playNextOn(id: String, entry: TargetEntry) {
+        scope.launch {
+            val request = TargetQueueRequest(
+                items = listOf(entry.item),
+                mode = QueueMode.NEXT,
+                groupId = entry.groupId,
+                groupTitle = entry.groupTitle,
+                from = requester(),
+            )
+            Diag.log("targets", "$id: moving ${entry.item.itemId} to play next")
+            val answer = queue(id, request)
+            if (answer is HomeAnswer.No) {
+                trouble.value = answer.reason
+                Diag.warn("targets", "$id: play next of ${entry.item.itemId} failed: ${answer.reason}")
+            }
+        }
+    }
 
     private fun replace(state: TargetState) {
         live.update { all ->
