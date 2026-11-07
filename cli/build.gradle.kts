@@ -20,6 +20,8 @@ dependencies {
     implementation(project(":lib:ytdlp-process"))
     implementation(project(":core:data"))
     implementation(project(":core:video"))
+    implementation(project(":core:sound"))
+    implementation(project(":core:cast"))
     implementation(libs.okhttp)
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.serialization.json)

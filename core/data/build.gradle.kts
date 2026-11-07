@@ -11,6 +11,7 @@ kotlin {
 
 dependencies {
     api(project(":core:domain"))
+    api(project(":core:sound"))
     api(project(":lib:ytdlp"))
     api(project(":lib:innertube"))
     implementation(libs.kotlinx.coroutines.core)

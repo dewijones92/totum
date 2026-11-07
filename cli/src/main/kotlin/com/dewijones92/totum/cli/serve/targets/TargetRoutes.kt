@@ -1,50 +1,50 @@
-package com.dewijones92.totum.cli.serve.speakers
+package com.dewijones92.totum.cli.serve.targets
 
 import com.dewijones92.totum.cli.serve.Routes
 import com.dewijones92.totum.cli.serve.query
 import com.dewijones92.totum.cli.serve.reply
 import com.dewijones92.totum.common.Diag
-import com.dewijones92.totum.data.speakers.SpeakerControl
-import com.dewijones92.totum.data.speakers.SpeakerQueueRequest
-import com.dewijones92.totum.data.speakers.SpeakerState
-import com.dewijones92.totum.data.speakers.SpeakersAnswer
-import com.dewijones92.totum.data.speakers.SpeakersJson
+import com.dewijones92.totum.data.targets.TargetControl
+import com.dewijones92.totum.data.targets.TargetQueueRequest
+import com.dewijones92.totum.data.targets.TargetState
+import com.dewijones92.totum.data.targets.TargetsAnswer
+import com.dewijones92.totum.data.targets.TargetsJson
 import com.sun.net.httpserver.HttpExchange
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.KSerializer
 
-internal class SpeakerRoutes(private val decks: SpeakerDecks) : Routes {
+internal class TargetRoutes(private val decks: TargetDecks) : Routes {
 
     override fun handles(path: String): Boolean = path in PATHS
 
     override fun handle(exchange: HttpExchange, method: String, path: String) = runBlocking {
         when {
-            method == "GET" && path == "/speakers" ->
+            method == "GET" && path == "/targets" ->
                 exchange.reply(
                     OK,
-                    SpeakersJson.encodeToString(SpeakersAnswer.serializer(), SpeakersAnswer(decks.all()))
+                    TargetsJson.encodeToString(TargetsAnswer.serializer(), TargetsAnswer(decks.all()))
                 )
             method != "POST" -> exchange.reply(NOT_FOUND, """{"error":"no such route"}""")
-            path == "/speakers/queue" -> withDeck(exchange, SpeakerQueueRequest.serializer()) { deck, request ->
+            path == "/targets/queue" -> withDeck(exchange, TargetQueueRequest.serializer()) { deck, request ->
                 deck.enqueue(request)
             }
-            else -> withDeck(exchange, SpeakerControl.serializer()) { deck, control -> deck.control(control) }
+            else -> withDeck(exchange, TargetControl.serializer()) { deck, control -> deck.control(control) }
         }
     }
 
     private suspend fun <T> withDeck(
         exchange: HttpExchange,
         serializer: KSerializer<T>,
-        act: suspend (SpeakerDeck, T) -> SpeakerState,
+        act: suspend (TargetDeck, T) -> TargetState,
     ) {
-        val id = exchange.query("id") ?: return exchange.reply(BAD_REQUEST, """{"error":"which speaker? (?id=)"}""")
+        val id = exchange.query("id") ?: return exchange.reply(BAD_REQUEST, """{"error":"which target? (?id=)"}""")
         val text = exchange.requestBody.bufferedReader().readText()
-        val body = runCatching { SpeakersJson.decodeFromString(serializer, text) }.getOrElse {
-            Diag.warn("speakers", "unreadable ${exchange.requestURI.path}: ${text.take(LOGGED)}", it)
+        val body = runCatching { TargetsJson.decodeFromString(serializer, text) }.getOrElse {
+            Diag.warn("targets", "unreadable ${exchange.requestURI.path}: ${text.take(LOGGED)}", it)
             return exchange.reply(BAD_REQUEST, """{"error":"unreadable request"}""")
         }
-        val deck = decks.deck(id) ?: return exchange.reply(NOT_FOUND, """{"error":"❌ No paired speaker $id"}""")
-        exchange.reply(OK, SpeakersJson.encodeToString(SpeakerState.serializer(), act(deck, body)))
+        val deck = decks.deck(id) ?: return exchange.reply(NOT_FOUND, """{"error":"❌ No target $id"}""")
+        exchange.reply(OK, TargetsJson.encodeToString(TargetState.serializer(), act(deck, body)))
     }
 
     private companion object {
@@ -52,6 +52,6 @@ internal class SpeakerRoutes(private val decks: SpeakerDecks) : Routes {
         const val BAD_REQUEST = 400
         const val NOT_FOUND = 404
         const val LOGGED = 300
-        val PATHS = setOf("/speakers", "/speakers/queue", "/speakers/control")
+        val PATHS = setOf("/targets", "/targets/queue", "/targets/control")
     }
 }

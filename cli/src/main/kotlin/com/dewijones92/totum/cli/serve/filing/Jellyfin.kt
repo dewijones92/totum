@@ -8,6 +8,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.Response
 
 class Jellyfin(
     private val http: OkHttpClient,
@@ -42,9 +43,29 @@ class Jellyfin(
         return refreshed
     }
 
+    fun open(path: String, range: String? = null): Response? = runCatching {
+        val builder = Request.Builder().url(base.trimEnd('/') + path).header("Authorization", auth()).get()
+        range?.let { builder.header("Range", it) }
+        http.newCall(builder.build()).execute()
+    }.onFailure { Diag.warn("jellyfin", "Jellyfin GET ${path.substringBefore('?')} could not be reached", it) }
+        .getOrNull()
+
+    fun get(path: String): String? = open(path)?.use { response ->
+        if (response.isSuccessful) {
+            response.body.string()
+        } else {
+            Diag.warn("jellyfin", "Jellyfin GET ${path.substringBefore('?')} answered ${response.code}")
+            null
+        }
+    }
+
+    fun streamUrl(id: String): String = "${base.trimEnd('/')}/Videos/$id/stream?static=true&api_key=$key"
+
+    private fun auth(): String = "MediaBrowser Token=\"$key\""
+
     private fun post(path: String, json: String): Boolean = runCatching {
         val request = Request.Builder().url(base.trimEnd('/') + path)
-            .header("Authorization", "MediaBrowser Token=\"$key\"")
+            .header("Authorization", auth())
             .post(json.toRequestBody(JSON))
             .build()
         http.newCall(request).execute().use { response ->

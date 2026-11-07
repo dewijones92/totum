@@ -1,4 +1,4 @@
-package com.dewijones92.totum.data.speakers
+package com.dewijones92.totum.data.targets
 
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.data.queue.QueueEntry
@@ -12,7 +12,7 @@ import com.dewijones92.totum.domain.SourceId
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-class SpeakerEntriesTest {
+class TargetEntriesTest {
 
     private fun video(id: String) = PlayableItem(
         MediaItem(MediaItemId(id), SourceId("c"), "Bluey $id", publishedAt = null, duration = null),
@@ -26,7 +26,7 @@ class SpeakerEntriesTest {
             listOf(QueueEntry(video("aaaaaaaaaaa"), bluey), QueueEntry(video("bbbbbbbbbbb"))),
             1
         )
-        val back = snapshot.toSpeakerEntries().toSnapshot(1)
+        val back = snapshot.toTargetEntries().toSnapshot(1)
         assertEquals(
             snapshot.entries.map { it.item.item.id to it.group },
             back.entries.map { it.item.item.id to it.group }

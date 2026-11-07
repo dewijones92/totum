@@ -5,8 +5,8 @@ import com.dewijones92.totum.data.download.DownloadManager
 import com.dewijones92.totum.data.download.clearFailed
 import com.dewijones92.totum.data.queue.QueueEntry
 import com.dewijones92.totum.data.queue.QueueSnapshot
-import com.dewijones92.totum.data.speakers.toQueueEntry
-import com.dewijones92.totum.data.speakers.toSpeakerEntry
+import com.dewijones92.totum.data.targets.toQueueEntry
+import com.dewijones92.totum.data.targets.toTargetEntry
 import com.dewijones92.totum.domain.Listening
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayState
@@ -82,7 +82,7 @@ class QueueTidy(
             Diag.log("tidy", "dewidebug leaves the queue: \"${it.item.item.title}\" ${it.item.item.id.value}")
         }
         if (leaving.isNotEmpty()) {
-            undoStore.hold(leaving.map { TidyUndoStore.Held(snapshot.entries.indexOf(it), it.toSpeakerEntry()) })
+            undoStore.hold(leaving.map { TidyUndoStore.Held(snapshot.entries.indexOf(it), it.toTargetEntry()) })
             queue.removeAll(leaving.mapTo(HashSet()) { it.item.item.id })
         }
         val failed = downloads.clearFailed("queue tidy-up, $why")

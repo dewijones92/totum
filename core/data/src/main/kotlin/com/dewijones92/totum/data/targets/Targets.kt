@@ -1,4 +1,4 @@
-package com.dewijones92.totum.data.speakers
+package com.dewijones92.totum.data.targets
 
 import com.dewijones92.totum.data.backup.BackupItem
 import com.dewijones92.totum.data.backup.toBackup
@@ -6,19 +6,43 @@ import com.dewijones92.totum.data.backup.toPlayable
 import com.dewijones92.totum.data.queue.QueueEntry
 import com.dewijones92.totum.data.queue.QueueGroup
 import com.dewijones92.totum.data.queue.QueueSnapshot
+import com.dewijones92.totum.playback.VolumeBoost
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
 @Serializable
-public data class Speaker(val id: String, val label: String)
+public enum class TargetKind(public val hasPicture: Boolean, public val label: String) {
+    PHONE(true, "📱 Phone"),
+    SPEAKER(false, "🔈 Speaker"),
+    TV(true, "📺 TV"),
+    CHROMECAST(true, "📺 Chromecast"),
+    BROWSER(true, "🖥️ Browser"),
+}
 
 @Serializable
-public data class SpeakerEntry(val item: BackupItem, val groupId: String? = null, val groupTitle: String? = null)
+public data class Target(val id: String, val label: String, val kind: TargetKind = TargetKind.SPEAKER)
 
 @Serializable
-public data class SpeakerState(
-    val speaker: Speaker,
-    val entries: List<SpeakerEntry> = emptyList(),
+public data class Requester(val id: String, val label: String, val owner: Boolean = false)
+
+@Serializable
+public data class SoundSettings(val skipSilence: Boolean = false, val boost: VolumeBoost = VolumeBoost.OFF) {
+    val changesSound: Boolean get() = skipSilence || boost != VolumeBoost.OFF
+}
+
+@Serializable
+public data class TargetEntry(
+    val item: BackupItem,
+    val groupId: String? = null,
+    val groupTitle: String? = null,
+    val addedBy: String? = null,
+    val reportsToYouTube: Boolean = false,
+)
+
+@Serializable
+public data class TargetState(
+    val target: Target,
+    val entries: List<TargetEntry> = emptyList(),
     val at: Int = -1,
     val playing: Boolean = false,
     val positionMs: Long = 0,
@@ -26,53 +50,64 @@ public data class SpeakerState(
     val volume: Int = DEFAULT_VOLUME,
     val linked: Boolean = false,
     val problem: String? = null,
+    val sound: SoundSettings = SoundSettings(),
 ) {
-    val current: SpeakerEntry? get() = entries.getOrNull(at)
+    val current: TargetEntry? get() = entries.getOrNull(at)
 }
 
 @Serializable
-public data class SpeakersAnswer(val speakers: List<SpeakerState>)
+public data class TargetsAnswer(val targets: List<TargetState>)
 
 @Serializable
-public enum class QueueMode { REPLACE, NEXT, END }
+public enum class QueueMode { REPLACE, NEXT, END, PLAY }
 
 @Serializable
-public data class SpeakerQueueRequest(
+public data class TargetQueueRequest(
     val items: List<BackupItem>,
     val mode: QueueMode,
     val shuffle: Boolean = false,
     val groupId: String? = null,
     val groupTitle: String? = null,
+    val from: Requester? = null,
+    val startAtMs: Long = 0,
+    val startItemId: String? = null,
 ) {
     val group: QueueGroup? get() = groupOf(groupId, groupTitle)
 }
 
 @Serializable
-public enum class SpeakerAction { PLAY, PAUSE, NEXT, PREVIOUS, JUMP, SEEK, VOLUME, STOP, REMOVE }
+public enum class TargetAction { PLAY, PAUSE, NEXT, PREVIOUS, JUMP, SEEK, VOLUME, STOP, REMOVE, SOUND }
 
 @Serializable
-public data class SpeakerControl(
-    val action: SpeakerAction,
+public data class TargetControl(
+    val action: TargetAction,
     val index: Int? = null,
     val positionMs: Long? = null,
     val volume: Int? = null,
+    val sound: SoundSettings? = null,
 )
 
-public fun QueueEntry.toSpeakerEntry(): SpeakerEntry = SpeakerEntry(item.toBackup(), group?.id, group?.title)
+public fun QueueEntry.toTargetEntry(from: Requester? = null): TargetEntry = TargetEntry(
+    item.toBackup(),
+    group?.id,
+    group?.title,
+    from?.label,
+    TargetReporting.reports(from),
+)
 
-public fun SpeakerEntry.toQueueEntry(): QueueEntry? =
+public fun TargetEntry.toQueueEntry(): QueueEntry? =
     item.toPlayable()?.let { QueueEntry(it, groupOf(groupId, groupTitle)) }
 
-public fun QueueSnapshot.toSpeakerEntries(): List<SpeakerEntry> = entries.map { it.toSpeakerEntry() }
+public fun QueueSnapshot.toTargetEntries(): List<TargetEntry> = entries.map { it.toTargetEntry() }
 
-public fun List<SpeakerEntry>.toSnapshot(at: Int): QueueSnapshot {
+public fun List<TargetEntry>.toSnapshot(at: Int): QueueSnapshot {
     val kept = mapNotNull { it.toQueueEntry() }
     return QueueSnapshot(kept, if (at in kept.indices) at else QueueSnapshot.NOTHING_PLAYING)
 }
 
 public const val DEFAULT_VOLUME: Int = 70
 
-public val SpeakersJson: Json = Json {
+public val TargetsJson: Json = Json {
     ignoreUnknownKeys = true
     encodeDefaults = true
 }

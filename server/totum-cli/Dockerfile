@@ -44,8 +44,10 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends ffmpeg python3 python3-venv mpv bluez pulseaudio-utils \
  && rm -rf /var/lib/apt/lists/* \
  && python3 -m venv /opt/venv \
- && /opt/venv/bin/pip install --no-cache-dir "yt-dlp[default]" \
+ && /opt/venv/bin/pip install --no-cache-dir "yt-dlp[default]" "pychromecast>=14" \
  && chown -R totum:totum /opt/venv
+
+COPY chromecast_helper.py /opt/totum/chromecast_helper.py
 
 USER totum
 ENV TOTUM_PYTHON=/opt/venv/bin/python \
@@ -54,7 +56,9 @@ ENV TOTUM_PYTHON=/opt/venv/bin/python \
     TOTUM_LIBRARY_MOVIES=/media/videos/movies \
     TOTUM_LIBRARY_SERIES=/media/videos/series \
     TOTUM_AI_URL=http://ai-service:8780 \
+    TOTUM_CAST_HELPER=/opt/totum/chromecast_helper.py \
+    TOTUM_CAST_PORT=8771 \
     PULSE_SERVER=unix:/run/pulse/native \
     PULSE_COOKIE=/run/pulse/cookie
-EXPOSE 8770
+EXPOSE 8770 8771
 CMD ["sh", "-c", "/opt/venv/bin/pip install -q -U 'yt-dlp[default]' || echo 'yt-dlp update failed; using the installed one'; exec /opt/totum/bin/totum serve --port=8770"]

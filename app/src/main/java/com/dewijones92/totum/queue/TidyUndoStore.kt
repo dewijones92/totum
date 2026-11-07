@@ -2,8 +2,8 @@ package com.dewijones92.totum.queue
 
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.writeTextReplacing
-import com.dewijones92.totum.data.speakers.SpeakerEntry
-import com.dewijones92.totum.data.speakers.SpeakersJson
+import com.dewijones92.totum.data.targets.TargetEntry
+import com.dewijones92.totum.data.targets.TargetsJson
 import kotlinx.serialization.Serializable
 import java.io.File
 
@@ -13,7 +13,7 @@ class TidyUndoStore(
     private val windowMs: Long = UNDO_WINDOW_MS,
 ) {
     @Serializable
-    data class Held(val index: Int, val entry: SpeakerEntry)
+    data class Held(val index: Int, val entry: TargetEntry)
 
     @Serializable
     data class Batch(val atMs: Long, val held: List<Held>)
@@ -25,7 +25,7 @@ class TidyUndoStore(
         val batch = Batch(now(), held)
         memory = batch
         file?.let { target ->
-            runCatching { target.writeTextReplacing(SpeakersJson.encodeToString(Batch.serializer(), batch)) }
+            runCatching { target.writeTextReplacing(TargetsJson.encodeToString(Batch.serializer(), batch)) }
                 .onFailure { Diag.warn(TAG, "dewidebug the tidy-up undo could not be saved: $it") }
         }
         Diag.log(TAG, "dewidebug holding ${held.size} tidied item(s) for an Undo for ${windowMs / MS_PER_MINUTE} min")
@@ -53,7 +53,7 @@ class TidyUndoStore(
     }
 
     private fun readFile(): Batch? = file?.takeIf { it.exists() }?.let { target ->
-        runCatching { SpeakersJson.decodeFromString(Batch.serializer(), target.readText()) }
+        runCatching { TargetsJson.decodeFromString(Batch.serializer(), target.readText()) }
             .onFailure { Diag.warn(TAG, "dewidebug the held tidy-up is unreadable: $it") }
             .getOrNull()
     }

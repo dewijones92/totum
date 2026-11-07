@@ -28,6 +28,8 @@ import com.dewijones92.totum.innertube.auth.OAuthTokens
 import com.dewijones92.totum.innertube.auth.RefreshToken
 import com.dewijones92.totum.innertube.auth.YouTubeAccount
 import com.dewijones92.totum.innertube.browse.InnerTubeClient
+import com.dewijones92.totum.innertube.history.HttpYouTubeWatchHistory
+import com.dewijones92.totum.innertube.history.YouTubeWatchHistory
 import com.dewijones92.totum.innertube.player.HttpEmbedHostFlagsSource
 import com.dewijones92.totum.innertube.player.HttpSignatureTimestampSource
 import com.dewijones92.totum.innertube.player.HttpVisitorIdSource
@@ -187,23 +189,26 @@ internal class HomeDownloads(
     override suspend fun fileOf(id: String): File? = manager.observeDownloaded().first()
         .firstOrNull { it.playable.item.id.value == id }?.localPath?.let(::File)?.takeIf { it.isFile }
 
-    suspend fun soundOf(item: PlayableItem): String? {
+    val watchHistory: YouTubeWatchHistory = HttpYouTubeWatchHistory(account, http, innerTube, stamps)
+
+    suspend fun signedInToYouTube(): Boolean = account.isSignedIn()
+
+    suspend fun soundOf(item: PlayableItem, picture: Boolean = false): String? {
         fileOf(item.item.id.value)?.let { file ->
-            Diag.log("speakers", "${item.item.id.value}: the copy at home, ${file.name}")
+            Diag.log("targets", "${item.item.id.value}: the copy at home, ${file.name}")
             return file.path
         }
         val url = when (val handle = item.handle) {
-            is PlayHandle.Video -> resolverFor(
-                emptyList()
-            ).resolve(item, "speaker")?.let { it.audioOnlyUrl ?: it.item.mediaUrl }
+            is PlayHandle.Video -> resolverFor(emptyList()).resolve(item, if (picture) "target-picture" else "speaker")
+                ?.let { if (picture) it.item.mediaUrl else it.audioOnlyUrl ?: it.item.mediaUrl }
             is PlayHandle.Podcast -> handle.audioUrl ?: item.item.mediaUrl
             is PlayHandle.LocalVideo -> null
         }?.value?.let(rewrites::apply)
         val wait = url?.let { YoungStreamUrl.retryDelayMs(it, System.currentTimeMillis(), errorCount = 1) }
         Diag.log(
-            "speakers",
-            "${item.item.id.value}: ${item.handle.label} -> ${if (url == null) "no sound" else "a stream"}, " +
-                "young wait ${wait ?: 0}ms",
+            "targets",
+            "${item.item.id.value}: ${item.handle.label} picture=$picture -> " +
+                "${if (url == null) "no stream" else "a stream"}, young wait ${wait ?: 0}ms",
         )
         wait?.let { delay(it) }
         return url

@@ -5,6 +5,9 @@ import com.dewijones92.totum.cli.serve.ai.AiServer
 import com.dewijones92.totum.cli.serve.ai.ClaudeCodeCompleter
 import com.dewijones92.totum.cli.serve.ai.RemoteCompleter
 import com.dewijones92.totum.cli.serve.ai.UsageLog
+import com.dewijones92.totum.cli.serve.cast.ChromecastSource
+import com.dewijones92.totum.cli.serve.cast.SoundStreams
+import com.dewijones92.totum.cli.serve.cast.knownCastsFrom
 import com.dewijones92.totum.cli.serve.filing.FileCheck
 import com.dewijones92.totum.cli.serve.filing.Filing
 import com.dewijones92.totum.cli.serve.filing.FolderLibrary
@@ -12,9 +15,15 @@ import com.dewijones92.totum.cli.serve.filing.Jellyfin
 import com.dewijones92.totum.cli.serve.filing.LibraryFiler
 import com.dewijones92.totum.cli.serve.filing.Shelf
 import com.dewijones92.totum.cli.serve.filing.SidecarMaker
-import com.dewijones92.totum.cli.serve.speakers.SpeakerDecks
-import com.dewijones92.totum.cli.serve.speakers.SpeakerRoutes
-import com.dewijones92.totum.cli.serve.speakers.SpeakerSounds
+import com.dewijones92.totum.cli.serve.jellyfin.JellyfinBrowse
+import com.dewijones92.totum.cli.serve.jellyfin.JellyfinRoutes
+import com.dewijones92.totum.cli.serve.sound.ProcessedSound
+import com.dewijones92.totum.cli.serve.speakers.SpeakerSource
+import com.dewijones92.totum.cli.serve.speakers.SystemShell
+import com.dewijones92.totum.cli.serve.targets.TargetDecks
+import com.dewijones92.totum.cli.serve.targets.TargetRoutes
+import com.dewijones92.totum.cli.serve.targets.TargetStreams
+import com.dewijones92.totum.cli.serve.targets.YouTubeProgress
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.ask.AskAnswer
 import com.dewijones92.totum.data.ask.AskJob
@@ -175,6 +184,8 @@ private inline fun HttpExchange.use(block: (HttpExchange) -> Unit) {
     }
 }
 
+private const val DEFAULT_CAST_PORT = 8771
+
 internal suspend fun serveAsk(port: Int, out: (String) -> Unit): Int = coroutineScope {
     val brain = brainFromEnv()
     val jellyfin = jellyfinFromEnv()
@@ -194,7 +205,23 @@ internal suspend fun serveAsk(port: Int, out: (String) -> Unit): Int = coroutine
         filer = filerFromEnv(brain, jellyfin),
         health = health,
     )
-    val speakers = SpeakerDecks(File(home.dataDir, "speakers"), this, SpeakerSounds(home::soundOf))
+    val targetsDir = File(home.dataDir, "targets")
+    val shell = SystemShell()
+    val streams = SoundStreams(
+        ProcessedSound(),
+        System.getenv("TOTUM_CAST_BASE"),
+        System.getenv("TOTUM_CAST_PORT")?.toIntOrNull() ?: DEFAULT_CAST_PORT,
+    )
+    val targets = TargetDecks(
+        targetsDir,
+        this,
+        TargetStreams(home::soundOf, jellyfin?.let { j -> { id -> j.streamUrl(id) } }),
+        listOf(
+            SpeakerSource(shell, targetsDir),
+            ChromecastSource(knownCastsFrom(System.getenv("TOTUM_CAST_TARGETS")), streams),
+        ),
+        YouTubeProgress(home.watchHistory, home::signedInToYouTube),
+    )
     val states = AskStates()
     launch {
         while (true) {
@@ -202,13 +229,12 @@ internal suspend fun serveAsk(port: Int, out: (String) -> Unit): Int = coroutine
             states.prune()
         }
     }
-    AskServer(
-        brain,
-        this,
-        HomeRoutes(home),
-        listOf(SpeakerRoutes(speakers), AskStateRoutes(states)),
-        ask = RoutedAsk(brain, states)::answer,
-    ).start(port)
+    val routes = listOfNotNull(
+        TargetRoutes(targets),
+        jellyfin?.let { JellyfinRoutes(JellyfinBrowse(it)) },
+        AskStateRoutes(states),
+    )
+    AskServer(brain, this, HomeRoutes(home), routes, ask = RoutedAsk(brain, states)::answer).start(port)
     out("totum serve: listening on $port")
     awaitCancellation()
 }

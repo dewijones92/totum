@@ -1,10 +1,15 @@
 package com.dewijones92.totum.cli.serve.speakers
 
+import com.dewijones92.totum.cli.serve.targets.FoundTarget
+import com.dewijones92.totum.cli.serve.targets.TargetKit
+import com.dewijones92.totum.cli.serve.targets.TargetLink
+import com.dewijones92.totum.cli.serve.targets.TargetSource
 import com.dewijones92.totum.common.Diag
-import com.dewijones92.totum.data.speakers.Speaker
+import com.dewijones92.totum.data.targets.Target
+import com.dewijones92.totum.data.targets.TargetKind
 import kotlinx.coroutines.delay
 
-internal data class FoundSpeaker(val speaker: Speaker, val mac: String)
+internal data class FoundSpeaker(val speaker: Target, val mac: String)
 
 internal class BluezSpeakers(private val shell: Shell) {
     suspend fun find(): List<FoundSpeaker> {
@@ -15,7 +20,7 @@ internal class BluezSpeakers(private val shell: Shell) {
             val mac = match.groupValues[1]
             val info = shell.run(listOf("bluetoothctl", "info", mac)).orEmpty()
             val label = ALIAS.find(info)?.groupValues?.get(1)?.trim() ?: match.groupValues[2].trim()
-            FoundSpeaker(Speaker(idOf(mac), label), mac).takeIf { AUDIO_SINK in info }
+            FoundSpeaker(Target(idOf(mac), label, TargetKind.SPEAKER), mac).takeIf { AUDIO_SINK in info }
                 .also {
                     if (it == null) {
                         Diag.log(
@@ -45,7 +50,7 @@ internal class BluezLink(
     private val shell: Shell,
     private val pollMs: Long = POLL_MS,
     private val tries: Int = TRIES,
-) : SpeakerLink {
+) : TargetLink {
     private val sink = "bluez_sink.${mac.replace(':', '_')}.a2dp_sink"
     private var connectedHere = false
 
@@ -96,5 +101,13 @@ internal class BluezLink(
         const val POLL_MS = 1_000L
         const val TRIES = 15
         const val MS_PER_S = 1_000
+    }
+}
+
+internal class SpeakerSource(private val shell: Shell, private val dir: java.io.File) : TargetSource {
+    private val discovery = BluezSpeakers(shell)
+
+    override suspend fun find(fresh: Boolean): List<FoundTarget> = discovery.find().map { found ->
+        FoundTarget(found.speaker) { TargetKit(MpvPlayer(found.speaker.id, dir), BluezLink(found.mac, shell)) }
     }
 }

@@ -1,5 +1,12 @@
 package com.dewijones92.totum.cli.serve.speakers
 
+import com.dewijones92.totum.cli.serve.sound.Pipeline
+import com.dewijones92.totum.cli.serve.sound.ProcessedSound
+import com.dewijones92.totum.cli.serve.sound.SOUND_CHANNELS
+import com.dewijones92.totum.cli.serve.sound.SOUND_RATE
+import com.dewijones92.totum.cli.serve.sound.SoundJob
+import com.dewijones92.totum.cli.serve.targets.PlayRequest
+import com.dewijones92.totum.cli.serve.targets.TargetPlayer
 import com.dewijones92.totum.common.Diag
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -24,7 +31,8 @@ internal class MpvPlayer(
     private val id: String,
     private val dir: File,
     private val mpv: String = System.getenv("TOTUM_MPV") ?: "mpv",
-) : SpeakerPlayer {
+    private val processed: ProcessedSound = ProcessedSound(),
+) : TargetPlayer {
     private val socket = File(dir, "mpv-$id.sock")
 
     @Volatile
@@ -32,27 +40,69 @@ internal class MpvPlayer(
 
     override var onEnded: (failed: Boolean) -> Unit = {}
 
-    override fun play(url: String, sink: String, volume: Int) {
+    @Volatile
+    private var pipeline: Pipeline? = null
+
+    @Volatile
+    private var pipelineFailed = false
+
+    @Volatile
+    private var offsetMs = 0L
+
+    override fun play(request: PlayRequest) {
         stop()
         dir.mkdirs()
         socket.delete()
         val log = File(dir, "mpv-$id.log")
-        val started = ProcessBuilder(
-            mpv, "--no-video", "--no-terminal", "--idle=no", "--audio-device=pulse/$sink", "--volume=$volume",
-            "--input-ipc-server=${socket.path}", "--", url,
-        ).redirectErrorStream(true).redirectOutput(log).start()
+        val piped = request.sound.changesSound
+        val source = if (piped) {
+            PIPED_SOURCE
+        } else {
+            listOf(
+                "--start=${request.startAtMs / MS_PER_S.toDouble()}",
+                "--",
+                request.url
+            )
+        }
+        val command = listOf(
+            mpv, "--no-video", "--no-terminal", "--idle=no", "--audio-device=pulse/${request.destination}",
+            "--volume=${request.volume}", "--input-ipc-server=${socket.path}",
+        ) + source
+        val started = ProcessBuilder(command).redirectErrorStream(true).redirectOutput(log).start()
         process = started
+        pipelineFailed = false
+        offsetMs = request.startAtMs
+        pipeline = if (piped) {
+            processed.toSink(
+                SoundJob(id, request.url, request.sound, request.startAtMs),
+                started.outputStream,
+            ) { failed ->
+                if (failed) pipelineFailed = true
+            }
+        } else {
+            runCatching { started.outputStream.close() }
+            null
+        }
         Diag.log(
             "speakers",
-            "$id: mpv ${started.pid()} on $sink volume=$volume ${if (url.startsWith("/")) "file" else "stream"}"
+            "$id: mpv ${started.pid()} on ${request.destination} volume=${request.volume} " +
+                "${if (request.url.startsWith("/")) "file" else "stream"} sound=${request.sound} " +
+                "from=${request.startAtMs}ms",
         )
         thread(name = "mpv-$id", isDaemon = true) {
             val code = started.waitFor()
             if (process === started) {
                 process = null
+                pipeline?.stop()
+                pipeline = null
                 val tail = runCatching { log.readLines().takeLast(LOG_LINES).joinToString(" | ") }.getOrDefault("")
-                Diag.log("speakers", "$id: mpv ${started.pid()} ended, exit $code${if (code == 0) "" else ": $tail"}")
-                onEnded(code != 0)
+                val failed = code != 0 || pipelineFailed
+                Diag.log(
+                    "speakers",
+                    "$id: mpv ${started.pid()} ended, exit $code pipelineFailed=$pipelineFailed" +
+                        if (failed) ": $tail" else ""
+                )
+                onEnded(failed)
             }
         }
     }
@@ -72,14 +122,16 @@ internal class MpvPlayer(
     override fun stop() {
         val playing = process ?: return
         process = null
+        pipeline?.stop()
+        pipeline = null
         playing.destroy()
         if (!playing.waitFor(STOP_WAIT_S, TimeUnit.SECONDS)) playing.destroyForcibly()
         Diag.log("speakers", "$id: mpv ${playing.pid()} stopped")
     }
 
-    override val positionMs: Long? get() = seconds("time-pos")
+    override val positionMs: Long? get() = seconds("time-pos")?.let { offsetMs + it + (pipeline?.skippedMs ?: 0) }
 
-    override val durationMs: Long? get() = seconds("duration")
+    override val durationMs: Long? get() = if (pipeline == null) seconds("duration") else null
 
     private fun seconds(property: String): Long? = process?.let {
         ipc(
@@ -128,6 +180,13 @@ internal class MpvPlayer(
 
     private companion object {
         const val MS_PER_S = 1_000
+        val PIPED_SOURCE = listOf(
+            "--demuxer=rawaudio",
+            "--demuxer-rawaudio-format=s16le",
+            "--demuxer-rawaudio-rate=$SOUND_RATE",
+            "--demuxer-rawaudio-channels=$SOUND_CHANNELS",
+            "-",
+        )
         const val STOP_WAIT_S = 2L
         const val ANSWER_MS = 500L
         const val BUFFER = 4_096
