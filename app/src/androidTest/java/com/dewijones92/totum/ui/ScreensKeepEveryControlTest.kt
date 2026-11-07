@@ -28,7 +28,6 @@ import com.dewijones92.totum.ui.common.HOLD_TO_CONFIRM_TAG
 import com.dewijones92.totum.ui.common.ProvidePlayStates
 import com.dewijones92.totum.ui.common.rememberMediaItemActions
 import com.dewijones92.totum.ui.library.LibraryHub
-import com.dewijones92.totum.ui.queue.QUEUE_HEADER_MENU_TAG
 import com.dewijones92.totum.ui.queue.QueueScreen
 import com.dewijones92.totum.ui.videos.VideosContent
 import com.dewijones92.totum.ui.videos.VideosViewModel
@@ -149,7 +148,6 @@ class ScreensKeepEveryControlTest {
         }
         composeTestRule.waitForIdle()
 
-        composeTestRule.onNodeWithTag(QUEUE_HEADER_MENU_TAG).performClick()
         tap(context.getString(R.string.queue_clear_all))
         composeTestRule.waitForIdle()
         assertEquals("a tap alone must not clear it", 2, container.playbackQueue.state.value.entries.size)

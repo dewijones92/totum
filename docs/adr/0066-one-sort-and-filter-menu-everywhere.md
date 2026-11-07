@@ -60,31 +60,24 @@ sorts within each group; queue filters are view only.
 - The queue's sort sheet ticks "As listed" after a sort, by design: a queue sort is an action that reorders the
   queue (with Undo), not a view, so afterwards the queue *is* as listed. Raised by the consistency audit; kept.
 
-## Recorded 2026-11-07: the Queue header keeps five actions and one overflow (the coordinator's call, Dewi delegated it)
+## Tried and reverted 2026-11-07: a smaller Queue header
 
-At 1080x1920@480 (360x640 dp) with a long-title mini player the Queue tab showed a third of one row: the target chips
-(about 46 dp), a header of three wrapped lines of actions (157 dp), the offline banner (60 dp) and the mini player (242 dp)
-were all pinned. The shared header, `TitleAndActions`, was **not changed**: Videos, Podcasts, Music and Library headers
-look exactly as before (compared on the emulator at 1080x1920 and 1080x2400). What changed is the Queue's own list of actions:
+At 1080x1920@480 (360x640 dp) with a long-title mini player the Queue tab showed a third of one row (the chips 46 dp,
+a three-line header 157 dp, the offline banner 60 dp and the 242 dp mini player were all pinned). Four rows are not
+reachable on that screen with these rows anyway: a row with a five-line title is about 200 dp and even a short one
+about 92 dp, against 365 dp between the status bar and the mini player. The coordinator's call (Dewi delegated it) was a
+⋮ overflow for collapse all, music/talk, Explore and Clear all (header down to two lines) and the chips and offline
+line as the list's first item. It shipped as v0.1.891 and CI's instrumented job went red, so it was taken back out.
+What was learned, so it is not tried again blind:
 
-- The header keeps **Send to…, filter, sort, jump to what's playing and shuffle** (jump and shuffle need no menu: the queue
-  is long and they are the ones used while scrolled). **Collapse / expand all groups, the music/talk switch, Explore and
-  Clear all** moved into one ⋮ (`QueueHeaderMenu`: a `DropdownMenu` of the shared `MenuItem`, the same pattern as a
-  group's ⋮ and the playlist page's), so the header wraps to two lines, not three, at 360 dp. The mini player and the full
-  player still carry the music/talk switch and Explore beside the transport (ADR 42), so those two stay one tap away
-  wherever you are. Clear all keeps its hold-to-confirm.
-- The target chips and the offline banner are the **first list item** (`QUEUE_TOP_KEY`, still one row above the queue
-  rows, so `ROWS_ABOVE_THE_QUEUE` is unchanged). They scroll away with the rows, and the queue's own jump on open scrolls
-  past them whenever the playing row does not fit, so the first screen is the playing row, not the furniture. The poll of
-  the Pi's targets moved out of `TargetChips` (`WatchTargetsWhileShown`, in `QueueScreen`), because a list item that scrolls
-  off would have stopped it. A remote target's queue keeps the chips pinned: it has no list header to make room for.
-- The mini player was left alone (its controls under the title are Dewi's decision, and its title may not be shortened).
-
-Result on the emulator, 1080x1920@480, long-title podcast loaded: the list area went from about 60 dp (a third of the
-playing row) to about 254 dp (the whole playing row and the top of the next). **Four rows are not reachable on that screen
-with these rows**: one queue row with a five-line title is about 200 dp and even a short one is about 92 dp, while the
-whole area between the status bar and the mini player is 365 dp. The 1080x2400 screen (no mini player loaded) shows three and a half rows.
-
-Tests: `TheQueueHeaderKeepsEveryControlTest` (the five stay on the header, Clear all is only in the menu, every moved
-control works from it), `WhatSitsAboveTheQueueRowsScrollsAwayTest`, `ScreensKeepEveryControlTest` (Clear all now opens the
-menu first).
+- **Two controls may not share a label.** The header's ⋮ was "More options", the label of every row's ⋮, so tests (and
+  TalkBack) that take the Nth "More options" got the header's. Anything new on the Queue needs its own.
+- **Anything of height before the first row stalls the reorder library's edge auto-scroll** (the 2026-10-16 note on the
+  1dp spacer, ADR 40, is the same fault). Measured with `QueueRowDragTest.holdingADragAtTheBottomScrollsPastTheScreen`
+  at 1080x1920@480: the chips and banner as a list item, as a second item after the zero-height one, and as
+  `contentPadding` with the block translated by the scroll all stalled; only the block pinned outside the list passes.
+  A block hidden once the list scrolls never settled (`QueueTitleSettlesAtAnyHeightTest`).
+- **Pinned, with the shorter header, `MultiSelectTest` "in the queue several rows move to the top together…" never reached
+  idle at exactly 1080x1920@480** (the main thread was in `waitForIdle`, frame after frame; it passed at 1080x1880 and with
+  the old header). The header's height is constant across its collapse (measured), so the cause is not
+  `CollapsingTitle`; it was not found. Whoever shrinks the header again must run that test at 1920 first.

@@ -3,7 +3,7 @@ title: Playback queue
 kind: feature
 area: playback
 status: shipped
-updated: 2026-11-07
+updated: 2026-11-06
 ---
 
 # Playback queue
@@ -36,7 +36,7 @@ rows slide aside, and holding it at an edge scrolls. A group header's ≡ drags 
 first). While any drag is in flight a split group's second header is hidden, so the layout cannot shift under
 the finger.
 
-**Music ⇄ talk** (ADR 42): 🎵 / 🎙️ in the mini player, the full player's Up next, the Queue header's ⋮ menu and the
+**Music ⇄ talk** (ADR 42): 🎵 / 🎙️ in the mini player, the full player's Up next, the Queue header and the
 media notification jumps to the other kind within the queue (the one left last, else the nearest); with no
 music queued it plays the newest music from Recently. `dewidebug [switch]` lines say what it chose and why.
 
@@ -115,8 +115,8 @@ See [current phone findings](../todos/playback-defects-0.1.601.md).
 ## Jump to what's playing, and collapse all (2026-10-15)
 
 Dewi asked for a button to scroll the queue to the playing item, and one to collapse every group. The header has
-⌖ (jump), which also runs each time the Queue tab opens, and a collapse-all / expand-all item (in the header's ⋮ since
-2026-11-07) shown when the queue has groups. Jumping expands the playing item's group if it is collapsed, scrolls to the row the list draws for it
+⌖ (jump), which also runs each time the Queue tab opens, and a collapse-all / expand-all toggle shown when the queue
+has groups. Jumping expands the playing item's group if it is collapsed, scrolls to the row the list draws for it
 (`playingRowIndex`, taken from `queueRows` itself), then settles on the row by its key. The collapsed set now lives
 above the header, so the toggle and the list share it. Logged: `jumped to the playing item (…): row N, found at M`.
 
@@ -171,10 +171,6 @@ every 2 hours on Wi-Fi, on opening, or by ⋮ → 🔄 Pull new uploads. See [AD
 - The header's sort sheet sorts every group within itself; a group's ⋮ sorts that group. Both change the play order
   after the playing item, with Undo; its filters only hide rows ([sort-and-filter.md](sort-and-filter.md)).
 - The header's buttons wrap under the title; the title used to be squeezed to one letter at phone width.
-- **Room for rows (2026-11-07, [ADR 66](../adr/0066-one-sort-and-filter-menu-everywhere.md)):** the header keeps Send to…,
-  filter, sort, ⌖ and 🔀; collapse / expand all, the music/talk switch, Explore and 🧹 Clear all are in one ⋮. The target
-  chips and the offline line are the list's first item and scroll away (the open-on-playing jump scrolls past them when
-  the playing row does not fit). At 1080x1920@480 with a long-title mini player the list area went from ~60 dp to ~254 dp.
 
 ## Group parity (2026-10-22)
 

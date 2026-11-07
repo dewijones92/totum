@@ -4,12 +4,10 @@ import android.widget.Toast
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.outlined.Explore
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.staticCompositionLocalOf
@@ -44,31 +42,6 @@ fun ExploreToggle(from: String, modifier: Modifier = Modifier) {
             tint = if (on) MaterialTheme.colorScheme.primary else LocalContentColor.current,
         )
     }
-}
-
-@Composable
-fun ExploreMenuItem(from: String, close: () -> Unit) {
-    val explore = LocalExploreMode.current ?: return
-    val on by explore.on.collectAsStateWithLifecycle()
-    val context = LocalContext.current
-    val saidOn = stringResource(R.string.explore_on)
-    val saidOff = stringResource(R.string.explore_off)
-    DropdownMenuItem(
-        text = { Text(stringResource(R.string.explore_toggle)) },
-        leadingIcon = {
-            Icon(
-                imageVector = if (on) Icons.Filled.Explore else Icons.Outlined.Explore,
-                contentDescription = null,
-                tint = if (on) MaterialTheme.colorScheme.primary else LocalContentColor.current,
-            )
-        },
-        onClick = {
-            close()
-            explore.set(!on, from)
-            Toast.makeText(context, if (on) saidOff else saidOn, Toast.LENGTH_SHORT).show()
-        },
-        modifier = Modifier.testTag("$EXPLORE_TOGGLE_TAG:$from"),
-    )
 }
 
 const val EXPLORE_TOGGLE_TAG = "explore-toggle"

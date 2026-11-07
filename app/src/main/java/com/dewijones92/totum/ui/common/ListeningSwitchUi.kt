@@ -3,10 +3,8 @@ package com.dewijones92.totum.ui.common
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
@@ -39,28 +37,6 @@ fun SwitchListeningButton(from: String, modifier: Modifier = Modifier) {
             ),
         )
     }
-}
-
-@Composable
-fun SwitchListeningMenuItem(from: String, close: () -> Unit) {
-    val ui = LocalListeningSwitch.current ?: return
-    val to = ui.target ?: return
-    val music = to == Listening.MUSIC
-    DropdownMenuItem(
-        text = {
-            Text(
-                stringResource(
-                    if (music) PlaybackR.string.playback_switch_to_music else PlaybackR.string.playback_switch_to_talk,
-                ),
-            )
-        },
-        leadingIcon = { Icon(if (music) Icons.Filled.MusicNote else Icons.Filled.Mic, contentDescription = null) },
-        onClick = {
-            close()
-            ui.onTap(from)
-        },
-        modifier = Modifier.testTag(switchListeningTag(from)),
-    )
 }
 
 @Composable

@@ -20,6 +20,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -65,6 +66,7 @@ import com.dewijones92.totum.ui.common.CollapsingTitle
 import com.dewijones92.totum.ui.common.CountRecompositions
 import com.dewijones92.totum.ui.common.EmptyState
 import com.dewijones92.totum.ui.common.EqualiserSize
+import com.dewijones92.totum.ui.common.ExploreToggle
 import com.dewijones92.totum.ui.common.FilterField
 import com.dewijones92.totum.ui.common.FilterToggle
 import com.dewijones92.totum.ui.common.ListFilter
@@ -79,6 +81,7 @@ import com.dewijones92.totum.ui.common.SelectableMediaList
 import com.dewijones92.totum.ui.common.Selection
 import com.dewijones92.totum.ui.common.ShuffleAsk
 import com.dewijones92.totum.ui.common.SortControl
+import com.dewijones92.totum.ui.common.SwitchListeningButton
 import com.dewijones92.totum.ui.common.downloadStateOf
 import com.dewijones92.totum.ui.common.filter
 import com.dewijones92.totum.ui.common.filteredByItems
@@ -624,12 +627,13 @@ private fun QueueHeader(
             )
         }
         onJump?.let { JumpToPlayingButton(it) }
+        if (groups.first.isNotEmpty()) CollapseAllButton(groups.first.all { it in groups.second }, onCollapseAll)
+        SwitchListeningButton("queue header")
+        ExploreToggle("queue header")
         onShuffle?.let { QueueShuffleButton(it, onShuffleGroups) }
-        QueueHeaderMenu(
-            allCollapsed = groups.first.takeIf { it.isNotEmpty() }?.let { ids -> ids.all { it in groups.second } },
-            onCollapseAll = onCollapseAll,
-            onClear = onClear.takeIf { count > 0 },
-        )
+        if (count > 0) {
+            TextButton(onClick = onClear) { Text(stringResource(R.string.queue_clear_all)) }
+        }
     }
 }
 

@@ -142,8 +142,5 @@ to send a queue to. ADR 116 had built that for speakers only, with its own wire 
   every 30th, a successful one only when the queues changed.
 - A remote queue's rows offer "Play next" (moves the item to just after what plays there); "Add to queue" and "Peek"
   are not offered on a remote row (see [ADR 108](0108-consistent-everywhere-and-its-recorded-exceptions.md)).
-- Amended 2026-11-07 ([ADR 66](0066-one-sort-and-filter-menu-everywhere.md), "Recorded 2026-11-07"): on the phone's own
-  queue the chips are the list's first item and scroll away, and the poll of `GET /targets` is `WatchTargetsWhileShown`,
-  not part of the chips; a remote target's queue still pins them.
 - Not built: PC browsers as targets (the `BROWSER` kind exists, nothing registers one), "Play on…" as a long press on
   every play button, and the mini-player pill and notification per target.
