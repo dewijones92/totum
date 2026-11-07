@@ -27,6 +27,7 @@ import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.ItemFace
 import com.dewijones92.totum.domain.ItemShield
 import com.dewijones92.totum.domain.MediaItem
+import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.domain.NoShield
 import com.dewijones92.totum.domain.statedChannel
@@ -74,8 +75,11 @@ internal fun rememberSetShieldedChannel(): (SpoilerShield, ShieldedChannel, Bool
     }
 }
 
+internal fun shieldableChannelName(author: String?, channelId: String?, channelOn: Boolean, pillar: MediaKind): String? =
+    author?.takeIf { it.isNotBlank() && (pillar == MediaKind.VIDEO || channelId != null || channelOn) }
+
 @Composable
-internal fun SpoilerShieldActions(item: MediaItem?, onDismiss: () -> Unit) {
+internal fun SpoilerShieldActions(item: MediaItem?, pillar: MediaKind, onDismiss: () -> Unit) {
     val shield = LocalSpoilerShield.current ?: return
     if (item == null) return
     val setChannel = rememberSetShieldedChannel()
@@ -83,7 +87,7 @@ internal fun SpoilerShieldActions(item: MediaItem?, onDismiss: () -> Unit) {
     val revealed = shield.revealedByHand(item.id)
     val channel = item.statedChannel()?.youTubeChannelId to item.author
     val channelOn = shield.channelShielded(channel.first, channel.second)
-    val name = item.author?.takeIf { it.isNotBlank() && (channel.first != null || channelOn) }
+    val name = shieldableChannelName(item.author, channel.first, channelOn, pillar)
     SheetAction(
         when {
             shielded -> ({ shield.reveal(item.id) })

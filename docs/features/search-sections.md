@@ -92,7 +92,7 @@ videos in one long scroll. The results are now one tab per kind, over the same s
 - Each tab keeps its own scroll position. **Videos still load more as the list scrolls to its end** (the trigger is
   only armed while that tab is showing); the music "more" buttons and the torrent "show more" button are unchanged.
 - An answered tab with nothing in it says `📭 No videos for “query”` rather than showing a blank list.
-- The tab row is `ScrollableTabs` (`ui/common`), extracted from the player's tabs, which use it too.
+- The tab row is `WrappingTabs` (`ui/common`, was `ScrollableTabs`), extracted from the player's tabs, which use it too; when the labels do not fit one line it wraps onto a second rather than scrolling with a label cut at the edge.
 
 Log lines (`search`): `tabs: VIDEOS=40+ TORRENTS=3 searching AUDIOBOOKS=? searching ...; showing VIDEOS (chosen=nothing
 yet)` whenever a section answers, and `tab A -> B` on a tap.

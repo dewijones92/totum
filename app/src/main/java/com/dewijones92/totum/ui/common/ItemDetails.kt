@@ -1,12 +1,9 @@
 package com.dewijones92.totum.ui.common
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material3.Icon
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -78,14 +75,14 @@ private fun formatLength(seconds: Long): String {
 @Composable
 internal fun DetailsSection(item: MediaItem) {
     var open by remember(item.id) { mutableStateOf(false) }
-    ListItem(
-        headlineContent = { Text(stringResource(if (open) R.string.details_hide else R.string.details_show)) },
-        leadingContent = { Icon(Icons.Outlined.Info, contentDescription = null) },
-        modifier = Modifier.testTag(DETAILS_TAG).clickable {
-            open = !open
-            if (open) Diag.log("details", "details opened for ${item.id.value}")
-        },
-    )
+    SheetRow(
+        Icons.Outlined.Info,
+        stringResource(if (open) R.string.details_hide else R.string.details_show),
+        DETAILS_TAG,
+    ) {
+        open = !open
+        if (open) Diag.log("details", "details opened for ${item.id.value}")
+    }
     if (open) {
         Column(Modifier.padding(horizontal = 24.dp).testTag(DETAILS_LIST_TAG)) {
             val linkColor = MaterialTheme.colorScheme.primary

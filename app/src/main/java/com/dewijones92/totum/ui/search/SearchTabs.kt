@@ -19,7 +19,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
 import com.dewijones92.totum.data.search.SearchSection
-import com.dewijones92.totum.ui.common.ScrollableTabs
+import com.dewijones92.totum.ui.common.WrappingTabs
 import com.dewijones92.totum.ui.search.SearchViewModel.Results
 
 internal enum class SearchTab(@param:StringRes val label: Int) {
@@ -106,7 +106,7 @@ internal fun SearchTabRow(
     modifier: Modifier = Modifier,
 ) {
     val byTab = tabs.associateBy { it.tab }
-    ScrollableTabs(
+    WrappingTabs(
         tabs = tabs.map { it.tab },
         selected = selected,
         onSelect = onSelect,

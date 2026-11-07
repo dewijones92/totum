@@ -26,7 +26,7 @@ import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.ui.common.ExploreToggle
 import com.dewijones92.totum.ui.common.LocalExploreMode
-import com.dewijones92.totum.ui.common.ScrollableTabs
+import com.dewijones92.totum.ui.common.WrappingTabs
 import com.dewijones92.totum.ui.player.WatchViewModel.CommentsState
 import com.dewijones92.totum.ui.player.WatchViewModel.RelatedState
 
@@ -60,7 +60,7 @@ internal fun PlayerTabs(state: PlaybackState, content: PlayerTabContent) {
     var chosen by rememberSaveable { mutableStateOf(PlayerTab.UP_NEXT) }
     val selected = chosen.takeIf { it in tabs } ?: PlayerTab.UP_NEXT
     Row(verticalAlignment = Alignment.CenterVertically) {
-        ScrollableTabs(
+        WrappingTabs(
             tabs = tabs,
             selected = selected,
             onSelect = { tab ->

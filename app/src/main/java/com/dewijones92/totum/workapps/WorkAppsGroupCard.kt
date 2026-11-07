@@ -55,10 +55,8 @@ internal fun WorkAppsGroupCard(
     removals: GroupRemovals,
 ) {
     val context = LocalContext.current
-    val line = remember(group) {
-        val now = Instant.now()
-        val zone = ZoneId.systemDefault()
-        context.groupLine(group.state(now, zone), now, zone)
+    val line = remember(group, settings) {
+        context.groupCardLine(workApps.status(), group, Instant.now(), ZoneId.systemDefault())
     }
     QuestCard(Icons.Outlined.Schedule, "${group.emoji} ${group.name}") {
         Text(

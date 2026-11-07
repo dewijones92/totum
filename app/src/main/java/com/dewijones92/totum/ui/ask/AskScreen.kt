@@ -6,7 +6,6 @@ import android.speech.RecognizerIntent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -19,7 +18,6 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material3.Card
@@ -42,6 +40,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
@@ -61,6 +60,7 @@ import com.dewijones92.totum.data.search.SearchHit
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.titleOf
+import com.dewijones92.totum.ui.common.BackHeader
 import com.dewijones92.totum.ui.common.LocalItemShield
 import com.dewijones92.totum.ui.common.LocalOpenMusicPage
 import com.dewijones92.totum.ui.common.LocalOpenSearch
@@ -86,6 +86,10 @@ import com.dewijones92.totum.ui.search.TorrentHitRow
 import com.dewijones92.totum.ui.search.TorrentMenuSheet
 import com.dewijones92.totum.ui.search.VideoHitRow
 import com.dewijones92.totum.ui.search.rememberTorrentProgress
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @Composable
 fun AskScreen(container: AppContainer, onBack: () -> Unit, modifier: Modifier = Modifier) {
@@ -173,11 +177,14 @@ private fun EarlierChats(chats: List<SavedChat>, onOpen: (String) -> Unit, onFor
         style = MaterialTheme.typography.labelLarge,
         modifier = Modifier.padding(start = 16.dp, top = 8.dp),
     )
+    val locale = LocalConfiguration.current.locales[0]
+    val zone = ZoneId.systemDefault()
+    val labelled = shown.associateBy { chatChipLabel(it, zone, locale) }
     RecentChips(
-        shown.map { it.title },
-        onPick = { title -> shown.firstOrNull { it.title == title }?.let { onOpen(it.id) } },
-        onRemove = { title -> shown.firstOrNull { it.title == title }?.let { onForget(it.id) } },
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+        labelled.keys.toList(),
+        onPick = { label -> labelled[label]?.let { onOpen(it.id) } },
+        onRemove = { label -> labelled[label]?.let { onForget(it.id) } },
+        modifier = Modifier.padding(vertical = 8.dp)
             .heightIn(max = EARLIER_CHATS_MAX_HEIGHT.dp)
             .verticalScroll(rememberScrollState()),
     )
@@ -190,18 +197,17 @@ private fun EarlierChats(chats: List<SavedChat>, onOpen: (String) -> Unit, onFor
 
 @Composable
 private fun AskHeader(state: AskViewModel.UiState, onBack: () -> Unit, onStartOver: () -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        IconButton(onClick = onBack) {
-            Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.back))
-        }
-        Text(
-            stringResource(R.string.ask_title),
-            style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.weight(1f)
-        )
-        TextButton(onClick = onStartOver, enabled = !state.busy) { Text(stringResource(R.string.ask_start_over)) }
+    BackHeader(stringResource(R.string.ask_title), onBack) {
+        TextButton(
+            onClick = onStartOver,
+            enabled = !state.busy,
+            modifier = Modifier.padding(end = 4.dp),
+        ) { Text(stringResource(R.string.ask_start_over)) }
     }
 }
+
+internal fun chatChipLabel(chat: SavedChat, zone: ZoneId, locale: Locale): String =
+    "${chat.title} · ${DateTimeFormatter.ofPattern("d MMM, HH:mm", locale).format(Instant.ofEpochMilli(chat.at).atZone(zone))}"
 
 @Composable
 private fun AskInput(state: AskViewModel.UiState, recents: RecentSearches?, ask: (String, String) -> Unit) {

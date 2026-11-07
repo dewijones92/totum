@@ -100,7 +100,7 @@ internal fun GroupHeader(model: GroupHeaderModel, actions: GroupHeaderActions, d
                 if (model.collapsed) R.string.queue_group_expand else R.string.queue_group_collapse,
                 model.title,
             ),
-            tint = MaterialTheme.colorScheme.primary,
+            tint = groupAccent(model),
         )
         GroupTitle(model, Modifier.weight(1f).padding(start = 4.dp))
         if (model.count > 1) GroupShufflePlay(model, actions.onShuffleAndPlay)
@@ -155,10 +155,18 @@ private fun GroupShufflePlay(model: GroupHeaderModel, onClick: () -> Unit) {
         Icon(
             Icons.Filled.Shuffle,
             contentDescription = stringResource(R.string.queue_group_shuffle_play, model.title),
-            tint = MaterialTheme.colorScheme.primary,
+            tint = groupAccent(model),
         )
     }
 }
+
+@Composable
+private fun groupAccent(model: GroupHeaderModel): Color =
+    if (model.containsNowPlaying) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.primary
+
+@Composable
+private fun groupMuted(model: GroupHeaderModel): Color =
+    if (model.containsNowPlaying) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
 
 @Composable
 private fun GroupTitle(model: GroupHeaderModel, modifier: Modifier) {
@@ -173,7 +181,7 @@ private fun GroupTitle(model: GroupHeaderModel, modifier: Modifier) {
                 model.title
             },
             style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.primary,
+            color = groupAccent(model),
         )
         if (model.containsNowPlaying) {
             Text(
@@ -189,7 +197,7 @@ private fun GroupTitle(model: GroupHeaderModel, modifier: Modifier) {
             Text(
                 text = stringResource(R.string.queue_group_endless),
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = groupMuted(model),
                 modifier = Modifier.testTag(QUEUE_GROUP_ENDLESS_TAG),
             )
         }
@@ -197,7 +205,7 @@ private fun GroupTitle(model: GroupHeaderModel, modifier: Modifier) {
             Text(
                 text = timeLeftWords(left),
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = groupMuted(model),
                 modifier = Modifier.testTag(QUEUE_GROUP_TIME_LEFT_TAG),
             )
         }
@@ -206,7 +214,7 @@ private fun GroupTitle(model: GroupHeaderModel, modifier: Modifier) {
             Text(
                 text = pluralStringResource(R.plurals.queue_group_hidden, hidden, hidden),
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = groupMuted(model),
             )
         }
     }

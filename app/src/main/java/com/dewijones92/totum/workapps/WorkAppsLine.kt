@@ -6,6 +6,7 @@ import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.dailyalarms.DailyAlarmNotifications
 import com.dewijones92.totum.dailyalarms.GroupState
+import com.dewijones92.totum.dailyalarms.QuietGroup
 import com.dewijones92.totum.dailyalarms.QuietKind
 import com.dewijones92.totum.dailyalarms.WorkAppsSettings
 import com.dewijones92.totum.dailyalarms.WorkAppsStatus
@@ -32,19 +33,27 @@ fun Context.workAppsLine(
     is WorkAppsStatus.Groups -> status.states.joinToString(" · ") { groupLine(it, now, zone) }
 }
 
-fun Context.groupLine(state: GroupState, now: Instant, zone: ZoneId): String {
-    val group = state.group
+fun Context.groupLine(state: GroupState, now: Instant, zone: ZoneId): String =
+    getString(R.string.work_apps_group_line, state.group.emoji, state.group.name, groupState(state, now, zone))
+
+fun Context.groupState(state: GroupState, now: Instant, zone: ZoneId): String {
     val until = state.until?.let { whenText(it, now, zone) }
     return when {
-        state.kind == QuietKind.PAUSED && until != null ->
-            getString(R.string.work_apps_seg_paused, group.emoji, group.name, until)
-        state.kind == QuietKind.ON && until != null ->
-            getString(R.string.work_apps_seg_on, group.emoji, group.name, until)
-        state.kind == QuietKind.QUIET && until != null ->
-            getString(R.string.work_apps_seg_quiet, group.emoji, group.name, until)
-        else -> getString(R.string.work_apps_seg_quiet_no_days, group.emoji, group.name)
+        state.kind == QuietKind.PAUSED && until != null -> getString(R.string.work_apps_state_paused, until)
+        state.kind == QuietKind.ON && until != null -> getString(R.string.work_apps_state_on, until)
+        state.kind == QuietKind.QUIET && until != null -> getString(R.string.work_apps_state_quiet, until)
+        else -> getString(R.string.work_apps_state_quiet_no_days)
     }
 }
+
+fun Context.groupCardLine(status: WorkAppsStatus?, group: QuietGroup, now: Instant, zone: ZoneId): String =
+    when (status) {
+        null -> getString(R.string.work_apps_state_inactive)
+        WorkAppsStatus.NeedsAccess -> getString(R.string.work_apps_line_needs_access)
+        is WorkAppsStatus.Groups -> status.states.firstOrNull { it.group.id == group.id }
+            ?.let { groupState(it, now, zone) }
+            ?: groupState(group.state(now, zone), now, zone)
+    }
 
 fun Context.namesOf(packages: List<String>): String {
     if (packages.isEmpty()) return getString(R.string.work_apps_apps_none)

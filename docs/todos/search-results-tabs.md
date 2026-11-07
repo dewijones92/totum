@@ -15,4 +15,4 @@ player's `SecondaryScrollableTabRow` (`PlayerTabs.kt:66-83`). Paged counts must 
 
 Whole-batch review: extract a generic tab row from `PlayerTabs` (it is bound to the `PlayerTab` enum) and use it in both.
 
-Built 2026-11-06: see [search-sections](../features/search-sections.md) ("Results as tabs"). `ScrollableTabs` (ui/common) now serves the player and search; tests still to write are listed there.
+Built 2026-11-06: see [search-sections](../features/search-sections.md) ("Results as tabs"). `WrappingTabs` (ui/common; wraps onto a second line instead of cutting a label, 2026-11-07) now serves the player and search; tests still to write are listed there.

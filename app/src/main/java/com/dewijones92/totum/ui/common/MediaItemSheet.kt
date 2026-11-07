@@ -127,7 +127,7 @@ internal fun ActionSheet(
             SheetAction(onPeek, Icons.Outlined.Visibility, R.string.queue_peek, onDismiss)
             SheetAction(extras.onStartRadio, Icons.Outlined.Radio, R.string.music_start_radio, onDismiss)
             StarAction(extras.item, onDismiss)
-            SpoilerShieldActions(extras.item, onDismiss)
+            SpoilerShieldActions(extras.item, sourcePillar, onDismiss)
             StarListAction(extras.starList, title, onDismiss)
             SheetAction(notForMeActionOf(extras), Icons.Outlined.ThumbDown, R.string.not_for_me, onDismiss)
             ShareSheetActions(extras.item, extras.onShareList, onDismiss)
@@ -212,20 +212,25 @@ internal fun SheetAction(
     tag: String? = null,
 ) {
     action?.let {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .let { modifier -> tag?.let { modifier.testTag(it) } ?: modifier }
-                .fillMaxWidth()
-                .clickable {
-                    onDismiss()
-                    it()
-                }
-                .padding(horizontal = 24.dp, vertical = 14.dp),
-        ) {
-            Icon(icon, contentDescription = null, modifier = Modifier.padding(end = 24.dp))
-            Text(stringResource(labelRes), style = MaterialTheme.typography.bodyLarge)
+        SheetRow(icon, stringResource(labelRes), tag) {
+            onDismiss()
+            it()
         }
+    }
+}
+
+@Composable
+internal fun SheetRow(icon: ImageVector, label: String, tag: String?, onClick: () -> Unit) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .let { modifier -> tag?.let { modifier.testTag(it) } ?: modifier }
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 24.dp, vertical = 14.dp),
+    ) {
+        Icon(icon, contentDescription = null, modifier = Modifier.padding(end = 24.dp))
+        Text(label, style = MaterialTheme.typography.bodyLarge)
     }
 }
 

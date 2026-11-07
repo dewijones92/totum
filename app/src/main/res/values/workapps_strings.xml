@@ -7,10 +7,12 @@
     <string name="work_apps_status_title">Status</string>
     <string name="work_apps_status_off">💤 Quiet hours are off</string>
     <string name="work_apps_names_more">%1$s +%2$d</string>
-    <string name="work_apps_seg_quiet">%1$s %2$s 🔕 quiet until %3$s</string>
-    <string name="work_apps_seg_quiet_no_days">%1$s %2$s 🔕 quiet (no days set)</string>
-    <string name="work_apps_seg_on">%1$s %2$s 🔔 on until %3$s</string>
-    <string name="work_apps_seg_paused">%1$s %2$s ⏸️ let through until %3$s</string>
+    <string name="work_apps_group_line">%1$s %2$s %3$s</string>
+    <string name="work_apps_state_quiet">🔕 Quiet until %1$s</string>
+    <string name="work_apps_state_quiet_no_days">🔕 Quiet (no days set)</string>
+    <string name="work_apps_state_on">🔔 On until %1$s</string>
+    <string name="work_apps_state_paused">⏸️ Let through until %1$s</string>
+    <string name="work_apps_state_inactive">💤 Holds nothing back while quiet hours are off</string>
     <string name="work_apps_line_needs_access">⚠️ Work apps quiet hours need notification access</string>
 
     <string name="work_apps_access_title">Notification access</string>
