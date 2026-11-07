@@ -25,6 +25,11 @@ it is "this batch please".
 - Totum's `totum-fetch` publishes only 8771 (casts); 8770 (targets) is reachable only on the `bin_private` network, so
   nothing on the host (HA, `hermes-audio-ctl`) can call `/targets`.
 - Totum's targets have no repeat, and a target that passes over an unplayable item shows no problem.
+- **A live YouTube stream does not play on a Pi target** (2026-11-07 07:36, `Dx5qFachd3A`, a live jazz radio): it
+  resolved through the signed-in TV client (16 formats) and mpv exited 2 at once. The phone plays live through a manifest
+  it builds (ADR 69: head request, `&sq=$Number$` segments on loopback); the Pi hands the raw URL over.
+- A target's queue keeps earlier items: a PLAY after STOP showed "playing 1/3". Fine, but a passed-over or failed item
+  shows `problem: null`.
 
 ## Decision (the coordinator's call; Dewi delegated it)
 
@@ -36,7 +41,10 @@ it is "this batch please".
 - **Repeat on a target** (off / this one / the queue, as ADR 27 on the phone): brown noise is queued with repeat one.
 - **A sound on the Pi**: brown noise is served to Totum as a file the Pi already holds (the container mounts
   `/var/lib/hermes-audio` read-only); one rule for "an item whose bytes are on the Pi".
-- **Jazz**: a new 24/7 station, chosen and checked to play for minutes, not seconds; the dead one is logged.
+- **Live on a target**: the Pi builds and serves the same live manifest the phone builds (ADR 69's `LiveDash`, pure
+  JVM), for speakers and TVs alike.
+- **Jazz**: a new 24/7 station (candidate `Dx5qFachd3A`, Cafe Music BGM channel's Relaxing Jazz Piano Radio, live on
+  2026-11-07), checked to play for minutes, not seconds; the dead one is logged.
 - **A passed-over item is a problem on the target** ("❌ Couldn't play Jazz station: not available"), shown on the
   phone's chip like any other.
 - Items started by HA show in Totum's queue view, from "🏠 Home Assistant".
