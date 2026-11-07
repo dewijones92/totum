@@ -16,6 +16,7 @@ internal interface CastControl {
     fun reading(): CastReading?
     var onEnded: (failed: Boolean) -> Unit
     suspend fun reachable(): Boolean
+    val model: String? get() = null
 }
 
 internal class PyCastControl(
@@ -44,6 +45,9 @@ internal class PyCastControl(
 
     @Volatile private var deviceVolume: Int? = null
 
+    @Volatile override var model: String? = null
+        private set
+
     @Synchronized
     private fun session(): BufferedWriter? {
         writer?.takeIf { process?.isAlive == true }?.let { return it }
@@ -68,6 +72,7 @@ internal class PyCastControl(
             when (val event = CastWire.parse(text)) {
                 is CastEvent.Ready -> {
                     ready = true
+                    model = event.model
                     Diag.log("cast-target", "$label: connected, ${event.name} (${event.model})")
                 }
                 is CastEvent.Status -> status(event)

@@ -41,8 +41,13 @@ spike measured the whole chain at about 13 times real time on one of the Pi's fo
 - **Changing the sound restarts the item where it was**, on the processed path or off it.
 - **A picture is not processed yet.** For a TV showing a video, the sound goes as it comes; the log line says so. The
   phone's DASH path (original video packets plus processed audio segments, ADR 68) needs `CastStreams` split in two
-  and is not built.
-- **A YouTube stream reaches a TV, mpv or ffmpeg through the Pi's own relay (amended 2026-11-07).** The first build
+  and is not built. **Superseded 2026-11-07 by [ADR 156](0156-one-casting-brain-the-pi-casts-with-the-phones-own-code.md):**
+  the split is done and a TV gets the phone's manifest, picture and processed segments; `SoundStreams`, the `/s/` AAC
+  stream and `/f/` files described here are gone. `PcmChain`, `PcmPump` and the speaker path are unchanged, and
+  `FfmpegAudioEngine` feeds the same processed PCM to an AAC encoder whose frames become the DASH segments.
+- **A YouTube stream reaches a TV, mpv or ffmpeg through the Pi's own relay (amended 2026-11-07; for a TV the core's
+  manifest now carries it, [ADR 156](0156-one-casting-brain-the-pi-casts-with-the-phones-own-code.md), and the relay
+  below serves ffmpeg, mpv and a stream the core declines).** The first build
   gave the receiver the raw `googlevideo` address, which the TV fetches straight through, and YouTube stops such a
   fetch after about the first megabyte (the 0.1.887 run on the LG: `load sent`, 2.8 s of 20 s played, then
   `idle (FINISHED)`; the same cap that made the phone, the Pi's downloads and ADR 68's relay fetch in ranges).

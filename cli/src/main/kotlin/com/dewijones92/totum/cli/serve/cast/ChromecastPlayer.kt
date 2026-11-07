@@ -9,20 +9,27 @@ import com.dewijones92.totum.cli.serve.targets.TargetSource
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.targets.Target
 import com.dewijones92.totum.data.targets.TargetKind
-import java.io.File
+import com.dewijones92.totum.playback.cast.CastItem
+import com.dewijones92.totum.playback.cast.Http
+import kotlin.concurrent.thread
 
 internal class ChromecastPlayer(
     private val label: String,
     private val control: CastControl,
-    private val streams: SoundStreams,
+    private val streams: PiStreams,
     private val clock: () -> Long = System::currentTimeMillis,
+    private val watch: (check: () -> Boolean) -> Unit = ::watchWhileTrue,
 ) : TargetPlayer {
 
-    @Volatile private var offerUrl: String? = null
+    private val tv = PiCastTv(label) { control.model }
 
-    @Volatile private var sourceUrl: String? = null
+    @Volatile private var rawUrl: String? = null
 
-    @Volatile private var offsetMs = 0L
+    @Volatile private var mediaId: String? = null
+
+    @Volatile private var watching: Any? = null
+
+    override val notice: String? get() = tv.notice
 
     override var onEnded: (failed: Boolean) -> Unit
         get() = control.onEnded
@@ -32,61 +39,93 @@ internal class ChromecastPlayer(
 
     override fun play(request: PlayRequest) {
         stop()
-        val wantsProcessing = request.sound.changesSound
-        val processed = wantsProcessing && !request.picture && streams.available
-        if (wantsProcessing && !processed) {
-            Diag.log(
-                "cast-target",
-                "$label: sound processing not applied (picture=${request.picture}, " +
-                    "processed sound server ${if (streams.available) "ready" else "not configured"}); " +
-                    "playing as it comes",
-            )
+        tv.notice = null
+        val wanted = request.cast ?: CastItem(request.title, request.url, listening = !request.picture)
+        val item = wanted.copy(mediaId = "$label|${wanted.mediaId}", skipsSilence = request.sound.skipSilence)
+        val manifest = if (streams.available) streams.urlFor(tv, item, request.sound) else null
+        if (manifest != null) {
+            mediaId = item.mediaId
+            control.load(manifest, Http.MPD, request.title, request.startAtMs)
+            watchTheCutEnd(item.mediaId)
+        } else {
+            val url = streams.givenAsItIs(label, request.url)
+            rawUrl = url.takeIf { it != request.url }
+            Diag.log("cast-target", "$label: ${request.title} loaded as it comes (${hostOrPath(url)})")
+            control.load(url, contentTypeOf(request.url, request.picture, false), request.title, request.startAtMs)
         }
-        val url = when {
-            processed -> streams.offer(label, request.url, request.sound, request.startAtMs)
-            request.url.startsWith("/") -> streams.offerFile(label, File(request.url))
-            streams.relays(request.url) -> relayed(request)
-            else -> null
-        } ?: request.url
-        offerUrl = url.takeIf { it != request.url }
-        offsetMs = if (processed) request.startAtMs else 0L
-        sourceUrl = if (processed) url else null
-        val startAt = if (processed) 0L else request.startAtMs
-        control.load(url, contentTypeOf(request.url, request.picture, processed), request.title, startAt)
     }
 
-    private fun relayed(request: PlayRequest): String? {
-        val address = streams.offerRelayed(label, request.url)
-        val outcome = if (address == null) {
-            "given as it is (no address the TV can reach is configured)"
-        } else {
-            "relayed by the Pi"
-        }
-        Diag.log("cast-target", "$label: YouTube stream $outcome")
-        return address
+    private fun watchTheCutEnd(id: String) {
+        val timeline = streams.timelineFor(id)?.takeIf { it.cutsSilences } ?: return
+        val mine = Any()
+        watching = mine
+        watch { watching !== mine || nudgedAtTheEnd(id, timeline.endTvUs) }
+    }
+
+    internal fun nudgedAtTheEnd(id: String, endTvUs: Long?): Boolean {
+        if (mediaId != id || endTvUs == null) return false
+        val reading = control.reading() ?: return false
+        if (!reading.playing || reading.positionAt(clock()) * MICROS_PER_MS < endTvUs - SLACK_US) return false
+        Diag.log(
+            "cast-target",
+            "$label: the cut audio ends at ${endTvUs / MICROS_PER_MS}ms on the TV (at " +
+                "${reading.positionAt(clock())}ms now); stopping the TV so the queue moves on",
+        )
+        watching = null
+        control.stop()
+        control.onEnded(false)
+        return true
     }
 
     override fun pause(paused: Boolean) = control.pause(paused)
 
-    override fun seek(positionMs: Long) = control.seek(positionMs)
+    override fun seek(positionMs: Long) {
+        val tvMs = timeline()?.tvFor(positionMs * MICROS_PER_MS)?.div(MICROS_PER_MS) ?: positionMs
+        if (tvMs != positionMs) {
+            Diag.log(
+                "cast-target",
+                "$label: seek to ${positionMs}ms of the source is ${tvMs}ms on the TV"
+            )
+        }
+        control.seek(tvMs)
+    }
 
     override fun volume(percent: Int) = control.volume(percent)
 
     override val volumePercent: Int? get() = control.volumePercent()
 
     override fun stop() {
+        watching = null
         control.stop()
-        offerUrl?.let(streams::withdraw)
-        offerUrl = null
-        sourceUrl = null
+        rawUrl?.let(streams::withdraw)
+        rawUrl = null
+        mediaId?.let(streams::release)
+        mediaId = null
     }
 
     override val positionMs: Long?
-        get() = control.reading()?.positionAt(
-            clock()
-        )?.let { it + offsetMs + (sourceUrl?.let(streams::skippedMs) ?: 0) }
+        get() = control.reading()?.positionAt(clock())?.let { tvMs ->
+            timeline()?.sourceFor(tvMs * MICROS_PER_MS)?.div(MICROS_PER_MS) ?: tvMs
+        }
 
-    override val durationMs: Long? get() = if (sourceUrl != null) null else control.reading()?.durationMs
+    override val durationMs: Long? get() = control.reading()?.durationMs
+
+    private fun timeline() = mediaId?.let(streams::timelineFor)?.takeIf { it.cutsSilences }
+
+    private fun hostOrPath(url: String): String = runCatching { java.net.URI(url).host }.getOrNull() ?: "a file"
+
+    private companion object {
+        const val MICROS_PER_MS = 1_000L
+        const val SLACK_US = 300_000L
+    }
+}
+
+private const val WATCH_MS = 500L
+
+private fun watchWhileTrue(check: () -> Boolean) {
+    thread(name = "cast-end-watch", isDaemon = true) {
+        while (!check()) Thread.sleep(WATCH_MS)
+    }
 }
 
 internal fun contentTypeOf(url: String, picture: Boolean, processed: Boolean): String {
@@ -121,7 +160,7 @@ internal fun knownCastsFrom(spec: String?): List<KnownCasts> = spec.orEmpty().sp
 
 internal class ChromecastSource(
     private val known: List<KnownCasts>,
-    private val streams: SoundStreams,
+    private val streams: PiStreams,
 ) : TargetSource {
 
     override suspend fun find(fresh: Boolean): List<FoundTarget> = known.map { cast ->

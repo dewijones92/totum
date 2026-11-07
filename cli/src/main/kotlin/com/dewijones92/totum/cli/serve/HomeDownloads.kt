@@ -36,9 +36,13 @@ import com.dewijones92.totum.innertube.player.HttpVisitorIdSource
 import com.dewijones92.totum.innertube.player.MemoisedNSolver
 import com.dewijones92.totum.innertube.player.NSolver
 import com.dewijones92.totum.innertube.player.SignatureSolver
+import com.dewijones92.totum.playback.cast.CastItem
+import com.dewijones92.totum.playback.cast.CastRung
+import com.dewijones92.totum.playback.cast.LocalManifests
 import com.dewijones92.totum.video.EmbeddedPlayer
 import com.dewijones92.totum.video.FileLookupStore
 import com.dewijones92.totum.video.InnerTubePlayerStreams
+import com.dewijones92.totum.video.LiveStreamManifest
 import com.dewijones92.totum.video.PhoneCodecs
 import com.dewijones92.totum.video.SabrRoute
 import com.dewijones92.totum.video.SignedInTvPlayer
@@ -147,6 +151,7 @@ internal class HomeDownloads(
                 solveN = solvingChallenges(stamps, nSolver, signatures),
                 embedded = embedded::player,
                 preferAccount = { true },
+                live = LiveStreamManifest(LiveStreamManifest.headsOver(http), LocalManifests::publish),
             ),
             preferredAudioLanguages = { listOf("en") },
             lookupStore = lookups,
@@ -204,6 +209,38 @@ internal class HomeDownloads(
     suspend fun signedInToYouTube(): Boolean = account.isSignedIn()
 
     fun youTubeOwnerId(): String? = ownership.owner()?.id
+
+    suspend fun castOf(item: PlayableItem, picture: Boolean): CastItem? {
+        val id = item.item.id.value
+        if (!picture || item.handle !is PlayHandle.Video || fileOf(id) != null) return null
+        val resolved = resolverFor(emptyList()).resolve(item, "target-cast") ?: return null
+        val pairs = resolved.qualities.filter { it.audioUrl != null }
+        val chosen = pairs.firstOrNull()
+        if (chosen == null) {
+            Diag.log(
+                "targets",
+                "$id: no stream with its own audio to build a ladder from (${resolved.qualities.size} offered)"
+            )
+            return null
+        }
+        val rewrite = { url: String -> rewrites.apply(url) }
+        val video = rewrite(chosen.videoUrl.value)
+        val wait = YoungStreamUrl.retryDelayMs(video, System.currentTimeMillis(), errorCount = 1)
+        Diag.log(
+            "targets",
+            "$id: a picture for a TV, ${chosen.label} with its own audio, ladder of ${pairs.size}, " +
+                "young wait ${wait ?: 0}ms",
+        )
+        wait?.let { delay(it) }
+        return CastItem(
+            mediaId = id,
+            uri = video,
+            separateAudioUrl = chosen.audioUrl?.value?.let(rewrite),
+            listening = false,
+            ladder = pairs.map { CastRung(rewrite(it.videoUrl.value), it.height, it.codec) },
+            durationMs = item.item.duration?.inWholeMilliseconds,
+        )
+    }
 
     suspend fun soundOf(item: PlayableItem, picture: Boolean = false): String? {
         fileOf(item.item.id.value)?.let { file ->

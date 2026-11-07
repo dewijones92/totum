@@ -28,7 +28,7 @@ to send a queue to. ADR 116 had built that for speakers only, with its own wire 
 - **One queue per target, one deck per queue on the Pi (`cli/serve/targets`).** `TargetDeck` is ADR 116's `SpeakerDeck`
   made kind-agnostic: it owns the `QueueSnapshot`, starts items, moves on at an end, saves itself (`DeckStore`) and
   restores paused. What differs per kind is a `TargetKit` (a `TargetPlayer` and a `TargetLink`) from a `TargetSource`:
-  Bluetooth speakers (BlueZ + mpv, unchanged), Chromecast TVs (`cli/serve/cast`, [ADR 153](0153-the-pi-runs-the-phones-sound-processing.md)).
+  Bluetooth speakers (BlueZ + mpv, unchanged), Chromecast TVs (`cli/serve/cast`, [ADR 153](0153-the-pi-runs-the-phones-sound-processing.md); what a TV loads is the phone's own manifest and segments since [ADR 156](0156-one-casting-brain-the-pi-casts-with-the-phones-own-code.md)).
   A deck asks for a picture only when its kind has one. Routes: `GET /targets`, `POST /targets/queue?id=`,
   `POST /targets/control?id=`, behind the same token as the rest.
 - **The phone is a remote.** `TargetsClient` (on `HomePiCall`) and `TargetsRepository` in the app poll `GET /targets`

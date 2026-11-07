@@ -155,7 +155,7 @@ public class CastStreamServer(
             try {
                 when {
                     !url.startsWith("http") -> localFile(File(pathOf(url)))
-                    url.contains(YOUTUBE_STREAMS) && rungs.choose(url, ladder, tvs.current(item.mediaId)?.screen, ceiling) -> Unit
+                    url.contains(YOUTUBE_STREAMS) && chooseRung(url) -> Unit
                     url.contains(YOUTUBE_STREAMS) ->
                         layout = StreamLayouts.probe { span -> Upstream.bytes(url, span) }
                             .takeIf { shows(it.codecs, it.height) }
@@ -167,6 +167,9 @@ public class CastStreamServer(
                 Diag.warn("cast", "${item.mediaId}: could not look for a picture; sound only", e)
             }
         }
+
+        private fun chooseRung(url: String): Boolean =
+            rungs.choose(url, ladder, tvs.current(item.mediaId)?.screen, ceiling)
 
         private fun remoteFile(url: String) {
             videoReader = RangeReader { span -> Upstream.bytes(url, span) }

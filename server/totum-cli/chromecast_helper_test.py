@@ -45,5 +45,32 @@ class StatusPositionTest(unittest.TestCase):
         self.assertEqual(4200, self.said(old)["positionMs"])
 
 
+class LoadTest(unittest.TestCase):
+    def loaded(self, command):
+        media = mock.Mock()
+        chromecast_helper.load(media, command)
+        return media.play_media.call_args
+
+    def test_a_load_hands_the_receiver_the_type_and_stream_type_it_was_sent(self):
+        call = self.loaded(
+            {
+                "url": "http://pi:8771/c/ab/live.mpd",
+                "type": "application/dash+xml",
+                "title": "Live",
+                "startMs": 0,
+                "streamType": "BUFFERED",
+            }
+        )
+
+        self.assertEqual(("http://pi:8771/c/ab/live.mpd", "application/dash+xml"), call.args)
+        self.assertEqual("BUFFERED", call.kwargs["stream_type"])
+
+    def test_a_load_without_a_stream_type_is_buffered_like_the_phones(self):
+        call = self.loaded({"url": "http://x/a.mp3", "type": "audio/mpeg"})
+
+        self.assertEqual("BUFFERED", call.kwargs["stream_type"])
+        self.assertEqual(0, call.kwargs["current_time"])
+
+
 if __name__ == "__main__":
     unittest.main()

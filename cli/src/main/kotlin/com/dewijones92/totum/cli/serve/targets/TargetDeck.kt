@@ -69,7 +69,7 @@ internal class TargetDeck(
         durationMs = queue.current?.let { player.durationMs ?: it.item.item.duration?.inWholeMilliseconds },
         volume = player.volumePercent,
         linked = destination != null,
-        problem = problem,
+        problem = problem ?: player.notice,
         sound = sound,
         repeat = repeat,
     )
@@ -231,8 +231,8 @@ internal class TargetDeck(
             val item = queue.entries[at].item
             val picture = target.kind.hasPicture && item.picture != Picture.NO
             val itemSound = sound.copy(skipSilence = item.item.contentKind.skipsSilence(sound.skipSilence))
-            val url = sounds.urlFor(item, picture)
-            if (url == null) {
+            val stream = sounds.streamFor(item, picture)
+            if (stream == null) {
                 val why = sounds.whyNone(item)
                 problem = "❌ Couldn't play ${item.item.title}: $why"
                 Diag.warn(
@@ -252,7 +252,9 @@ internal class TargetDeck(
                 save()
                 return
             }
-            player.play(PlayRequest(url, reached, itemSound, startAtMs, picture, item.item.title))
+            player.play(
+                PlayRequest(stream.url, reached, itemSound, startAtMs, picture, item.item.title, stream.cast)
+            )
             playing = true
             problem = null
             startedAtMs = clock()

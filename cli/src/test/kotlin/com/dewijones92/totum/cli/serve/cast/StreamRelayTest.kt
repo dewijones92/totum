@@ -2,8 +2,8 @@ package com.dewijones92.totum.cli.serve.cast
 
 import com.dewijones92.totum.cli.serve.sound.ProcessedSound
 import com.dewijones92.totum.data.targets.SoundSettings
-import com.dewijones92.totum.playback.VolumeBoost
 import com.dewijones92.totum.playback.cast.CastHttpServer
+import com.dewijones92.totum.playback.cast.CastItem
 import com.dewijones92.totum.playback.cast.Http
 import com.dewijones92.totum.playback.cast.HttpReply
 import com.dewijones92.totum.playback.cast.HttpRequest
@@ -62,7 +62,10 @@ class StreamRelayTest {
     }
 
     private fun streams(relay: StreamRelay = StreamRelay(carriesUrl = { true }, chunkBytes = 1_024)) =
-        SoundStreams(ProcessedSound("ffmpeg-not-run") { null }, "http://pi.example:$port", port, relay)
+        PiStreams(ProcessedSound("ffmpeg-not-run") { null }, "http://pi.example:$port", port, relay)
+
+    private fun PiStreams.offerRelayed(label: String, url: String): String? =
+        givenAsItIs(label, url).takeIf { it != url }
 
     private fun fetch(
         address: String,
@@ -166,7 +169,7 @@ class StreamRelayTest {
 
     @Test
     fun `with no address the TV can reach nothing is relayed`() {
-        val s = SoundStreams(ProcessedSound("ffmpeg-not-run") { null }, null, port, StreamRelay(carriesUrl = { true }))
+        val s = PiStreams(ProcessedSound("ffmpeg-not-run") { null }, null, port, StreamRelay(carriesUrl = { true }))
 
         assertEquals(null, s.offerRelayed("LG TV", youtube()))
     }
@@ -191,7 +194,7 @@ class StreamRelayTest {
     }
 
     @Test
-    fun `a boosted YouTube sound is decoded by ffmpeg from the Pi's own relay, not from YouTube`() {
+    fun `a YouTube sound cast to a TV is decoded by ffmpeg from the Pi's own relay, not from YouTube`() {
         val log = File(dir, "ffmpeg-args.txt")
         val ffmpeg = File(dir, "ffmpeg.sh").apply {
             writeText(
@@ -201,20 +204,21 @@ class StreamRelayTest {
             setExecutable(true)
         }.path
         val s =
-            SoundStreams(
+            PiStreams(
                 ProcessedSound(ffmpeg) { null },
                 "http://pi.example:$port",
                 port,
                 StreamRelay(carriesUrl = { true })
             )
-        val upstream = youtube()
+        val upstream = youtube().replace("video%2Fmp4", "audio%2Fmp4")
+        val tv = PiCastTv("LG TV") { null }
 
-        val address = s.offer("LG TV", upstream, SoundSettings(boost = VolumeBoost.AUTO), 0)!!
-        assertEquals(200, fetch(address).first)
+        val manifest = s.urlFor(tv, CastItem("a", upstream, listening = true, durationMs = 5_000), SoundSettings())!!
+        fetch(manifest.replace("manifest.mpd", "audio/0.m4s"))
 
         val args = log.readLines()
         val input = args[args.indexOf("-i") + 1]
-        assertTrue(args.toString(), Regex("""http://127\.0\.0\.1:\d+/y/[0-9a-f]{32}\.mp4""").matches(input))
+        assertTrue(args.toString(), Regex("""http://127\.0\.0\.1:\d+/y/[0-9a-f]{32}\.m4a""").matches(input))
         assertFalse(args.toString(), args.contains(upstream))
     }
 }

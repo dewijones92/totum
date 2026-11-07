@@ -11,7 +11,8 @@ class CastWireTest {
         val line = CastWire.load("https://x/y.mp4", "video/mp4", "Peppa", 42_000)
 
         assertEquals(
-            """{"cmd":"load","url":"https://x/y.mp4","type":"video/mp4","title":"Peppa","startMs":42000}""",
+            """{"cmd":"load","url":"https://x/y.mp4","type":"video/mp4","title":"Peppa","startMs":42000,""" +
+                """"streamType":"BUFFERED"}""",
             line,
         )
     }

@@ -167,3 +167,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 153 | [The Pi runs the phone's sound processing](0153-the-pi-runs-the-phones-sound-processing.md) | Accepted |
 | 154 | [Jellyfin is browsed and streamed through the Pi, with the key kept there](0154-jellyfin-is-browsed-and-streamed-through-the-pi.md) | Accepted |
 | 155 | [A target repeats, plays sound files on the Pi, and says why it could not play](0155-a-target-repeats-plays-files-on-the-pi-and-says-why-it-could-not-play.md) | Accepted |
+| 156 | [One casting brain, the Pi casts with the phone's own code](0156-one-casting-brain-the-pi-casts-with-the-phones-own-code.md) | Accepted |

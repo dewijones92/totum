@@ -39,7 +39,7 @@ that is not a phone, and the caller (HA) has to be reachable and recognisable.
   symlink that leaves the directory, a missing file and a directory are all refused, each with a reason. A refused file
   item gets no stream and is never handed to the phone's route. Ordinary paths (a phone's own download path) are not file
   items and go the way they always did. The container mounts `/var/lib/hermes-audio` at `/sounds` read-only.
-  Players already take a Pi path (mpv directly, a Chromecast through `SoundStreams.offerFile`).
+  Players already take a Pi path (mpv directly, a Chromecast through `SoundStreams.offerFile`, since replaced by the core's manifest, [ADR 156](0156-one-casting-brain-the-pi-casts-with-the-phones-own-code.md)).
 - **A target that cannot play says why.** `TargetSounds.whyNone(item)` gives the reason an item has no stream (the file
   rule's refusal, "Jellyfin is not set up on this Pi", else "no stream was found for it"); `TargetPlayer.failure` gives a
   player's own reason (mpv: "the player exited with code N", with no key in it; a TV: the generic "the player stopped

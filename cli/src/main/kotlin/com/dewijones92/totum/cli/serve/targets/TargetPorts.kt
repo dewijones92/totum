@@ -4,6 +4,7 @@ import com.dewijones92.totum.data.targets.SoundSettings
 import com.dewijones92.totum.data.targets.Target
 import com.dewijones92.totum.data.targets.TargetEntry
 import com.dewijones92.totum.domain.PlayableItem
+import com.dewijones92.totum.playback.cast.CastItem
 
 internal data class PlayRequest(
     val url: String,
@@ -12,7 +13,10 @@ internal data class PlayRequest(
     val startAtMs: Long,
     val picture: Boolean,
     val title: String,
+    val cast: CastItem? = null,
 )
+
+internal class TargetStream(val url: String, val cast: CastItem? = null)
 
 internal interface TargetPlayer {
     fun play(request: PlayRequest)
@@ -25,6 +29,7 @@ internal interface TargetPlayer {
     val durationMs: Long?
     var onEnded: (failed: Boolean) -> Unit
     val failure: String? get() = null
+    val notice: String? get() = null
 }
 
 internal interface TargetLink {
@@ -34,6 +39,9 @@ internal interface TargetLink {
 
 internal fun interface TargetSounds {
     suspend fun urlFor(item: PlayableItem, picture: Boolean): String?
+
+    suspend fun streamFor(item: PlayableItem, picture: Boolean): TargetStream? =
+        urlFor(item, picture)?.let { TargetStream(it) }
 
     fun whyNone(item: PlayableItem): String = "no stream was found for it"
 }

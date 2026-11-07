@@ -17,44 +17,15 @@ import java.nio.file.Files
 
 class ChromecastPlayerTest {
 
-    private class Loaded(val url: String, val type: String, val title: String, val startAtMs: Long)
-
-    private class FakeControl : CastControl {
-        val loads = mutableListOf<Loaded>()
-        val calls = mutableListOf<String>()
-        var reading: CastReading? = null
-        var reachable = true
-        var deviceVolume: Int? = null
-        override fun load(url: String, contentType: String, title: String, startAtMs: Long) {
-            loads += Loaded(url, contentType, title, startAtMs)
-        }
-        override fun pause(paused: Boolean) {
-            calls += "pause=$paused"
-        }
-        override fun seek(positionMs: Long) {
-            calls += "seek=$positionMs"
-        }
-        override fun volume(percent: Int) {
-            calls += "volume=$percent"
-        }
-        override fun volumePercent(): Int? = deviceVolume
-        override fun stop() {
-            calls += "stop"
-        }
-        override fun reading(): CastReading? = reading
-        override var onEnded: (failed: Boolean) -> Unit = {}
-        override suspend fun reachable(): Boolean = reachable
-    }
-
     private val dir = Files.createTempDirectory("chromecast-player").toFile()
     private val port = ServerSocket(0).use { it.localPort }
-    private val control = FakeControl()
+    private val control = FakeCastControl()
     private var now = 50_000L
 
     private fun streams(base: String? = "http://pi:$port") =
-        SoundStreams(ProcessedSound("ffmpeg-not-run") { null }, base, port)
+        PiStreams(ProcessedSound("ffmpeg-not-run") { null }, base, port)
 
-    private fun player(streams: SoundStreams = streams()) = ChromecastPlayer("LG TV", control, streams) { now }
+    private fun player(streams: PiStreams = streams()) = ChromecastPlayer("LG TV", control, streams) { now }
 
     private fun request(
         url: String = "https://example.com/talk.mp3",
@@ -64,54 +35,15 @@ class ChromecastPlayerTest {
     ) = PlayRequest(url, "10.0.0.5", sound, startAtMs, picture, "Talk")
 
     @Test
-    fun `an unprocessed item is loaded from its own address at its own place and the volume is left alone`() {
+    fun `an item is loaded as the manifest the phone would build, at its own place, and the volume is left alone`() {
         player().play(request(startAtMs = 9_000))
 
         val load = control.loads.single()
-        assertEquals("https://example.com/talk.mp3", load.url)
-        assertEquals("audio/mpeg", load.type)
+        assertTrue(load.url, Regex("""http://pi:$port/c/[0-9a-f]{16}/manifest\.mpd""").matches(load.url))
+        assertEquals("application/dash+xml", load.type)
         assertEquals("Talk", load.title)
         assertEquals(9_000L, load.startAtMs)
         assertEquals(listOf("stop"), control.calls)
-    }
-
-    @Test
-    fun `a boosted item with no picture is loaded from the Pi's processed sound, from the start of it`() {
-        val p = player()
-
-        p.play(request(sound = SoundSettings(boost = VolumeBoost.AUTO), startAtMs = 9_000))
-
-        val load = control.loads.single()
-        assertTrue(load.url, Regex("""http://pi:$port/s/[0-9a-f]{32}\.aac""").matches(load.url))
-        assertEquals("audio/aac", load.type)
-        assertEquals(0L, load.startAtMs)
-    }
-
-    @Test
-    fun `positions on a processed stream add where it started, and its duration is not the TV's`() {
-        val p = player()
-        p.play(request(sound = SoundSettings(boost = VolumeBoost.AUTO), startAtMs = 9_000))
-        control.reading = CastReading(positionMs = 4_000, durationMs = 30_000, playing = true, atMs = now - 1_000)
-
-        assertEquals(9_000L + 5_000L, p.positionMs)
-        assertNull(p.durationMs)
-    }
-
-    @Test
-    fun `a picture is never processed, because the sound would run ahead of the video`() {
-        player().play(
-            request(
-                url = "https://example.com/v.mp4",
-                sound = SoundSettings(boost = VolumeBoost.AUTO),
-                picture = true,
-                startAtMs = 9_000
-            )
-        )
-
-        val load = control.loads.single()
-        assertEquals("https://example.com/v.mp4", load.url)
-        assertEquals("video/mp4", load.type)
-        assertEquals(9_000L, load.startAtMs)
     }
 
     @Test
@@ -124,14 +56,17 @@ class ChromecastPlayerTest {
     }
 
     @Test
-    fun `a file on the Pi is offered over HTTP, because a TV cannot read a path`() {
-        val file = File(dir, "episode.mkv").apply { writeBytes(ByteArray(10)) }
+    fun `stopping stops the TV and withdraws the relay it was given`() {
+        val streams = streams()
+        val p = player(streams)
+        p.play(request(url = youtube, picture = true))
+        assertEquals(1, streams.relayed())
 
-        player().play(request(url = file.path, picture = true))
+        p.stop()
 
-        val load = control.loads.single()
-        assertTrue(load.url, Regex("""http://pi:$port/f/[0-9a-f]{32}\.mkv""").matches(load.url))
-        assertEquals("video/x-matroska", load.type)
+        assertEquals("stop", control.calls.last())
+        assertEquals(0, streams.relayed())
+        assertNull(p.durationMs)
     }
 
     @Test
@@ -142,20 +77,6 @@ class ChromecastPlayerTest {
 
         assertEquals(4_000L, p.positionMs)
         assertEquals(30_000L, p.durationMs)
-    }
-
-    @Test
-    fun `stopping stops the TV and withdraws what was offered`() {
-        val streams = streams()
-        val p = player(streams)
-        p.play(request(sound = SoundSettings(boost = VolumeBoost.AUTO)))
-        assertEquals(1, streams.offered())
-
-        p.stop()
-
-        assertEquals("stop", control.calls.last())
-        assertEquals(0, streams.offered())
-        assertNull(p.durationMs)
     }
 
     @Test
@@ -184,15 +105,15 @@ class ChromecastPlayerTest {
     }
 
     @Test
-    fun `a YouTube sound is relayed as well, and stopping withdraws the relay`() {
+    fun `a YouTube sound is a manifest of processed segments read from the Pi's relay, withdrawn on stop`() {
         val streams = streams()
         val p = player(streams)
 
         p.play(request(url = youtube.replace("video%2Fmp4", "audio%2Fmp4")))
 
         val load = control.loads.single()
-        assertTrue(load.url, Regex("""http://pi:$port/y/[0-9a-f]{32}\.m4a""").matches(load.url))
-        assertEquals("audio/mp4", load.type)
+        assertTrue(load.url, Regex("""http://pi:$port/c/[0-9a-f]{16}/manifest\.mpd""").matches(load.url))
+        assertEquals("application/dash+xml", load.type)
         assertEquals(1, streams.relayed())
 
         p.stop()

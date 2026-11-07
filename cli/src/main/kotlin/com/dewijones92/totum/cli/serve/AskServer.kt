@@ -6,8 +6,9 @@ import com.dewijones92.totum.cli.serve.ai.ClaudeCodeCompleter
 import com.dewijones92.totum.cli.serve.ai.RemoteCompleter
 import com.dewijones92.totum.cli.serve.ai.UsageLog
 import com.dewijones92.totum.cli.serve.cast.ChromecastSource
-import com.dewijones92.totum.cli.serve.cast.SoundStreams
+import com.dewijones92.totum.cli.serve.cast.PiStreams
 import com.dewijones92.totum.cli.serve.cast.knownCastsFrom
+import com.dewijones92.totum.cli.serve.cast.piMediaTools
 import com.dewijones92.totum.cli.serve.filing.FileCheck
 import com.dewijones92.totum.cli.serve.filing.Filing
 import com.dewijones92.totum.cli.serve.filing.FolderLibrary
@@ -200,10 +201,11 @@ internal suspend fun serveAsk(port: Int, out: (String) -> Unit): Int = coroutine
     )
     val targetsDir = File(home.dataDir, "targets")
     val shell = SystemShell()
-    val streams = SoundStreams(
+    val streams = PiStreams(
         ProcessedSound(),
         System.getenv("TOTUM_CAST_BASE"),
         System.getenv("TOTUM_CAST_PORT")?.toIntOrNull() ?: DEFAULT_CAST_PORT,
+        tools = piMediaTools(File(home.dataDir, "cast")),
     )
     val targets = TargetDecks(
         targetsDir,
@@ -212,6 +214,7 @@ internal suspend fun serveAsk(port: Int, out: (String) -> Unit): Int = coroutine
             home::soundOf,
             jellyfin?.let { j -> { id -> j.streamUrl(id) } },
             SoundFiles(File(System.getenv("TOTUM_SOUNDS") ?: "/sounds")),
+            home::castOf,
         ),
         listOf(
             SpeakerSource(shell, targetsDir, streams::locally),

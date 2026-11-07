@@ -38,9 +38,9 @@ public object EmbeddedSubtitles {
 
     private fun prepareNow(tools: MediaTools, source: File): Int {
         if (isDone(tools, source)) return kept(tools, source).size
-        val ffprobe = tools.ffprobe
-        val ffmpeg = tools.ffmpeg
-        if (ffprobe == null || ffmpeg == null || !ffprobe.exists() || !ffmpeg.exists()) {
+        val ffprobe = tools.ffprobe?.takeIf { it.exists() }
+        val ffmpeg = tools.ffmpeg?.takeIf { it.exists() }
+        if (ffprobe == null || ffmpeg == null) {
             Diag.warn(
                 "subtitles",
                 "no bundled ffmpeg/ffprobe, so ${source.name}'s own subtitles cannot be saved for the TV"

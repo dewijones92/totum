@@ -25,12 +25,15 @@ internal sealed interface CastEvent {
 
 internal object CastWire {
 
+    const val STREAM_TYPE = "BUFFERED"
+
     fun load(url: String, contentType: String, title: String, startAtMs: Long): String = line(
         "load",
         "url" to JsonPrimitive(url),
         "type" to JsonPrimitive(contentType),
         "title" to JsonPrimitive(title),
         "startMs" to JsonPrimitive(startAtMs),
+        "streamType" to JsonPrimitive(STREAM_TYPE),
     )
 
     fun pause(paused: Boolean): String = line(if (paused) "pause" else "resume")

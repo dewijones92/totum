@@ -195,3 +195,4 @@ of a downloaded file offers them; `EmbeddedSubtitleWarmer` prepares every downlo
 30 s after launch and as downloads land, so a cast does not wait. A file not prepared yet starts it at the cast (logged
 "saving them now for the next cast"). Checked on the stand-in: a test MKV with an English SRT track showed its cue.
 
+- **The Pi casts with this same code** ([ADR 156](../adr/0156-one-casting-brain-the-pi-casts-with-the-phones-own-code.md)): `CastStreamServer` in `:core:cast` decides and serves (rung choice, manifest, relayed video, processed-audio segments, captions, live, the sound-only fallback); the phone supplies MediaCodec (`MediaCodecAudioEngine`) and Media3, the Pi supplies ffmpeg (`FfmpegAudioEngine`). `CastStreams` in `:core:playback` is only the adapter from a `MediaItem`.

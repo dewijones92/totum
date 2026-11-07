@@ -18,10 +18,14 @@ private const val BYTES_PER_SAMPLE = 2
 private const val MS_PER_S = 1_000L
 private const val CHUNK_FRAMES = 4_096
 private const val STOP_WAIT_S = 2L
+private const val PROBE_WAIT_S = 20L
+private const val MICROS = 1_000_000L
 
 internal class PcmPump(private val chain: PcmChain, private val channels: Int, private val rate: Int) {
 
-    val skippedMs: Long get() = chain.skippedFrames * MS_PER_S / rate
+    val skippedFrames: Long get() = chain.skippedFrames
+
+    val skippedMs: Long get() = skippedFrames * MS_PER_S / rate
 
     fun run(input: InputStream, output: OutputStream, stillWanted: () -> Boolean = { true }): Long {
         val frameBytes = channels * BYTES_PER_SAMPLE
@@ -70,6 +74,8 @@ internal class Pipeline(
 
     val skippedMs: Long get() = pump.skippedMs
 
+    val skippedFrames: Long get() = pump.skippedFrames
+
     fun stop() {
         if (stopped) return
         stopped = true
@@ -83,6 +89,7 @@ internal class Pipeline(
 
 internal class ProcessedSound(
     private val ffmpeg: String = System.getenv("TOTUM_FFMPEG") ?: "ffmpeg",
+    private val ffprobe: String = System.getenv("TOTUM_FFPROBE") ?: "ffprobe",
     private val weights: () -> SpeechWeights? = ::bundledWeights,
 ) {
 
@@ -105,6 +112,32 @@ internal class ProcessedSound(
         ffmpeg, "-v", "error", "-nostdin", "-f", "s16le", "-ar", "$SOUND_RATE", "-ac", "$SOUND_CHANNELS",
         "-i", "-", "-c:a", "aac", "-b:a", "192k", "-f", "adts", "-",
     )
+
+    fun durationUs(url: String): Long? = runCatching {
+        val probe = ProcessBuilder(
+            ffprobe,
+            "-v",
+            "error",
+            "-show_entries",
+            "format=duration",
+            "-of",
+            "default=nw=1:nk=1",
+            url,
+        ).start()
+        val seconds = probe.inputStream.bufferedReader().readText().trim().toDoubleOrNull()
+        if (!probe.waitFor(PROBE_WAIT_S, TimeUnit.SECONDS)) probe.destroyForcibly()
+        seconds?.let { (it * MICROS).toLong() }
+    }.onFailure { Diag.warn("sound", "could not ask ffprobe for a length", it) }.getOrNull()
+
+    fun silentAacFrame(): ByteArray? = runCatching {
+        val made = ProcessBuilder(
+            ffmpeg, "-v", "error", "-nostdin", "-f", "lavfi", "-i", "anullsrc=r=$SOUND_RATE:cl=stereo", "-t", "1",
+            "-c:a", "aac", "-b:a", "192k", "-f", "adts", "-",
+        ).start()
+        val bytes = made.inputStream.readBytes()
+        made.waitFor(PROBE_WAIT_S, TimeUnit.SECONDS)
+        AdtsFrames.of(bytes).lastOrNull()
+    }.onFailure { Diag.warn("sound", "could not make a silent AAC frame", it) }.getOrNull()
 
     fun toSink(job: SoundJob, sink: OutputStream, onDone: (failed: Boolean) -> Unit): Pipeline {
         val decoder = start(decodeCommand(job.url, job.startAtMs))

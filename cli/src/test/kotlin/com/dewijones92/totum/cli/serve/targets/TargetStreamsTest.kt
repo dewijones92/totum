@@ -9,6 +9,8 @@ import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
+import com.dewijones92.totum.playback.cast.CastItem
+import com.dewijones92.totum.playback.cast.CastRung
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -96,5 +98,64 @@ class TargetStreamsTest {
         assertTrue(streams.whyNone(missing), streams.whyNone(missing).contains("nothing.opus"))
         assertEquals("no stream was found for it", streams.whyNone(episode))
         assertEquals("Jellyfin is not set up on this Pi", TargetStreams({ _, _ -> null }, null).whyNone(film))
+    }
+
+    private val youtube = episode.copy(
+        item = episode.item.copy(id = MediaItemId("yt1"), duration = kotlin.time.Duration.parse("PT2M")),
+        handle = PlayHandle.Video(HttpUrl.of("https://www.youtube.com/watch?v=abcdefghijk")),
+    )
+
+    private val ladder = CastItem(
+        mediaId = "yt1",
+        uri = "https://rr1.googlevideo.com/videoplayback?v=1080",
+        separateAudioUrl = "https://rr1.googlevideo.com/videoplayback?a=1",
+        ladder = listOf(CastRung("https://rr1.googlevideo.com/videoplayback?v=1080", 1080, "vp9")),
+    )
+
+    private fun withHome(cast: CastItem?) =
+        TargetStreams({ _, picture -> "https://home/audio:$picture" }, null, SoundFiles(sounds)) { _, _ -> cast }
+
+    @Test
+    fun `a YouTube picture for a TV is the phone's pair of streams and its ladder`() = runBlocking {
+        val stream = withHome(ladder).streamFor(youtube, picture = true)!!
+
+        assertEquals(ladder.uri, stream.url)
+        assertEquals(ladder, stream.cast)
+    }
+
+    @Test
+    fun `a YouTube picture with no pair of streams falls back to the one address it has, as sound or picture asks`() =
+        runBlocking {
+            val stream = withHome(null).streamFor(youtube, picture = true)!!
+
+            assertEquals("https://home/audio:true", stream.url)
+            assertEquals(false, stream.cast!!.listening)
+            assertEquals(120_000L, stream.cast!!.durationMs)
+            assertEquals(emptyList<CastRung>(), stream.cast!!.ladder)
+        }
+
+    @Test
+    fun `without a picture the item is sound to listen to, whatever it is`() = runBlocking {
+        val stream = withHome(ladder).streamFor(youtube, picture = false)!!
+
+        assertEquals("https://home/audio:false", stream.url)
+        assertEquals(true, stream.cast!!.listening)
+        assertEquals("yt1", stream.cast!!.mediaId)
+    }
+
+    @Test
+    fun `a Jellyfin film and a sound file on the Pi are cast as the files they are`() = runBlocking {
+        val jelly = streams.streamFor(film, picture = true)!!
+        val file = streams.streamFor(fileItem("file:///sounds/brown-noise.opus"), picture = false)!!
+
+        assertTrue(jelly.url, jelly.url.startsWith("http://jellyfin.local/Videos/"))
+        assertEquals(false, jelly.cast!!.listening)
+        assertEquals(sounds.resolve("brown-noise.opus").canonicalPath, file.cast!!.uri)
+        assertEquals(true, file.cast!!.listening)
+    }
+
+    @Test
+    fun `an item with no stream is none, so the deck passes over it`() = runBlocking {
+        assertNull(TargetStreams({ _, _ -> null }, null).streamFor(episode, picture = false))
     }
 }

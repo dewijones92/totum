@@ -48,7 +48,7 @@ The mechanical move of phase 1 is built, behaviour unchanged:
   Android imports), plus `CastProblem`/`CastStage` and the TV port (`CastTv`, `CastTvPort`, split out of `CastStatus`).
   Their tests moved with them (all of `core/playback/src/test/…/cast` except `EmbeddedSubtitlesTest` and
   `ScreenCaptionsTest`, which test files that stay, and `PcmDownmixTest`, which moved from the package root).
-  `CastStreams` is not split yet.
+  `CastStreams` was split on 2026-11-07 (ADR 156).
 - **`:core:sound`** (pure JVM, `explicitApi()`): `SilenceCutter`, `SpeechModel`/`SpeechWeights`, `SpeechTrack`,
   `LoudnessBoost`, `VolumeBoost`, `LookaheadLimiter`, with their tests and the whole audio-quality suite
   (`:core:sound:test -Ptotum.audioQualityTests`; `audio-quality.yml` and the preflight check follow it).
@@ -113,7 +113,7 @@ reach, so nothing below has run against a real device.
 PC browsers as targets (`TargetKind.BROWSER` exists, nothing registers one); Home Assistant's brown noise and jazz through
 Totum (a `dot-files` and HA change: make `hermes-audio-ctl` call `POST /targets/queue?id=<speaker>`); the mini-player pill
 and per-target notification; "Play on…" as a long press on every play button (the selected chip decides today); processing
-the sound of a video shown on a TV (split `CastStreams`, then the DASH path of ADR 68 on the Pi); playback speed, subtitles,
+(the DASH path of ADR 68 on the Pi is built, ADR 156); playback speed, subtitles,
 TV volume strip and Cast arming on a target; the Pi measuring two A2DP streams at once.
 
 ### Pi-side assumptions (not verified)

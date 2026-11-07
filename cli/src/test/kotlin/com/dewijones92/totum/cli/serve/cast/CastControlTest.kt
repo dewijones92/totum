@@ -100,7 +100,7 @@ class CastControlTest {
     fun `playing through the Chromecast player sends the helper a load and no volume`() {
         val log = File(dir, "sent.log")
         val control = control(recordingHelper(log))
-        val streams = SoundStreams(ProcessedSound("ffmpeg-not-run") { null }, null, 0)
+        val streams = PiStreams(ProcessedSound("ffmpeg-not-run") { null }, null, 0)
         val player = ChromecastPlayer("LG TV", control, streams)
 
         runBlocking { control.reachable() }

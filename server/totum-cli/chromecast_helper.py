@@ -67,6 +67,17 @@ def keep_reporting(cast):
     later()
 
 
+def load(media, command):
+    media.play_media(
+        command["url"],
+        command["type"],
+        title=command.get("title"),
+        current_time=command.get("startMs", 0) / MS,
+        stream_type=command.get("streamType", "BUFFERED"),
+        autoplay=True,
+    )
+
+
 def main():
     host = sys.argv[1]
     cast, browser = connect(host)
@@ -80,13 +91,7 @@ def main():
             command = json.loads(line)
             name = command["cmd"]
             if name == "load":
-                media.play_media(
-                    command["url"],
-                    command["type"],
-                    title=command.get("title"),
-                    current_time=command.get("startMs", 0) / MS,
-                    autoplay=True,
-                )
+                load(media, command)
             elif name == "pause":
                 media.pause()
             elif name == "resume":
