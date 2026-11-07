@@ -2,7 +2,7 @@
 title: A polite YouTube client
 kind: adr
 status: accepted
-updated: 2026-10-23
+updated: 2026-11-07
 ---
 
 # 51. A polite YouTube client
@@ -66,3 +66,39 @@ report. The gate now has three lanes, served in order: **interactive** (a play s
 (everything not marked, page loads included) and **background** (`PoliteGate.background()`: the look-ahead resolves,
 the queue's next-item readying, album years, album-page ♡ lookups, new-upload checks). Background calls may hold at
 most half the slots (2 of 4), so two are always free for what you are waiting on. Tests in `PoliteGateTest`.
+
+## Update 2026-11-07: the Pi is a polite client too
+
+The Pi's `totum serve` process (ADRs 152, 156) calls YouTube on its own: the resolver behind a target or a home
+download, the owner's handed-over sign-in (watch history and progress reports), yt-dlp extraction and downloads, and the
+speaker's live HLS lookup. Only the last had a gate (one `PoliteGate` and `BotBackOff` added on 2026-11-07); the rest
+went straight out, so the Pi could burst or ignore a 429 or a bot check that the phone had seen, from the same IP.
+
+- **One `Politeness` per process, wired the way the phone wires it.** `PoliteInterceptor`, `PoliteYtDlpEngine` and
+  `Politeness` moved from `:app` to `:core:video` (same package), and `Politeness.gated(engine)` and
+  `Politeness.gated(clientBuilder)` are the only two ways either side attaches the gate, so the phone and the Pi cannot
+  wire it differently. `main` makes one `Politeness`; the CLI commands use it, and `serve` hands the same instance to
+  `HomeDownloads`, `YtDlpLiveHls` and `/health`. `HomeDownloads` and `YtDlpLiveHls` take the gate as a required
+  parameter, so a path that forgets it does not compile.
+- **What passes through it on the Pi:** every OkHttp call to `youtube.com`, `*.youtube.com`, `youtubei.googleapis.com`
+  and `youtube-nocookie.com` (InnerTube, the signed-in TV player, the embedded player, watch history and progress
+  reports, the watch-page sources), yt-dlp extract, search, channel, download and solve calls, and the live HLS lookup.
+  The resolver's `InnerTubePlayerStreams` gets the same `BotBackOff` as yt-dlp, so a bot check from any of them stops
+  the next anonymous yt-dlp call, wherever it comes from.
+- **`PoliteYtDlpEngine` gains two gates on both sides.** A **download** holds a permit from before yt-dlp starts until
+  the first bytes arrive (extraction is the YouTube call; the transfer after it is bytes and keeps the downloads' own
+  cap of 4), and reports a bot check or a 429 it meets as extraction does. **Solving** (`n` and signatures) takes a
+  permit too: this file's rule has always listed "extraction and solving", but the wrapper only gated extract, search
+  and channel, and on the Pi each solve is a separate Python process given a youtube.com player-script address (not checked whether each one fetches it or reads yt-dlp's cache). Both apply to the
+  phone as well, because it is the same class; neither is a change to its numbers (4 in flight, 2/s, three lanes).
+- **Seen on `/health`.** `youTube` carries `inFlight`, `maxInFlight`, `queued`, `backedOff`, `slowDownUntilMs` with its
+  reason, and `botBackOffUntilMs`. The Pi's own judgement (ADR 113) adds a home problem while either lasts, worded like
+  the phone's banner: "🐢 YouTube says slow down" (warning), "🤖 YouTube bot check" (warning when the Pi is signed in:
+  playing as its account), "🤖 YouTube is blocking this network" (broken when it is not). The phone shows them with the
+  other home problems. A test pins the titles to the phone's string resources.
+- **Still outside the gate, as on the phone:** player and video bytes (`googlevideo.com`: the relayed ranges, the live
+  segment HEADs, `StreamStatus`), images, Google's OAuth token endpoint (`oauth2.googleapis.com`, not a YouTube host),
+  and SponsorBlock. A download's byte transfer is held by the downloads' cap, not the gate.
+- **Not done:** one gate across the phone and the Pi. They are two processes on one IP; each keeps its own 4 in flight, so
+  the household can reach 8. Sharing the state would mean the Pi telling the phone (or the reverse) about a 429, which
+  is a decision for Dewi.

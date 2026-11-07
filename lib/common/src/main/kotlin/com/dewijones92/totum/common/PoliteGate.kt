@@ -18,7 +18,7 @@ import kotlin.math.pow
 public data class SlowDown(val untilMs: Long, val reason: String)
 
 public class PoliteGate(
-    private val maxInFlight: Int = DEFAULT_IN_FLIGHT,
+    public val maxInFlight: Int = DEFAULT_IN_FLIGHT,
     private val perSecond: Double = DEFAULT_PER_SECOND,
     private val burst: Int = DEFAULT_BURST,
     private val now: () -> Long = System::currentTimeMillis,

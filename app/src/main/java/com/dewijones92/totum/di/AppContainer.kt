@@ -261,8 +261,6 @@ import com.dewijones92.totum.playback.preloadableUrl
 import com.dewijones92.totum.playback.startActiveModes
 import com.dewijones92.totum.playback.startPlaybackContext
 import com.dewijones92.totum.playback.startStreamRecovery
-import com.dewijones92.totum.polite.PoliteInterceptor
-import com.dewijones92.totum.polite.PoliteYtDlpEngine
 import com.dewijones92.totum.polite.Politeness
 import com.dewijones92.totum.polite.PrefsVisitorIdStore
 import com.dewijones92.totum.queue.GroupDownloads
@@ -665,8 +663,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
      */
     override val polite: Politeness = Politeness()
 
-    private val transferClient: OkHttpClient = OkHttpClient.Builder()
-        .addInterceptor(PoliteInterceptor(polite.gate, polite.meter))
+    private val transferClient: OkHttpClient = polite.gated(OkHttpClient.Builder())
         .addInterceptor(HomeServerAuthInterceptor())
         .connectTimeout(HTTP_TIMEOUT_SECONDS, TimeUnit.SECONDS)
         .readTimeout(HTTP_TIMEOUT_SECONDS, TimeUnit.SECONDS)
@@ -2254,12 +2251,10 @@ private fun startQueueAutoDownloader(c: DefaultAppContainer) {
 // startup on first use — so it is the work most worth telling the user about.
 private fun politeEngine(context: Context, updateDir: File, polite: Politeness): YtDlpEngine =
     BusyYtDlpEngine(
-        PoliteYtDlpEngine(
+        polite.gated(
             InteractiveFirstEngine(
                 ChaquopyYtDlpEngine(context, dispatcher = ENGINE_THREADS, updateCacheDir = updateDir),
             ),
-            polite.gate,
-            polite.botBackOff,
         ),
     )
 
