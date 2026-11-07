@@ -25,4 +25,17 @@ class HomePiCallTest {
         assertEquals("❌ spaced", HomePiCall.emojiLed("  spaced \n"))
         assertEquals("⚠️ spaced", HomePiCall.emojiLed("  ⚠️ spaced "))
     }
+
+    @Test
+    fun `an unknown route means the home server is out of date`() {
+        assertEquals(HomePiCall.NEEDS_UPDATING, HomePiCall.reasonFor(404, "no such route: GET /jellyfin/browse"))
+        assertEquals(HomePiCall.NEEDS_UPDATING, HomePiCall.reasonFor(404, "No such route"))
+        assertEquals("⚠️ The home server needs updating for this", HomePiCall.NEEDS_UPDATING)
+    }
+
+    @Test
+    fun `other reasons keep their own words`() {
+        assertEquals("❌ Jellyfin said no", HomePiCall.reasonFor(502, "Jellyfin said no"))
+        assertEquals("❌ The home server said no (HTTP 500)", HomePiCall.reasonFor(500, null))
+    }
 }

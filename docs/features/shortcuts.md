@@ -3,7 +3,7 @@ title: Shortcuts — pin anything; a pin plays at once
 kind: feature
 status: shipped
 area: library
-updated: 2026-11-06
+updated: 2026-11-07
 ---
 
 # Shortcuts
@@ -21,7 +21,7 @@ Un-pinning and "Remove from Recently" offer Undo on the shell's snackbar and put
 | The pin model and its codec | `app/…/pins/Pin.kt` |
 | Storage, backup | `pins/PinStore.kt`, `pins/PinBackup.kt` |
 | Playing a pin | `pins/PinPlayer.kt` (the tile menu's Shuffle and song-seed go through `PinTileActions`, which also records the pin reason) |
-| Home-screen and app-icon shortcuts | `pins/HomeScreenShortcuts.kt`, `MainActivity.handlePinIntent` |
+| Home-screen and app-icon shortcuts (one dynamic Recently shortcut; the static ones, see [the recorder doc](totum-recorder.md), keep the other launcher slots) | `pins/HomeScreenShortcuts.kt`, `xml/shortcuts.xml`, `MainActivity.handlePinIntent` |
 | Menu entries, the row, the page toggles | `ui/common/Pins.kt`, `ui/common/PinnedRow.kt`, `MediaItemSheet.kt` |
 
 ## Tests

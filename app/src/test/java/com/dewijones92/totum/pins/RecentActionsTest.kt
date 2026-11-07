@@ -50,6 +50,14 @@ class RecentActionsTest {
     }
 
     @Test
+    fun `one dynamic shortcut at most, so the static ones keep the launcher's first four`() {
+        assertEquals(1, dynamicShortcutRoom(launcherMax = 15))
+        assertEquals(0, dynamicShortcutRoom(launcherMax = 0))
+        val shown = appIconShortcuts(listOf(radio(10)), listOf(radio(1), radio(2)), dynamicShortcutRoom(15))
+        assertEquals(listOf("radio:RD1"), shown.map { it.key })
+    }
+
+    @Test
     fun `forgetting an action takes it out of Recently and keeps the rest in order`() {
         val recent = RecentActions()
         (1..3).forEach { recent.record(radio(it), from = "test") }

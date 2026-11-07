@@ -37,7 +37,7 @@ class HomeScreenShortcuts(private val context: Context) {
     }
 
     suspend fun publish(pins: List<Pin>, recent: List<Pin> = emptyList()) {
-        val room = ShortcutManagerCompat.getMaxShortcutCountPerActivity(context).coerceAtMost(MAX_DYNAMIC)
+        val room = dynamicShortcutRoom(ShortcutManagerCompat.getMaxShortcutCountPerActivity(context))
         val shown = appIconShortcuts(pins, recent, room)
         val shortcuts = shown.map { shortcut(it, artwork(it)) }
         val ok = runCatching { ShortcutManagerCompat.setDynamicShortcuts(context, shortcuts) }
@@ -48,7 +48,8 @@ class HomeScreenShortcuts(private val context: Context) {
         }
         Diag.log(
             "pin",
-            "app-icon shortcuts: ${shortcuts.size} published=$ok from ${recent.size} recent and ${pins.size} pinned " +
+            "app-icon shortcuts: ${shortcuts.size} published=$ok (room for $room dynamic, so the static ones " +
+                "stay in the launcher's first four) from ${recent.size} recent and ${pins.size} pinned " +
                 "[${shown.joinToString { it.key }}]",
         )
     }
@@ -92,7 +93,6 @@ class HomeScreenShortcuts(private val context: Context) {
         private const val SHORT_LABEL = 24
         private const val LONG_LABEL = 60
         private const val ICON_PX = 192
-        private const val MAX_DYNAMIC = 4
 
         private const val LOCK = "lock"
         private const val LOCKED_SUFFIX = "#locked"
@@ -113,4 +113,7 @@ class HomeScreenShortcuts(private val context: Context) {
 fun appIconShortcuts(pins: List<Pin>, recent: List<Pin>, room: Int): List<Pin> =
     (recent.take(RECENT_FIRST) + pins.asReversed() + recent.drop(RECENT_FIRST)).distinctBy { it.key }.take(room)
 
+fun dynamicShortcutRoom(launcherMax: Int): Int = launcherMax.coerceAtMost(DYNAMIC_SHORTCUTS)
+
+private const val DYNAMIC_SHORTCUTS = 1
 private const val RECENT_FIRST = 2

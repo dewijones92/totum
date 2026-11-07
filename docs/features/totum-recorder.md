@@ -38,6 +38,16 @@ the original brief, the tests written and the tests still owed: [the todo](../to
 - Reused: the tile pattern (`collapseAndOpen`), static shortcuts in `xml/shortcuts.xml`, the operations strip,
   `SwitchRow`, `Diag`.
 
+## Where it sits in the long-press menu (coordinator's call, 2026-11-07)
+
+The launcher shows about four shortcuts, merged by rank, and static and dynamic shortcuts both start at rank 0, so
+with four recent actions published the static **🎥 Record screen** and **Send report** were pushed out (screenshot
+walk, `s52`). The split now: the static shortcuts are ordered New alarm, Record screen, Send report, Ask (xml order is
+their rank), and Totum publishes **one** dynamic shortcut, the newest Recently action (`dynamicShortcutRoom`). The
+launcher's four are then New alarm, that action, Record screen and Send report; **Ask for anything** is the one that
+drops out while a Recently action exists (the ✨ button in the tab headers still opens it). The `pin` log line says how
+much room was used.
+
 ## Limits, honestly
 
 - **Show taps in every app needs a one-off grant** from a computer: `adb shell pm grant com.dewijones92.totum

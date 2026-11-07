@@ -23,6 +23,7 @@ import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.DownloadForOffline
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Subscriptions
+import androidx.compose.material.icons.outlined.VideoLibrary
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -144,12 +145,13 @@ private fun LibraryTiles(
         }
         jellyfin.onOpen?.let { open ->
             LibraryTile(
-                Icons.Outlined.DownloadForOffline,
+                Icons.Outlined.VideoLibrary,
                 stringResource(R.string.library_jellyfin),
                 scheme.tertiaryContainer,
                 scheme.onTertiaryContainer,
                 open,
                 Modifier.fillMaxWidth().testTag(JELLYFIN_TILE_TAG),
+                detail = stringResource(R.string.library_jellyfin_detail),
             )
         }
         CollectionRows(onOpenPlaylists, onOpenSubscriptions, onOpenHistory, onOpenAccount)

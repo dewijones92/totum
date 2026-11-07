@@ -37,8 +37,7 @@ public class HomePiCall(
                         }
                     } else {
                         Diag.warn(diagTag, "$what -> HTTP ${response.code}: ${text.take(LOGGED)}")
-                        val reason = errorOf(text)?.let { emojiLed(it) }
-                            ?: "❌ The home server said no (HTTP ${response.code})"
+                        val reason = reasonFor(response.code, errorOf(text))
                         HomeAnswer.No(reason, response.code)
                     }
                 }
@@ -52,6 +51,12 @@ public class HomePiCall(
         runCatching { AskJson.parseToJsonElement(text).jsonObject["error"]?.jsonPrimitive?.content }.getOrNull()
 
     public companion object {
+        public fun reasonFor(code: Int, error: String?): String = when {
+            error != null && error.trim().startsWith(UNKNOWN_ROUTE, ignoreCase = true) -> NEEDS_UPDATING
+            error != null -> emojiLed(error)
+            else -> "❌ The home server said no (HTTP $code)"
+        }
+
         public fun emojiLed(reason: String): String {
             val text = reason.trim()
             val first = text.codePointAt(0)
@@ -63,6 +68,8 @@ public class HomePiCall(
         private const val ASCII = 128
         private const val VARIATION_SELECTOR_16 = '️'
         public const val NOT_SIGNED_IN: String = "❌ Not signed in to the home server"
+        public const val NEEDS_UPDATING: String = "⚠️ The home server needs updating for this"
+        private const val UNKNOWN_ROUTE = "no such route"
         private const val DEFAULT_TAG = "home"
         private const val LOGGED = 200
     }

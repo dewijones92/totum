@@ -3,6 +3,7 @@ package com.dewijones92.totum.ui.common
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -39,6 +40,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.Hyphens
 import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
 import com.dewijones92.totum.common.HttpUrl
@@ -77,7 +79,7 @@ fun MiniPlayerBar(
             PictureOfferStrip(Modifier.padding(start = 10.dp, end = 10.dp, top = 8.dp))
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(start = 10.dp, end = 6.dp, top = 10.dp, bottom = 6.dp),
+                modifier = Modifier.padding(start = 10.dp, end = 10.dp, top = 10.dp),
             ) {
                 // Artwork, because this bar is the app's most-seen surface and a row of text
                 // gives no sense of what is playing. The pillar glyph rides on the corner
@@ -85,6 +87,12 @@ fun MiniPlayerBar(
                 ArtworkWithPillarBadge(state)
                 NowPlayingText(state, starting, modifier = Modifier.weight(1f))
                 WhyIsThisPlayingMenu(menuOpen, onDismiss = { menuOpen = false }, onAsk = { showWhy = true })
+            }
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                modifier = Modifier.fillMaxWidth().padding(start = 6.dp, end = 6.dp, top = 4.dp, bottom = 6.dp),
+            ) {
                 SwitchListeningButton("mini player", Modifier.size(COMPACT_BUTTON))
                 ExploreToggle("mini player", Modifier.size(COMPACT_BUTTON))
                 if (onSkipNext != null) SkipPreviousButton(Modifier.size(COMPACT_BUTTON))
@@ -196,7 +204,7 @@ private fun NowPlayingText(state: PlaybackState, starting: Starting?, modifier: 
             if (starting == null) LiveBadge(state.itemId, state.contentKind, Modifier.padding(end = 6.dp))
             Text(
                 text = starting?.title ?: state.title,
-                style = MaterialTheme.typography.titleSmall,
+                style = MaterialTheme.typography.titleSmall.copy(hyphens = Hyphens.None),
                 modifier = Modifier.weight(1f, fill = false),
             )
         }
@@ -212,7 +220,7 @@ private fun NowPlayingText(state: PlaybackState, starting: Starting?, modifier: 
         state.artist?.let { artist ->
             Text(
                 text = artist,
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.bodySmall.copy(hyphens = Hyphens.None),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }

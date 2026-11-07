@@ -1136,7 +1136,7 @@
     <string name="cast_strip_sound_undecodable">🔇 This phone can\'t decode this film\'s sound, so %1$s can\'t play it. Pick another copy, one with AAC or MP3 sound.</string>
     <string name="cast_strip_not_fetching">⚠️ %1$s isn\'t fetching anything from the phone. Is the phone on the same Wi-Fi, and not on a guest network?</string>
     <string name="cast_strip_sound_only">⚠️ %1$s can\'t show this video (%2$s), so it plays the sound only</string>
-    <string name="library_starred">⭐ Starred</string>
+    <string name="library_starred">Starred</string>
     <string name="star">Star</string>
     <string name="unstar">Unstar</string>
     <string name="star_all">Star every file</string>
@@ -1420,7 +1420,8 @@
     <string name="target_pause">Pause</string>
     <string name="target_stop">Stop</string>
     <string name="target_position">%1$s of %2$s</string>
-    <string name="library_jellyfin">🎞️ Jellyfin</string>
+    <string name="library_jellyfin">Jellyfin</string>
+    <string name="library_jellyfin_detail">🏠 Films and shows on the home server</string>
     <string name="jellyfin_back">⬅️ Back</string>
     <string name="jellyfin_more">⬇️ Show more</string>
     <string name="jellyfin_retry">🔁 Try again</string>

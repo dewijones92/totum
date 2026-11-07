@@ -24,7 +24,7 @@ the app icon's long-press shortcuts.
   now with `shuffled`).
 - A recent action is a `Pin`, so it plays through `PinPlayer` (a shuffle-all re-walks its sources and
   shuffles afresh), can be pinned from its long-press menu, and opens from `totum://pin/<key>`.
-- App-icon shortcuts: the two newest actions, then the pins, up to the launcher's room
+- App-icon shortcuts: the newest action (one dynamic shortcut since 2026-11-07, so the static ones keep the launcher's first four), then the pins
   (`appIconShortcuts`), with `reportShortcutUsed` for the newest.
 
 ## Consequences

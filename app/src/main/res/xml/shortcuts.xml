@@ -12,15 +12,15 @@
             android:targetClass="com.dewijones92.totum.dailyalarms.DailyAlarmsActivity" />
     </shortcut>
     <shortcut
-        android:shortcutId="ask"
+        android:shortcutId="record_screen"
         android:enabled="true"
-        android:icon="@mipmap/ic_launcher"
-        android:shortcutShortLabel="@string/ask_shortcut_short"
-        android:shortcutLongLabel="@string/ask_shortcut_long">
+        android:icon="@drawable/ic_recorder"
+        android:shortcutShortLabel="@string/recorder_shortcut_short"
+        android:shortcutLongLabel="@string/recorder_shortcut_long">
         <intent
-            android:action="com.dewijones92.totum.ASK"
+            android:action="com.dewijones92.totum.RECORD_SCREEN"
             android:targetPackage="com.dewijones92.totum"
-            android:targetClass="com.dewijones92.totum.MainActivity" />
+            android:targetClass="com.dewijones92.totum.recorder.RecorderActivity" />
     </shortcut>
     <shortcut
         android:shortcutId="send_report"
@@ -34,14 +34,14 @@
             android:targetClass="com.dewijones92.totum.diagnostics.SendReportActivity" />
     </shortcut>
     <shortcut
-        android:shortcutId="record_screen"
+        android:shortcutId="ask"
         android:enabled="true"
-        android:icon="@drawable/ic_recorder"
-        android:shortcutShortLabel="@string/recorder_shortcut_short"
-        android:shortcutLongLabel="@string/recorder_shortcut_long">
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/ask_shortcut_short"
+        android:shortcutLongLabel="@string/ask_shortcut_long">
         <intent
-            android:action="com.dewijones92.totum.RECORD_SCREEN"
+            android:action="com.dewijones92.totum.ASK"
             android:targetPackage="com.dewijones92.totum"
-            android:targetClass="com.dewijones92.totum.recorder.RecorderActivity" />
+            android:targetClass="com.dewijones92.totum.MainActivity" />
     </shortcut>
 </shortcuts>
