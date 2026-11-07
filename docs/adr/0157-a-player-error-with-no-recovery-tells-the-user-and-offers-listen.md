@@ -5,7 +5,7 @@ status: accepted
 updated: 2026-11-07
 ---
 
-# 156. A player error with no recovery tells the user why, and offers Listen when the picture is the problem
+# 157. A player error with no recovery tells the user why, and offers Listen when the picture is the problem
 
 - Status: Accepted
 - Date: 2026-11-07
