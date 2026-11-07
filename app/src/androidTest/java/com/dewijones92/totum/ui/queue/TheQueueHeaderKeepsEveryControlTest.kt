@@ -5,6 +5,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -90,6 +91,11 @@ class TheQueueHeaderKeepsEveryControlTest {
                 .fetchSemanticsNodes().isNotEmpty()
         )
 
+        assertEquals(
+            "Clear all is in the menu, not on the header",
+            0,
+            composeTestRule.onAllNodesWithText(context.getString(R.string.queue_clear_all)).fetchSemanticsNodes().size,
+        )
         openMenu()
         composeTestRule.onNodeWithText(context.getString(R.string.queue_collapse_all)).assertIsDisplayed()
         composeTestRule.onNodeWithText(context.getString(PlaybackR.string.playback_switch_to_music))

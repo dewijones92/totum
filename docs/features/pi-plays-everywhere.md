@@ -17,7 +17,8 @@ sound processing on the Pi). Brief: [pi-plays-everywhere.md](../todos/pi-plays-e
 
 - **Queue tab, chips on top.** 📱 This phone, then a chip for each target that has a queue (coloured, with its kind's
   emoji: 🔈 speaker, 📺 TV or Chromecast, 🖥️ browser), and ➕ Play on… for targets with nothing queued. The chips show
-  once the home server lists at least one target.
+  once the home server lists at least one target. On the phone's own queue the chips are the first row of the list and
+  scroll away with it (a remote target's queue keeps them pinned); see [ADR 66](../adr/0066-one-sort-and-filter-menu-everywhere.md).
 - **A target's queue is the same list.** The same `MediaItemRow`, group headings, jump (tap), remove (menu) as the
   phone's own queue; above it what plays, the position, ⏮ ⏯ ⏭ ⏹️, a volume slider, ✂️ Skip silences and 🔊 Boost (the
   phone's own processing, run on the Pi), and 🎨 Colour. Each row says "➕ Added by …" when the phone that added it is known.
