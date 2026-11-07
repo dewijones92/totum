@@ -28,6 +28,8 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends jq \
  && rm -rf /var/lib/apt/lists/*
 
+COPY --chmod=755 jq-sandbox.sh /usr/local/bin/jq
+
 RUN npm install -g "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" \
  && npm cache clean --force
 

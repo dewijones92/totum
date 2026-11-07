@@ -201,3 +201,14 @@ $0.002 to $0.007; a question is therefore 20 to 45 s end to end. The Pi's Haiku 
   stands (ADR 109).
 - Each app question costs one Claude call for routing and one with a tool loop; a `both` question costs three.
 - A new AI job still adds a row to `CallerTools` in the same change; this one added `ask-route`.
+
+## Amendment, 2026-11-07: jq runs in a sandbox, not just behind a filter
+
+The build left one gap: inside the jq-only call `jq -n env` read the AI service's environment (the Claude token), and
+`jq -R . /proc/1/environ` could read the same through a file. A filter on the answer was the only stop. The image now
+puts `server/totum-cli/jq-sandbox.sh` in front of jq as `/usr/local/bin/jq` (ahead of `/usr/bin` on the PATH; calling
+`/usr/bin/jq` directly does not match the `Bash(jq:*)` permission). It runs jq with an empty environment (`env -i`), and
+refuses absolute paths, `~`, `../` escapes, `-L`/`--library-path` and `import`/`include`, so jq reads only the files in
+the snapshot's own folder. Checked in a container from the same base image: ordinary queries (including `..`) work,
+`env` and `$ENV` are `{}`, and `/proc/1/environ`, `../../../proc/self/environ`, `--rawfile` of `/proc/self/environ`,
+`-L /proc` and `include` are refused. The answer filter stays as a second line.
