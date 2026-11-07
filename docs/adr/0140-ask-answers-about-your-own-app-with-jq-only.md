@@ -213,3 +213,16 @@ refuses absolute paths, `~`, `../` escapes, `-L`/`--library-path` and `import`/`
 the snapshot's own folder. Checked in a container from the same base image: ordinary queries (including `..`) work,
 `env` and `$ENV` are `{}`, and `/proc/1/environ`, `../../../proc/self/environ`, `--rawfile` of `/proc/self/environ`,
 `-L /proc` and `include` are refused. The answer filter stays as a second line.
+
+## Amendment, 2026-11-07 (later): what the sandbox does and does not cover
+
+The review of the batch pointed out that the sandbox only sees jq's arguments: the shell running the command could
+expand `$CLAUDE_CODE_OAUTH_TOKEN` into an argument, or feed `/proc/self/environ` to jq with `<`, before jq-sandbox.sh
+runs. Probed in the live ai-service (0.1.880, Claude Code 2.1.316, `--allowedTools 'Bash(jq:*)'`, Haiku), with a canary
+variable and `/etc/hostname` in place of anything secret: `jq -n --arg t "$TEST_CANARY" '$t'` was refused by Claude
+Code ("A variable in this command can't be checked before it runs"), `jq -R . < /etc/hostname` was refused ("Input
+redirection … blocked … may only read files in the allowed working directories"), and `jq -c .a state.json` ran. So
+the token is kept from jq by two layers: Claude Code's own checks on the command (no variables, no redirection outside
+the folder, no compound commands) and jq-sandbox.sh (empty environment, no paths outside the folder). The earlier
+sentence "jq reads only the files in the snapshot's own folder" holds because of both, not the wrapper alone. A
+Claude Code upgrade must re-run this probe (the canary script is in the commit message of this amendment).
