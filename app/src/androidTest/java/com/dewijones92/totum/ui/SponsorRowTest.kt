@@ -1,5 +1,8 @@
 package com.dewijones92.totum.ui
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -24,6 +27,16 @@ class SponsorRowTest {
         compose.waitForIdle()
     }
 
+    private fun showEach(configured: List<String>, check: (String) -> Unit) {
+        var now by mutableStateOf(configured.first())
+        compose.setContent { TotumTheme { SponsorRow(now) } }
+        configured.forEach { link ->
+            now = link
+            compose.waitForIdle()
+            check(link)
+        }
+    }
+
     @Test
     fun noLinkInTheBuildMeansNoRow() {
         show("")
@@ -33,9 +46,7 @@ class SponsorRowTest {
 
     @Test
     fun aLinkThatIsNotPlainHttpsMeansNoRow() {
-        listOf("http://ko-fi.com/x", "javascript:alert(1)", "ko-fi.com/x", "https://").forEach { configured ->
-            show(configured)
-
+        showEach(listOf("http://ko-fi.com/x", "javascript:alert(1)", "ko-fi.com/x", "https://")) { configured ->
             assertEquals(
                 configured,
                 0,
