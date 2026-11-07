@@ -160,3 +160,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 153 | [The Pi runs the phone's sound processing](0153-the-pi-runs-the-phones-sound-processing.md) | Accepted |
 | 154 | [Jellyfin is browsed and streamed through the Pi, with the key kept there](0154-jellyfin-is-browsed-and-streamed-through-the-pi.md) | Accepted |
 | 146 | [GPL-3.0, and reports go to the Pi only from a phone signed in to the home server](0146-gpl-3-and-reports-go-to-the-pi-only-when-signed-in.md) | Accepted |
+| 147 | [The sponsor link is one build value, and the button is hidden while it is empty](0147-the-sponsor-link-is-one-build-value-and-hidden-when-empty.md) | Accepted |

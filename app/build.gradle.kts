@@ -44,6 +44,11 @@ android {
             ?: System.getenv("TOTUM_HOME_SERVER")
             ?: ""
         buildConfigField("String", "HOME_SERVER", "\"$homeServer\"")
+
+        val sponsorUrl = (project.findProperty("totum.sponsorUrl") as String?)?.takeIf { it.isNotBlank() }
+            ?: System.getenv("TOTUM_SPONSOR_URL")
+            ?: ""
+        buildConfigField("String", "SPONSOR_URL", "\"${sponsorUrl.trim()}\"")
     }
 
     signingConfigs {

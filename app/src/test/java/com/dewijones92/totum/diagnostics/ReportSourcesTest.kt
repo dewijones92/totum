@@ -22,7 +22,9 @@ class ReportSourcesTest {
             note = "it failed at https://totum.pi.example.org/fetch and totumauth.built.example.net and " +
                 "crashlog.sink.example.org with tok-abcdef-123456 and prowl-key-987654",
             facts = listOf(GitHubReport.VERSION to "0.1.1"),
-            events = listOf("12:00:00.000 [home] POST https://crashlog.sink.example.org/ingest from person@mail.example.org"),
+            events = listOf(
+                "12:00:00.000 [home] POST https://crashlog.sink.example.org/ingest from person@mail.example.org"
+            ),
             redactor = redactor,
         )
 

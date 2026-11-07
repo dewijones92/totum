@@ -162,6 +162,7 @@ private fun MainSettings(
         AnchoredRow(
             SettingsRow.DRIVE_BACKUP
         ) { DriveBackupRow(container.driveBackup, container.operations, container.lastRuns) }
+        SponsorRow()
     }
 }
 
