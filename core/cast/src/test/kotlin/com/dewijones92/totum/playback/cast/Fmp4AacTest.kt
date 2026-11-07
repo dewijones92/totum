@@ -8,7 +8,9 @@ class Fmp4AacTest {
 
     private val format = AacFormat(48000, 2, byteArrayOf(0x11, 0x90.toByte()))
 
-    private fun ByteArray.u32(at: Int): Long = (0 until 4).fold(0L) { v, k -> (v shl 8) or (this[at + k].toLong() and 0xFF) }
+    private fun ByteArray.u32(at: Int): Long = (0 until 4).fold(
+        0L
+    ) { v, k -> (v shl 8) or (this[at + k].toLong() and 0xFF) }
 
     private fun ByteArray.find(type: String): Int =
         (0..size - 4).first { String(this, it, 4, Charsets.US_ASCII) == type }

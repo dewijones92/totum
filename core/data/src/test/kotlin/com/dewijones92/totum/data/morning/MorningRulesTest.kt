@@ -126,7 +126,9 @@ class MorningRulesTest {
         assertEquals(listOf("🆕 Busy: First and 2 more", "🆕 Medium: Alpha and 1 more"), lines)
         assertEquals(
             listOf("🆕 Quiet: One video"),
-            MorningRules.fallbackDigest(MorningDigestRequest(listOf(GroupHeadlines("Quiet", listOf("One video"))))).lines,
+            MorningRules.fallbackDigest(
+                MorningDigestRequest(listOf(GroupHeadlines("Quiet", listOf("One video"))))
+            ).lines,
         )
     }
 

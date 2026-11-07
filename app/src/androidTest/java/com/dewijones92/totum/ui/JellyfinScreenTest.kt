@@ -51,7 +51,9 @@ class JellyfinScreenTest {
             return answers[parent to start] ?: HomeAnswer.No("❌ nothing for $parent/$start")
         }
 
-        override fun streamUrl(item: JellyfinItem): HttpUrl = HttpUrl.of("https://pi.example/jellyfin/stream/${item.id}.mkv")
+        override fun streamUrl(item: JellyfinItem): HttpUrl = HttpUrl.of(
+            "https://pi.example/jellyfin/stream/${item.id}.mkv"
+        )
     }
 
     private var backed = false

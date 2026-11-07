@@ -111,7 +111,10 @@ class FindPickTest {
     @Test
     fun `when every hit is unsuitable there is no pick`() = runTest {
         val found = findPick(
-            copies(video("aaaaaaaaaa1", "Followed", "Kurzgesagt"), video("mmmmmmmmmm1", "Members", "New", membersOnly = true)),
+            copies(
+                video("aaaaaaaaaa1", "Followed", "Kurzgesagt"),
+                video("mmmmmmmmmm1", "Members", "New", membersOnly = true)
+            ),
             podcasts,
             pick(AskKind.YOUTUBE),
             taste,

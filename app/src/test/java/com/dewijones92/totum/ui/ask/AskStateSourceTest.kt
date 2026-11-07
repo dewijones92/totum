@@ -142,7 +142,7 @@ class AskStateSourceTest {
         }
 
     @Test
-    fun `an id the last snapshot did not hold makes the state be gathered afresh, and an unknown id is simply missing`() =
+    fun `an id the last snapshot lacked makes the state be gathered afresh, an unknown id is missing`() =
         runTest(dispatcher) {
             val source = source()
             source.snapshot()

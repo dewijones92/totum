@@ -75,7 +75,9 @@ class JellyfinClientTest {
     @Test
     fun `the Pi's own words come back when Jellyfin is not set up or unreachable`() = runTest {
         server.enqueue(
-            MockResponse.Builder().code(503).body("""{"error":"ℹ️ Jellyfin isn't set up on the home server"}""").build(),
+            MockResponse.Builder().code(
+                503
+            ).body("""{"error":"ℹ️ Jellyfin isn't set up on the home server"}""").build(),
         )
         server.enqueue(MockResponse.Builder().code(502).body("""{"error":"❌ Jellyfin did not answer"}""").build())
 

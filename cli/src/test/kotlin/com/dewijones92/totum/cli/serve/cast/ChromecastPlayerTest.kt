@@ -74,7 +74,7 @@ class ChromecastPlayerTest {
     }
 
     @Test
-    fun `a boosted item with no picture is loaded from the processed sound the Pi offers, starting at the beginning of it`() {
+    fun `a boosted item with no picture is loaded from the Pi's processed sound, from the start of it`() {
         val p = player()
 
         p.play(request(sound = SoundSettings(boost = VolumeBoost.AUTO), startAtMs = 9_000))
@@ -97,7 +97,14 @@ class ChromecastPlayerTest {
 
     @Test
     fun `a picture is never processed, because the sound would run ahead of the video`() {
-        player().play(request(url = "https://example.com/v.mp4", sound = SoundSettings(boost = VolumeBoost.AUTO), picture = true, startAtMs = 9_000))
+        player().play(
+            request(
+                url = "https://example.com/v.mp4",
+                sound = SoundSettings(boost = VolumeBoost.AUTO),
+                picture = true,
+                startAtMs = 9_000
+            )
+        )
 
         val load = control.loads.single()
         assertEquals("https://example.com/v.mp4", load.url)

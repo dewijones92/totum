@@ -56,7 +56,10 @@ class AskStateWireTest {
 
     @Test
     fun `the receipt and an empty envelope round-trip as the phone reads them`() {
-        val receipt = AskJson.decodeFromString(StateReceipt.serializer(), """{"ok":true,"bytes":10,"keptForMs":600000}""")
+        val receipt = AskJson.decodeFromString(
+            StateReceipt.serializer(),
+            """{"ok":true,"bytes":10,"keptForMs":600000}"""
+        )
 
         assertEquals(StateReceipt(true, 10, 600_000), receipt)
         val envelope = AskStateEnvelope(JsonObject(emptyMap()), JsonObject(emptyMap()))
@@ -78,7 +81,10 @@ class AskStateWireTest {
             AskTrace(route = "app", routeMs = 900, appMs = 14_000, jqCalls = 3, jqDenied = 1, stateBytes = 4_900_000),
         )
 
-        val read = AskJson.decodeFromString(AskAnswer.serializer(), AskJson.encodeToString(AskAnswer.serializer(), answer))
+        val read = AskJson.decodeFromString(
+            AskAnswer.serializer(),
+            AskJson.encodeToString(AskAnswer.serializer(), answer)
+        )
 
         assertEquals(answer, read)
         assertNull(read.trace?.webMs)

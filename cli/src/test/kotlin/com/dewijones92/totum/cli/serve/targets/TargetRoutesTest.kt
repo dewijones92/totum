@@ -108,7 +108,11 @@ class TargetRoutesTest {
     fun `a control reaches the deck and shows in the state it returns`() {
         call("POST", "/targets/queue?id=bar", queue(listOf("a")))
 
-        val (code, text) = call("POST", "/targets/control?id=bar", control(TargetControl(TargetAction.VOLUME, volume = 30)))
+        val (code, text) = call(
+            "POST",
+            "/targets/control?id=bar",
+            control(TargetControl(TargetAction.VOLUME, volume = 30))
+        )
 
         assertEquals(200, code)
         assertEquals(30, stateOf(text).volume)

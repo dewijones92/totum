@@ -16,7 +16,12 @@ class TranscriptTextTest {
 
     private fun block(sec: Int, text: String) = TextBlock(sec, text)
 
-    private val long: List<TextBlock> = (0 until 200).map { block(it * 20, "filler words about nothing ".repeat(8) + it) }
+    private val long: List<TextBlock> = (0 until 200).map {
+        block(
+            it * 20,
+            "filler words about nothing ".repeat(8) + it
+        )
+    }
         .toMutableList().also {
             it[120] = block(2400, "the mitochondria is the powerhouse of the cell and everyone should know it")
         }
@@ -34,7 +39,9 @@ class TranscriptTextTest {
 
         val lines = sent.lines()
         assertEquals(200, lines.size)
-        assertTrue(lines.any { it.contains("the mitochondria is the powerhouse of the cell and everyone should know it") })
+        assertTrue(
+            lines.any { it.contains("the mitochondria is the powerhouse of the cell and everyone should know it") }
+        )
         val neighbours = listOf(lines[119], lines[121])
         assertTrue(neighbours.joinToString(), neighbours.all { it.length > 100 })
         assertTrue("a block far away is only a glimpse", lines[10].length < 120)
@@ -103,7 +110,10 @@ class TranscriptTextTest {
     @Test
     fun `a summary line over the limit is cut at a sentence end, not mid-word`() {
         val sentence = "This talk explains why the cold bedroom helps people fall asleep faster than a warm one does. "
-        val raw = TranscriptDigest(listOf(sentence.repeat(4) + "and then it just keeps going without stopping"), emptyList())
+        val raw = TranscriptDigest(
+            listOf(sentence.repeat(4) + "and then it just keeps going without stopping"),
+            emptyList()
+        )
 
         val line = DigestRules.tidyDigest(600, raw).tldr.single()
 
@@ -125,7 +135,11 @@ class TranscriptTextTest {
     @Test
     fun `the digest store round-trips and a corrupt file starts afresh`() {
         val file = File(tmp.root, "digests.json")
-        val digest = StoredDigest(TranscriptDigest(listOf("a line"), listOf(DigestChapter(0, "Start"))), at = 9, blocks = 4)
+        val digest = StoredDigest(
+            TranscriptDigest(listOf("a line"), listOf(DigestChapter(0, "Start"))),
+            at = 9,
+            blocks = 4
+        )
 
         FileDigestStore(file).save(mapOf("item-1" to digest))
 

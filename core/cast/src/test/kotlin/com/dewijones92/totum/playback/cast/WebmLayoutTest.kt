@@ -206,7 +206,19 @@ class WebmLayoutTest {
         assertEquals(0x1A45DFA3L, Ebml.id(byteArrayOf(0x1A, 0x45, 0xDF.toByte(), 0xA3.toByte()), 0).value)
         assertEquals(5L, Ebml.size(byteArrayOf(0x85.toByte()), 0).value)
         assertEquals(300L, Ebml.size(byteArrayOf(0x41, 0x2C), 0).value)
-        val unknown = Ebml.size(byteArrayOf(0x01, 0xFF.toByte(), 0xFF.toByte(), 0xFF.toByte(), 0xFF.toByte(), 0xFF.toByte(), 0xFF.toByte(), 0xFF.toByte()), 0)
+        val unknown = Ebml.size(
+            byteArrayOf(
+                0x01,
+                0xFF.toByte(),
+                0xFF.toByte(),
+                0xFF.toByte(),
+                0xFF.toByte(),
+                0xFF.toByte(),
+                0xFF.toByte(),
+                0xFF.toByte()
+            ),
+            0
+        )
         assertTrue(unknown.unknown)
         assertFalse(Ebml.size(byteArrayOf(0x81.toByte()), 0).unknown)
     }
