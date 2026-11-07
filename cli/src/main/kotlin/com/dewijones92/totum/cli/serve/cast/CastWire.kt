@@ -21,6 +21,8 @@ internal sealed interface CastEvent {
     ) : CastEvent
     data class Volume(val percent: Int) : CastEvent
     data class Failure(val message: String) : CastEvent
+    data class Handback(val quit: Boolean, val why: String) : CastEvent
+    data class Note(val message: String) : CastEvent
 }
 
 internal object CastWire {
@@ -46,6 +48,8 @@ internal object CastWire {
 
     fun quit(): String = line("quit")
 
+    fun release(): String = line("release")
+
     fun parse(text: String): CastEvent? {
         val obj = runCatching { Json.parseToJsonElement(text).jsonObject }.getOrNull() ?: return null
         return when (obj.text("event")) {
@@ -59,6 +63,8 @@ internal object CastWire {
             )
             "volume" -> obj["percent"]?.jsonPrimitive?.longOrNull?.let { CastEvent.Volume(it.toInt()) }
             "error" -> CastEvent.Failure(obj.text("message") ?: "unknown")
+            "handback" -> CastEvent.Handback(obj.text("quit") == "true", obj.text("why") ?: "no reason given")
+            "note" -> CastEvent.Note(obj.text("message") ?: "")
             else -> null
         }
     }

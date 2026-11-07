@@ -154,7 +154,8 @@ internal class CastLink(private val host: String, private val control: CastContr
     override suspend fun connect(): String? = host.takeIf { control.reachable() }
 
     override suspend fun release() {
-        Diag.log("cast-target", "$host: nothing to hand back, the app stays on the TV")
+        Diag.log("cast-target", "$host: handing the TV back")
+        control.release()
     }
 }
 

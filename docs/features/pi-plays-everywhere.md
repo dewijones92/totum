@@ -50,6 +50,9 @@ sound processing on the Pi). Brief: [pi-plays-everywhere.md](../todos/pi-plays-e
   known" when it has not said; a speaker's is the level last chosen from the phone, until the Pi restarts. A volume saved
   by an older version is ignored.
 - **TV sound switches** are greyed, with a note, while the TV is showing a picture.
+- **STOP clears the TV.** If Totum opened the receiver app (the TV was idle or on its backdrop), STOP, or a queue that
+  runs out, quits it, so the TV is not left on a blank "Default Media Receiver" screen; if another app was running first
+  (YouTube, say) the TV is left alone.
 - **A live stream has no length.** The strip shows "🔴 LIVE" instead of the bar and the clock (the TV's own "length" of
   a live stream is YouTube's 12-hour window, and `GET /targets` now sends none, with `live: true`).
 

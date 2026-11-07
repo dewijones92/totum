@@ -584,6 +584,19 @@ class TargetDeckTest {
     }
 
     @Test
+    fun `the TV is handed back on STOP, not between the items of a queue`() = runBlocking {
+        val deck = deck(TargetKind.TV)
+        deck.enqueue(TargetQueueRequest(listOf(item("a"), item("b")), QueueMode.REPLACE))
+
+        deck.control(TargetControl(TargetAction.NEXT))
+        assertEquals("moving to the next item keeps the receiver app open", 0, link.released)
+
+        deck.control(TargetControl(TargetAction.STOP))
+        assertEquals(1, link.released)
+        assertFalse(deck.state().linked)
+    }
+
+    @Test
     fun `a live item reports no length whatever the player says, and says it is live`() = runBlocking {
         player.durationMs = DVR_WINDOW_MS
         val deck = deck(TargetKind.TV)

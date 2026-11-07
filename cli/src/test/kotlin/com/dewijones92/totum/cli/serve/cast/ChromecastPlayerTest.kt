@@ -93,6 +93,13 @@ class ChromecastPlayerTest {
     }
 
     @Test
+    fun `handing the target back asks the TV to quit what Totum launched`() = runBlocking {
+        CastLink("tv.local", control).release()
+
+        assertEquals(listOf("release"), control.calls)
+    }
+
+    @Test
     fun `pause, seek and volume go straight to the TV`() {
         val p = player()
 

@@ -133,6 +133,27 @@ class CastControlTest {
     }
 
     @Test
+    fun `handing the TV back sends the helper a release, which is not a stop`() {
+        val log = File(dir, "sent.log")
+        val said = """{"event":"handback","quit":true,"why":"quit the receiver app Totum launched"}"""
+        val control = control(recordingHelper(log, "echo '$said'"))
+        runBlocking { control.reachable() }
+        control.load("https://new", "audio/mpeg", "New", 0)
+        control.stop()
+
+        control.release()
+        waitUntil { sent(log).size >= 3 }
+
+        assertEquals(listOf("load", "stop", "release"), sent(log))
+        control.stop()
+    }
+
+    @Test
+    fun `a release with no helper running is not an error`() {
+        control(helper("exit 0")).release()
+    }
+
+    @Test
     fun `the volume the device reports is remembered, and unknown until it does`() {
         val log = File(dir, "sent.log")
         val control = control(recordingHelper(log, """sleep 2; echo '{"event":"volume","percent":1}'"""))

@@ -135,6 +135,10 @@ internal class FakeCastControl : CastControl {
         calls += "stop"
     }
 
+    override fun release() {
+        calls += "release"
+    }
+
     override fun reading(): CastReading? = reading
 
     override var onEnded: (failed: Boolean) -> Unit = {}

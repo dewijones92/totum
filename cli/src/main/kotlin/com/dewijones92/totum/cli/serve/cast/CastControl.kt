@@ -13,6 +13,7 @@ internal interface CastControl {
     fun volume(percent: Int)
     fun volumePercent(): Int?
     fun stop()
+    fun release()
     fun reading(): CastReading?
     var onEnded: (failed: Boolean) -> Unit
     suspend fun reachable(): Boolean
@@ -80,6 +81,11 @@ internal class PyCastControl(
                     deviceVolume = event.percent
                     Diag.log("cast-target", "$label: the device's volume is ${event.percent}%")
                 }
+                is CastEvent.Handback -> Diag.log(
+                    "cast-target",
+                    "$label: handed back, ${if (event.quit) "receiver app quit" else "left open"}: ${event.why}",
+                )
+                is CastEvent.Note -> Diag.log("cast-target", "$label: helper note: ${event.message}")
                 is CastEvent.Failure -> {
                     problem = event.message
                     Diag.warn("cast-target", "$label: ${event.message}")
@@ -169,6 +175,11 @@ internal class PyCastControl(
             Diag.log("cast-target", "$label: stop not sent, nothing is loaded from Totum")
         }
         latest = null
+    }
+
+    override fun release() {
+        val sent = send(CastWire.release())
+        Diag.log("cast-target", "$label: release sent=$sent (the TV quits the receiver app only if Totum launched it)")
     }
 
     override fun reading(): CastReading? = latest

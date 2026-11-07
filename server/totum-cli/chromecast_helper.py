@@ -13,6 +13,53 @@ def say(**event):
     sys.stdout.flush()
 
 
+IDLE_APPS = (None, "E8C28D3C")
+DEFAULT_MEDIA_RECEIVER = "CC1AD845"
+
+
+def note(message):
+    say(event="note", message=message)
+
+
+class Handback:
+    def __init__(self):
+        self.ours = None
+
+    def loading(self, cast):
+        app = cast.app_id
+        if app == DEFAULT_MEDIA_RECEIVER:
+            if self.ours is None:
+                self.ours = False
+                note("the Default Media Receiver was already open before Totum's first load; not Totum's to quit")
+            return
+        self.ours = app in IDLE_APPS
+        note("before this load the TV ran %s, so the receiver app %s" % (
+            app or "nothing",
+            "is Totum's to quit on stop" if self.ours else "stays when Totum stops",
+        ))
+
+    def release(self, cast):
+        ours, self.ours = self.ours, None
+        app = cast.app_id
+        if not ours:
+            why = "Totum did not launch the app on the TV (%s); left it open" % (app or "nothing running")
+            note(why)
+            return {"quit": False, "why": why}
+        if app != DEFAULT_MEDIA_RECEIVER:
+            why = "the TV now shows %s, not Totum's receiver; left it open" % (app or "nothing")
+            note(why)
+            return {"quit": False, "why": why}
+        try:
+            cast.quit_app()
+        except Exception as problem:
+            why = "quitting the receiver app failed: %s" % problem
+            note(why)
+            return {"quit": False, "why": why}
+        why = "quit the receiver app Totum launched"
+        note(why)
+        return {"quit": True, "why": why}
+
+
 def now_of(status):
     adjusted = getattr(status, "adjusted_current_time", None)
     return adjusted if adjusted is not None else status.current_time
@@ -82,6 +129,7 @@ def main():
     host = sys.argv[1]
     cast, browser = connect(host)
     media = cast.media_controller
+    handback = Handback()
     say(event="ready", name=cast.name, model=cast.model_name)
     if cast.status is not None:
         DeviceVolume().new_cast_status(cast.status)
@@ -91,6 +139,7 @@ def main():
             command = json.loads(line)
             name = command["cmd"]
             if name == "load":
+                handback.loading(cast)
                 load(media, command)
             elif name == "pause":
                 media.pause()
@@ -103,6 +152,8 @@ def main():
             elif name == "stop":
                 if media.status is not None and media.status.media_session_id is not None:
                     media.stop()
+            elif name == "release":
+                say(event="handback", **handback.release(cast))
             elif name == "quit":
                 break
         except Exception as problem:

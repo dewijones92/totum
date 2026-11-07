@@ -24,6 +24,7 @@ class CastWireTest {
         assertEquals("""{"cmd":"seek","positionMs":5000}""", CastWire.seek(5_000))
         assertEquals("""{"cmd":"volume","percent":3}""", CastWire.volume(3))
         assertEquals("""{"cmd":"stop"}""", CastWire.stop())
+        assertEquals("""{"cmd":"release"}""", CastWire.release())
     }
 
     @Test
@@ -56,6 +57,18 @@ class CastWireTest {
             ),
         )
         assertEquals(CastEvent.Volume(1), CastWire.parse("""{"event":"volume","percent":1}"""))
+        assertEquals(
+            CastEvent.Handback(true, "quit the receiver app Totum launched"),
+            CastWire.parse("""{"event":"handback","quit":true,"why":"quit the receiver app Totum launched"}"""),
+        )
+        assertEquals(
+            CastEvent.Handback(false, "left it open"),
+            CastWire.parse("""{"event":"handback","quit":false,"why":"left it open"}"""),
+        )
+        assertEquals(
+            CastEvent.Note("the TV ran nothing"),
+            CastWire.parse("""{"event":"note","message":"the TV ran nothing"}"""),
+        )
         assertNull(CastWire.parse("""{"event":"volume"}"""))
         assertNull(CastWire.parse("not json"))
         assertNull(CastWire.parse("""{"event":"mystery"}"""))

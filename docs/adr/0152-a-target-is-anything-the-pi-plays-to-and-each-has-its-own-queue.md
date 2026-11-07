@@ -87,6 +87,14 @@ to send a queue to. ADR 116 had built that for speakers only, with its own wire 
   place of the bar and the clock, from `TargetState.isLive` (the field, or the item's kind, so an older Pi that sends
   only a length still reads as live), which is the rule the phone's own player already follows for a live item
   ([ADR 69](0069-live-streams-play-a-manifest-totum-builds.md): no length, "LIVE" in the bar).
+- **STOP hands a TV back by quitting the app Totum launched (amended 2026-11-07).** After STOP the Pi logged "nothing to
+  hand back, the app stays on the TV" and the Default Media Receiver stayed on the LG's screen. `CastLink.release` (a
+  deck's STOP, or a queue reaching its end; never a move between items) now sends the helper `release`. The helper
+  (`Handback`) records what the TV was running when Totum first loaded: nothing, or the idle backdrop app (`E8C28D3C`),
+  means the receiver app is Totum's and `quit_app()` is called, but only if the TV still shows the Default Media
+  Receiver (`CC1AD845`) at that moment; any other app running before (YouTube, say), a different app on screen now, a
+  receiver that was already open before the helper's first load, or nothing loaded at all leaves the TV alone, as
+  before. Every decision is a `note` or `handback` event that `PyCastControl` logs with its reason.
 - **Every phone sees the same queues.** Any phone signed in to the home server reads and edits the targets' queues
   through the same operations; edits are small operations, never a whole-queue replace.
 
