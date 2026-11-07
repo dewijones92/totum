@@ -30,6 +30,7 @@ internal interface TargetPlayer {
     var onEnded: (failed: Boolean) -> Unit
     val failure: String? get() = null
     val notice: String? get() = null
+    val live: Boolean get() = false
 }
 
 internal interface TargetLink {

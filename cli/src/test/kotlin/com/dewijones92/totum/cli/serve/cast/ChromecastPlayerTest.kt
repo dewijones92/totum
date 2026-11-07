@@ -5,6 +5,7 @@ import com.dewijones92.totum.cli.serve.targets.PlayRequest
 import com.dewijones92.totum.data.targets.SoundSettings
 import com.dewijones92.totum.data.targets.TargetKind
 import com.dewijones92.totum.playback.VolumeBoost
+import com.dewijones92.totum.playback.cast.CastItem
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -77,6 +78,18 @@ class ChromecastPlayerTest {
 
         assertEquals(4_000L, p.positionMs)
         assertEquals(30_000L, p.durationMs)
+    }
+
+    @Test
+    fun `a live manifest marks the player live until it stops`() {
+        val p = player()
+        assertFalse(p.live)
+
+        p.play(request().copy(cast = CastItem("radio", "http://127.0.0.1:9/live/abc.mpd")))
+        assertTrue(p.live)
+
+        p.stop()
+        assertFalse(p.live)
     }
 
     @Test

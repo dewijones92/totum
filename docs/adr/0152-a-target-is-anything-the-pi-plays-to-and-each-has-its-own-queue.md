@@ -79,6 +79,14 @@ to send a queue to. ADR 116 had built that for speakers only, with its own wire 
   The phone shows "🔈 Volume not known" until a level is known. A Chromecast `stop` is sent only when Totum has something
   loaded, since `pychromecast` answers a stop with no media session as a failure ("Failed to execute stop"), which the
   helper used to report as an error before every load.
+- **A live item has no length (amended 2026-11-07).** The LG reported `durationMs=43199000` for the live jazz radio: the
+  receiver's answer for a live DASH stream is YouTube's 12-hour DVR window, which the strip drew as a 12 h bar. The deck
+  now says `live` in `TargetState` and sends no `durationMs` when the current item's kind is `LIVE` or the player found it
+  live (`ChromecastPlayer` reads `LocalManifests.isLive` of what it was given); progress reported to YouTube carries no
+  length either. The phone shows the app's own "🔴 LIVE" badge (`TagBadge`, `liveTagLabel`, as in the player and rows) in
+  place of the bar and the clock, from `TargetState.isLive` (the field, or the item's kind, so an older Pi that sends
+  only a length still reads as live), which is the rule the phone's own player already follows for a live item
+  ([ADR 69](0069-live-streams-play-a-manifest-totum-builds.md): no length, "LIVE" in the bar).
 - **Every phone sees the same queues.** Any phone signed in to the home server reads and edits the targets' queues
   through the same operations; edits are small operations, never a whole-queue replace.
 

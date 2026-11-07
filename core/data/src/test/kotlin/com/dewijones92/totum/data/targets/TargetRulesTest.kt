@@ -5,6 +5,7 @@ import com.dewijones92.totum.data.backup.toBackup
 import com.dewijones92.totum.data.queue.QueueEntry
 import com.dewijones92.totum.data.queue.QueueGroup
 import com.dewijones92.totum.data.queue.QueueSnapshot
+import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayHandle
@@ -191,5 +192,58 @@ class TargetRulesTest {
         assertFalse(state(tv, podcast("p1")).showsPicture)
         assertFalse(state(speaker, video("aaaaaaaaaaa")).showsPicture)
         assertFalse(state(tv, null).showsPicture)
+    }
+
+    private fun live(id: String, kind: MediaContentKind = MediaContentKind.LIVE) = PlayableItem(
+        MediaItem(
+            MediaItemId(id),
+            SourceId("c"),
+            "Radio $id",
+            publishedAt = null,
+            duration = null,
+            contentKind = kind,
+        ),
+        PlayHandle.Video(HttpUrl.of("https://www.youtube.com/watch?v=$id")),
+    )
+
+    private fun playing(item: PlayableItem, durationMs: Long?, live: Boolean = false) = TargetState(
+        Target("tv", "LG TV", TargetKind.TV),
+        entries = listOf(QueueEntry(item).toTargetEntry()),
+        at = 0,
+        durationMs = durationMs,
+        live = live,
+    )
+
+    @Test
+    fun `a live item has no length to show, whatever duration a player reported`() {
+        val radio = playing(live("aaaaaaaaaaa"), durationMs = 43_199_000)
+
+        assertTrue(radio.isLive)
+        assertNull(radio.shownLengthMs)
+    }
+
+    @Test
+    fun `a target that says it is live shows no length even for an item not marked live`() {
+        val radio = playing(live("aaaaaaaaaaa", MediaContentKind.STANDARD), durationMs = 43_199_000, live = true)
+
+        assertTrue(radio.isLive)
+        assertNull(radio.shownLengthMs)
+    }
+
+    @Test
+    fun `an item that is not live shows its length, and none when it is unknown`() {
+        val talk = playing(live("aaaaaaaaaaa", MediaContentKind.STANDARD), durationMs = 90_000)
+
+        assertFalse(talk.isLive)
+        assertEquals(90_000L, talk.shownLengthMs)
+        assertNull(talk.copy(durationMs = null).shownLengthMs)
+        assertNull(talk.copy(durationMs = 0).shownLengthMs)
+    }
+
+    @Test
+    fun `a state with no live field from an older Pi reads as not live`() {
+        val old = """{"target":{"id":"tv","label":"LG TV","kind":"TV"}}"""
+
+        assertFalse(TargetsJson.decodeFromString(TargetState.serializer(), old).live)
     }
 }

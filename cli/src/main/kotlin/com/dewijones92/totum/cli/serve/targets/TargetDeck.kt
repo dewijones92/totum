@@ -21,6 +21,7 @@ import com.dewijones92.totum.data.targets.nextAfterEnd
 import com.dewijones92.totum.data.targets.onATarget
 import com.dewijones92.totum.data.targets.toSnapshot
 import com.dewijones92.totum.data.targets.toTargetEntry
+import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.Picture
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.RepeatMode
@@ -66,13 +67,17 @@ internal class TargetDeck(
         at = queue.currentIndex,
         playing = playing,
         positionMs = (if (queue.current != null) player.positionMs else null) ?: 0,
-        durationMs = queue.current?.let { player.durationMs ?: it.item.item.duration?.inWholeMilliseconds },
+        durationMs = queue.current?.takeUnless { isLive() }
+            ?.let { player.durationMs ?: it.item.item.duration?.inWholeMilliseconds },
         volume = player.volumePercent,
         linked = destination != null,
         problem = problem ?: player.notice,
         sound = sound,
         repeat = repeat,
+        live = isLive(),
     )
+
+    private fun isLive(): Boolean = queue.current?.item?.item?.contentKind == MediaContentKind.LIVE || player.live
 
     suspend fun enqueue(request: TargetQueueRequest): EnqueueResult =
         reachingFirst(needsLink = true) { enqueueLocked(request) }
@@ -274,7 +279,7 @@ internal class TargetDeck(
     private suspend fun reportProgress(finished: Boolean) {
         val index = queue.currentIndex
         val entry = state().entries.getOrNull(index) ?: return
-        val duration = player.durationMs ?: entry.item.durationMs
+        val duration = if (isLive()) null else player.durationMs ?: entry.item.durationMs
         val position = if (finished && duration != null) duration else (player.positionMs ?: 0)
         val videoId = TargetReporting.videoIdToReport(entry, signedIn = true)
         Diag.log(
@@ -303,7 +308,7 @@ internal class TargetDeck(
         save()
     }
 
-    private fun save() = store.save(state().copy(playing = false, problem = null, volume = null), target.id)
+    private fun save() = store.save(state().copy(playing = false, problem = null, volume = null, live = false), target.id)
 
     private fun restore() {
         val saved = store.restore(target.id) ?: return

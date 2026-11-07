@@ -53,6 +53,7 @@ public data class TargetState(
     val problem: String? = null,
     val sound: SoundSettings = SoundSettings(),
     val repeat: RepeatMode = RepeatMode.OFF,
+    val live: Boolean = false,
 ) {
     val current: TargetEntry? get() = entries.getOrNull(at)
 }

@@ -6,12 +6,19 @@ import com.dewijones92.totum.data.backup.BackupItem
 import com.dewijones92.totum.data.backup.toBackup
 import com.dewijones92.totum.data.backup.toPlayable
 import com.dewijones92.totum.data.queue.QueueSnapshot
+import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.Picture
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.picture
 
 public val TargetState.showsPicture: Boolean
     get() = target.kind.hasPicture && current?.toQueueEntry()?.item?.picture.let { it != null && it != Picture.NO }
+
+public val TargetState.isLive: Boolean
+    get() = live || current?.toQueueEntry()?.item?.item?.contentKind == MediaContentKind.LIVE
+
+public val TargetState.shownLengthMs: Long?
+    get() = durationMs?.takeIf { !isLive && it > 0 }
 
 public object TargetReporting {
 

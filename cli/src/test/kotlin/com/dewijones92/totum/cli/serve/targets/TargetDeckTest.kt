@@ -52,7 +52,9 @@ class TargetDeckTest {
         override val volumePercent: Int? get() = vol
         override fun stop() { stopped = true }
         override var positionMs: Long? = 1_000
-        override val durationMs: Long? = 60_000
+        override var durationMs: Long? = 60_000
+        var foundLive = false
+        override val live: Boolean get() = foundLive
         override var onEnded: (failed: Boolean) -> Unit = {}
         override val failure: String? get() = failureText
     }
@@ -580,4 +582,40 @@ class TargetDeckTest {
 
         assertEquals(null, deck.state().problem)
     }
+
+    @Test
+    fun `a live item reports no length whatever the player says, and says it is live`() = runBlocking {
+        player.durationMs = DVR_WINDOW_MS
+        val deck = deck(TargetKind.TV)
+
+        deck.enqueue(TargetQueueRequest(listOf(item("radio", MediaContentKind.LIVE)), QueueMode.REPLACE))
+
+        val state = deck.state()
+        assertEquals(null, state.durationMs)
+        assertTrue(state.live)
+    }
+
+    @Test
+    fun `an item the player found live reports no length even when its kind does not say so`() = runBlocking {
+        player.durationMs = DVR_WINDOW_MS
+        player.foundLive = true
+        val deck = deck(TargetKind.TV)
+
+        deck.enqueue(TargetQueueRequest(listOf(item("radio")), QueueMode.REPLACE))
+
+        assertEquals(null, deck.state().durationMs)
+        assertTrue(deck.state().live)
+    }
+
+    @Test
+    fun `an item that is not live keeps the length the player reports`() = runBlocking {
+        val deck = deck(TargetKind.TV)
+
+        deck.enqueue(TargetQueueRequest(listOf(item("talk")), QueueMode.REPLACE))
+
+        assertEquals(60_000L, deck.state().durationMs)
+        assertFalse(deck.state().live)
+    }
 }
+
+private const val DVR_WINDOW_MS = 43_199_000L

@@ -45,15 +45,21 @@ import com.dewijones92.totum.data.targets.TargetColours
 import com.dewijones92.totum.data.targets.TargetControl
 import com.dewijones92.totum.data.targets.TargetEntry
 import com.dewijones92.totum.data.targets.TargetState
+import com.dewijones92.totum.data.targets.isLive
 import com.dewijones92.totum.data.targets.showsPicture
+import com.dewijones92.totum.data.targets.shownLengthMs
 import com.dewijones92.totum.data.targets.toQueueEntry
 import com.dewijones92.totum.playback.VolumeBoost
 import com.dewijones92.totum.targets.TargetsRepository
 import com.dewijones92.totum.ui.common.EmptyState
 import com.dewijones92.totum.ui.common.LocalItemShield
 import com.dewijones92.totum.ui.common.MediaItemRow
+import com.dewijones92.totum.ui.common.TagBadge
 import com.dewijones92.totum.ui.common.formatClock
+import com.dewijones92.totum.ui.common.liveTagColor
+import com.dewijones92.totum.ui.common.liveTagLabel
 import com.dewijones92.totum.ui.common.rowFacts
+import com.dewijones92.totum.video.LiveTag
 import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
@@ -100,8 +106,10 @@ private fun RemoteHeader(targets: TargetsRepository, state: TargetState, colour:
         )
         state.current?.let { current ->
             Text(LocalItemShield.current.titleOf(current.item), style = MaterialTheme.typography.bodyLarge)
-            val duration = state.durationMs
-            if (duration != null && duration > 0) {
+            if (state.isLive) {
+                TagBadge(liveTagLabel(LiveTag.Live), liveTagColor(LiveTag.Live), Modifier.padding(vertical = 4.dp))
+            }
+            state.shownLengthMs?.let { duration ->
                 LinearProgressIndicator(
                     progress = { (state.positionMs.toFloat() / duration).coerceIn(0f, 1f) },
                     color = colour,

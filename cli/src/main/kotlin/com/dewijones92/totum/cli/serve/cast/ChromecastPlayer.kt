@@ -11,6 +11,7 @@ import com.dewijones92.totum.data.targets.Target
 import com.dewijones92.totum.data.targets.TargetKind
 import com.dewijones92.totum.playback.cast.CastItem
 import com.dewijones92.totum.playback.cast.Http
+import com.dewijones92.totum.playback.cast.LocalManifests
 import kotlin.concurrent.thread
 
 internal class ChromecastPlayer(
@@ -29,7 +30,11 @@ internal class ChromecastPlayer(
 
     @Volatile private var watching: Any? = null
 
+    @Volatile private var liveNow = false
+
     override val notice: String? get() = tv.notice
+
+    override val live: Boolean get() = liveNow
 
     override var onEnded: (failed: Boolean) -> Unit
         get() = control.onEnded
@@ -41,6 +46,7 @@ internal class ChromecastPlayer(
         stop()
         tv.notice = null
         val wanted = request.cast ?: CastItem(request.title, request.url, listening = !request.picture)
+        liveNow = LocalManifests.isLive(wanted.uri)
         val item = wanted.copy(mediaId = "$label|${wanted.mediaId}", skipsSilence = request.sound.skipSilence)
         val manifest = if (streams.available) streams.urlFor(tv, item, request.sound) else null
         if (manifest != null) {
@@ -96,6 +102,7 @@ internal class ChromecastPlayer(
 
     override fun stop() {
         watching = null
+        liveNow = false
         control.stop()
         rawUrl?.let(streams::withdraw)
         rawUrl = null
