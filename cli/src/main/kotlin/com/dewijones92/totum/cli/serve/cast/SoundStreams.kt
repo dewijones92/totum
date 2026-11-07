@@ -18,12 +18,14 @@ internal class SoundStreams(
     private val processed: ProcessedSound,
     private val base: String?,
     private val port: Int,
+    private val clock: () -> Long = System::currentTimeMillis,
 ) {
     private class Offer(
         val label: String,
         val url: String,
         val sound: SoundSettings,
         val startAtMs: Long,
+        val madeAtMs: Long,
         @Volatile var running: Pipeline? = null,
     )
 
@@ -36,8 +38,9 @@ internal class SoundStreams(
     fun offer(label: String, url: String, sound: SoundSettings, startAtMs: Long): String? {
         val where = base ?: return null
         server.start(port)
+        prune()
         val token = tokenOf()
-        offers[token] = Offer(label, url, sound, startAtMs)
+        offers[token] = Offer(label, url, sound, startAtMs, clock())
         Diag.log("cast-target", "$label: processed sound offered at /s/${token.take(TOKEN_SHOWN)}… sound=$sound")
         return "${where.trimEnd('/')}/s/$token.aac"
     }
@@ -49,6 +52,19 @@ internal class SoundStreams(
         files[token] = file
         Diag.log("cast-target", "$label: ${file.name} offered at /f/${token.take(TOKEN_SHOWN)}…")
         return "${where.trimEnd('/')}/f/$token.${file.extension.ifEmpty { "bin" }}"
+    }
+
+    internal fun offered(): Int = offers.size
+
+    private fun prune() {
+        val now = clock()
+        offers.entries.removeIf { (token, offer) ->
+            val unused = offer.running == null && now - offer.madeAtMs > UNUSED_OFFER_MS
+            val finished = offer.running?.wanted == false
+            (unused || finished).also {
+                if (it) Diag.log("cast-target", "${offer.label}: offer ${token.take(TOKEN_SHOWN)}… expired")
+            }
+        }
     }
 
     fun skippedMs(url: String): Long = tokenIn(url)?.let(offers::get)?.running?.skippedMs ?: 0
@@ -97,6 +113,7 @@ internal class SoundStreams(
         const val TYPE = "audio/aac"
         const val TOKEN_BYTES = 16
         const val TOKEN_SHOWN = 6
+        const val UNUSED_OFFER_MS = 10 * 60 * 1_000L
         val TOKEN = Regex("""/s/([0-9a-f]{32})\.aac""")
         val FILE = Regex("""/f/([0-9a-f]{32})\.\w+""")
     }

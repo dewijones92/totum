@@ -12,7 +12,13 @@ import kotlinx.serialization.json.longOrNull
 
 internal sealed interface CastEvent {
     data class Ready(val name: String?, val model: String?) : CastEvent
-    data class Status(val state: String?, val idle: String?, val positionMs: Long, val durationMs: Long?) : CastEvent
+    data class Status(
+        val state: String?,
+        val idle: String?,
+        val positionMs: Long,
+        val durationMs: Long?,
+        val contentId: String? = null,
+    ) : CastEvent
     data class Failure(val message: String) : CastEvent
 }
 
@@ -45,6 +51,7 @@ internal object CastWire {
                 obj.text("idle"),
                 obj["positionMs"]?.jsonPrimitive?.longOrNull ?: 0,
                 obj["durationMs"]?.takeIf { it !is JsonNull }?.jsonPrimitive?.longOrNull,
+                obj.text("contentId"),
             )
             "error" -> CastEvent.Failure(obj.text("message") ?: "unknown")
             else -> null

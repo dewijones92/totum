@@ -8,6 +8,11 @@ package com.dewijones92.totum.domain
  */
 public enum class MediaContentKind { STANDARD, LIVE, SHORT, MUSIC, AUDIOBOOK, WAS_LIVE }
 
+public fun MediaContentKind.skipsSilence(asked: Boolean): Boolean = when (this) {
+    MediaContentKind.MUSIC, MediaContentKind.LIVE, MediaContentKind.AUDIOBOOK -> false
+    MediaContentKind.STANDARD, MediaContentKind.SHORT, MediaContentKind.WAS_LIVE -> asked
+}
+
 public fun MediaContentKind.playsAtSpeed(chosen: Float): Float = when (this) {
     MediaContentKind.MUSIC, MediaContentKind.LIVE -> 1f
     MediaContentKind.AUDIOBOOK, MediaContentKind.STANDARD, MediaContentKind.SHORT, MediaContentKind.WAS_LIVE -> chosen

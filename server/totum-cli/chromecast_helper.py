@@ -24,6 +24,7 @@ class Listener:
             idle=status.idle_reason,
             positionMs=int((status.current_time or 0) * MS),
             durationMs=int(status.duration * MS) if status.duration else None,
+            contentId=status.content_id,
         )
 
 

@@ -39,10 +39,13 @@ internal class PyCastControl(
 
     @Volatile private var problem: String? = null
 
+    @Volatile private var loadedUrl: String? = null
+
     @Synchronized
     private fun session(): BufferedWriter? {
         writer?.takeIf { process?.isAlive == true }?.let { return it }
         ready = false
+        problem = null
         return try {
             val started = ProcessBuilder(python, helper, host).redirectError(ProcessBuilder.Redirect.INHERIT).start()
             process = started
@@ -80,11 +83,29 @@ internal class PyCastControl(
         val playing = event.state == "PLAYING"
         latest = CastReading(event.positionMs, event.durationMs, playing, clock())
         if (event.state == "IDLE" && loaded && event.idle != null) {
+            if (!endsLoaded(event)) return
             val failed = event.idle == "ERROR"
             Diag.log("cast-target", "$label: idle (${event.idle}) after ${event.positionMs}ms, failed=$failed")
             loaded = false
             onEnded(failed)
         }
+    }
+
+    private fun endsLoaded(event: CastEvent.Status): Boolean {
+        val mine = loadedUrl
+        val matches = if (event.contentId != null) {
+            event.contentId == mine
+        } else {
+            event.idle == "FINISHED" || event.idle == "ERROR"
+        }
+        if (!matches) {
+            Diag.log(
+                "cast-target",
+                "$label: idle (${event.idle}) for ${event.contentId ?: "no media id"} is not the item loaded " +
+                    "($mine); ignored",
+            )
+        }
+        return matches
     }
 
     private fun send(text: String, spawn: Boolean = false): Boolean {
@@ -102,6 +123,7 @@ internal class PyCastControl(
 
     override fun load(url: String, contentType: String, title: String, startAtMs: Long) {
         latest = null
+        loadedUrl = url
         loaded = true
         problem = null
         val sent = send(CastWire.load(url, contentType, title, startAtMs), spawn = true)
@@ -145,7 +167,7 @@ internal class PyCastControl(
 
     private companion object {
         const val LOGGED = 200
-        const val READY_TRIES = 40
+        const val READY_TRIES = 20
         const val READY_POLL_MS = 500L
         const val MS_PER_S = 1_000
     }
