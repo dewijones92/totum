@@ -9,6 +9,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaSource
+import com.dewijones92.totum.ui.player.DigestHost
+import com.dewijones92.totum.ui.player.LocalDigests
 import com.dewijones92.totum.ui.player.LocalTranscripts
 import kotlinx.coroutines.launch
 
@@ -49,6 +51,7 @@ internal fun ProvidePlayStates(
         LocalActiveModes provides container.activeModes,
         LocalAppPreferences provides container.appPreferences,
         LocalTranscripts provides container.transcripts,
+        LocalDigests provides remember(container) { DigestHost(container.aiFeatures.digests, container.operations) },
         LocalListeningSwitch provides listeningSwitchUi(container),
         LocalPictureOffer provides pictureOfferUi(container),
         LocalDownloadStates provides downloads,

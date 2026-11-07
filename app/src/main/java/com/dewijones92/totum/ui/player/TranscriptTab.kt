@@ -99,7 +99,11 @@ internal fun TranscriptSection(state: PlaybackState, onSeekTo: (Long) -> Unit) {
         null -> Text(stringResource(R.string.transcript_loading))
         is TranscriptResult.None -> Text(stringResource(R.string.transcript_none, shown.why))
         is TranscriptResult.Failed -> Text(stringResource(R.string.transcript_failed, shown.why))
-        is TranscriptResult.Loaded -> TranscriptLines(shown, state.live().positionMs, onSeekTo)
+        is TranscriptResult.Loaded -> {
+            val positionMs = state.live().positionMs
+            TranscriptDigestPanel(state, shown.cues, positionMs, onSeekTo)
+            TranscriptLines(shown, positionMs, onSeekTo)
+        }
     }
 }
 

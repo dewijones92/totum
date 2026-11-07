@@ -6,6 +6,10 @@ import com.dewijones92.totum.cli.serve.ai.RemoteCompleter
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.ai.AiTasks
 import com.dewijones92.totum.data.ask.AskJson
+import com.dewijones92.totum.data.digest.TranscriptAnswer
+import com.dewijones92.totum.data.digest.TranscriptAskRequest
+import com.dewijones92.totum.data.digest.TranscriptDigest
+import com.dewijones92.totum.data.digest.TranscriptDigestRequest
 import com.dewijones92.totum.data.spoiler.SpoilerAnswer
 import com.dewijones92.totum.data.spoiler.SpoilerRequest
 import kotlinx.coroutines.CoroutineScope
@@ -18,7 +22,27 @@ internal class HomeAiTasks(private val runner: AiTaskRunner) {
 
     fun tasks(): Map<String, AiTask> = mapOf(
         AiTasks.SPOILER to task(SpoilerRequest.serializer(), SpoilerAnswer.serializer(), ::spoiler),
+        AiTasks.TRANSCRIPT_DIGEST to task(
+            TranscriptDigestRequest.serializer(),
+            TranscriptDigest.serializer(),
+            ::transcriptDigest,
+        ),
+        AiTasks.TRANSCRIPT_ASK to task(
+            TranscriptAskRequest.serializer(),
+            TranscriptAnswer.serializer(),
+            ::transcriptAnswer,
+        ),
     )
+
+    private suspend fun transcriptDigest(request: TranscriptDigestRequest): TranscriptDigest {
+        val raw = runner.run(TranscriptPrompts.digestPrompt(request), TranscriptDigest.serializer())
+        return TranscriptPrompts.enforcedDigest(request, raw)
+    }
+
+    private suspend fun transcriptAnswer(request: TranscriptAskRequest): TranscriptAnswer {
+        val raw = runner.run(TranscriptPrompts.askPrompt(request), TranscriptAnswer.serializer())
+        return TranscriptPrompts.enforcedAnswer(request, raw)
+    }
 
     private suspend fun spoiler(request: SpoilerRequest): SpoilerAnswer {
         val raw = runner.run(SpoilerPrompts.prompt(request), SpoilerAnswer.serializer())

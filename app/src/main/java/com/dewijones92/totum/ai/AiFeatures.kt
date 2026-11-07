@@ -4,6 +4,9 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.ai.AiTasks
 import com.dewijones92.totum.data.ai.HttpAiJobs
 import com.dewijones92.totum.data.ask.AskOutcome
+import com.dewijones92.totum.data.digest.DigestService
+import com.dewijones92.totum.data.digest.FileDigestStore
+import com.dewijones92.totum.data.digest.InMemoryDigestStore
 import com.dewijones92.totum.data.spoiler.FileShieldStore
 import com.dewijones92.totum.data.spoiler.InMemoryShieldStore
 import com.dewijones92.totum.data.spoiler.SpoilerAnswer
@@ -15,7 +18,7 @@ import kotlinx.coroutines.CoroutineScope
 import okhttp3.OkHttpClient
 import java.io.File
 
-class AiFeatures(val spoilerShield: SpoilerShield) {
+class AiFeatures(val spoilerShield: SpoilerShield, val digests: DigestService) {
     companion object {
         fun fake(scope: CoroutineScope): AiFeatures = AiFeatures(
             SpoilerShield(
@@ -24,6 +27,7 @@ class AiFeatures(val spoilerShield: SpoilerShield) {
                 watched = { false },
                 scope = scope,
             ),
+            DigestService({ null }, InMemoryDigestStore()),
         )
     }
 }
@@ -59,5 +63,6 @@ internal fun aiFeaturesOf(
         watched = watched,
         scope = c.applicationScope,
     )
-    return AiFeatures(spoilers)
+    val digests = DigestService({ homeAiJobs(c, client) }, FileDigestStore(File(filesDir, "digests.json")))
+    return AiFeatures(spoilers, digests)
 }

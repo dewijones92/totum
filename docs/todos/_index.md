@@ -19,8 +19,8 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [A live stream that hasn't started says so](live-starts-soon.md) | playback | medium | built 2026-11-06, Batch A (tests owed) |
 | [📡 The Pi plays to any TV, browser or speaker](pi-plays-everywhere.md) | casting/pi | high | built 2026-11-07, Batch A (tests owed) |
 | [A daily 🤖 For you feed](for-you-feed.md) | ai | medium | decided 2026-11-06, Batch A phase 6 |
-| [TL;DR and chapters for long items](tldr-and-chapters.md) | ai | medium | decided 2026-11-06, Batch A phase 6 |
-| [Ask about this video](ask-about-this-video.md) | ai | medium | decided 2026-11-06, Batch A phase 6 |
+| [TL;DR and chapters for long items](tldr-and-chapters.md) | ai | medium | built 2026-11-07, Batch A (tests owed) |
+| [Ask about this video](ask-about-this-video.md) | ai | medium | built 2026-11-07, Batch A (tests owed) |
 | [A morning digest of what's new](morning-digest.md) | ai | low | decided 2026-11-06, Batch A phase 6 |
 | [A spoiler shield for sport](tennis-spoiler-shield.md) | ai/video | medium | built 2026-11-07, Batch A (tests owed) |
 | [Jellyfin's films and series inside Totum](jellyfin-in-totum.md) | home | medium | built 2026-11-07, Batch A (tests owed) |

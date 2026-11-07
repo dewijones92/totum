@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="digest_summarise">✨ Summarise this</string>
+    <string name="digest_summarise_hint">Three lines and tap-to-jump chapters, written by AI from the transcript</string>
+    <string name="digest_working">⏳ Summarising…</string>
+    <string name="digest_failed">❌ Couldn\'t summarise: %1$s</string>
+    <string name="digest_title">✨ In short</string>
+    <string name="digest_chapters">📑 Chapters</string>
+    <string name="digest_ai_note">🤖 Written by AI from the transcript. Check anything important.</string>
+    <string name="digest_again">🔄 Summarise again</string>
+    <string name="digest_ask_label">✨ Ask about this</string>
+    <string name="digest_ask_hint">What did they say about…?</string>
+    <string name="digest_ask_send">Ask</string>
+    <string name="digest_ask_working">⏳ Looking through the transcript…</string>
+    <string name="digest_ask_failed">❌ Couldn\'t answer: %1$s</string>
+    <string name="digest_ask_not_found">🤷 %1$s</string>
+    <string name="digest_ask_no_moment">⚠️ No moment could be confirmed in the transcript, so there is nothing to jump to</string>
+    <string name="digest_moment">▶️ %1$s · “%2$s”</string>
+    <string name="digest_question">❓ %1$s</string>
+    <string name="digest_op_summarise">Summarising “%1$s”</string>
+    <string name="digest_op_ask">Asking about “%1$s”</string>
+</resources>

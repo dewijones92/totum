@@ -164,3 +164,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 153 | [The Pi runs the phone's sound processing](0153-the-pi-runs-the-phones-sound-processing.md) | Accepted |
 | 154 | [Jellyfin is browsed and streamed through the Pi, with the key kept there](0154-jellyfin-is-browsed-and-streamed-through-the-pi.md) | Accepted |
 | 141 | [A spoiler shield hides results in titles, pictures and lengths, through one title seam](0141-a-spoiler-shield-hides-results-in-titles-pictures-and-lengths.md) | Accepted |
+| 142 | [TL;DR, chapters and ask about this video are one transcript digest](0142-tl-dr-chapters-and-ask-about-this-video-are-one-transcript-digest.md) | Accepted |
