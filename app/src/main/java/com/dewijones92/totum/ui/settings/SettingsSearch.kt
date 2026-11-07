@@ -107,7 +107,11 @@ internal fun SettingsSearchResults(rows: List<SettingsRow>, onPick: (SettingsRow
             ) {
                 Text(stringResource(row.label), style = MaterialTheme.typography.bodyLarge)
                 val label = stringResource(row.label)
-                val second = resultSecondLine(label, stringResource(row.section), row.summary?.let { stringResource(it) })
+                val second = resultSecondLine(
+                    label,
+                    stringResource(row.section),
+                    row.summary?.let { stringResource(it) }
+                )
                 if (second != null) {
                     Text(
                         text = second,

@@ -27,6 +27,7 @@ It is hidden while there is nothing to carry on.
 | In the play history, most recent first | the history is the only store with titles and pictures |
 | `MediaFilter.IN_PROGRESS` accepts its state (the account-merged map every list reads) | one definition of "part-way" |
 | Not nearly finished (`isNearlyFinished`) | the app's one "done" rule |
+| At least a minute in (`CARRY_ON_MIN_MS`, 2026-11-07) | "0 of 62 minutes" rows were items never really started; Carry on is what you started and did not finish |
 | Not music, not live | nothing to resume |
 | Not 🙅 Not for me | a row that suggests follows the suppression list |
 

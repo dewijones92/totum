@@ -14,7 +14,9 @@ public fun carryOn(
     .filter { it.item.contentKind != MediaContentKind.MUSIC && it.item.contentKind != MediaContentKind.LIVE }
     .mapNotNull { playable ->
         val state = stateOf(playable.item.id).takeIf(MediaFilter.IN_PROGRESS::accepts) as? PlayState.InProgress
-        state?.takeUnless { it.positionMs < CARRY_ON_MIN_MS || it.isNearlyDone(playable.item) }?.let { CarryOnItem(playable, it) }
+        state?.takeUnless {
+            it.positionMs < CARRY_ON_MIN_MS || it.isNearlyDone(playable.item)
+        }?.let { CarryOnItem(playable, it) }
     }
     .take(limit)
     .toList()

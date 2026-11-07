@@ -9,7 +9,10 @@ class ResultSecondLineTest {
     @Test
     fun `a row named like its section does not repeat the name`() {
         assertNull(resultSecondLine("Daily alarms", "Daily alarms", null))
-        assertEquals("Ask each weekday morning", resultSecondLine("Daily alarms", "daily alarms ", "Ask each weekday morning"))
+        assertEquals(
+            "Ask each weekday morning",
+            resultSecondLine("Daily alarms", "daily alarms ", "Ask each weekday morning")
+        )
     }
 
     @Test

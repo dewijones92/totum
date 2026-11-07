@@ -208,7 +208,10 @@ private fun AskHeader(state: AskViewModel.UiState, onBack: () -> Unit, onStartOv
 }
 
 internal fun chatChipLabel(chat: SavedChat, zone: ZoneId, locale: Locale): String =
-    "${chat.title} · ${DateTimeFormatter.ofPattern("d MMM, HH:mm", locale).format(Instant.ofEpochMilli(chat.at).atZone(zone))}"
+    "${chat.title} · ${DateTimeFormatter.ofPattern(
+        "d MMM, HH:mm",
+        locale
+    ).format(Instant.ofEpochMilli(chat.at).atZone(zone))}"
 
 @Composable
 private fun AskInput(state: AskViewModel.UiState, recents: RecentSearches?, ask: (String, String) -> Unit) {

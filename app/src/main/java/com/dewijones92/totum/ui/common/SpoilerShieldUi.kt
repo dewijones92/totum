@@ -75,7 +75,12 @@ internal fun rememberSetShieldedChannel(): (SpoilerShield, ShieldedChannel, Bool
     }
 }
 
-internal fun shieldableChannelName(author: String?, channelId: String?, channelOn: Boolean, pillar: MediaKind): String? =
+internal fun shieldableChannelName(
+    author: String?,
+    channelId: String?,
+    channelOn: Boolean,
+    pillar: MediaKind,
+): String? =
     author?.takeIf { it.isNotBlank() && (pillar == MediaKind.VIDEO || channelId != null || channelOn) }
 
 @Composable
