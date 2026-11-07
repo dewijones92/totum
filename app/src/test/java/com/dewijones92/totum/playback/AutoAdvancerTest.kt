@@ -2,7 +2,7 @@ package com.dewijones92.totum.playback
 
 import com.dewijones92.totum.domain.Listening
 import com.dewijones92.totum.domain.MediaItemId
-import com.dewijones92.totum.settings.RepeatMode
+import com.dewijones92.totum.domain.RepeatMode
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.test.TestScope

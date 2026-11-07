@@ -2,7 +2,7 @@ package com.dewijones92.totum.queue
 
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.domain.PlayableItem
-import com.dewijones92.totum.settings.RepeatMode
+import com.dewijones92.totum.domain.RepeatMode
 
 sealed interface QueueNotice {
     data class RepeatOneOff(val groupTitle: String) : QueueNotice

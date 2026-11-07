@@ -9,7 +9,7 @@ import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
-import com.dewijones92.totum.settings.RepeatMode
+import com.dewijones92.totum.domain.RepeatMode
 import org.junit.Assert.assertEquals
 import org.junit.Test
 

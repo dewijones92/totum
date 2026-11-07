@@ -5,7 +5,7 @@ import com.dewijones92.totum.dailyalarms.WorkAppsStatus
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.kidlock.KidRules
 import com.dewijones92.totum.mobiledata.holdingBack
-import com.dewijones92.totum.settings.RepeatMode
+import com.dewijones92.totum.domain.RepeatMode
 import com.dewijones92.totum.video.LiveTag
 import com.dewijones92.totum.video.liveTagOf
 import com.dewijones92.totum.video.videoIdOf

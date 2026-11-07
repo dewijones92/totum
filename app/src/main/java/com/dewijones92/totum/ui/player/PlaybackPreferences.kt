@@ -26,7 +26,7 @@ import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.playback.VolumeBoost
-import com.dewijones92.totum.settings.RepeatMode
+import com.dewijones92.totum.domain.RepeatMode
 
 /**
  * The offered playback rates, in one place — the below-artwork audio control and the

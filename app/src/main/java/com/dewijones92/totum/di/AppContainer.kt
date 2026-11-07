@@ -295,7 +295,7 @@ import com.dewijones92.totum.search.SharedPrefsSearchHistoryStore
 import com.dewijones92.totum.settings.AppPreferences
 import com.dewijones92.totum.settings.NetworkStatus
 import com.dewijones92.totum.settings.PlaybackMode
-import com.dewijones92.totum.settings.RepeatMode
+import com.dewijones92.totum.domain.RepeatMode
 import com.dewijones92.totum.settings.SharedPrefsAppPreferences
 import com.dewijones92.totum.settings.listeningIn
 import com.dewijones92.totum.shuffle.AppSourcePages

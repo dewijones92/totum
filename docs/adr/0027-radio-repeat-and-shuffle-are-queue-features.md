@@ -38,6 +38,11 @@ belong to their pages; repeat and shuffling what is queued are not music-specifi
 - A podcast queue can repeat and shuffle exactly as music does.
 - Repeat QUEUE wraps without gapless: the first item is not armed from the last.
 
+### Amendment (2026-11-07): `RepeatMode` lives in `:core:domain`
+
+The Pi's targets repeat with the same type ([ADR 155](0155-a-target-repeats-plays-files-on-the-pi-and-says-why-it-could-not-play.md)),
+so `RepeatMode` moved from `:app` (`settings`) to `:core:domain`; nothing about the phone's behaviour changed.
+
 ## Amended 2026-10-14: the radio is endless, and says so
 
 Dewi, 2026-10-14: *"make the radio, the music radio, continuous … label it … really obvious"*; report

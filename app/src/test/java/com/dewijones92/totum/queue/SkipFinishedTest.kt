@@ -11,7 +11,7 @@ import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.innertube.history.fake.FakeYouTubeWatchHistory
 import com.dewijones92.totum.playback.fake.FakePlaybackController
-import com.dewijones92.totum.settings.RepeatMode
+import com.dewijones92.totum.domain.RepeatMode
 import com.dewijones92.totum.video.VideoPlaybackLauncher
 import com.dewijones92.totum.video.VideoResolver
 import com.dewijones92.totum.ytdlp.fake.FakeYtDlpEngine

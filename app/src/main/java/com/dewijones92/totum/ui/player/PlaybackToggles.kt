@@ -10,7 +10,7 @@ data class PlaybackToggles(
     val sabrPlayback: Boolean = false,
     val onSetSabrPlayback: (Boolean) -> Unit = {},
     val onSetVolumeBoost: (com.dewijones92.totum.playback.VolumeBoost) -> Unit = {},
-    val repeatMode: com.dewijones92.totum.settings.RepeatMode = com.dewijones92.totum.settings.RepeatMode.OFF,
-    val onSetRepeatMode: (com.dewijones92.totum.settings.RepeatMode) -> Unit = {},
+    val repeatMode: com.dewijones92.totum.domain.RepeatMode = com.dewijones92.totum.domain.RepeatMode.OFF,
+    val onSetRepeatMode: (com.dewijones92.totum.domain.RepeatMode) -> Unit = {},
     val onKidLock: (() -> Unit)? = null,
 )

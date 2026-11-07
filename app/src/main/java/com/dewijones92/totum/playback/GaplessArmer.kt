@@ -7,7 +7,7 @@ import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.kidlock.KidRules
 import com.dewijones92.totum.queue.groupRestartIndex
 import com.dewijones92.totum.settings.AppPreferences
-import com.dewijones92.totum.settings.RepeatMode
+import com.dewijones92.totum.domain.RepeatMode
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.filterIsInstance

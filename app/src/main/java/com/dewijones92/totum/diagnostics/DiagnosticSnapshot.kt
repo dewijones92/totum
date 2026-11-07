@@ -19,7 +19,7 @@ import com.dewijones92.totum.queue.GroupDownloads
 import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.queue.QueueAutoDownloader
 import com.dewijones92.totum.settings.AppPreferences
-import com.dewijones92.totum.settings.RepeatMode
+import com.dewijones92.totum.domain.RepeatMode
 import com.dewijones92.totum.video.AccountSubscriptions
 import com.dewijones92.totum.video.OutboundSyncStatus
 
