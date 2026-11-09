@@ -4,11 +4,11 @@ import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import coil3.request.crossfade
-import com.dewijones92.totum.data.torrent.HomeServerAuthInterceptor
+import com.dewijones92.totum.data.torrent.sendingTheHomeToken
 import okhttp3.OkHttpClient
 
 internal fun homeServerImageClient(): OkHttpClient = OkHttpClient.Builder()
-    .addInterceptor(HomeServerAuthInterceptor())
+    .sendingTheHomeToken()
     .build()
 
 internal fun homeServerAwareImageLoader(context: PlatformContext): ImageLoader =

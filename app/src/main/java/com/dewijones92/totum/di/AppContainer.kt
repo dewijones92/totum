@@ -85,7 +85,7 @@ import com.dewijones92.totum.data.source.SourceLocator
 import com.dewijones92.totum.data.sponsorblock.SkipSegmentSource
 import com.dewijones92.totum.data.sponsorblock.SponsorBlockSegmentSource
 import com.dewijones92.totum.data.torrent.Apibay
-import com.dewijones92.totum.data.torrent.HomeServerAuthInterceptor
+import com.dewijones92.totum.data.torrent.sendingTheHomeToken
 import com.dewijones92.totum.data.torrent.HomeTorrentServer
 import com.dewijones92.totum.data.torrent.HttpHomeTorrentServer
 import com.dewijones92.totum.data.torrent.TorrentCategory
@@ -680,7 +680,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     override val polite: Politeness = Politeness()
 
     private val transferClient: OkHttpClient = polite.gated(OkHttpClient.Builder())
-        .addInterceptor(HomeServerAuthInterceptor())
+        .sendingTheHomeToken()
         .connectTimeout(HTTP_TIMEOUT_SECONDS, TimeUnit.SECONDS)
         .readTimeout(HTTP_TIMEOUT_SECONDS, TimeUnit.SECONDS)
         .build()
