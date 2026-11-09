@@ -9,7 +9,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
 PORT = 8099
-TOTUM = os.environ.get("TOTUM_URL", "http://127.0.0.1:8770")
+TOTUM = os.environ.get("TOTUM_URL", "http://127.0.0.1:8772")
 RESOLVER = os.environ.get("SHOW_RESOLVER", "http://127.0.0.1:8100/resolve")
 REQUESTER = {"id": "home-assistant", "label": "🏠 Home Assistant"}
 SPEAKERS = {

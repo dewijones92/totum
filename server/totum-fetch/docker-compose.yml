@@ -21,7 +21,7 @@ services:
       - /run/dbus/system_bus_socket:/run/dbus/system_bus_socket
       - /var/lib/hermes-audio:/sounds:ro
     ports:
-      - "127.0.0.1:8770:8770"
+      - "127.0.0.1:8772:8772"
       - "8771:8771"
     networks:
       - bin_private

@@ -169,3 +169,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 155 | [A target repeats, plays sound files on the Pi, and says why it could not play](0155-a-target-repeats-plays-files-on-the-pi-and-says-why-it-could-not-play.md) | Accepted |
 | 156 | [One casting brain, the Pi casts with the phone's own code](0156-one-casting-brain-the-pi-casts-with-the-phones-own-code.md) | Accepted |
 | 157 | [A player error with no recovery tells the user why, and offers Listen when the picture is the problem](0157-a-player-error-with-no-recovery-tells-the-user-and-offers-listen.md) | Accepted |
+| 158 | [Targets, end-of-batch fixes: loops, ids, a loopback listener, slow answers, a TV that is switched off](0158-targets-end-of-batch-fixes.md) | Accepted |

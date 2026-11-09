@@ -79,7 +79,7 @@ sound processing on the Pi). Brief: [pi-plays-everywhere.md](../todos/pi-plays-e
 - **Repeat, files and problems (2026-11-07, [ADR 155](../adr/0155-a-target-repeats-plays-files-on-the-pi-and-says-why-it-could-not-play.md)).** A
   target repeats off / this one / the queue (set by a queue request or a `REPEAT` control, saved, shown in `GET /targets`);
   an item can be a sound file on the Pi (`file:///sounds/<name>`, nothing outside that folder); a passed-over item or a
-  failed player shows as the target's `problem`; 8770 is published on the Pi's loopback for Home Assistant.
+  failed player shows as the target's `problem`; `127.0.0.1:8772` on the Pi serves only `/targets*` and `/health`, for Home Assistant ([ADR 158](../adr/0158-targets-end-of-batch-fixes.md)).
 
 ## Not built (see the todo)
 

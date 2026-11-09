@@ -60,5 +60,5 @@ ENV TOTUM_PYTHON=/opt/venv/bin/python \
     TOTUM_CAST_PORT=8771 \
     PULSE_SERVER=unix:/run/pulse/native \
     PULSE_COOKIE=/run/pulse/cookie
-EXPOSE 8770 8771
+EXPOSE 8770 8771 8772
 CMD ["sh", "-c", "/opt/venv/bin/pip install -q -U 'yt-dlp[default]' || echo 'yt-dlp update failed; using the installed one'; exec /opt/totum/bin/totum serve --port=8770"]

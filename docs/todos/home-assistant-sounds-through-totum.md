@@ -37,7 +37,7 @@ it is "this batch please".
   `media.station`, `speaker`), so HA's config, voice phrases and dashboard do not change. It no longer runs mpv or
   `bluetoothctl`; every play, stop and speaker choice is a request to Totum's `/targets`, and `/status` is read from
   `GET /targets`. Speaker names map to target ids (`soundbar` 54158976cda4, `soundmic` f44efd21926d).
-- **8770 published on the Pi's loopback only** (`127.0.0.1:8770`), the same trust as 8099 today.
+- **A loopback listener on 8772** (`127.0.0.1:8772`, `/targets*` and `/health` only; first built as all of 8770, narrowed by [ADR 158](../adr/0158-targets-end-of-batch-fixes.md)), the same trust as 8099 today.
 - **Repeat on a target** (off / this one / the queue, as ADR 27 on the phone): brown noise is queued with repeat one.
 - **A sound on the Pi**: brown noise is served to Totum as a file the Pi already holds (the container mounts
   `/var/lib/hermes-audio` read-only); one rule for "an item whose bytes are on the Pi".

@@ -85,6 +85,26 @@ internal class AskServer(
         Diag.log("serve", "listening on $port")
     }
 
+    fun startLoopback(port: Int, routes: Routes): HttpServer = HttpServer.create(InetSocketAddress(port), 0).apply {
+        executor = Executors.newFixedThreadPool(LOOPBACK_THREADS)
+        createContext("/") { exchange -> exchange.use { handleLoopback(it, routes) } }
+        start()
+        Diag.log("serve", "loopback listener on $port: /health and the targets, nothing else")
+    }
+
+    internal fun handleLoopback(exchange: HttpExchange, routes: Routes) {
+        val path = exchange.requestURI.path.trimEnd('/')
+        val method = exchange.requestMethod
+        when {
+            method == "GET" && path == "/health" -> exchange.reply(OK, healthJson())
+            routes.handles(path) -> routes.handle(exchange, method, path)
+            else -> {
+                Diag.warn("serve", "loopback listener refused $method $path: it answers /health and the targets only")
+                exchange.reply(NOT_FOUND, """{"error":"no such route: $method $path"}""")
+            }
+        }
+    }
+
     private fun healthJson(): String {
         val homeJobs = home?.let { runBlocking { it.jobs() } }
         return buildJsonObject {
@@ -183,6 +203,7 @@ internal class AskServer(
         const val BAD_REQUEST = 400
         const val NOT_FOUND = 404
         const val THREADS = 16
+        const val LOOPBACK_THREADS = 4
         const val LOGGED = 300
     }
 }
@@ -198,6 +219,7 @@ private inline fun HttpExchange.use(block: (HttpExchange) -> Unit) {
 }
 
 private const val DEFAULT_CAST_PORT = 8771
+private const val DEFAULT_LOOPBACK_PORT = 8772
 
 internal suspend fun serveAsk(port: Int, out: (String) -> Unit, polite: Politeness): Int = coroutineScope {
     val brain = brainFromEnv()
@@ -261,13 +283,16 @@ internal suspend fun serveAsk(port: Int, out: (String) -> Unit, polite: Politene
             states.prune()
         }
     }
+    val targetRoutes = TargetRoutes(targets)
     val routes = listOfNotNull(
-        TargetRoutes(targets),
+        targetRoutes,
         jellyfin?.let { JellyfinRoutes(JellyfinBrowse(it)) } ?: JellyfinNotSetUp(),
         AskStateRoutes(states),
     ) + aiTaskRoutesFrom(this)
-    AskServer(brain, this, HomeRoutes(home), routes, ask = RoutedAsk(brain, states)::answer, youTube = polite)
-        .start(port)
+    val server =
+        AskServer(brain, this, HomeRoutes(home), routes, ask = RoutedAsk(brain, states)::answer, youTube = polite)
+    server.start(port)
+    server.startLoopback(System.getenv("TOTUM_LOOPBACK_PORT")?.toIntOrNull() ?: DEFAULT_LOOPBACK_PORT, targetRoutes)
     out("totum serve: listening on $port")
     awaitCancellation()
 }

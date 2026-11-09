@@ -46,7 +46,7 @@ that is not a phone, and the caller (HA) has to be reachable and recognisable.
   with an error" for now). The deck sets `problem` to "❌ Couldn't play <title>: <reason>" when it passes over an item or
   a player fails, and clears it when the next item plays, on STOP, and when a new request arrives. The phone's chip
   already renders `problem`.
-- **8770 is published on the Pi's loopback only** (`127.0.0.1:8770:8770` in `server/totum-fetch/docker-compose.yml`), the
+- **(Superseded by [ADR 158](0158-targets-end-of-batch-fixes.md): the loopback port is 8772, serving only `/targets*` and `/health`; 8770 is unpublished again.) 8770 is published on the Pi's loopback only** (`127.0.0.1:8770:8770` in `server/totum-fetch/docker-compose.yml`), the
   same trust as `hermes-audio-ctl` on 8099, so Home Assistant and the host can call `/targets`.
 - **A caller is a requester.** HA sends `{"id":"home-assistant","label":"🏠 Home Assistant"}` as `from`; the queue shows
   "➕ Added by 🏠 Home Assistant", and as it is never the YouTube owner nothing it queues reports to YouTube
