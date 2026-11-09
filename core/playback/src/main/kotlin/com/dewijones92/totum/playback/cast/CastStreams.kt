@@ -1,8 +1,10 @@
 package com.dewijones92.totum.playback.cast
 
 import android.content.Context
+import androidx.annotation.OptIn
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
+import androidx.media3.common.util.UnstableApi
 import com.dewijones92.totum.playback.BoostingAudioProcessor
 import com.dewijones92.totum.playback.EXTRA_AUDIO_ONLY
 import com.dewijones92.totum.playback.EXTRA_AUDIO_URL
@@ -12,6 +14,7 @@ import com.dewijones92.totum.playback.SilenceCuttingAudioProcessor
 import com.dewijones92.totum.playback.SpeechGate
 import com.dewijones92.totum.playback.VolumeBoost
 
+@OptIn(markerClass = [UnstableApi::class])
 internal class CastStreams(
     context: Context,
     boost: () -> VolumeBoost,
