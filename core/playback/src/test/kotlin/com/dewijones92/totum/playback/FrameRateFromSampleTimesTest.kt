@@ -55,8 +55,33 @@ class FrameRateFromSampleTimesTest {
             24_000.0 / 1001 to 24_000f / 1001,
         ).forEach { (actual, nominal) ->
             val found = frameRateFrom(matroskaTimes(actual))
-            assertEquals("$actual fps in whole milliseconds", nominal, found!!, nominal * 0.002f)
+            assertEquals("$actual fps in whole milliseconds", nominal, found!!, TIGHT)
         }
+    }
+
+    @Test
+    fun `sixty is not read as fifty nine point nine four in whole milliseconds, nor twenty four as twenty three point nine seven six`() {
+        assertEquals(60f, frameRateFrom(matroskaTimes(60.0))!!, TIGHT)
+        assertEquals(24f, frameRateFrom(matroskaTimes(24.0))!!, TIGHT)
+        assertEquals(60_000f / 1001, frameRateFrom(matroskaTimes(60_000.0 / 1001))!!, TIGHT)
+        assertEquals(24_000f / 1001, frameRateFrom(matroskaTimes(24_000.0 / 1001))!!, TIGHT)
+    }
+
+    @Test
+    fun `a clock that does not start at zero still tells sixty from fifty nine point nine four`() {
+        listOf(7L, 333L, 1_234_567L).forEach { startMs ->
+            assertEquals(60f, frameRateFrom(matroskaTimes(60.0, startMs = startMs))!!, TIGHT)
+            assertEquals(60_000f / 1001, frameRateFrom(matroskaTimes(60_000.0 / 1001, startMs = startMs))!!, TIGHT)
+            assertEquals(24f, frameRateFrom(matroskaTimes(24.0, startMs = startMs))!!, TIGHT)
+            assertEquals(24_000f / 1001, frameRateFrom(matroskaTimes(24_000.0 / 1001, startMs = startMs))!!, TIGHT)
+        }
+    }
+
+    @Test
+    fun `whole millisecond times with a repeated stamp are not counted as extra frames`() {
+        val doubled = matroskaTimes(60.0, count = 13).let { it + it[5] }
+
+        assertEquals(60f, frameRateFrom(doubled)!!, TIGHT)
     }
 
     @Test
@@ -88,5 +113,9 @@ class FrameRateFromSampleTimesTest {
         val offByTwoPercent = every(16_333)
 
         assertEquals(1_000_000f / 16_333, frameRateFrom(offByTwoPercent)!!, 0.01f)
+    }
+
+    private companion object {
+        const val TIGHT = 0.001f
     }
 }

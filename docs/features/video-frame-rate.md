@@ -3,7 +3,7 @@ title: Smooth video at any speed
 kind: feature
 status: shipped
 area: playback
-updated: 2026-11-07
+updated: 2026-11-09
 ---
 
 # Smooth video at any speed

@@ -2,7 +2,7 @@
 title: The decoder and the screen are told the frame rate
 kind: adr
 status: accepted
-updated: 2026-11-06
+updated: 2026-11-09
 ---
 
 # 139. The decoder and the screen are told the frame rate
@@ -59,3 +59,17 @@ the screen then had no even mode (58.8 x 2 divides into neither 60 nor 90). When
 millisecond the snap tolerance is now one millisecond's share of the spacing (about 6% at 60fps, 3% at 30fps); times
 with microsecond detail (fragmented MP4) are still judged to 1%. 24fps and 23.976fps are indistinguishable at that
 resolution and snap to whichever is nearer, which the display choice treats alike.
+
+## Amendment, 2026-11-09: whole-millisecond containers are matched by fit, not by nearest rate
+
+The 2026-11-07 amendment forgave the spacing but still chose the nearest common rate to the median gap, so true 60fps in
+whole milliseconds (gaps of 16 and 17, median 17 = 58.8fps) snapped to 59.94 and 24fps to 23.976, and the test's
+tolerance (nominal x 0.002) was wide enough to pass them. The consistency sweep found it. For whole-millisecond stamps
+each common rate within the snap window is now scored by how well it explains the stamps (the largest distance, with the
+first frame's place free, between a stamp and the ideal time at that rate; a rate that explains them to within half a
+millisecond is possible) and the best fit wins, so 60 stays 60, 59.94 stays 59.94, 30 stays 30 and 24 stays 24 whenever
+the data can tell them apart. Stamps that are not evenly spaced (the span and the median disagree by more than 10%) and
+odd rates keep the earlier rule. The limit stays: 60 against 59.94 differ by 0.1%, under a millisecond over twelve
+frames, so some first-frame positions fit both equally well and the nearer-fitting one is taken; either is within 0.1%
+of the truth, which the operating rate and the display choice do not feel. `FrameRateFromSampleTimesTest` now compares
+to 0.001fps and pins 60, 59.94, 24 and 23.976 and a repeated stamp.

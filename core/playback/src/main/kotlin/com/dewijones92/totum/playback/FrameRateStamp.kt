@@ -25,10 +25,30 @@ internal fun frameRateFrom(sampleTimesUs: List<Long>): Float? {
     val medianUs = gaps[gaps.size / 2]
     val raw = MICROS_PER_SECOND / medianUs.toFloat()
     if (raw < SLOWEST_FPS || raw > FASTEST_FPS) return null
-    val nearest = COMMON_RATES.minBy { abs(it - raw) }
     val wholeMs = sorted.all { it % MICROS_PER_MILLISECOND == 0L }
+    if (wholeMs) wholeMillisecondRate(sorted.distinct(), raw)?.let { return it }
+    val nearest = COMMON_RATES.minBy { abs(it - raw) }
     val tolerance = if (wholeMs) maxOf(SNAP_TOLERANCE, MICROS_PER_MILLISECOND / medianUs.toFloat()) else SNAP_TOLERANCE
     return if (abs(nearest - raw) / nearest < tolerance) nearest else raw
+}
+
+private fun wholeMillisecondRate(distinctUs: List<Long>, medianRaw: Float): Float? {
+    val ms = distinctUs.map { it / MICROS_PER_MILLISECOND.toDouble() }
+    val spanMs = ms.last() - ms.first()
+    val spanRaw = (MILLIS_PER_SECOND * (ms.size - 1) / spanMs).toFloat()
+    if (abs(spanRaw - medianRaw) / medianRaw > EVEN_SPACING_TOLERANCE) return null
+    val window = maxOf(SNAP_TOLERANCE, (1.0 / spanMs).toFloat())
+    return COMMON_RATES
+        .filter { abs(it - spanRaw) / it < window }
+        .map { it to quantisationResidualMs(ms, it) }
+        .filter { (_, residual) -> residual <= HALF_MILLISECOND }
+        .minByOrNull { (_, residual) -> residual }
+        ?.first
+}
+
+private fun quantisationResidualMs(ms: List<Double>, fps: Float): Double {
+    val errors = ms.mapIndexed { k, t -> t - ms.first() - k * MILLIS_PER_SECOND / fps }
+    return (errors.max() - errors.min()) / 2
 }
 
 @UnstableApi
@@ -185,6 +205,9 @@ private const val MICROS_PER_MILLISECOND = 1_000L
 private const val SLOWEST_FPS = 5f
 private const val FASTEST_FPS = 240f
 private const val SNAP_TOLERANCE = 0.01f
+private const val MILLIS_PER_SECOND = 1_000.0
+private const val HALF_MILLISECOND = 0.5 + 1e-9
+private const val EVEN_SPACING_TOLERANCE = 0.1f
 private val COMMON_RATES = listOf(
     24_000f / 1001,
     24f,
