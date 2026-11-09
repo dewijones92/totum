@@ -27,6 +27,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -49,9 +50,13 @@ import com.dewijones92.totum.data.targets.TargetState
 import com.dewijones92.totum.data.targets.isLive
 import com.dewijones92.totum.data.targets.shownLengthMs
 import com.dewijones92.totum.data.targets.showsPicture
+import com.dewijones92.totum.data.targets.onATarget
 import com.dewijones92.totum.data.targets.toQueueEntry
+import com.dewijones92.totum.domain.RepeatMode
 import com.dewijones92.totum.playback.VolumeBoost
 import com.dewijones92.totum.targets.TargetsRepository
+import com.dewijones92.totum.ui.player.LocalCompactTiles
+import com.dewijones92.totum.ui.player.RepeatTile
 import com.dewijones92.totum.ui.common.EmptyState
 import com.dewijones92.totum.ui.common.LocalItemShield
 import com.dewijones92.totum.ui.common.MediaItemRow
@@ -129,6 +134,7 @@ private fun RemoteHeader(targets: TargetsRepository, state: TargetState, colour:
         RemotePower(targets, state)
         state.problem?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         RemoteControls(targets, state)
+        RemoteRepeat(targets, state)
         RemoteSound(targets, state)
         RemoteColours(targets, id)
     }
@@ -179,6 +185,18 @@ private fun RemoteControls(targets: TargetsRepository, state: TargetState) {
         },
         valueRange = 0f..VOLUME_MAX,
     )
+}
+
+@Composable
+private fun RemoteRepeat(targets: TargetsRepository, state: TargetState) {
+    CompositionLocalProvider(LocalCompactTiles provides true) {
+        RepeatTile(
+            mode = state.repeat,
+            onSetMode = { targets.act(state.target.id, TargetControl(TargetAction.REPEAT, repeat = it)) },
+            modifier = Modifier.padding(vertical = 4.dp),
+            options = RepeatMode.entries.filter { it.onATarget },
+        )
+    }
 }
 
 @Composable
@@ -266,7 +284,10 @@ private fun RemoteRow(targets: TargetsRepository, id: String, index: Int, entry:
         MediaItemRow(
             item = playable.item,
             subtitleLines = rowFacts(playable.item, playable.pillar) +
-                listOfNotNull(entry.addedBy?.let { stringResource(R.string.target_added_by, it) }),
+                listOfNotNull(
+                    entry.addedBy?.let { stringResource(R.string.target_added_by, it) },
+                    stringResource(R.string.target_loops).takeIf { entry.loop },
+                ),
             pillar = playable.pillar,
             onPlay = { targets.act(id, TargetControl(TargetAction.JUMP, index = index)) },
             onPlayNext = { targets.playNextOn(id, entry) },

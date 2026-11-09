@@ -51,8 +51,8 @@ def show_item(show):
             "handle": url, "mediaUrl": url}
 
 
-def queue_request(item, repeat):
-    return {"items": [item], "mode": "PLAY", "repeat": repeat, "from": REQUESTER}
+def queue_request(item, loop):
+    return {"items": [item], "mode": "PLAY", "loop": loop, "from": REQUESTER}
 
 
 def control(action, **fields):
@@ -242,12 +242,12 @@ class Adapter:
         if not ok:
             return 400, err
         if sound in STATIONS:
-            self._submit({"kind": "play", "item": station_item(sound), "repeat": "OFF"})
+            self._submit({"kind": "play", "item": station_item(sound), "loop": False})
             return 200, {"state": "starting", "station": sound}
         if sound not in SOUNDS:
             log(f"MISS sound={sound!r}")
             return 404, {"state": "error", "error": f"unknown sound {sound!r}", "known": list(SOUNDS) + list(STATIONS)}
-        self._submit({"kind": "play", "item": sound_item(sound), "repeat": "ONE"})
+        self._submit({"kind": "play", "item": sound_item(sound), "loop": True})
         return 200, {"state": "starting", "sound": sound}
 
     def _play_show(self, path, query):
@@ -291,15 +291,15 @@ class Adapter:
         if kind == "show":
             show = self.resolve(request["channel"], request["mode"], request.get("id"))
             log(f"show {request['channel']}/{request['mode']}: {show.get('title')}")
-            self._play_item(show_item(show), "OFF")
+            self._play_item(show_item(show), False)
         elif kind == "play":
-            self._play_item(request["item"], request["repeat"])
+            self._play_item(request["item"], request["loop"])
         elif kind == "stop":
             self._stop_ours()
         elif kind == "move":
             self._move_ours()
 
-    def _play_item(self, item, repeat):
+    def _play_item(self, item, loop):
         with self.lock:
             speaker = self.selected
         target_id = SPEAKERS[speaker]["id"]
@@ -313,8 +313,8 @@ class Adapter:
         if entry and mine(entry) and entry["item"].get("itemId") == item["itemId"] and here.get("playing"):
             log(f"{item['itemId']} is already playing on {speaker}")
             return
-        log(f"play {item['itemId']} on {speaker} ({target_id}) repeat={repeat}")
-        answered = self.totum.queue(target_id, queue_request(item, repeat))
+        log(f"play {item['itemId']} on {speaker} ({target_id}) loop={loop}")
+        answered = self.totum.queue(target_id, queue_request(item, loop))
         if answered.get("problem") and not answered.get("playing"):
             raise TotumError(answered["problem"])
         self._prune(target_id, answered, keep=answered.get("at"))
@@ -327,9 +327,10 @@ class Adapter:
         return stopped
 
     def _prune(self, target_id, state, keep):
+        entries = state.get("entries", [])
         for index in sorted(my_indices(state), reverse=True):
             if index != keep:
-                self.totum.control(target_id, control("REMOVE", index=index))
+                self.totum.control(target_id, control("REMOVE", index=index, itemId=entries[index]["item"]["itemId"]))
 
     def _stop_ours(self):
         for name, state in states_by_speaker(self.totum.targets()).items():
@@ -344,7 +345,7 @@ class Adapter:
             entry = current_entry(state) if state else None
             if name != speaker and entry and mine(entry) and state.get("playing"):
                 log(f"moving {entry['item'].get('itemId')} from {name} to {speaker}")
-                self._play_item(entry["item"], state.get("repeat", "OFF"))
+                self._play_item(entry["item"], bool(entry.get("loop")))
                 return
         log(f"speaker is {speaker}; nothing of ours to move")
 

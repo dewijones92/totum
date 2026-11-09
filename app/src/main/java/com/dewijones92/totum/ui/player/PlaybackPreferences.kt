@@ -195,12 +195,17 @@ internal fun BoostTile(boost: VolumeBoost, onSetBoost: (VolumeBoost) -> Unit, mo
 }
 
 @Composable
-internal fun RepeatTile(mode: RepeatMode, onSetMode: (RepeatMode) -> Unit, modifier: Modifier = Modifier) {
+internal fun RepeatTile(
+    mode: RepeatMode,
+    onSetMode: (RepeatMode) -> Unit,
+    modifier: Modifier = Modifier,
+    options: List<RepeatMode> = RepeatMode.entries,
+) {
     PickerTile(
         icon = if (mode == RepeatMode.ONE) Icons.Outlined.RepeatOne else Icons.Outlined.Repeat,
         label = stringResource(R.string.repeat),
         current = mode,
-        options = RepeatMode.entries,
+        options = options,
         optionLabel = { stringResource(it.labelRes()) },
         onSelect = { chosen ->
             Diag.log("advance", "repeat set to $chosen (was $mode)")

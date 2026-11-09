@@ -1419,6 +1419,7 @@
     <string name="target_paused">⏸️ Paused on %1$s</string>
     <string name="target_idle">💤 Nothing playing on %1$s</string>
     <string name="target_row_playing">▶️ Playing now</string>
+    <string name="target_loops">🔂 Loops</string>
     <string name="target_added_by">➕ Added by %1$s</string>
     <string name="target_skip_silence">✂️ Skip silences</string>
     <string name="target_boost">🔊 Boost</string>

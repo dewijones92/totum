@@ -432,6 +432,58 @@ class TargetDeckTest {
     }
 
     @Test
+    fun `an entry that loops starts again each time it ends, and the deck's own repeat stays off`() = runBlocking {
+        val deck = deck()
+        deck.enqueue(TargetQueueRequest(listOf(item("a")), QueueMode.REPLACE, loop = true))
+
+        repeat(3) {
+            playedFor(60)
+            deck.ended(failed = false)
+        }
+
+        assertEquals(List(4) { "https://sound/a@bar-sink" }, player.played)
+        assertEquals(RepeatMode.OFF, deck.state().repeat)
+        assertEquals(listOf(true), deck.state().entries.map { it.loop })
+        assertTrue(deck.state().playing)
+    }
+
+    @Test
+    fun `the next thing sent to a deck whose last item looped does not loop`() = runBlocking {
+        val deck = deck()
+        deck.enqueue(TargetQueueRequest(listOf(item("noise")), QueueMode.REPLACE, loop = true))
+
+        deck.enqueue(TargetQueueRequest(listOf(item("show")), QueueMode.PLAY))
+        playedFor(60)
+        deck.ended(failed = false)
+
+        assertEquals(listOf("noise", "show"), player.played.map { it.substringAfter("sound/").substringBefore('@') })
+        assertFalse("the show ended once and the queue is over", deck.state().playing)
+        assertEquals(listOf(true, false), deck.state().entries.map { it.loop })
+    }
+
+    @Test
+    fun `a loop is remembered across a restart and a failed looping item is not repeated`() = runBlocking {
+        val deck = deck()
+        deck.enqueue(TargetQueueRequest(listOf(item("a"), item("b")), QueueMode.REPLACE, loop = true))
+        assertEquals(listOf(true, true), deck().state().entries.map { it.loop })
+
+        playedFor(60)
+        deck.ended(failed = true)
+
+        assertEquals("https://sound/b", lastUrl())
+    }
+
+    @Test
+    fun `a request that loops leaves the deck's chosen repeat alone`() = runBlocking {
+        val deck = deck()
+        deck.control(TargetControl(TargetAction.REPEAT, repeat = RepeatMode.QUEUE))
+
+        deck.enqueue(TargetQueueRequest(listOf(item("a")), QueueMode.REPLACE, loop = true))
+
+        assertEquals(RepeatMode.QUEUE, deck.state().repeat)
+    }
+
+    @Test
     fun `repeat the queue goes round again from the top after the last item`() = runBlocking {
         val deck = deck()
         deck.enqueue(TargetQueueRequest(listOf(item("a"), item("b")), QueueMode.REPLACE, repeat = RepeatMode.QUEUE))

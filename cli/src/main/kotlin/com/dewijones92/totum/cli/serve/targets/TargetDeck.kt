@@ -93,7 +93,7 @@ internal class TargetDeck(
         val group = request.group
         problem = null
         request.repeat?.let(::setRepeat)
-        provenance.note(wanted, request.from, ownerId())
+        provenance.note(wanted, request.from, ownerId(), request.loop)
         queue = when (request.mode) {
             QueueMode.REPLACE -> QueueSnapshot(wanted.map { QueueEntry(it, group) })
             QueueMode.NEXT -> queue.insertingAllNext(wanted, group)
@@ -168,11 +168,19 @@ internal class TargetDeck(
         }
         val title = queue.current?.item?.item?.title
         val playedMs = clock() - startedAtMs
-        val next = repeat.nextAfterEnd(queue.currentIndex, queue.entries.size, failed, playedMs >= MIN_REPEAT_PLAY_MS)
-        val tooSoon = !failed && playedMs < MIN_REPEAT_PLAY_MS && repeat != RepeatMode.OFF
+        val loops = queue.current?.item?.item?.id?.value?.let(provenance::loops) == true
+        val next = repeat.nextAfterEnd(
+            queue.currentIndex,
+            queue.entries.size,
+            failed,
+            playedMs >= MIN_REPEAT_PLAY_MS,
+            entryLoops = loops,
+        )
+        val tooSoon = !failed && playedMs < MIN_REPEAT_PLAY_MS && (repeat != RepeatMode.OFF || loops)
         Diag.log(
             "targets",
-            "${target.id}: $title ${if (failed) "failed" else "finished"} after ${playedMs}ms; repeat=$repeat, " +
+            "${target.id}: $title ${if (failed) "failed" else "finished"} after ${playedMs}ms; repeat=$repeat " +
+                "entryLoops=$loops, " +
                 "going to ${next.takeIf { it < queue.entries.size }?.let { "item $it" } ?: "the end"}" +
                 if (tooSoon) " (too soon after starting to repeat)" else "",
         )
@@ -369,20 +377,22 @@ internal sealed interface EnqueueResult {
 }
 
 internal class Provenances {
-    private class Who(val addedBy: String?, val reports: Boolean)
+    private class Who(val addedBy: String?, val reports: Boolean, val loop: Boolean)
 
     private val byItem = HashMap<String, Who>()
 
-    fun note(items: List<PlayableItem>, from: Requester?, ownerId: String?) {
-        items.forEach { byItem[it.item.id.value] = Who(from?.label, TargetReporting.reports(from, ownerId)) }
+    fun note(items: List<PlayableItem>, from: Requester?, ownerId: String?, loop: Boolean) {
+        items.forEach { byItem[it.item.id.value] = Who(from?.label, TargetReporting.reports(from, ownerId), loop) }
     }
 
     fun restore(entries: List<TargetEntry>) {
-        entries.forEach { byItem[it.item.itemId] = Who(it.addedBy, it.reportsToYouTube) }
+        entries.forEach { byItem[it.item.itemId] = Who(it.addedBy, it.reportsToYouTube, it.loop) }
     }
+
+    fun loops(itemId: String): Boolean = byItem[itemId]?.loop == true
 
     fun stamp(entry: TargetEntry): TargetEntry {
         val who = byItem[entry.item.itemId]
-        return entry.copy(addedBy = who?.addedBy, reportsToYouTube = who?.reports == true)
+        return entry.copy(addedBy = who?.addedBy, reportsToYouTube = who?.reports == true, loop = who?.loop == true)
     }
 }

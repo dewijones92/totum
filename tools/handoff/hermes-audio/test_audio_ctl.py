@@ -11,9 +11,9 @@ SOUNDBAR = "54158976cda4"
 SOUNDMIC = "f44efd21926d"
 
 
-def entry(item_id, title="x", added_by=HA, handle=None):
+def entry(item_id, title="x", added_by=HA, handle=None, loop=False):
     return {"item": {"itemId": item_id, "title": title, "handle": handle, "playbackType": "PODCAST"},
-            "addedBy": added_by}
+            "addedBy": added_by, "loop": loop}
 
 
 def target(target_id, entries=(), at=-1, playing=False, linked=False, problem=None, repeat="OFF"):
@@ -25,7 +25,7 @@ def targets(*states):
     return {"targets": list(states)}
 
 
-BROWN = entry("sound:brown-noise", "Brown noise")
+BROWN = entry("sound:brown-noise", "Brown noise", loop=True)
 JAZZ = entry("Dx5qFachd3A", "Jazz station")
 SHOW = entry("abc123abc12", "Episode 4", handle="https://www.youtube.com/watch?v=abc123abc12")
 PHONE = entry("zzz", "Bluey", added_by="Dewi's Pixel 7")
@@ -160,7 +160,7 @@ class UrlsTest(unittest.TestCase):
         adapter.run_pending()
         return code, body
 
-    def test_play_queues_brown_noise_as_a_file_on_the_pi_that_repeats_this_one(self):
+    def test_play_queues_brown_noise_as_a_file_on_the_pi_that_loops_and_never_sets_the_decks_repeat(self):
         adapter, totum = self.adapter(target(SOUNDBAR), target(SOUNDMIC))
 
         code, body = self.play(adapter, "/play")
@@ -169,7 +169,8 @@ class UrlsTest(unittest.TestCase):
         [(kind, target_id, request)] = totum.calls
         self.assertEqual(("queue", SOUNDBAR), (kind, target_id))
         self.assertEqual("PLAY", request["mode"])
-        self.assertEqual("ONE", request["repeat"])
+        self.assertTrue(request["loop"])
+        self.assertNotIn("repeat", request)
         self.assertEqual({"id": "home-assistant", "label": HA}, request["from"])
         [item] = request["items"]
         self.assertEqual("sound:brown-noise", item["itemId"])
@@ -184,7 +185,8 @@ class UrlsTest(unittest.TestCase):
         self.assertEqual((200, {"state": "starting", "station": "jazz"}), (code, body))
         [(_, target_id, request)] = totum.calls
         self.assertEqual(SOUNDMIC, target_id)
-        self.assertEqual("OFF", request["repeat"])
+        self.assertFalse(request["loop"])
+        self.assertNotIn("repeat", request)
         item = request["items"][0]
         self.assertEqual("Dx5qFachd3A", item["itemId"])
         self.assertEqual("LIVE", item["contentKind"])
@@ -207,7 +209,8 @@ class UrlsTest(unittest.TestCase):
         self.assertEqual([("msrachel", "latest", "abc123abc12")], asked)
         [(_, target_id, request)] = totum.calls
         self.assertEqual(SOUNDBAR, target_id)
-        self.assertEqual("OFF", request["repeat"])
+        self.assertFalse(request["loop"])
+        self.assertNotIn("repeat", request)
         self.assertEqual("Episode 4", request["items"][0]["title"])
         self.assertEqual("https://www.youtube.com/watch?v=abc123abc12", request["items"][0]["handle"])
 
@@ -226,7 +229,8 @@ class UrlsTest(unittest.TestCase):
 
         self.assertEqual((200, {"state": "stopped"}), (code, body))
         self.assertEqual([("control", SOUNDBAR, {"action": "STOP"}),
-                          ("control", SOUNDBAR, {"action": "REMOVE", "index": 1})], totum.calls)
+                          ("control", SOUNDBAR, {"action": "REMOVE", "index": 1, "itemId": "sound:brown-noise"})],
+                         totum.calls)
 
     def test_stop_leaves_alone_a_speaker_a_phone_is_playing(self):
         adapter, totum = self.adapter(target(SOUNDBAR, [PHONE], 0, True, True))
@@ -242,19 +246,20 @@ class UrlsTest(unittest.TestCase):
 
         self.assertEqual(
             [("control", SOUNDBAR, {"action": "STOP"}),
-             ("control", SOUNDBAR, {"action": "REMOVE", "index": 0})],
+             ("control", SOUNDBAR, {"action": "REMOVE", "index": 0, "itemId": "sound:brown-noise"})],
             totum.calls[:2])
         self.assertEqual(("queue", SOUNDMIC), totum.calls[2][:2])
 
-    def test_a_speaker_switch_moves_what_is_playing_and_keeps_its_repeat(self):
-        adapter, totum = self.adapter(target(SOUNDBAR, [BROWN], 0, True, True, repeat="ONE"), target(SOUNDMIC))
+    def test_a_speaker_switch_moves_what_is_playing_and_keeps_its_loop(self):
+        adapter, totum = self.adapter(target(SOUNDBAR, [BROWN], 0, True, True), target(SOUNDMIC))
 
         code, body = self.play(adapter, "/speaker/soundmic")
 
         self.assertEqual((200, {"speaker": "soundmic"}), (code, body))
         queues = [c for c in totum.calls if c[0] == "queue"]
         self.assertEqual(SOUNDMIC, queues[0][1])
-        self.assertEqual("ONE", queues[0][2]["repeat"])
+        self.assertTrue(queues[0][2]["loop"])
+        self.assertNotIn("repeat", queues[0][2])
         self.assertEqual("sound:brown-noise", queues[0][2]["items"][0]["itemId"])
         self.assertIn(("control", SOUNDBAR, {"action": "STOP"}), totum.calls)
 
@@ -271,7 +276,8 @@ class UrlsTest(unittest.TestCase):
 
         self.play(adapter, "/play/jazz")
 
-        self.assertEqual(("control", SOUNDBAR, {"action": "REMOVE", "index": 0}), totum.calls[-1])
+        self.assertEqual(("control", SOUNDBAR, {"action": "REMOVE", "index": 0, "itemId": "sound:brown-noise"}),
+                         totum.calls[-1])
         self.assertEqual(2, len(totum.calls))
 
     def test_an_unknown_speaker_is_a_400_and_an_unknown_sound_a_404(self):

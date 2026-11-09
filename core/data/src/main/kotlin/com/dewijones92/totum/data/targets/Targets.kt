@@ -38,6 +38,7 @@ public data class TargetEntry(
     val groupTitle: String? = null,
     val addedBy: String? = null,
     val reportsToYouTube: Boolean = false,
+    val loop: Boolean = false,
 )
 
 @Serializable
@@ -79,6 +80,7 @@ public data class TargetQueueRequest(
     val startAtMs: Long = 0,
     val startItemId: String? = null,
     val repeat: RepeatMode? = null,
+    val loop: Boolean = false,
 ) {
     val group: QueueGroup? get() = groupOf(groupId, groupTitle)
 }
@@ -94,6 +96,7 @@ public data class TargetControl(
     val volume: Int? = null,
     val sound: SoundSettings? = null,
     val repeat: RepeatMode? = null,
+    val itemId: String? = null,
 )
 
 public fun QueueEntry.toTargetEntry(from: Requester? = null, ownerId: String? = null): TargetEntry = TargetEntry(

@@ -19,6 +19,14 @@ class TargetRepeatTest {
     }
 
     @Test
+    fun `an entry that loops plays again whatever the deck's repeat, unless it failed or ended at once`() {
+        assertEquals(1, RepeatMode.OFF.nextAfterEnd(1, 3, failed = false, playedLongEnough = true, entryLoops = true))
+        assertEquals(0, RepeatMode.QUEUE.nextAfterEnd(0, 3, failed = false, playedLongEnough = true, entryLoops = true))
+        assertEquals(2, RepeatMode.OFF.nextAfterEnd(1, 3, failed = true, playedLongEnough = true, entryLoops = true))
+        assertEquals(2, RepeatMode.OFF.nextAfterEnd(1, 3, failed = false, playedLongEnough = false, entryLoops = true))
+    }
+
+    @Test
     fun `repeat this one plays the same item again`() {
         assertEquals(1, next(RepeatMode.ONE, index = 1, size = 3))
         assertEquals(0, next(RepeatMode.ONE, index = 0, size = 1))
