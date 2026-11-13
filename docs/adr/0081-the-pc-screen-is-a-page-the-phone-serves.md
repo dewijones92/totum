@@ -80,7 +80,7 @@ the phone says "🖥️ Ready for your PC" while charging on Wi-Fi. The PC no lo
 [ADR 93](0093-the-private-area-opens-the-pc-screen-and-watch-here-takes-over.md).
 
 
-## Amended 2026-11-13: the page has a seek bar, and the screen accepts seeks and next/previous ([ADR 161](0161-casting-fixes-from-the-diagnostics-of-7-to-11-november.md))
+## Amended 2026-11-13: the page has a seek bar, and the screen accepts seeks and next/previous ([ADR 164](0164-casting-fixes-from-the-diagnostics-of-7-to-11-november.md))
 
 `ScreenPlayer` did not list seek back, seek forward, next or previous among its commands, so the media session refused
 the phone's own back and forward taps while a screen played. It lists them now and steps 10 s back and 30 s forward.

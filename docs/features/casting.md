@@ -197,7 +197,7 @@ of a downloaded file offers them; `EmbeddedSubtitleWarmer` prepares every downlo
 
 - **The Pi casts with this same code** ([ADR 156](../adr/0156-one-casting-brain-the-pi-casts-with-the-phones-own-code.md)): `CastStreamServer` in `:core:cast` decides and serves (rung choice, manifest, relayed video, processed-audio segments, captions, live, the sound-only fallback); the phone supplies MediaCodec (`MediaCodecAudioEngine`) and Media3, the Pi supplies ffmpeg (`FfmpegAudioEngine`). `CastStreams` in `:core:playback` is only the adapter from a `MediaItem`.
 
-## Fixes from the diagnostics of 7 to 11 November (2026-11-13, [ADR 161](../adr/0161-casting-fixes-from-the-diagnostics-of-7-to-11-november.md))
+## Fixes from the diagnostics of 7 to 11 November (2026-11-13, [ADR 164](../adr/0164-casting-fixes-from-the-diagnostics-of-7-to-11-november.md))
 
 - **Back 10 s, forward 30 s** on the TV and the PC screen too, as on the phone.
 - **Stepping down** counts one starvation once, and a picture frozen for 12 s steps down by itself (also after a seek).
