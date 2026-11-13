@@ -3,13 +3,13 @@ package com.dewijones92.totum.music
 import com.dewijones92.totum.common.Busy
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.domain.MediaItem
+import com.dewijones92.totum.domain.SEVERAL_ARTISTS
 import com.dewijones92.totum.innertube.music.MusicResult
 import com.dewijones92.totum.innertube.music.RadioSeed
 import com.dewijones92.totum.innertube.music.YouTubeMusicCatalogue
 import com.dewijones92.totum.operations.Operations
 import com.dewijones92.totum.operations.showing
 import com.dewijones92.totum.ui.common.MusicPage
-import com.dewijones92.totum.ui.common.SEVERAL_ARTISTS
 import com.dewijones92.totum.ui.common.artistPage
 import com.dewijones92.totum.ui.common.artistsPage
 

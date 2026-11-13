@@ -54,8 +54,12 @@ public class FakeYouTubeMusicCatalogue(
         albumsById.values.firstOrNull { it.playlistId == playlistId }?.let { MusicResult.Success(it) }
             ?: MusicResult.Failure("no album for $playlistId")
 
-    override suspend fun artist(browseId: String): MusicResult<MusicArtist> =
-        artistsById[browseId]?.let { MusicResult.Success(it) } ?: MusicResult.Failure("no artist $browseId")
+    public val artistRequests: MutableList<String> = mutableListOf()
+
+    override suspend fun artist(browseId: String): MusicResult<MusicArtist> {
+        artistRequests += browseId
+        return artistsById[browseId]?.let { MusicResult.Success(it) } ?: MusicResult.Failure("no artist $browseId")
+    }
 
     override suspend fun radio(seed: RadioSeed, continuation: String?): MusicResult<RadioBatch> {
         radioRequests += seed to continuation

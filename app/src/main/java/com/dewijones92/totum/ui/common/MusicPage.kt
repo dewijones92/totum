@@ -62,5 +62,3 @@ fun artistsPage(artists: List<ArtistLink>, of: String, fallback: MusicPage.Artis
     artists.size > 1 -> MusicPage.ArtistChoice(artists.map { MusicPage.Artist(it.browseId, it.name) }, of)
     else -> artists.singleOrNull()?.let { MusicPage.Artist(it.browseId, it.name) } ?: fallback
 }
-
-val SEVERAL_ARTISTS: Regex = Regex(", | & | and | x | feat\\.? | ft\\. ", RegexOption.IGNORE_CASE)
