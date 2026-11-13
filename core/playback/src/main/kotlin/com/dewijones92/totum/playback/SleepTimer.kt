@@ -12,7 +12,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -44,21 +43,21 @@ public class SleepTimer(
     private var noFadeLogged = false
 
     private var job: Job? = null
-    private var fadedTo: Float = FULL
+    private var ramp = FadeRamp(Duration.ZERO)
 
     /** Starts (or restarts) the timer for [duration]. */
     public fun start(duration: Duration) {
         release()
+        ramp = FadeRamp(minOf(fade(), duration))
         job = scope.launch {
             var remaining = duration
-            val fadeLength = fade()
             _state.value = SleepTimerState.Running(remaining)
             while (isActive && remaining > Duration.ZERO) {
-                val step = if (fadeLength > Duration.ZERO && remaining <= fadeLength) FADE_TICK else TICK
+                val step = if (ramp.length > Duration.ZERO && remaining <= ramp.length) FADE_TICK else TICK
                 delay(step)
                 remaining -= step
                 _state.value = SleepTimerState.Running(remaining.coerceAtLeast(Duration.ZERO))
-                fadeTo(remaining, fadeLength)
+                fadeTo(remaining)
             }
             if (controller.state.value?.isPlaying == true) controller.togglePlayPause()
             restoreVolume("the countdown ended")
@@ -113,7 +112,7 @@ public class SleepTimer(
         release()
         stopsAfter = itemIds.last()
         armedBy = owner
-        val fadeLength = fade()
+        ramp = FadeRamp(fade())
         job = scope.launch {
             controller.state.collect { state ->
                 if (state == null || state.itemId !in itemIds) {
@@ -125,20 +124,20 @@ public class SleepTimer(
                     job?.cancel()
                 } else {
                     _state.value = describe(state.itemId)
-                    if (state.itemId == itemIds.last()) fadeToEndOf(state, fadeLength)
+                    if (state.itemId == itemIds.last()) fadeToEndOf(state)
                 }
             }
         }
     }
 
-    private fun fadeToEndOf(state: PlaybackState, fadeLength: Duration) {
+    private fun fadeToEndOf(state: PlaybackState) {
         val duration = state.durationMs?.takeIf { it > 0 && !state.live }
         if (duration == null) {
             noteNoFade("no fade: ${state.itemId} is live or has no known length")
             return
         }
         val speed = state.speed.takeIf { it > 0f } ?: 1f
-        fadeTo(((duration - state.positionMs) / speed).toLong().milliseconds, fadeLength)
+        fadeTo(((duration - state.positionMs) / speed).toLong().milliseconds)
     }
 
     private fun noteNoFade(why: String) {
@@ -147,19 +146,11 @@ public class SleepTimer(
         Diag.log("sleep", "dewidebug sleep timer $why; playback still stops")
     }
 
-    private fun fadeTo(remaining: Duration, fadeLength: Duration) {
-        if (fadeLength <= Duration.ZERO) return
-        val level = (remaining / fadeLength).toFloat().coerceIn(0f, FULL)
-        if (level >= FULL && fadedTo >= FULL) return
-        if (abs(level - fadedTo) < MIN_FADE_STEP && level > 0f) return
-        if (fadedTo >= FULL && !chooseOutput()) return
-        if (fadedTo >= FULL) {
-            val on = castBase?.let { "the TV volume (from ${percent(it)}%)" } ?: "the player"
-            Diag.log("sleep", "dewidebug sleep timer fade begins on $on: remaining=$remaining of a $fadeLength fade")
-        }
-        if (level == 0f) Diag.log("sleep", "dewidebug sleep timer fade reached silence")
-        fadedTo = level
-        castBase?.let { controller.setCastVolume(it * level) } ?: controller.setFadeLevel(level)
+    private fun fadeTo(remaining: Duration) {
+        if (!ramp.faded && ramp.due(remaining) && !chooseOutput()) return
+        val on = castBase?.let { "the TV volume (from ${percent(it)}%)" } ?: "the player"
+        val gain = ramp.next(remaining, on) ?: return
+        castBase?.let { controller.setCastVolume(it * gain) } ?: controller.setFadeLevel(gain)
     }
 
     private fun chooseOutput(): Boolean {
@@ -177,11 +168,8 @@ public class SleepTimer(
     private fun percent(fraction: Float): Int = (fraction * PERCENT).roundToInt()
 
     private fun restoreVolume(why: String) {
-        if (fadedTo >= FULL) return
+        if (!ramp.end(why)) return
         val base = castBase
-        val output = base?.let { "TV volume back to ${percent(it)}%" } ?: "player volume"
-        Diag.log("sleep", "dewidebug sleep timer volume back to full after a fade to $fadedTo ($output): $why")
-        fadedTo = FULL
         castBase = null
         base?.let { controller.setCastVolume(it) } ?: controller.setFadeLevel(FULL)
     }
@@ -215,7 +203,6 @@ public class SleepTimer(
         val TICK: Duration = 1.seconds
         val FADE_TICK: Duration = 250.milliseconds
         const val FULL = 1f
-        const val MIN_FADE_STEP = 0.02f
         const val PERCENT = 100
     }
 }

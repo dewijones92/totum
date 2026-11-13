@@ -1,5 +1,6 @@
 package com.dewijones92.totum.playback
 
+import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.playback.fake.FakePlaybackController
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -14,6 +15,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.math.pow
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
@@ -60,7 +62,7 @@ class SleepTimerFadeTest {
         assertTrue("no fade before the last ten seconds", controller.fadeLevels.isEmpty())
 
         moveTo(25_000)
-        assertEquals(0.5f, controller.fadeLevels.last(), 0.03f)
+        assertEquals(HALF_WAY_LOUDNESS, controller.fadeLevels.last(), 0.03f)
 
         moveTo(31_000)
         val ramp = controller.fadeLevels.dropLast(1)
@@ -95,11 +97,11 @@ class SleepTimerFadeTest {
 
         controller.emitState(playing("ep", positionMs = 170_000))
         runCurrent()
-        assertEquals(0.5f, controller.fadeLevels.last(), 0.001f)
+        assertEquals(HALF_WAY_LOUDNESS, controller.fadeLevels.last(), 0.001f)
 
         controller.emitState(playing("ep", positionMs = 179_000))
         runCurrent()
-        assertEquals(0.05f, controller.fadeLevels.last(), 0.001f)
+        assertEquals(TWENTIETH_LOUDNESS, controller.fadeLevels.last(), 0.001f)
     }
 
     @Test
@@ -112,7 +114,12 @@ class SleepTimerFadeTest {
         controller.emitState(playing("ep", positionMs = 160_000, speed = 2f))
         runCurrent()
 
-        assertEquals("20 s of audio at 2x is 10 s of listening", 0.5f, controller.fadeLevels.last(), 0.001f)
+        assertEquals(
+            "20 s of audio at 2x is 10 s of listening",
+            HALF_WAY_LOUDNESS,
+            controller.fadeLevels.last(),
+            0.001f,
+        )
     }
 
     @Test
@@ -182,7 +189,7 @@ class SleepTimerFadeTest {
         timer.stopAfterCurrentItem()
         runCurrent()
 
-        assertEquals(0.4f * 0.5f, controller.castVolumeAsked!!, 0.01f)
+        assertEquals(0.4f * HALF_WAY_LOUDNESS, controller.castVolumeAsked!!, 0.01f)
         assertTrue("the phone's own volume is left alone", controller.fadeLevels.isEmpty())
 
         timer.cancel()
@@ -234,5 +241,65 @@ class SleepTimerFadeTest {
         assertTrue(timer.firesAfter(MediaItemId("ep")))
 
         assertTrue(heard.toString(), heard.isEmpty())
+    }
+
+    @Test
+    fun `the ramp is steady in how loud it sounds, not in the raw volume`() = runTest {
+        controller.emitState(playing("ep"))
+        val timer = timer(fade = 20.seconds)
+        timer.start(40.seconds)
+        runCurrent()
+
+        moveTo(41_000)
+
+        val ramp = controller.fadeLevels.dropLast(1)
+        val heard = ramp.map { it.toDouble().pow(PERCEIVED_PER_AMPLITUDE) }
+        val steps = heard.zipWithNext { a, b -> a - b }
+        assertTrue("at least 40 steps, was ${ramp.size}", ramp.size >= 40)
+        assertTrue("never rises: $steps", steps.all { it >= 0.0 })
+        val widest = steps.max()
+        val usual = steps.sorted()[steps.size / 2]
+        assertTrue("steps stay even: widest $widest against the usual $usual", widest <= usual * 2.5)
+        assertTrue("never above where it started: ${ramp.max()}", ramp.all { it <= 1f })
+    }
+
+    @Test
+    fun `a countdown shorter than the fade fades over its whole length and does not start part way down`() = runTest {
+        controller.emitState(playing("ep"))
+        val timer = timer(fade = 20.seconds)
+        timer.start(4.seconds)
+        runCurrent()
+
+        moveTo(500)
+
+        assertTrue("first step is small: ${controller.fadeLevels}", controller.fadeLevels.first() > 0.8f)
+    }
+
+    @Test
+    fun `the fade says once that it began and once that it ended, with how many steps it took`() = runTest {
+        val lines = mutableListOf<String>()
+        val before = Diag.sink
+        Diag.sink = Diag.Sink { _, tag, message, _ -> if (tag == "sleep") lines += message }
+        try {
+            controller.emitState(playing("ep"))
+            val timer = timer(fade = 10.seconds)
+            timer.start(20.seconds)
+            runCurrent()
+            moveTo(21_000)
+        } finally {
+            Diag.sink = before
+        }
+
+        val begun = lines.filter { "fade begins" in it }
+        val ended = lines.filter { "fade ended" in it }
+        assertEquals(lines.toString(), 1, begun.size)
+        assertEquals(lines.toString(), 1, ended.size)
+        assertTrue(ended.single(), Regex("after \\d+ step").containsMatchIn(ended.single()))
+    }
+
+    private companion object {
+        const val HALF_WAY_LOUDNESS = 0.315f
+        const val TWENTIETH_LOUDNESS = 0.0068f
+        const val PERCEIVED_PER_AMPLITUDE = 0.6
     }
 }
