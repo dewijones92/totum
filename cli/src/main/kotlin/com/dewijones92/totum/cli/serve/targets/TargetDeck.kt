@@ -19,8 +19,8 @@ import com.dewijones92.totum.data.targets.TargetControl
 import com.dewijones92.totum.data.targets.TargetEntry
 import com.dewijones92.totum.data.targets.TargetPower
 import com.dewijones92.totum.data.targets.TargetQueueRequest
-import com.dewijones92.totum.data.targets.TargetSleepAsk
 import com.dewijones92.totum.data.targets.TargetReporting
+import com.dewijones92.totum.data.targets.TargetSleepAsk
 import com.dewijones92.totum.data.targets.TargetState
 import com.dewijones92.totum.data.targets.TargetTrouble
 import com.dewijones92.totum.data.targets.TroubleKind

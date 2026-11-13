@@ -541,7 +541,11 @@ class TargetsRepositoryTest {
         assertEquals(SleepKind.AFTER_TIME, first.sleep!!.kind)
         assertEquals(1_800, first.sleep!!.seconds)
         assertEquals(20, first.sleep!!.fadeSeconds)
-        assertEquals("a fade of none is sent as none, not defaulted", 0, api.controlled.last().second.sleep!!.fadeSeconds)
+        assertEquals(
+            "a fade of none is sent as none, not defaulted",
+            0,
+            api.controlled.last().second.sleep!!.fadeSeconds
+        )
     }
 
     @Test

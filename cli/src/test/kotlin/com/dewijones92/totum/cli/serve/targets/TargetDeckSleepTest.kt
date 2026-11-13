@@ -340,7 +340,10 @@ class TargetDeckSleepTest {
 
         deck.control(TargetControl(TargetAction.VOLUME, volume = 90))
         moveTo(27_000)
-        assertTrue("not lifted: ${player.volumeCommands.takeLast(3)}", player.volumeCommands.takeLast(3).all { it < 20 })
+        assertTrue(
+            "not lifted: ${player.volumeCommands.takeLast(3)}",
+            player.volumeCommands.takeLast(3).all { it < 20 }
+        )
 
         deck.control(cancel)
         assertEquals("put back to the lowest it was", 20, player.volumeCommands.last())
