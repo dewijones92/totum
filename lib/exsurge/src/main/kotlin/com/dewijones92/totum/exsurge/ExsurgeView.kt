@@ -11,6 +11,7 @@ import com.dewijones92.totum.exsurge.ExsurgeState.Summoned
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonObject
 import java.time.Duration
 import java.time.Instant
 
@@ -117,6 +118,14 @@ public object ExsurgeCodec {
         val beforeRouteVersion = element is JsonObject &&
             ExsurgeSettings.DESTINATION_ROUTE_VERSION_KEY !in element
         return (if (beforeRouteVersion) settings.fromBeforeRouteVersion() else settings).validated()
+    }
+    public fun encodeSettingsLog(log: SettingsLog): String = json.encodeToString(SettingsLog.serializer(), log)
+    public fun decodeSettingsLog(text: String): SettingsLog = json.decodeFromString(SettingsLog.serializer(), text)
+    public fun settingsDiff(old: ExsurgeSettings, new: ExsurgeSettings): String {
+        val before = json.encodeToJsonElement(ExsurgeSettings.serializer(), old).jsonObject
+        val after = json.encodeToJsonElement(ExsurgeSettings.serializer(), new).jsonObject
+        return after.filter { (field, value) -> before[field] != value }
+            .entries.joinToString("; ") { (field, value) -> "$field ${before[field]} -> $value" }
     }
     public fun encodeOutcomes(list: List<BreakOutcome>): String = json.encodeToString(outcomes, list)
     public fun decodeOutcomes(text: String): List<BreakOutcome> = json.decodeFromString(outcomes, text)

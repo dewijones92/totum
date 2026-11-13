@@ -16,6 +16,8 @@ interface ExsurgePersistence {
     fun saveMemory(memory: ExsurgeMemory)
     fun loadOutcomes(): List<BreakOutcome>
     fun saveOutcomes(outcomes: List<BreakOutcome>)
+    fun loadSettingsLog(): SettingsLog
+    fun saveSettingsLog(log: SettingsLog)
 }
 
 @Suppress("TooManyFunctions")
@@ -83,11 +85,23 @@ class ExsurgeController(
     private var settings = store.loadSettings()
     private var memory = store.loadMemory()
     private var outcomes = store.loadOutcomes()
+    private var settingsLog = store.loadSettingsLog()
     private var stepWindow = StepWindow(settings.walkWindow)
     private var simulatedSteps = false
     private var stepReadings = 0L
     private var lastStepTotal: Long? = null
     private var lastEvent = "none"
+
+    init {
+        val before = settingsLog.changes.size
+        settingsLog = settingsLog.noticing(settings, clock().toEpochMilli())
+        store.saveSettingsLog(settingsLog)
+        Diag.log(
+            TAG,
+            "dewidebug exsurge loaded settings at start-up: $settings; history has ${settingsLog.changes.size} " +
+                "change(s), ${settingsLog.changes.size - before} found at this start-up",
+        )
+    }
 
     private val _view = MutableStateFlow(viewAt(clock()))
     val view: StateFlow<ExsurgeView> = _view.asStateFlow()
@@ -104,6 +118,7 @@ class ExsurgeController(
             put("exsurge.streakDays", view.stats.streakDays.toString())
             put("exsurge.rank", "${view.stats.rank.latin} laurels=${view.stats.laurels}")
             put("exsurge.settings", settings.toString())
+            put("exsurge.settingsHistory", settingsLog.describe { Instant.ofEpochMilli(it).toString() })
             put("exsurge.remindAt", settings.remindAtEpochMs?.let(Instant::ofEpochMilli)?.toString() ?: "-")
         }
 
@@ -112,8 +127,10 @@ class ExsurgeController(
         val due = settings.remindAtEpochMs?.let(Instant::ofEpochMilli)
         if (due != null && !settings.enabled && !clock().isBefore(due)) {
             ports.remindItIsOff()
+            val before = settings
             settings = settings.copy(remindAtEpochMs = settings.nextActiveStart(due, zone())?.toEpochMilli())
             store.saveSettings(settings)
+            noteSettingsChange("reminder due, noticed by $source", before)
             val next = settings.remindAtEpochMs?.let(Instant::ofEpochMilli)
             Diag.log(TAG, "dewidebug exsurge off: reminded (due $due, noticed by $source); next reminder $next")
             publish(clock())
@@ -174,7 +191,8 @@ class ExsurgeController(
     fun updateSettings(source: String, transform: (ExsurgeSettings) -> ExsurgeSettings) {
         val next = transform(settings).validated()
         if (next == settings) return
-        Diag.log(TAG, "dewidebug exsurge settings from=$source ${diff(settings, next)}")
+        val before = settings
+        Diag.log(TAG, "dewidebug exsurge settings from=$source ${ExsurgeCodec.settingsDiff(settings, next)}")
         if (next.walkWindow != settings.walkWindow) stepWindow = StepWindow(next.walkWindow)
         val turnedOff = settings.enabled && !next.enabled
         if (next.enabled != settings.enabled) {
@@ -193,7 +211,22 @@ class ExsurgeController(
             else -> next
         }
         store.saveSettings(settings)
+        noteSettingsChange(source, before)
         dispatch(if (turnedOff) ExsurgeEvent.TurnOff else ExsurgeEvent.SettingsChanged, source)
+    }
+
+    val settingsHistory: List<SettingsChange>
+        @Synchronized get() = settingsLog.changes
+
+    private fun noteSettingsChange(source: String, before: ExsurgeSettings) {
+        val change = SettingsChange(clock().toEpochMilli(), source, ExsurgeCodec.settingsDiff(before, settings))
+        settingsLog = settingsLog.after(change, settings)
+        store.saveSettingsLog(settingsLog)
+        Diag.log(
+            TAG,
+            "dewidebug exsurge settings history now ${settingsLog.changes.size} change(s); latest from=$source " +
+                change.diff,
+        )
     }
 
     @Synchronized
@@ -331,12 +364,6 @@ private fun summonsIdOf(state: ExsurgeState, fallback: Long): Long = when (state
     is ExsurgeState.Rising -> state.summons.id
     is ExsurgeState.OnBreak -> state.summons.id
     else -> fallback
-}
-
-private fun diff(old: ExsurgeSettings, new: ExsurgeSettings): String {
-    val a = old.toString().removePrefix("ExsurgeSettings(").removeSuffix(")").split(", ")
-    val b = new.toString().removePrefix("ExsurgeSettings(").removeSuffix(")").split(", ")
-    return b.filterIndexed { i, field -> a.getOrNull(i) != field }.joinToString(" ")
 }
 
 private fun ExsurgeEffect.label(): String = when (this) {

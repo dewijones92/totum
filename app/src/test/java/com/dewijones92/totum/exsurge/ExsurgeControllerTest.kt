@@ -297,6 +297,69 @@ class ExsurgeControllerTest {
     }
 
     @Test
+    fun `each settings change is kept with its source, field diff and time`() {
+        val exsurge = controller()
+        exsurge.turnOn()
+        advance(minutes = 5)
+        exsurge.updateSettings("settings") { it.copy(activeDays = emptySet(), startMinuteOfDay = 480) }
+
+        val last = exsurge.settingsHistory.last()
+        assertEquals("settings", last.source)
+        assertEquals(now.toEpochMilli(), last.atEpochMs)
+        assertTrue(last.diff, last.diff.contains("activeDays"))
+        assertTrue(last.diff, last.diff.contains("startMinuteOfDay 540 -> 480"))
+        assertFalse(last.diff, last.diff.contains("sittingMinutes"))
+        assertEquals(listOf("test", "settings"), exsurge.settingsHistory.map { it.source })
+    }
+
+    @Test
+    fun `an unchanged settings write leaves no history`() {
+        val exsurge = controller()
+        exsurge.turnOn()
+        exsurge.updateSettings("tile") { it }
+        assertEquals(listOf("test"), exsurge.settingsHistory.map { it.source })
+    }
+
+    @Test
+    fun `only the last twenty changes are kept`() {
+        val exsurge = controller()
+        exsurge.turnOn()
+        repeat(25) { n -> exsurge.updateSettings("change $n") { it.copy(snoozeMinutes = 6 + n) } }
+        assertEquals(20, exsurge.settingsHistory.size)
+        assertEquals("change 24", exsurge.settingsHistory.last().source)
+        assertEquals("change 5", exsurge.settingsHistory.first().source)
+    }
+
+    @Test
+    fun `the history survives a controller restart and is in the diagnostics block`() {
+        controller().apply {
+            turnOn()
+            updateSettings("takeover chip") { it.copy(breakMinutes = 10) }
+        }
+        val reloaded = controller()
+        assertEquals(listOf("test", "takeover chip"), reloaded.settingsHistory.map { it.source })
+        val text = reloaded.diagnostics.getValue("exsurge.settingsHistory")
+        assertTrue(text, text.contains("takeover chip: breakMinutes 5 -> 10"))
+    }
+
+    @Test
+    fun `a change made behind the controller's back is noticed at start-up`() {
+        controller().turnOn()
+        store.settings = store.settings.copy(activeDays = emptySet(), startMinuteOfDay = 480)
+
+        val noticed = controller().settingsHistory.last()
+        assertEquals(SettingsLog.STARTUP_SOURCE, noticed.source)
+        assertTrue(noticed.diff, noticed.diff.contains("activeDays"))
+        assertTrue(noticed.diff, noticed.diff.contains("startMinuteOfDay 540 -> 480"))
+    }
+
+    @Test
+    fun `an unchanged start-up adds nothing to the history`() {
+        controller().turnOn()
+        assertEquals(listOf("test"), controller().settingsHistory.map { it.source })
+    }
+
+    @Test
     fun `restart while off survives a controller restart and returns to off after a snoozed break`() {
         val first = controller(steps = false)
         first.dispatch(ExsurgeEvent.RestartClock(), "banner")

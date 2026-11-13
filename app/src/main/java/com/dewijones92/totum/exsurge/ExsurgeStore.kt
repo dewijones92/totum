@@ -21,6 +21,12 @@ class SharedPrefsExsurgeStore(context: Context) : ExsurgePersistence {
     override fun saveMemory(memory: ExsurgeMemory) =
         prefs.write("memory", ExsurgeCodec.encodeMemory(memory))
 
+    override fun loadSettingsLog(): SettingsLog =
+        prefs.read("settingsLog", SettingsLog()) { ExsurgeCodec.decodeSettingsLog(it) }
+
+    override fun saveSettingsLog(log: SettingsLog) =
+        prefs.write("settingsLog", ExsurgeCodec.encodeSettingsLog(log))
+
     override fun loadOutcomes(): List<BreakOutcome> {
         if (!outcomesFile.exists()) return emptyList()
         return runCatching { ExsurgeCodec.decodeOutcomes(outcomesFile.readText()) }
@@ -47,6 +53,7 @@ class InMemoryExsurgeStore(
     var settings: ExsurgeSettings = ExsurgeSettings(),
     var memory: ExsurgeMemory = ExsurgeMemory(),
     var outcomes: List<BreakOutcome> = emptyList(),
+    var settingsLog: SettingsLog = SettingsLog(),
 ) : ExsurgePersistence {
     override fun loadSettings() = settings
     override fun saveSettings(settings: ExsurgeSettings) {
@@ -55,6 +62,10 @@ class InMemoryExsurgeStore(
     override fun loadMemory() = memory
     override fun saveMemory(memory: ExsurgeMemory) {
         this.memory = memory
+    }
+    override fun loadSettingsLog() = settingsLog
+    override fun saveSettingsLog(log: SettingsLog) {
+        settingsLog = log
     }
     override fun loadOutcomes() = outcomes
     override fun saveOutcomes(outcomes: List<BreakOutcome>) {
