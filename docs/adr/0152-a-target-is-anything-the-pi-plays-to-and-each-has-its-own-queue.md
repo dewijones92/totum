@@ -9,7 +9,7 @@ updated: 2026-11-07
 
 - Status: Accepted
 - Date: 2026-11-07
-- Amended by: [ADR 166](0166-play-on-is-a-choice-that-remembers-the-last-device.md) (the choice of device outlives the Queue tab)
+- Amended by: [ADR 169](0169-play-on-is-a-choice-that-remembers-the-last-device.md) (the choice of device outlives the Queue tab)
 - Amends: [ADR 116](0116-speaker-queues-play-on-the-pi.md) (a speaker becomes one kind of target; `/speakers` becomes
   `/targets`)
 
@@ -40,7 +40,7 @@ to send a queue to. ADR 116 had built that for speakers only, with its own wire 
   `enqueue`, `playNext`, `enqueueAll`, `playNextAll`, `playNow` and `playAll`; while a remote chip is the one being
   looked at, `TargetsRepository.take` sends the items there and the phone's queue is untouched. Only deliberate taps
   (`byYou`) are redirected. "Add to group" is not redirected (a group's position means nothing to a remote queue).
-  *Looking at* a target lasted only while the Queue tab was on screen; **superseded by [ADR 166](0166-play-on-is-a-choice-that-remembers-the-last-device.md)**:
+  *Looking at* a target lasted only while the Queue tab was on screen; **superseded by [ADR 169](0169-play-on-is-a-choice-that-remembers-the-last-device.md)**:
   the choice is the remembered last used device, kept when the Queue tab is left and across restarts. Plays that must be local
   say so (`local = true`, never redirected whatever is selected): Kid TV, a kid-locked home-screen shortcut and the
   Shorts reel (opening a reel is phone-only by nature; recorded as an exception in [ADR 108](0108-consistent-everywhere-and-its-recorded-exceptions.md)).

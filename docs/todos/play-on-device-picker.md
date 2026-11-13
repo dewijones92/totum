@@ -13,7 +13,7 @@ Dewi, 2026-11-13: *"Device picker on every play/queue action, one-tap default to
 queue with its own colour, shown on playing items everywhere."* and *"when I'm home, I want my home devices to be listed,
 even if they're off, and I want our solution to switch them on so it's all convenient."*
 
-Decision and design: [ADR 166](../adr/0166-play-on-is-a-choice-that-remembers-the-last-device.md). Feature doc:
+Decision and design: [ADR 169](../adr/0169-play-on-is-a-choice-that-remembers-the-last-device.md). Feature doc:
 [pi-plays-everywhere](../features/pi-plays-everywhere.md).
 
 ## Reuse (searched before building)

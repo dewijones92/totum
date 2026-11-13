@@ -170,7 +170,7 @@ Recorded exceptions from that pass:
 - **The group edit sheet only offers channels you are subscribed to on the account.** A channel you do not follow joins a
   group from its own page or from "Add channel to group" in any item's menu.
 
-Recorded exception from the Play on… pass ([ADR 166](0166-play-on-is-a-choice-that-remembers-the-last-device.md), 2026-11-13):
+Recorded exception from the Play on… pass ([ADR 169](0169-play-on-is-a-choice-that-remembers-the-last-device.md), 2026-11-13):
 
 - **Peek stays on this phone whatever device is remembered.** Peek plays one item without touching the queue and opens the
   phone's own full player; a remote device has neither a queue to leave alone nor a player to open (the same reason as the

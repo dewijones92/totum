@@ -91,7 +91,7 @@ sound processing on the Pi). Brief: [pi-plays-everywhere.md](../todos/pi-plays-e
 - **A live stream has no length.** The strip shows "🔴 LIVE" instead of the bar and the clock (the TV's own "length" of
   a live stream is YouTube's 12-hour window, and `GET /targets` now sends none, with `live: true`).
 
-- **▶️ Play on… is one remembered choice, offered everywhere** ([ADR 166](../adr/0166-play-on-is-a-choice-that-remembers-the-last-device.md)).
+- **▶️ Play on… is one remembered choice, offered everywhere** ([ADR 169](../adr/0169-play-on-is-a-choice-that-remembers-the-last-device.md)).
   The last used device is where every play, add, play next and shuffle all goes, from any tab, until another is picked; it
   is kept across restarts and no longer ends with the Queue tab. At home (the home server answered, and an unmetered
   connection) every device the Pi lists is offered, switched off ones with 💤; away from home only this phone is. A slim

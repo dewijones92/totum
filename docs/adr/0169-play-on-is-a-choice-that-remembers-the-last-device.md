@@ -5,7 +5,7 @@ status: accepted
 updated: 2026-11-13
 ---
 
-# 166. Play on… is one choice that remembers the last device, offered everywhere, with home devices always listed
+# 169. Play on… is one choice that remembers the last device, offered everywhere, with home devices always listed
 
 - Status: Accepted
 - Date: 2026-11-13
