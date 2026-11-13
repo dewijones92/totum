@@ -57,9 +57,12 @@ private fun monthBars(listens: List<StatEvent.Listen>, from: YearMonth, to: Year
 
 public fun StatEvent.Listen.day(zone: ZoneId): LocalDate = Instant.ofEpochMilli(at).atZone(zone).toLocalDate()
 
-public fun List<StatEvent.Listen>.inBar(bar: Bar, zone: ZoneId): List<StatEvent.Listen> = filter { listen ->
-    val at = Instant.ofEpochMilli(listen.at).atZone(zone)
-    when {
+public fun List<StatEvent.Listen>.inBar(bar: Bar, zone: ZoneId): List<StatEvent.Listen> =
+    filter { listen -> inBar(listen.at, bar, zone) }
+
+internal fun inBar(atMs: Long, bar: Bar, zone: ZoneId): Boolean {
+    val at = Instant.ofEpochMilli(atMs).atZone(zone)
+    return when {
         bar.key.count { it == '-' } == DAY_KEY_DASHES -> "${at.toLocalDate()}-${at.hour}" == bar.key
         bar.key.length == MONTH_KEY_LENGTH -> YearMonth.from(at).toString() == bar.key
         else -> at.toLocalDate().toString() == bar.key

@@ -9,6 +9,8 @@ public enum class NudgeWhat { POSTED, NOT_TODAY }
 
 public enum class UseKind { SEARCH, DOWNLOAD, PIN, SHUFFLE, VIDEOS_SHOWN }
 
+public enum class UnlockNudgeWhat { SHOWN, CONTINUED, LEFT }
+
 public enum class ExsurgeMove {
     SUMMON_NOW,
     GO,
@@ -82,6 +84,23 @@ public sealed interface StatEvent {
         val what: UseKind,
         val bytes: Long? = null,
         val detail: String? = null,
+    ) : StatEvent
+
+    @Serializable
+    @SerialName("phone-unlock")
+    public data class PhoneUnlock(override val at: Long, val firstApp: String? = null) : StatEvent
+
+    @Serializable
+    @SerialName("phone-screen")
+    public data class PhoneScreen(override val at: Long, val on: Boolean) : StatEvent
+
+    @Serializable
+    @SerialName("unlock-nudge")
+    public data class UnlockNudge(
+        override val at: Long,
+        val what: UnlockNudgeWhat,
+        val minutesSinceLast: Int? = null,
+        val unlocksToday: Int? = null,
     ) : StatEvent
 }
 
