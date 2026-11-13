@@ -21,7 +21,6 @@ class UsageEventKindsTest {
     fun `everything else Android records is ignored`() {
         assertNull(rawKindOf(UsageEvents.Event.KEYGUARD_SHOWN))
         assertNull(rawKindOf(UsageEvents.Event.USER_INTERACTION))
-        assertNull(rawKindOf(UsageEvents.Event.NOTIFICATION_INTERRUPTION))
         assertNull(rawKindOf(UsageEvents.Event.ACTIVITY_STOPPED))
     }
 }

@@ -66,7 +66,7 @@ fun Context.nudgeLine(request: NudgeRequest): String {
     } else {
         resources.getQuantityString(R.plurals.phone_use_ago_minutes, minutes, minutes)
     }
-    return getString(R.string.phone_use_nudge_line, ago, request.unlocksToday)
+    return resources.getQuantityString(R.plurals.phone_use_nudge_line, request.unlocksToday, ago, request.unlocksToday)
 }
 
 private const val MS_PER_MINUTE = 60_000L

@@ -75,7 +75,7 @@ private fun TrendChips(days: Int, byTime: Boolean, onDays: (Int) -> Unit, onByTi
 private fun TrendTotals(page: StatsViewModel.PhonePage) = StatCard(R.string.phone_use_stats_summary) {
     val trend = page.trend
     StatLine(
-        stringResource(R.string.phone_use_stats_total, trend.days),
+        pluralStringResource(R.plurals.phone_use_stats_total, trend.days, trend.days),
         pluralStringResource(R.plurals.phone_use_stats_unlocks_count, trend.unlocks, trend.unlocks),
     )
     StatLine(

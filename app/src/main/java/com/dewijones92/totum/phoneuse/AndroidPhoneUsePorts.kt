@@ -9,11 +9,11 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.media.AudioManager
-import android.net.Uri
 import android.os.PowerManager
 import android.os.Process
 import android.provider.MediaStore
 import android.provider.Settings
+import androidx.core.net.toUri
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.reminders.kit.OverApps
 import com.dewijones92.totum.stats.NudgeBlock
@@ -30,7 +30,7 @@ internal fun rawKindOf(androidEventType: Int): RawKind? = when (androidEventType
 }
 
 fun usageAccessIntent(context: Context): Intent =
-    Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS, Uri.parse("package:${context.packageName}"))
+    Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS, "package:${context.packageName}".toUri())
         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
 class AndroidPhoneUsePorts(private val context: Context) : PhoneUsePorts {
@@ -50,8 +50,8 @@ class AndroidPhoneUsePorts(private val context: Context) : PhoneUsePorts {
 
     private val navigationApps by lazy {
         packagesHandling(
-            Intent(Intent.ACTION_VIEW, Uri.parse("google.navigation:q=0,0")),
-            Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0")),
+            Intent(Intent.ACTION_VIEW, "google.navigation:q=0,0".toUri()),
+            Intent(Intent.ACTION_VIEW, "geo:0,0".toUri()),
         )
     }
 

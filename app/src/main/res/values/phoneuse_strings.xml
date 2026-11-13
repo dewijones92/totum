@@ -25,7 +25,10 @@
     <string name="phone_use_nudge_honest">ℹ️ Totum cannot lock your phone: Android does not let an app do that. The nudge is a screen that asks, and it never stops you. Back and Home always work, and it stays out of calls, the camera, navigation, Exsurge, alarms, the kid lock and a video playing in Totum.</string>
 
     <string name="phone_use_nudge_title">⏳ Still want in?</string>
-    <string name="phone_use_nudge_line">⏳ You unlocked %1$s (%2$d today). Still want in?</string>
+    <plurals name="phone_use_nudge_line">
+        <item quantity="one">⏳ You unlocked %1$s (%2$d today). Still want in?</item>
+        <item quantity="other">⏳ You unlocked %1$s (%2$d today). Still want in?</item>
+    </plurals>
     <string name="phone_use_ago_under_a_minute">less than a minute ago</string>
     <plurals name="phone_use_ago_minutes">
         <item quantity="one">%d min ago</item>
@@ -49,7 +52,10 @@
     <string name="phone_use_stats_30_days">30 days</string>
     <string name="phone_use_stats_trend_hint">Tap a day to see its unlocks. A gap counts only between two unlocks on the same day.</string>
     <string name="phone_use_stats_summary">📊 Summary</string>
-    <string name="phone_use_stats_total">🔓 Unlocks in %1$d days</string>
+    <plurals name="phone_use_stats_total">
+        <item quantity="one">🔓 Unlocks in %d day</item>
+        <item quantity="other">🔓 Unlocks in %d days</item>
+    </plurals>
     <string name="phone_use_stats_average">📊 Average a day</string>
     <string name="phone_use_stats_average_value">%1$s unlocks · %2$s</string>
     <string name="phone_use_stats_first_apps">📲 First app after an unlock</string>
@@ -59,7 +65,6 @@
     <string name="phone_use_stats_nudge_left">🏠 Went home</string>
     <string name="phone_use_stats_nudge_unanswered">🤷 Left without answering</string>
     <string name="phone_use_stats_none">📭 No unlocks recorded yet</string>
-    <string name="phone_use_stats_setup">Set up in Settings → 📱 Phone use</string>
     <plurals name="phone_use_stats_unlocks_count">
         <item quantity="one">%d unlock</item>
         <item quantity="other">%d unlocks</item>
