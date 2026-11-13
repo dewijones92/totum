@@ -35,7 +35,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -91,6 +93,10 @@ class TakeoverActivity : ComponentActivity() {
                     onBreakMinutes = { minutes -> chooseBreak(exsurge, minutes) },
                     onSnoozeMinutes = { minutes -> chooseSnooze(exsurge, minutes) },
                     onSkip = { exsurge.dispatch(ExsurgeEvent.Skip, "takeover") },
+                    onRestartClock = { minutes ->
+                        restartClock(this, exsurge, minutes, view.settings.sittingMinutes, "takeover")
+                        finish()
+                    },
                 )
             }
         }
@@ -192,7 +198,25 @@ fun TakeoverScreen(
     onSkip: () -> Unit,
     onBreakMinutes: (Int) -> Unit = {},
     onSnoozeMinutes: (Int) -> Unit = {},
+    onRestartClock: (Int) -> Unit = {},
 ) {
+    var restarting by remember { mutableStateOf(false) }
+    if (restarting) {
+        RestartClockDialog(
+            usualMinutes = view.settings.sittingMinutes,
+            onRestart = { minutes ->
+                restarting = false
+                onRestartClock(minutes)
+            },
+            onDismiss = {
+                Diag.log(
+                    ExsurgeController.TAG,
+                    "dewidebug exsurge takeover restart-clock picker closed, clock untouched"
+                )
+                restarting = false
+            },
+        )
+    }
     val summoned = view.memory.state as? ExsurgeState.Summoned
     val sat = (view.memory.state as? ExsurgeState.Summoned)?.let {
         val limit = it.summons.satMinutes ?: view.settings.sittingMinutes
@@ -236,6 +260,14 @@ fun TakeoverScreen(
                     onSnooze,
                     onSkip,
                     onSnoozeMinutes,
+                    onRestartClock = {
+                        Diag.log(
+                            ExsurgeController.TAG,
+                            "dewidebug exsurge takeover restart-clock picker opened, " +
+                                "usual ${view.settings.sittingMinutes}m"
+                        )
+                        restarting = true
+                    },
                 )
             }
         }
@@ -252,6 +284,7 @@ private fun TakeoverButtons(
     onSnooze: () -> Unit,
     onSkip: () -> Unit,
     onSnoozeMinutes: (Int) -> Unit,
+    onRestartClock: () -> Unit,
 ) {
     Button(
         onClick = onGo,
@@ -299,6 +332,9 @@ private fun TakeoverButtons(
     )
     TextButton(onClick = onSnooze, modifier = Modifier.testTag("exsurge-snooze")) {
         Text(stringResource(R.string.exsurge_action_snooze, snoozeMinutes))
+    }
+    TextButton(onClick = onRestartClock, modifier = Modifier.testTag("exsurge-restart")) {
+        Text(stringResource(R.string.exsurge_action_restart_clock))
     }
     TextButton(onClick = onSkip, modifier = Modifier.testTag("exsurge-skip")) {
         Text(stringResource(R.string.exsurge_action_skip))

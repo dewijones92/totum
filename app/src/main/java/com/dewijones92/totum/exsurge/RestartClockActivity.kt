@@ -44,16 +44,7 @@ class RestartClockActivity : ComponentActivity() {
                 RestartClockDialog(
                     usualMinutes = usual,
                     onRestart = { minutes ->
-                        Diag.log(
-                            ExsurgeController.TAG,
-                            "dewidebug exsurge restart clock for ${minutes}m (usual ${usual}m)"
-                        )
-                        exsurge.dispatch(ExsurgeEvent.RestartClock(minutes), source)
-                        Toast.makeText(
-                            this,
-                            getString(R.string.exsurge_restart_done, minutes),
-                            Toast.LENGTH_SHORT,
-                        ).show()
+                        restartClock(this, exsurge, minutes, usual, source)
                         finish()
                     },
                     onDismiss = {
@@ -84,6 +75,15 @@ class RestartClockActivity : ComponentActivity() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
     }
+}
+
+internal fun restartClock(context: Context, exsurge: ExsurgeController, minutes: Int, usual: Int, source: String) {
+    Diag.log(
+        ExsurgeController.TAG,
+        "dewidebug exsurge restart clock for ${minutes}m (usual ${usual}m) from $source"
+    )
+    exsurge.dispatch(ExsurgeEvent.RestartClock(minutes), source)
+    Toast.makeText(context, context.getString(R.string.exsurge_restart_done, minutes), Toast.LENGTH_SHORT).show()
 }
 
 @Composable

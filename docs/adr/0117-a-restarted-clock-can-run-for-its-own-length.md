@@ -2,7 +2,7 @@
 title: A restarted clock can run for its own length, for that sitting only
 kind: adr
 status: accepted
-updated: 2026-11-04
+updated: 2026-11-13
 ---
 
 # 117. A restarted clock can run for its own length, for that sitting only
@@ -28,6 +28,13 @@ usual sitting length from now, with no way to shorten one sitting short of chang
 - Everything that reads a sitting's length (the wake alarm, the summons tick, the banner line and countdown) asks
   `Sitting.length(settings)`, never the setting directly.
 - The old broadcast action stays in the receiver so a banner posted by the previous build still works until reposted.
+
+## Update, 2026-11-13: the summons page has it too
+
+Dewi: *"when the Loquax triggers after 40 minutes … give me an option on that page to restart clock … the same as restart
+clock in the app … a slider … defaulting to 40 minutes. Use the same code."* The takeover now has a **Restart clock**
+button that opens the same `RestartClockDialog`, set to the usual sitting length (40 minutes on his phone), and calls the
+same `restartClock(...)` as `RestartClockActivity`, with the source `takeover`. No second picker or controller call.
 
 ## Consequences
 

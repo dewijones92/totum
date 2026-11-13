@@ -91,6 +91,19 @@ class ExsurgeTakeoverFlowTest {
     }
 
     @Test
+    fun restartTheClockFromTheTakeoverStartsAFreshSittingForTheUsualLength() {
+        val usual = exsurge.view.value.settings.sittingMinutes
+        ActivityScenario.launch<TakeoverActivity>(TakeoverActivity.intent(context)).use {
+            compose.onNodeWithTag("exsurge-restart").performScrollTo().performClick()
+            compose.onNodeWithTag("exsurge-restart-ok").performClick()
+            compose.waitUntil(5_000) { exsurge.view.value.memory.state is ExsurgeState.Sitting }
+        }
+        val state = exsurge.view.value.memory.state as ExsurgeState.Sitting
+        val length = state.length(exsurge.view.value.settings).toMinutes().toInt()
+        assertEquals("a fresh sitting of the usual length", usual, length)
+    }
+
+    @Test
     fun justWalkFromTheTakeoverStartsTheBreakWithoutTheLanguageApp() {
         ActivityScenario.launch<TakeoverActivity>(TakeoverActivity.intent(context)).use {
             compose.onNodeWithTag("exsurge-walk").performScrollTo().performClick()
