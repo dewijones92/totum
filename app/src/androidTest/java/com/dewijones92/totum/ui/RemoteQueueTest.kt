@@ -3,6 +3,7 @@ package com.dewijones92.totum.ui
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.platform.app.InstrumentationRegistry
@@ -25,6 +26,7 @@ import com.dewijones92.totum.targets.ContextTargetWords
 import com.dewijones92.totum.targets.InMemoryTargetColours
 import com.dewijones92.totum.targets.TargetsRepository
 import com.dewijones92.totum.theme.TotumTheme
+import com.dewijones92.totum.ui.queue.REMOTE_ROW_TAG
 import com.dewijones92.totum.ui.queue.RemoteQueue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -61,7 +63,14 @@ class RemoteQueueTest {
     }
 
     private fun item(id: String, title: String) =
-        BackupItem(id, "feed", title, contentKind = "STANDARD", playbackType = "AUDIO")
+        BackupItem(
+            id,
+            "feed",
+            title,
+            mediaUrl = "https://example.com/$id.mp3",
+            contentKind = "STANDARD",
+            playbackType = "AUDIO",
+        )
 
     private val tv = TargetState(
         Target("lg-tv", "LG TV", TargetKind.TV),
@@ -110,11 +119,11 @@ class RemoteQueueTest {
     fun tappingThePlayingRowDoesNotRestartItAndAnotherRowJumpsByItsId() {
         val pi = show(tv)
 
-        compose.onNodeWithText("Episode one").performClick()
+        compose.onNodeWithTag("$REMOTE_ROW_TAG-0").performClick()
         Thread.sleep(SETTLE_MS)
         assertTrue("the playing row sent ${pi.controls}", pi.controls.isEmpty())
 
-        compose.onNodeWithText("Episode two").performClick()
+        compose.onNodeWithTag("$REMOTE_ROW_TAG-1").performClick()
         compose.waitUntil(WAIT_MS) { pi.controls.isNotEmpty() }
 
         assertEquals(TargetAction.JUMP, pi.controls.single().action)
@@ -126,7 +135,7 @@ class RemoteQueueTest {
     fun aPausedDeckPlaysWhenItsCurrentRowIsTapped() {
         val pi = show(tv.copy(playing = false))
 
-        compose.onNodeWithText("Episode one").performClick()
+        compose.onNodeWithTag("$REMOTE_ROW_TAG-0").performClick()
         compose.waitUntil(WAIT_MS) { pi.controls.isNotEmpty() }
 
         assertEquals(TargetAction.PLAY, pi.controls.single().action)

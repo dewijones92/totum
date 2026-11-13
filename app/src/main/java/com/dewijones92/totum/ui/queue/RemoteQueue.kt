@@ -38,6 +38,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -334,6 +335,7 @@ private fun RemoteRow(
                     stringResource(R.string.target_loops).takeIf { entry.loop },
                 ),
             pillar = playable.pillar,
+            modifier = Modifier.testTag("$REMOTE_ROW_TAG-$index"),
             onPlay = {
                 if (!playing) {
                     targets.act(id, TargetControl(TargetAction.JUMP, index = index, itemId = entry.item.itemId))
@@ -353,6 +355,7 @@ private fun RemoteRow(
     }
 }
 
+const val REMOTE_ROW_TAG = "remote-queue-row"
 private const val VOLUME_MAX = 100f
 private const val SEEK_BACK_MS = 10_000L
 private const val SEEK_FORWARD_MS = 30_000L
