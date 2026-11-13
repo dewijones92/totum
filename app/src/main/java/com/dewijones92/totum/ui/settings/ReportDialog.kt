@@ -51,6 +51,8 @@ import java.time.format.FormatStyle
 internal fun AppPreferences.Settings.signedInToHome(): Boolean =
     HomeServerAuth.isSignedIn(homeServerBase, homeServerToken)
 
+internal fun AppPreferences.Settings.reportsToHome(): Boolean = signedInToHome() && sendReportsToHome
+
 @Composable
 internal fun ReportDialog(
     container: AppContainer,
@@ -58,7 +60,7 @@ internal fun ReportDialog(
     onSendToPi: (String, List<EncodedScreenshot>) -> Unit,
 ) {
     val settings by container.appPreferences.settings.collectAsStateWithLifecycle()
-    if (settings.signedInToHome()) {
+    if (settings.reportsToHome()) {
         DiagnosticsNoteDialog(onDismiss = onDismiss, onSend = onSendToPi)
     } else {
         GitHubReportDialog(settings, onDismiss)
@@ -117,11 +119,12 @@ private fun ColumnScope.EarlierReports(earlier: List<OpenedReport>) {
 }
 
 @Composable
-private fun GitHubPreviewDialog(
+internal fun GitHubPreviewDialog(
     settings: AppPreferences.Settings,
     note: String,
     onBack: () -> Unit,
     onDone: () -> Unit,
+    trace: String = "",
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -131,8 +134,8 @@ private fun GitHubPreviewDialog(
     }
     val facts = remember { GitHubReportSources.facts() }
     val events = remember { GitHubReportSources.events() }
-    val draft = remember(note, withEvents, redactor) {
-        GitHubReport.draft(note, facts, if (withEvents) events else emptyList(), redactor)
+    val draft = remember(note, withEvents, redactor, trace) {
+        GitHubReport.draft(note, facts, if (withEvents) events else emptyList(), redactor, trace = trace)
     }
     val copy = rememberSuspendCopier()
     val open = rememberLinkOpener()
@@ -156,6 +159,13 @@ private fun GitHubPreviewDialog(
                         modifier = Modifier.padding(top = 8.dp),
                     )
                 }
+                if (draft.traceCut) {
+                    Text(
+                        text = stringResource(R.string.report_github_trace_cut),
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                }
                 Text(
                     text = draft.body,
                     style = MaterialTheme.typography.bodySmall,
@@ -170,7 +180,8 @@ private fun GitHubPreviewDialog(
                     "GitHub report: copying and opening it; title ${draft.title.length} chars, body " +
                         "${draft.body.length} chars, link ${draft.url.length} chars, activity lines " +
                         "${draft.eventsKept} of ${draft.eventsOffered} (asked for=$withEvents), " +
-                        "note cut=${draft.noteCut}",
+                        "note cut=${draft.noteCut}, stack trace ${trace.length} chars " +
+                        "(cut from the link=${draft.traceCut})",
                 )
                 scope.launch {
                     copy(draft.body, what)

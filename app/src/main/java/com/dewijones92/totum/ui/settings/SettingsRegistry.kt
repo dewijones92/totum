@@ -219,6 +219,18 @@ internal enum class SettingsRow(
         R.string.settings_diagnostics_summary,
         "report bug feedback screenshot",
     ),
+    SEND_REPORTS_HOME(
+        R.string.settings_send_reports_home,
+        R.string.settings_diagnostics_section,
+        R.string.settings_send_reports_home_summary,
+        "report crash pi home server github automatic",
+    ),
+    SEND_STATE(
+        R.string.settings_send_state,
+        R.string.settings_diagnostics_section,
+        R.string.settings_send_state_summary,
+        "dump claude pi queue history alarms stats debug",
+    ),
     DRIVE_BACKUP(
         R.string.drive_backup_title,
         R.string.drive_backup_section,

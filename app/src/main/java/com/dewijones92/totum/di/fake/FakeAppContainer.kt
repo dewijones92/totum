@@ -460,7 +460,10 @@ class FakeAppContainer(
         screenshots: List<com.dewijones92.totum.diagnostics.EncodedScreenshot>,
     ) = Unit
 
-    override fun sendPendingReportsToPi() = Unit
+    override suspend fun stateDump(): ByteArray? = null
+
+    override fun sendPendingReportsToPi(onDone: (com.dewijones92.totum.diagnostics.UploadOutcome) -> Unit) =
+        onDone(com.dewijones92.totum.diagnostics.UploadOutcome(sent = 0, kept = 0))
 
     override fun sendStateToPi(onDone: (com.dewijones92.totum.diagnostics.StateSend) -> Unit) =
         onDone(com.dewijones92.totum.diagnostics.StateSend.NotSignedIn)

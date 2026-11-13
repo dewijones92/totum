@@ -30,9 +30,10 @@ import java.time.Instant
  * YouTube OAuth tokens are never read here, because a token in a transmitted log is an
  * account-takeover risk rather than a disclosure of viewing habits.
  */
-public class CrashReporter(
+public class CrashReporter internal constructor(
     private val context: Context,
     private val stateProviders: () -> Map<String, String> = { emptyMap() },
+    private val records: CrashRecords = CrashRecords.of(context),
 ) {
     /**
      * Held so an OutOfMemoryError can be reported at all.
@@ -58,12 +59,16 @@ public class CrashReporter(
             // FIRST, before anything that allocates, and for any error: a heap this close to
             // full is why the report is about to fail, whatever the exception type says.
             oomReserve = null
-            runCatching { writeReport(kind = "crash", error = error, thread = thread.name) }
+            val written = runCatching { writeReport(kind = "crash", error = error, thread = thread.name) }
                 .onFailure {
                     // A failure here is the report itself failing, which is invisible by
                     // definition. Logcat is all that is left, and it survives the process.
                     Diag.warn("diagnostics", "could not write the crash report for $error", it)
                 }
+            val reportName = written.getOrNull()?.name
+            runCatching {
+                records.write(CrashRecords.recordOf(error, thread.name, reportName, System.currentTimeMillis()))
+            }.onFailure { Diag.warn("diagnostics", "could not record the crash for the crash screen", it) }
             previous?.uncaughtException(thread, error)
         }
         Diag.log("diagnostics", "crash reporter installed")

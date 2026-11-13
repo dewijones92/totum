@@ -39,7 +39,7 @@ container on the Pi, reached through the existing nginx at
 ## State dumps: the app's whole state, newest five only
 
 Since 2026-11-13 the phone sends one gzipped state dump after every crash or diagnostics report it sends, and on its own
-from Settings → Diagnostics → "📤 Send my state to Claude" ([ADR 158](../../docs/adr/0158-a-crash-screen-and-a-state-dump-for-every-report.md)).
+from Settings → Diagnostics → "📤 Send my state to Claude" ([ADR 159](../../docs/adr/0159-a-crash-screen-and-a-state-dump-for-every-report.md)).
 The dump is `{format, kind: "totum-state-dump", takenAtMs, appVersion, installId, backup, state, preferences}`: `backup` is
 the app's own backup format with the live queue, so it restores; `state` is the Ask snapshot (queue, history, downloads,
 stats, trail, event log); `preferences` is every SharedPreferences file except the credential ones. Sign-in tokens, the
@@ -55,7 +55,7 @@ dump is written atomically as `/data/states/<UTC time>-<install id>-<app version
 personal than a crash report, so give `/ingest/state` the same `auth_request` the `totum.` host uses (ADR 90) when you next
 touch the nginx config in `dot-files`; until then the app sends the token and the server ignores it.
 
-Load the newest dump into the emulator with `tools/emulator/load-state.sh` (ADR 158); read one by hand with
+Load the newest dump into the emulator with `tools/emulator/load-state.sh` (ADR 159); read one by hand with
 `ssh "$PI" 'zcat "$(ls -t /home/pi/crashlog-data/states/*.json.gz | head -1)"' | jq 'keys'` (`PI` is the same address `triage.sh` uses).
 
 ## The PC screen bookmark: one entry per phone

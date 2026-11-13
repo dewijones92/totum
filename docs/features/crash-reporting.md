@@ -3,7 +3,7 @@ title: Crash and diagnostics reporting
 kind: feature
 status: shipped
 area: infrastructure
-updated: 2026-11-06
+updated: 2026-11-13
 ---
 
 # Crash reporting
@@ -235,6 +235,20 @@ sending N chars and M screenshot(s)`, `… is saved on the phone`.
 Only a phone signed in to a home server sends reports to the Pi (with its device token as `X-Totum-Token`); any other
 phone keeps them and offers "🐙 Report on GitHub" instead. See [licence-and-reports](licence-and-reports.md) and
 [ADR 146](../adr/0146-gpl-3-and-reports-go-to-the-pi-only-when-signed-in.md).
+
+## A crash screen, an optional Pi, and the state with every report (2026-11-13)
+
+[ADR 159](../adr/0159-a-crash-screen-and-a-state-dump-for-every-report.md). The handler also writes `files/last-crash.json`
+(`CrashRecords`); the next cold start opens `CrashActivity`: "❌ Totum crashed", the stack trace, 🐙 Report on GitHub (ADR 146's
+preview, with the whole trace in the copied body), 📋 Copy, 🏠 Send to my Pi (signed in only) and Continue. Settings → Diagnostics
+gains "🏠 Send diagnostics and crash reports to my home server" (default on; off means the launch-time upload posts nothing and the
+report row offers GitHub) and "📤 Send my state to Claude" (signed in only).
+
+A crash or diagnostics report that the Pi accepts is followed by one gzipped **state dump** (`StateDump` in `:core:data`: the
+backup with the live queue, the Ask snapshot, every SharedPreferences file but the credential ones, all through the one
+redactor) to `POST /ingest/state`. The crashlog server keeps the newest five apart from the reports.
+`tools/emulator/load-state.sh` restores one into `totum-api35` through the debug-only `StateDebugReceiver`; the same receiver
+has `DEBUG_CRASH` (shows the crash screen) and `DEBUG_DUMP_STATE`.
 
 ## A note on log volume
 

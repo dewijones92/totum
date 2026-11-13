@@ -16,6 +16,7 @@ import com.dewijones92.totum.domain.ChosenWay
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayReason
 import com.dewijones92.totum.domain.PlayableItem
+import com.dewijones92.totum.diagnostics.CrashActivity
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.downloads.DownloadsRequests
 import com.dewijones92.totum.kidlock.KidLockWindow
@@ -88,6 +89,7 @@ class MainActivity : FragmentActivity() {
             }
         }
         KidLockWindow(this, container.kidLock).start()
+        if (!restored) CrashActivity.showIfPending(this)
         if (!restored) handleOpenPlayer(intent, via = "onCreate")
         if (!restored) DownloadsRequests.handle(intent, via = "onCreate")
         if (!restored) AskRequests.handle(intent, via = "onCreate")

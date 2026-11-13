@@ -161,6 +161,10 @@ private fun MainSettings(
         AnchoredRow(SettingsRow.HOME_SERVER) { HomeServerRow(container) }
         AnchoredRow(SettingsRow.CHECK_CONTENT) { CheckForContentRow(container) }
         AnchoredRow(SettingsRow.SEND_DIAGNOSTICS) { DiagnosticsRow(container) }
+        if (settings.signedInToHome()) {
+            AnchoredRow(SettingsRow.SEND_REPORTS_HOME) { SendReportsHomeRow(container, settings) }
+            AnchoredRow(SettingsRow.SEND_STATE) { SendStateRow(container) }
+        }
         SectionTitle(stringResource(R.string.drive_backup_section))
         AnchoredRow(
             SettingsRow.DRIVE_BACKUP
@@ -299,7 +303,7 @@ private fun DiagnosticsRow(container: AppContainer) {
     var asking by rememberSaveable { mutableStateOf(false) }
     val fallback = stringResource(R.string.settings_diagnostics_note)
     val appSettings by container.appPreferences.settings.collectAsStateWithLifecycle()
-    val toGitHub = !appSettings.signedInToHome()
+    val toGitHub = !appSettings.reportsToHome()
 
     if (asking) {
         ReportDialog(

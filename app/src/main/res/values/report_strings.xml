@@ -26,4 +26,27 @@
         <item quantity="other">🕘 You opened %1$d reports on GitHub from this phone, newest first:</item>
     </plurals>
     <string name="report_github_earlier_line">%1$s · %2$s</string>
+    <string name="report_github_trace_cut">⚠️ The stack trace is too long for the link, so the link carries the top of it. The whole trace is copied: paste it over the shortened one on the GitHub page.</string>
+    <string name="report_github_crash_what">crash report</string>
+    <string name="crash_title">❌ Totum crashed</string>
+    <string name="crash_summary">Totum stopped unexpectedly and has started again. This is what happened.</string>
+    <string name="crash_when">🕐 %1$s, on the %2$s thread</string>
+    <string name="crash_trace_heading">📜 Stack trace</string>
+    <string name="crash_copy">📋 Copy</string>
+    <string name="crash_copy_what">crash details</string>
+    <string name="crash_send_pi">🏠 Send to my Pi</string>
+    <string name="crash_sending">⏳ Sending to your Pi…</string>
+    <string name="crash_sent">✅ Sent to your Pi</string>
+    <string name="crash_kept">⚠️ Kept on the phone: your Pi did not take it. It goes at the next launch.</string>
+    <string name="crash_continue">Continue to Totum</string>
+    <string name="settings_send_reports_home">🏠 Send diagnostics and crash reports to my home server</string>
+    <string name="settings_send_reports_home_summary">On: reports reach your Pi by themselves. Off: nothing goes to it unless you tap send, and Report on GitHub is offered instead.</string>
+    <string name="settings_send_state">📤 Send my state to Claude</string>
+    <string name="settings_send_state_summary">Sends your queue, history, settings, alarms and stats to your Pi, without sign-in tokens, so it can be read there.</string>
+    <string name="settings_send_state_sending">⏳ Sending your state…</string>
+    <string name="settings_send_state_sent">✅ State sent to your Pi (%1$d KB)</string>
+    <string name="settings_send_state_no_sign_in">⚠️ Not signed in to your home server, so nothing was sent.</string>
+    <string name="settings_send_state_not_gathered">❌ The state could not be gathered. The event log says why.</string>
+    <string name="settings_send_state_refused">❌ Your Pi did not take the state. Try again.</string>
+    <string name="settings_send_state_test_run">⚠️ A test run sends nothing.</string>
 </resources>

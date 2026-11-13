@@ -118,6 +118,7 @@ import com.dewijones92.totum.diagnostics.DiagnosticsStore
 import com.dewijones92.totum.diagnostics.DiagnosticsUploader
 import com.dewijones92.totum.diagnostics.StateDumpSource
 import com.dewijones92.totum.diagnostics.StateSend
+import com.dewijones92.totum.diagnostics.UploadOutcome
 import com.dewijones92.totum.diagnostics.preferencesOf
 import com.dewijones92.totum.diagnostics.EncodedScreenshot
 import com.dewijones92.totum.diagnostics.InstallId
@@ -510,9 +511,11 @@ interface AppContainer {
      */
     fun sendDiagnostics(note: String, screenshots: List<EncodedScreenshot> = emptyList())
 
-    fun sendPendingReportsToPi()
+    fun sendPendingReportsToPi(onDone: (UploadOutcome) -> Unit)
 
     fun sendStateToPi(onDone: (StateSend) -> Unit)
+
+    suspend fun stateDump(): ByteArray?
 
     /** User-curated local playlists, mixing podcasts and videos. */
     val localPlaylistStore: LocalPlaylistStore
@@ -1493,9 +1496,12 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         )
     }
 
-    override fun sendPendingReportsToPi() = diagnosticsUploader.sendDiagnosticsNow()
+    override fun sendPendingReportsToPi(onDone: (UploadOutcome) -> Unit) =
+        diagnosticsUploader.sendDiagnosticsNow(onDone)
 
     override fun sendStateToPi(onDone: (StateSend) -> Unit) = diagnosticsUploader.sendStateNow(onDone)
+
+    override suspend fun stateDump(): ByteArray? = stateDumps.gzipped()
 
     override fun sendDiagnostics(note: String, screenshots: List<EncodedScreenshot>) =
         sendDiagnostics(crashReporter, diagnosticsUploader, note, screenshots)

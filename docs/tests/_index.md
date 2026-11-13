@@ -1,7 +1,7 @@
 ---
 title: Testing
 kind: reference
-updated: 2026-11-07
+updated: 2026-11-13
 ---
 
 # Testing
@@ -396,6 +396,11 @@ flow with no e2e is a flow whose next regression is found by Dewi on a plane.
 | A shared link that cannot be resolved is queued by its id, not lost; a non-video link is dropped with a line | `SharedLinkTest` | every commit — report 0.1.477: shared offline, 53s of retries, vanished |
 | A share plays when shared and never when Android replays it (Recents, or a rebuilt activity) | `SharedLinkTest` (the rule), `ReplayedShareIsIgnoredTest` (instrumented, drives `MainActivity`) | every commit — reports 0.1.346 and 0.1.514; the instrumented test is red against the 0.1.514 build |
 | Every report carries SABR, media filter, skip categories, home-server presence outbound-sync state, and how many reports are waiting on the phone (and their size) | `DiagnosticsContentTest` (emulator) | every commit |
+| State dump (ADR 159): gzip with backup, state and preferences; no home-server, Prowlarr or YouTube token, cookie or home host survives (seeded in preferences, event text and the backup); credential files left out whole; the backup in it restores with the live queue; the dump read back from a real signed-in emulator held none of its four secrets | JVM unit `StateDumpTest` (6); by hand on `totum-api35` with `DEBUG_DUMP_STATE` | every commit; the emulator check by hand |
+| Report upload rules: the "send to my home server" setting off posts nothing and keeps the file (red when its check is removed), a person's send bypasses it, signed out, test run, non-fatal reports bring no dump, an unreadable dump or a refused one never loses a report, "Send my state" results | JVM unit `DiagnosticsUploaderTest` (11, real MockWebServer) | every commit |
+| Crash screen: a crash is recorded with its whole trace and causes and the report's name, an unreadable record is no crash, a newer replaces an older, no screen in a test run; the GitHub body keeps the whole trace and the link the part that fits | JVM unit `CrashRecordsTest` (7), `GitHubReportTest` (5 new); the screen itself by `DEBUG_CRASH` and a screenshot on `totum-api35` | every commit; the screen by hand |
+| `tools/emulator/load-state.sh`: refuses a device that is not `totum-api35`, a build without the receiver and a file that is not a dump; loads a dump through the app's own restore and leaves the YouTube sign-in file in place | by hand against `totum-api35` (a modified dump's playlist, queue and setting read back in a fresh dump) | by hand |
+| The crashlog server's state dumps: only the newest five survive, reports untouched, bad gzip, wrong kind, oversize and path-climbing names refused, `/ingest/state`, `/api/states`, `/state/latest` | `tools/crashlog-server/tests/test_states.py` (12), `test_state_endpoint.py` (5; needs fastapi and httpx) | by hand in a python container (see the server README); not in CI |
 | The crashlog server's findings: a report is considered only when every finding is judged, a shared verdict becomes the report's, an update keeps what it was not given, pruning takes findings with it | `tools/crashlog-server/tests/test_findings.py` (7) | by hand, in the server's image on the Pi (see its README); not in CI |
 | A video whose stream will not play falls back to the copy already downloaded, rather than being skipped | `PlayRouteTest`, `StreamRecoveryTest` | every commit |
 | Taps during a slow extraction start playback once, and the newest one wins | `OnlyTheNewestPlayWinsTest` | every commit |

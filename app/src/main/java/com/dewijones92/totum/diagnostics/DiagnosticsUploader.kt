@@ -51,37 +51,39 @@ public class DiagnosticsUploader(
     private val sink = ReportSink(client, endpoint)
 
     /** The automatic upload at launch — suppressed on an emulator. See the class note. */
-    public fun uploadPending(): Unit = launchUpload(becauseSomeoneAsked = false)
+    public fun uploadPending(): Unit = launchUpload(becauseSomeoneAsked = false) {}
 
     /**
      * A person tapped "Send diagnostics". Goes from an emulator as well as a phone — but still not
      * from a test run, because the tests that flooded the sink drove this very method.
      */
-    public fun sendDiagnosticsNow(): Unit = launchUpload(becauseSomeoneAsked = true)
+    public fun sendDiagnosticsNow(onDone: (UploadOutcome) -> Unit = {}): Unit =
+        launchUpload(becauseSomeoneAsked = true, onDone)
 
     public fun sendStateNow(onDone: (StateSend) -> Unit = {}) {
         scope.launch(Dispatchers.IO) { onDone(sendState()) }
     }
 
-    private fun launchUpload(becauseSomeoneAsked: Boolean) {
-        scope.launch(Dispatchers.IO) { upload(becauseSomeoneAsked) }
+    private fun launchUpload(becauseSomeoneAsked: Boolean, onDone: (UploadOutcome) -> Unit) {
+        scope.launch(Dispatchers.IO) { onDone(upload(becauseSomeoneAsked)) }
     }
 
-    internal suspend fun upload(becauseSomeoneAsked: Boolean) {
+    internal suspend fun upload(becauseSomeoneAsked: Boolean): UploadOutcome {
         val waiting = pending()
+        val kept = UploadOutcome(sent = 0, kept = waiting.size)
         if (waiting.isEmpty()) {
             Diag.log("diagnostics", "nothing pending to upload")
-            return
+            return kept
         }
         // Said rather than silent in both cases: "my report never arrived" has to be
         // answerable, and the answer here is a deliberate one.
         if (underInstrumentation()) {
             Diag.log("diagnostics", "suppressed ${waiting.size} report(s) — this is a test run")
-            return
+            return kept
         }
         if (!becauseSomeoneAsked && onAnEmulator()) {
             Diag.log("diagnostics", "suppressed ${waiting.size} report(s) — this is an emulator")
-            return
+            return kept
         }
         if (!signedIn()) {
             Diag.log(
@@ -90,7 +92,7 @@ public class DiagnosticsUploader(
                     "is sent to one (asked by a person=$becauseSomeoneAsked); a signed-out phone reports " +
                     "through GitHub from Settings",
             )
-            return
+            return kept
         }
         if (!becauseSomeoneAsked && !sendToHome()) {
             Diag.log(
@@ -99,11 +101,12 @@ public class DiagnosticsUploader(
                     "off, so nothing is posted automatically; Settings offers GitHub and the crash screen " +
                     "can still send by hand",
             )
-            return
+            return kept
         }
         val waitingKb = waiting.sumOf { it.length() } / BYTES_PER_KB
         Diag.log("diagnostics", "uploading ${waiting.size} pending report(s), $waitingKb KB on the phone")
         var bringsState = false
+        var accepted = 0
         waiting.forEach { file ->
             val kind = reportKind(file)
             val sent = runCatching { sink.post(file.readText(), "report") }.getOrElse { error ->
@@ -112,6 +115,7 @@ public class DiagnosticsUploader(
             }
             // Kept on failure so it retries next launch; deleted only once accepted.
             if (sent) file.delete()
+            if (sent) accepted++
             if (sent && kind in STATE_KINDS) bringsState = true
             Diag.log("diagnostics", "report ${file.name} kind=$kind sent=$sent")
         }
@@ -120,6 +124,7 @@ public class DiagnosticsUploader(
         } else {
             Diag.log("diagnostics", "no state sent: no crash or diagnostics report went")
         }
+        return UploadOutcome(sent = accepted, kept = waiting.size - accepted)
     }
 
     internal suspend fun sendState(): StateSend {
@@ -157,6 +162,8 @@ public class DiagnosticsUploader(
         val STATE_KINDS = setOf("crash", "diagnostics")
     }
 }
+
+public data class UploadOutcome(val sent: Int, val kept: Int)
 
 public sealed interface StateSend {
     public data class Sent(val bytes: Int) : StateSend
