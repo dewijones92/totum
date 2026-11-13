@@ -13,12 +13,16 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
 @Serializable
-public enum class TargetKind(public val hasPicture: Boolean, public val label: String) {
-    PHONE(true, "📱 Phone"),
+public enum class TargetKind(
+    public val hasPicture: Boolean,
+    public val label: String,
+    public val reachableAway: Boolean = false,
+) {
+    PHONE(true, "📱 Phone", reachableAway = true),
     SPEAKER(false, "🔈 Speaker"),
     TV(true, "📺 TV"),
     CHROMECAST(true, "📺 Chromecast"),
-    BROWSER(true, "🖥️ Browser"),
+    BROWSER(true, "🖥️ Browser", reachableAway = true),
 }
 
 @Serializable

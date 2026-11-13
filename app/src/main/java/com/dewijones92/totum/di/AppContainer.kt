@@ -314,6 +314,7 @@ import com.dewijones92.totum.stars.STARRED_PLAYLIST_NAME
 import com.dewijones92.totum.stars.Stars
 import com.dewijones92.totum.stats.StatsLog
 import com.dewijones92.totum.targets.ContextTargetWords
+import com.dewijones92.totum.targets.PrefsPlayOn
 import com.dewijones92.totum.targets.PrefsTargetColours
 import com.dewijones92.totum.targets.RequesterIdentity
 import com.dewijones92.totum.targets.SendToTarget
@@ -929,6 +930,8 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             playHere = { items, mode, group, startAt -> playbackQueue.playHere(items, mode, group, startAt) },
             words = ContextTargetWords(context),
             sleepFade = { bedtime.fade },
+            playOn = PrefsPlayOn(context),
+            unmetered = { !networkStatus.isMetered() },
         )
     }
 

@@ -6,6 +6,8 @@ import com.dewijones92.totum.data.backup.toBackup
 import com.dewijones92.totum.data.home.HomeAnswer
 import com.dewijones92.totum.data.home.TargetsApi
 import com.dewijones92.totum.data.queue.QueueGroup
+import com.dewijones92.totum.data.targets.PlayOn
+import com.dewijones92.totum.data.targets.PlayOnOption
 import com.dewijones92.totum.data.targets.QueueMode
 import com.dewijones92.totum.data.targets.Requester
 import com.dewijones92.totum.data.targets.SleepKind
@@ -29,8 +31,11 @@ import com.dewijones92.totum.queue.QueueDestination
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentHashMap
@@ -46,6 +51,8 @@ class TargetsRepository(
     private val playHere: (List<PlayableItem>, QueueMode, QueueGroup?, MediaItemId?) -> Unit = { _, _, _, _ -> },
     private val words: TargetWords? = null,
     private val sleepFade: () -> Duration = { SleepFade.DEFAULT_LENGTH },
+    private val playOn: PlayOnStore = InMemoryPlayOn(),
+    private val unmetered: () -> Boolean = { true },
 ) : QueueDestination {
 
     val available: Boolean get() = client != null
@@ -53,8 +60,22 @@ class TargetsRepository(
     private val live = MutableStateFlow<List<TargetState>>(emptyList())
     val targets: StateFlow<List<TargetState>> = live.asStateFlow()
 
-    private val chosen = MutableStateFlow<String?>(null)
-    val selected: StateFlow<String?> = chosen.asStateFlow()
+    private val chosen = MutableStateFlow(playOn.load())
+    private val homeNow = MutableStateFlow(false)
+
+    val atHome: StateFlow<Boolean> = homeNow.asStateFlow()
+
+    val options: StateFlow<List<PlayOnOption>> = combine(live, homeNow) { states, atHome ->
+        PlayOn.options(states, atHome)
+    }.stateIn(scope, SharingStarted.Eagerly, PlayOn.options(emptyList(), false))
+
+    val selected: StateFlow<String?> = combine(chosen, options) { last, offered ->
+        PlayOn.destination(last, offered)
+    }.stateIn(scope, SharingStarted.Eagerly, null)
+
+    val playingOn: StateFlow<Map<String, Target>> = combine(live, homeNow) { states, atHome ->
+        if (atHome) PlayOn.playingNow(states) else emptyMap()
+    }.stateIn(scope, SharingStarted.Eagerly, emptyMap())
 
     private val painted = MutableStateFlow(TargetColours.assign(emptyList(), colourStore.load()))
     val colours: StateFlow<Map<String, Long>> = painted.asStateFlow()
@@ -67,12 +88,21 @@ class TargetsRepository(
     private var lastSummary: String? = null
     val problem: StateFlow<String?> = trouble.asStateFlow()
 
-    fun select(id: String?) {
+    fun select(id: String?, wake: Boolean = false) {
+        val power = id?.let(::powerOf)
+        if (wake && id != null && power == TargetPower.ASLEEP) {
+            Diag.log("targets", "${targetOf(id)?.label ?: id} was picked while asleep; waking it now")
+            command(id, TargetAction.WAKE)
+        }
         if (chosen.value == id) return
-        Diag.log("targets", "looking at ${id ?: "this phone"} (was ${chosen.value ?: "this phone"})")
+        val was = chosen.value ?: "this phone"
+        Diag.log("targets", "play on ${id ?: "this phone"} (was $was), power=$power wake=$wake")
         chosen.value = id
+        playOn.save(id)
         if (!troubleFromRead) trouble.value = null
     }
+
+    private fun destinationNow(): String? = PlayOn.destination(chosen.value, PlayOn.options(live.value, homeNow.value))
 
     fun troubleLine(state: TargetState): String? {
         val trouble = state.trouble
@@ -85,12 +115,6 @@ class TargetsRepository(
 
     private fun describe(answer: HomeAnswer.No): String =
         if (answer.httpCode == UNAUTHORIZED) words?.signInAgain() ?: SIGN_IN_AGAIN else answer.reason
-
-    fun queueTabLeft() {
-        val was = chosen.value ?: return
-        Diag.log("targets", "the Queue tab was left; no longer looking at $was, so plays stay on this phone")
-        chosen.value = null
-    }
 
     fun targetOf(id: String): Target? = live.value.firstOrNull { it.target.id == id }?.target
 
@@ -108,6 +132,10 @@ class TargetsRepository(
                 trouble.value = describe(answer)
                 troubleFromRead = true
                 failures++
+                if (failures >= HOME_LOST_AFTER && homeNow.value) {
+                    Diag.log("targets", "home server not answering for $failures reads in a row; no longer at home")
+                    homeNow.value = false
+                }
                 if (failures == 1 || failures % FAILURE_LOG_EVERY == 0) {
                     Diag.log("targets", "targets not read ($why), $failures in a row: ${answer.reason}")
                 }
@@ -118,6 +146,7 @@ class TargetsRepository(
                 failures = 0
                 if (troubleFromRead) trouble.value = null
                 live.value = answer.value.targets
+                markHome(why)
                 showWakes(answer.value.targets)
                 paint(answer.value.targets.map { it.target })
                 val summary = answer.value.targets.joinToString { "${it.target.label}[${it.entries.size}]" }
@@ -150,6 +179,7 @@ class TargetsRepository(
         logAnswer(id, "${request.mode} of ${request.items.size}", answer)
         if (answer is HomeAnswer.Ok) {
             replace(answer.value)
+            markHome("$id answered")
             if (!troubleFromRead) trouble.value = null
         }
         return answer
@@ -167,6 +197,7 @@ class TargetsRepository(
         logAnswer(id, control.action.name, answer)
         if (answer is HomeAnswer.Ok) {
             replace(answer.value)
+            markHome("$id answered")
             if (!troubleFromRead) trouble.value = null
         }
         return answer
@@ -200,8 +231,24 @@ class TargetsRepository(
 
     suspend fun requesterNow(): Requester = requester()
 
+    private fun markHome(why: String) {
+        val metered = !unmetered()
+        val now = PlayOn.atHome(homeServerAnswered = true, onUnmeteredNetwork = !metered)
+        if (now != homeNow.value) {
+            Diag.log("targets", "at home is now $now ($why): home server answered, metered connection=$metered")
+            homeNow.value = now
+        }
+    }
+
     override fun take(items: List<PlayableItem>, mode: QueueMode, group: QueueGroup?, startAt: MediaItemId?): Boolean {
-        val id = chosen.value ?: return false
+        val id = destinationNow()
+        if (id == null) {
+            if (items.isNotEmpty()) {
+                val offered = PlayOn.options(live.value, homeNow.value)
+                Diag.log("targets", "play on this phone: ${PlayOn.why(chosen.value, offered, homeNow.value)}")
+            }
+            return false
+        }
         val label = targetOf(id)?.label ?: id
         if (items.isEmpty()) return true
         Diag.log("targets", "redirecting $mode of ${items.size} to $label (the one being looked at)")
@@ -425,6 +472,7 @@ class TargetsRepository(
         const val WAKE_POLL_MS = 500L
         const val WAKE_WATCH_CAP_MS = 45_000L
         const val FAILURE_LOG_EVERY = 30
+        const val HOME_LOST_AFTER = 2
         const val CONFLICT = 409
         const val UNAUTHORIZED = 401
         const val SERVER_ERROR = 500

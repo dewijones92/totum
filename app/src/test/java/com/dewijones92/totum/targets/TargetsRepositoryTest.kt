@@ -88,6 +88,8 @@ class TargetsRepositoryTest {
     private val operations = Operations()
     private val ended = mutableListOf<Ended>()
     private val playedHere = mutableListOf<Replayed>()
+    private val playOn = InMemoryPlayOn()
+    private var unmetered = true
     private val repository = TargetsRepository(
         api,
         { Requester("me", "My phone") },
@@ -97,6 +99,8 @@ class TargetsRepositoryTest {
         playHere = { items, mode, _, _ -> playedHere += Replayed(items.map { it.item.id.value }, mode) },
         words = FakeWords,
         sleepFade = { fade },
+        playOn = playOn,
+        unmetered = { unmetered },
     )
     private var fade = 20.seconds
 
@@ -210,16 +214,107 @@ class TargetsRepositoryTest {
     }
 
     @Test
-    fun `looking at a target only lasts while the queue is on screen`() = runTest {
+    fun `the device last used stays the destination from any screen, leaving the queue changes nothing`() = runTest {
         api.answer = HomeAnswer.Ok(TargetsAnswer(listOf(tv)))
         repository.refresh("test")
         repository.select("lg-tv")
 
-        repository.queueTabLeft()
+        assertEquals("lg-tv", repository.selected.value)
+        assertTrue(repository.take(listOf(item("a")), QueueMode.PLAY, null, null))
+        assertEquals(1, api.queued.size)
+    }
 
+    @Test
+    fun `the last used device is remembered across a restart`() = runTest {
+        api.answer = HomeAnswer.Ok(TargetsAnswer(listOf(tv)))
+        repository.refresh("test")
+        repository.select("lg-tv")
+
+        val restarted = TargetsRepository(
+            api,
+            { Requester("me", "My phone") },
+            colours,
+            scope,
+            operations,
+            words = FakeWords,
+            playOn = playOn,
+            unmetered = { unmetered },
+        )
+        restarted.refresh("start")
+
+        assertEquals("lg-tv", restarted.selected.value)
+    }
+
+    @Test
+    fun `away from home a play stays on this phone and the last used device is not offered`() = runTest {
+        api.answer = HomeAnswer.Ok(TargetsAnswer(listOf(tv)))
+        repository.refresh("test")
+        repository.select("lg-tv")
+        unmetered = false
+        repository.refresh("on mobile data")
+
+        assertEquals(listOf("phone"), repository.options.value.map { it.id })
         assertNull(repository.selected.value)
         assertFalse(repository.take(listOf(item("a")), QueueMode.PLAY, null, null))
         assertTrue(api.queued.isEmpty())
+        assertEquals("lg-tv", playOn.load())
+    }
+
+    @Test
+    fun `back at home the last used device is the default again`() = runTest {
+        api.answer = HomeAnswer.Ok(TargetsAnswer(listOf(tv)))
+        repository.refresh("test")
+        repository.select("lg-tv")
+        unmetered = false
+        repository.refresh("on mobile data")
+        unmetered = true
+        repository.refresh("home Wi-Fi")
+
+        assertEquals("lg-tv", repository.selected.value)
+    }
+
+    @Test
+    fun `a device the Pi no longer lists is not a destination`() = runTest {
+        api.answer = HomeAnswer.Ok(TargetsAnswer(listOf(tv, bar)))
+        repository.refresh("test")
+        repository.select("lg-tv")
+        api.answer = HomeAnswer.Ok(TargetsAnswer(listOf(bar)))
+        repository.refresh("again")
+
+        assertNull(repository.selected.value)
+        assertFalse(repository.take(listOf(item("a")), QueueMode.PLAY, null, null))
+    }
+
+    @Test
+    fun `devices that are switched off are listed and offered at home`() = runTest {
+        val asleep = tv.copy(power = TargetPower.ASLEEP)
+        api.answer = HomeAnswer.Ok(TargetsAnswer(listOf(asleep, bar)))
+        repository.refresh("test")
+
+        assertEquals(listOf("phone", "lg-tv", "bar"), repository.options.value.map { it.id })
+        assertEquals(TargetPower.ASLEEP, repository.options.value.first { it.id == "lg-tv" }.power)
+    }
+
+    @Test
+    fun `one failed read does not take the home devices away, two do`() = runTest {
+        api.answer = HomeAnswer.Ok(TargetsAnswer(listOf(tv)))
+        repository.refresh("test")
+        api.answer = HomeAnswer.No("down")
+
+        repository.refresh("first failure")
+        assertEquals(listOf("phone", "lg-tv"), repository.options.value.map { it.id })
+
+        repository.refresh("second failure")
+        assertEquals(listOf("phone"), repository.options.value.map { it.id })
+    }
+
+    @Test
+    fun `an item playing on a device is marked with that device`() = runTest {
+        val playing = bar.copy(entries = listOf(TargetEntry(item("a").toBackup())), at = 0, playing = true)
+        api.answer = HomeAnswer.Ok(TargetsAnswer(listOf(tv, playing)))
+        repository.refresh("test")
+
+        assertEquals(mapOf("a" to bar.target), repository.playingOn.value)
     }
 
     @Test
