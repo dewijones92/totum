@@ -460,6 +460,11 @@ class FakeAppContainer(
         screenshots: List<com.dewijones92.totum.diagnostics.EncodedScreenshot>,
     ) = Unit
 
+    override fun sendPendingReportsToPi() = Unit
+
+    override fun sendStateToPi(onDone: (com.dewijones92.totum.diagnostics.StateSend) -> Unit) =
+        onDone(com.dewijones92.totum.diagnostics.StateSend.NotSignedIn)
+
     override fun startWatchHistorySync() = Unit
 
     override fun refreshSubscriptions() = Unit

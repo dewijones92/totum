@@ -1,6 +1,5 @@
 package com.dewijones92.totum.diagnostics
 
-import android.content.Context
 import android.os.Build
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HomeServerAuth
@@ -8,6 +7,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
+import java.io.File
 
 /**
  * Sends pending reports to the sink and deletes them once accepted.
@@ -38,67 +38,132 @@ import okhttp3.OkHttpClient
  * still gets its report out the moment the button is tapped.
  */
 public class DiagnosticsUploader(
-    private val context: Context,
+    private val pending: () -> List<File>,
     client: OkHttpClient,
     private val scope: CoroutineScope,
     endpoint: () -> String? = HomeServerAuth::reportEndpoint,
     private val onAnEmulator: () -> Boolean = ::runningOnAnEmulator,
     private val underInstrumentation: () -> Boolean = ::runningUnderInstrumentation,
     private val signedIn: () -> Boolean = HomeServerAuth::signedIn,
+    private val sendToHome: () -> Boolean = { true },
+    private val dump: suspend () -> ByteArray? = { null },
 ) {
     private val sink = ReportSink(client, endpoint)
 
     /** The automatic upload at launch — suppressed on an emulator. See the class note. */
-    public fun uploadPending(): Unit = upload(becauseSomeoneAsked = false)
+    public fun uploadPending(): Unit = launchUpload(becauseSomeoneAsked = false)
 
     /**
      * A person tapped "Send diagnostics". Goes from an emulator as well as a phone — but still not
      * from a test run, because the tests that flooded the sink drove this very method.
      */
-    public fun sendDiagnosticsNow(): Unit = upload(becauseSomeoneAsked = true)
+    public fun sendDiagnosticsNow(): Unit = launchUpload(becauseSomeoneAsked = true)
 
-    private fun upload(becauseSomeoneAsked: Boolean) {
-        scope.launch(Dispatchers.IO) {
-            val pending = DiagnosticsStore.pending(context)
-            if (pending.isEmpty()) {
-                Diag.log("diagnostics", "nothing pending to upload")
-                return@launch
+    public fun sendStateNow(onDone: (StateSend) -> Unit = {}) {
+        scope.launch(Dispatchers.IO) { onDone(sendState()) }
+    }
+
+    private fun launchUpload(becauseSomeoneAsked: Boolean) {
+        scope.launch(Dispatchers.IO) { upload(becauseSomeoneAsked) }
+    }
+
+    internal suspend fun upload(becauseSomeoneAsked: Boolean) {
+        val waiting = pending()
+        if (waiting.isEmpty()) {
+            Diag.log("diagnostics", "nothing pending to upload")
+            return
+        }
+        // Said rather than silent in both cases: "my report never arrived" has to be
+        // answerable, and the answer here is a deliberate one.
+        if (underInstrumentation()) {
+            Diag.log("diagnostics", "suppressed ${waiting.size} report(s) — this is a test run")
+            return
+        }
+        if (!becauseSomeoneAsked && onAnEmulator()) {
+            Diag.log("diagnostics", "suppressed ${waiting.size} report(s) — this is an emulator")
+            return
+        }
+        if (!signedIn()) {
+            Diag.log(
+                "diagnostics",
+                "kept ${waiting.size} report(s) on the phone: not signed in to a home server, so nothing " +
+                    "is sent to one (asked by a person=$becauseSomeoneAsked); a signed-out phone reports " +
+                    "through GitHub from Settings",
+            )
+            return
+        }
+        if (!becauseSomeoneAsked && !sendToHome()) {
+            Diag.log(
+                "diagnostics",
+                "kept ${waiting.size} report(s) on the phone: sending reports to the home server is switched " +
+                    "off, so nothing is posted automatically; Settings offers GitHub and the crash screen " +
+                    "can still send by hand",
+            )
+            return
+        }
+        val waitingKb = waiting.sumOf { it.length() } / BYTES_PER_KB
+        Diag.log("diagnostics", "uploading ${waiting.size} pending report(s), $waitingKb KB on the phone")
+        var bringsState = false
+        waiting.forEach { file ->
+            val kind = reportKind(file)
+            val sent = runCatching { sink.post(file.readText(), "report") }.getOrElse { error ->
+                Diag.warn("diagnostics", "upload failed, keeping ${file.name}", error)
+                false
             }
-            // Said rather than silent in both cases: "my report never arrived" has to be
-            // answerable, and the answer here is a deliberate one.
-            if (underInstrumentation()) {
-                Diag.log("diagnostics", "suppressed ${pending.size} report(s) — this is a test run")
-                return@launch
-            }
-            if (!becauseSomeoneAsked && onAnEmulator()) {
-                Diag.log("diagnostics", "suppressed ${pending.size} report(s) — this is an emulator")
-                return@launch
-            }
-            if (!signedIn()) {
-                Diag.log(
-                    "diagnostics",
-                    "kept ${pending.size} report(s) on the phone: not signed in to a home server, so nothing " +
-                        "is sent to one (asked by a person=$becauseSomeoneAsked); a signed-out phone reports " +
-                        "through GitHub from Settings",
-                )
-                return@launch
-            }
-            val waitingKb = pending.sumOf { it.length() } / BYTES_PER_KB
-            Diag.log("diagnostics", "uploading ${pending.size} pending report(s), $waitingKb KB on the phone")
-            pending.forEach { file ->
-                val sent = runCatching { sink.post(file.readText(), "report") }.getOrElse { error ->
-                    Diag.warn("diagnostics", "upload failed, keeping ${file.name}", error)
-                    false
-                }
-                // Kept on failure so it retries next launch; deleted only once accepted.
-                if (sent) file.delete()
-            }
+            // Kept on failure so it retries next launch; deleted only once accepted.
+            if (sent) file.delete()
+            if (sent && kind in STATE_KINDS) bringsState = true
+            Diag.log("diagnostics", "report ${file.name} kind=$kind sent=$sent")
+        }
+        if (bringsState) {
+            Diag.log("diagnostics", "state sent with the report(s): ${sendState()}")
+        } else {
+            Diag.log("diagnostics", "no state sent: no crash or diagnostics report went")
         }
     }
 
+    internal suspend fun sendState(): StateSend {
+        if (underInstrumentation()) return refused(StateSend.TestRun, "this is a test run")
+        if (!signedIn()) return refused(StateSend.NotSignedIn, "not signed in to a home server")
+        val bytes = runCatching { dump() }.getOrElse { error ->
+            Diag.warn("diagnostics", "state not sent: the dump could not be gathered", error)
+            null
+        } ?: return refused(StateSend.NotGathered, "nothing was gathered")
+        val sent = runCatching { sink.postState(bytes, "state") }.getOrElse { error ->
+            Diag.warn("diagnostics", "state upload failed", error)
+            false
+        }
+        Diag.log("diagnostics", "state ${bytes.size} bytes gzipped, sent=$sent")
+        return if (sent) StateSend.Sent(bytes.size) else StateSend.Refused
+    }
+
+    private fun refused(result: StateSend, why: String): StateSend {
+        Diag.log("diagnostics", "state not sent: $why")
+        return result
+    }
+
+    private fun reportKind(file: File): String = runCatching {
+        file.reader().use { reader ->
+            val head = CharArray(KIND_SEARCH_CHARS)
+            val read = reader.read(head).coerceAtLeast(0)
+            KIND.find(String(head, 0, read))?.groupValues?.get(1)
+        }
+    }.getOrNull() ?: "unknown"
+
     private companion object {
         const val BYTES_PER_KB = 1024L
+        const val KIND_SEARCH_CHARS = 512
+        val KIND = Regex("\"kind\"\\s*:\\s*\"([a-z-]+)\"")
+        val STATE_KINDS = setOf("crash", "diagnostics")
     }
+}
+
+public sealed interface StateSend {
+    public data class Sent(val bytes: Int) : StateSend
+    public data object NotSignedIn : StateSend
+    public data object TestRun : StateSend
+    public data object NotGathered : StateSend
+    public data object Refused : StateSend
 }
 
 /**

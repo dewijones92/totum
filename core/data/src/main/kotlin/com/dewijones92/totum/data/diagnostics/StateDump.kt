@@ -42,13 +42,14 @@ public object StateDump {
     )
 
     public fun build(
-        inputs: AppStateInputs,
+        given: AppStateInputs,
         preferences: Map<String, Map<String, Any?>>,
         installId: String = "",
     ): Built {
+        val (kept, skipped) = preferences.entries.partition { (file, _) -> !isCredentialFile(file) }
+        val inputs = given.copy(secrets = given.secrets + skipped.flatMap { it.value.values }.filterIsInstance<String>())
         val state = AppStateBuilder.build(inputs)
         val backup = inputs.backup.copy(queue = inputs.queue.entries.map { it.item.toBackup() })
-        val (kept, skipped) = preferences.entries.partition { (file, _) -> !isCredentialFile(file) }
         val root = JsonObject(
             mapOf(
                 "format" to JsonPrimitive(FORMAT),

@@ -47,7 +47,7 @@ class StateDumpTest {
     private fun built() = StateDump.build(
         StateTestData.inputs(
             events = events,
-            secrets = listOf(homeToken, prowlarrKey, youtubeRefresh, youtubeAccess, cookieValue),
+            secrets = listOf(homeToken, prowlarrKey),
             hosts = HomeServerHosts.allFor(listOf(homeHost)),
         ),
         preferences,

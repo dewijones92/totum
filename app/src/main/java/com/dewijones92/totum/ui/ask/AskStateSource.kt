@@ -54,7 +54,7 @@ class AskStateSource(
 
     suspend fun snapshot(): Snapshot = withContext(work) {
         val began = now()
-        val inputs = gather()
+        val inputs = inputs()
         val built = AppStateBuilder.build(inputs)
         val packed = AskStateWire.pack(built)
         lastItems = built.items
@@ -70,13 +70,13 @@ class AskStateSource(
 
     suspend fun resolve(ids: List<String>): List<PlayableItem> {
         val known = lastItems.takeIf { map -> ids.all { it in map || canonicalItemId(it) in map } }
-            ?: withContext(work) { AppStateBuilder.build(gather()).items }.also { lastItems = it }
+            ?: withContext(work) { AppStateBuilder.build(inputs()).items }.also { lastItems = it }
         val found = ids.mapNotNull { known[it] ?: known[canonicalItemId(it)] }
         Diag.log("ask", "app card: ${found.size} of ${ids.size} item id(s) found on this phone")
         return found
     }
 
-    private suspend fun gather(): AppStateInputs {
+    suspend fun inputs(): AppStateInputs {
         val (items, position) = ports.trail()
         val events = Breadcrumbs.snapshot()
         val all = ports.stats()

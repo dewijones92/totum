@@ -6,6 +6,7 @@ import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.IOException
 
@@ -13,8 +14,12 @@ internal class ReportSink(
     private val client: OkHttpClient,
     private val endpoint: () -> String? = HomeServerAuth::reportEndpoint,
 ) {
-    fun post(body: String, what: String): Boolean {
-        val url = endpoint()?.toHttpUrlOrNull()
+    fun post(body: String, what: String): Boolean = send(body.toRequestBody(JSON), what, "")
+
+    fun postState(gzipped: ByteArray, what: String): Boolean = send(gzipped.toRequestBody(GZIP), what, STATE_PATH)
+
+    private fun send(body: RequestBody, what: String, path: String): Boolean {
+        val url = endpoint()?.let { it + path }?.toHttpUrlOrNull()
         if (url == null) {
             Diag.log("diagnostics", "$what not posted: no home server is set up, so there is no sink to post to")
             return false
@@ -29,7 +34,7 @@ internal class ReportSink(
         }
         val request = Request.Builder().url(url)
             .apply { headers.forEach { (name, value) -> header(name, value) } }
-            .post(body.toRequestBody(JSON))
+            .post(body)
             .build()
         return try {
             client.newCall(request).execute().use { response ->
@@ -44,5 +49,7 @@ internal class ReportSink(
 
     private companion object {
         val JSON = "application/json".toMediaType()
+        val GZIP = "application/gzip".toMediaType()
+        const val STATE_PATH = "/state"
     }
 }

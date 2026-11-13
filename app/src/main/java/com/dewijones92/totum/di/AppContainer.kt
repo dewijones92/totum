@@ -114,7 +114,11 @@ import com.dewijones92.totum.diagnostics.AccountReportValues
 import com.dewijones92.totum.diagnostics.ActivitySnapshotter
 import com.dewijones92.totum.diagnostics.CrashReporter
 import com.dewijones92.totum.diagnostics.DiagnosticSnapshot
+import com.dewijones92.totum.diagnostics.DiagnosticsStore
 import com.dewijones92.totum.diagnostics.DiagnosticsUploader
+import com.dewijones92.totum.diagnostics.StateDumpSource
+import com.dewijones92.totum.diagnostics.StateSend
+import com.dewijones92.totum.diagnostics.preferencesOf
 import com.dewijones92.totum.diagnostics.EncodedScreenshot
 import com.dewijones92.totum.diagnostics.InstallId
 import com.dewijones92.totum.diagnostics.ReportSink
@@ -505,6 +509,10 @@ interface AppContainer {
      * involved — for "this behaved wrongly", which is how most bugs actually present.
      */
     fun sendDiagnostics(note: String, screenshots: List<EncodedScreenshot> = emptyList())
+
+    fun sendPendingReportsToPi()
+
+    fun sendStateToPi(onDone: (StateSend) -> Unit)
 
     /** User-curated local playlists, mixing podcasts and videos. */
     val localPlaylistStore: LocalPlaylistStore
@@ -1469,11 +1477,25 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
 
     private val diagnosticsUploader by lazy {
         DiagnosticsUploader(
-            context,
-            transferClient,
-            applicationScope,
+            pending = { DiagnosticsStore.pending(context) },
+            client = transferClient,
+            scope = applicationScope,
+            sendToHome = { appPreferences.settings.value.sendReportsToHome },
+            dump = { stateDumps.gzipped() },
         )
     }
+
+    private val stateDumps by lazy {
+        StateDumpSource(
+            inputs = { checkNotNull(askStateSource) { "no Ask state source" }.inputs() },
+            preferences = { preferencesOf(context) },
+            installId = { InstallId.get(context) },
+        )
+    }
+
+    override fun sendPendingReportsToPi() = diagnosticsUploader.sendDiagnosticsNow()
+
+    override fun sendStateToPi(onDone: (StateSend) -> Unit) = diagnosticsUploader.sendStateNow(onDone)
 
     override fun sendDiagnostics(note: String, screenshots: List<EncodedScreenshot>) =
         sendDiagnostics(crashReporter, diagnosticsUploader, note, screenshots)
