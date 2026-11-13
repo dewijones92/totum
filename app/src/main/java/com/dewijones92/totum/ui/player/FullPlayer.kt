@@ -449,6 +449,7 @@ internal fun UpNextSection(queue: QueueControls) {
                     onMoveToTop = queue.onMoveToEdge?.let { move -> { move(index, true) } },
                     onMoveToBottom = queue.onMoveToEdge?.takeIf { index < queue.upNext.lastIndex }
                         ?.let { move -> { move(index, false) } },
+                    onPlayInstead = queue.onPlayInstead?.let { instead -> { instead(index) } },
                 ),
             )
         }
@@ -543,6 +544,7 @@ data class QueueControls(
     val onPlay: (Int) -> Unit,
     val onRemove: (Int) -> Unit,
     val onMoveToEdge: ((Int, Boolean) -> Unit)? = null,
+    val onPlayInstead: ((Int) -> Unit)? = null,
 ) {
     companion object {
         /** No queue (previews). */

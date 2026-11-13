@@ -35,7 +35,7 @@ internal fun ItemActionSheet(
     val video = item.offersDownloadChoice(pillar)
     ActionSheet(
         title = item.face().title,
-        onPlayInsteadOfCurrent = null,
+        onPlayInsteadOfCurrent = queued?.onPlayInstead,
         onPlayNext = { actions.queue(listOf(item), next = true) },
         onAddToQueue = { actions.queue(listOf(item), next = false) }.takeIf { queued == null },
         onAddToPlaylist = { actions.addToPlaylist(listOf(item)) },
@@ -69,6 +69,7 @@ internal class QueuedRowActions(
     val onRemove: () -> Unit,
     val onMoveToTop: (() -> Unit)?,
     val onMoveToBottom: (() -> Unit)?,
+    val onPlayInstead: (() -> Unit)? = null,
 )
 
 private fun DownloadState.mayStillGetThePicture(): Boolean = (this as? DownloadState.Downloaded)?.audioOnly != false

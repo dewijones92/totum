@@ -1,6 +1,7 @@
 package com.dewijones92.totum.ui
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
 import com.dewijones92.totum.data.queue.QueueEntry
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.playback.PlaybackController
@@ -14,6 +15,7 @@ import com.dewijones92.totum.ui.player.QueueControls
 import com.dewijones92.totum.ui.player.WatchViewModel
 import com.dewijones92.totum.ui.queue.rememberQueueRemoveWithUndo
 import com.dewijones92.totum.video.VideoPlaybackLauncher
+import kotlinx.coroutines.launch
 
 /**
  * The player's up-next list shows what follows the cursor, so its indices are offset from
@@ -22,6 +24,7 @@ import com.dewijones92.totum.video.VideoPlaybackLauncher
 @Composable
 internal fun upNextControls(queue: PlaybackQueue, upNext: List<QueueEntry>): QueueControls {
     val removeWithUndo = rememberQueueRemoveWithUndo(queue, LocalSnackbarOffers.current)
+    val scope = rememberCoroutineScope()
     val indexNow = { entry: QueueEntry ->
         queue.state.value.entries.indexOfFirst { it.item.item.id == entry.item.item.id }.takeIf { it >= 0 }
     }
@@ -29,6 +32,9 @@ internal fun upNextControls(queue: PlaybackQueue, upNext: List<QueueEntry>): Que
         upNext = upNext,
         onPlay = { i -> upNext.getOrNull(i)?.let(indexNow)?.let(queue::jumpTo) },
         onRemove = { i -> upNext.getOrNull(i)?.let(removeWithUndo) },
+        onPlayInstead = { i ->
+            upNext.getOrNull(i)?.let { entry -> scope.launch { queue.playInsteadOfCurrent(entry) } }
+        },
         onMoveToEdge = { i, top ->
             upNext.getOrNull(i)?.let(indexNow)?.let { from ->
                 queue.move(from, if (top) 0 else queue.state.value.entries.lastIndex)
