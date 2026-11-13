@@ -125,12 +125,16 @@ public fun PlayableItem.routeNow(
 
 private fun PlayableItem.fileRoute(copy: LocalCopy, audioPreferred: Boolean): PlayRoute.File {
     val local = playedFromDisk(copy)
-    return if (copy.audioOnly || audioPreferred || handle.pillar == MediaKind.PODCAST) {
-        PlayRoute.AudioFile(local, copy.path, audioOnly = copy.audioOnly || audioPreferred)
+    val soundOnly = copy.audioOnly || audioPreferred
+    return if (soundOnly || !hasPictureToPlay()) {
+        PlayRoute.AudioFile(local, copy.path, audioOnly = soundOnly)
     } else {
         PlayRoute.VideoFile(local, copy.path)
     }
 }
+
+private fun PlayableItem.hasPictureToPlay(): Boolean =
+    handle.pillar == MediaKind.VIDEO || (item.pillar == MediaKind.PODCAST && picture == Picture.YES)
 
 public data class HomeCopy(public val url: HttpUrl, public val audioOnly: Boolean)
 

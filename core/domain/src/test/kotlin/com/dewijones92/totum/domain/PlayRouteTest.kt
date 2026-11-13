@@ -204,6 +204,47 @@ class PlayRouteTest {
         assertEquals(PlayRoute.AudioFile(torrent().playedFromDisk(copy), copy.path), route)
     }
 
+    // ---- A full copy of something with a picture plays with it, whatever handle it was queued by ----
+
+    private fun jellyfinFilm() = PlayableItem(
+        item(HttpUrl.of("https://home.test/jellyfin/stream/0123456789abcdef.mkv")).copy(
+            id = MediaItemId("jellyfin:0123456789abcdef"),
+        ),
+        PlayHandle.Podcast(),
+    )
+
+    @Test
+    fun `a downloaded Jellyfin film is a video file, not an audio file`() {
+        val copy = LocalCopy("/data/film.mkv", audioOnly = false)
+        val film = jellyfinFilm()
+
+        assertEquals(
+            PlayRoute.VideoFile(film.playedFromDisk(copy), copy.path),
+            film.routeNow(copy, offline = true, audioPreferred = false),
+        )
+    }
+
+    @Test
+    fun `a downloaded video torrent is a video file, and a sound torrent stays audio`() {
+        val copy = LocalCopy("/data/file", audioOnly = false)
+        val film = PlayableItem(item(HttpUrl.of("https://home.test/torrent/stream/film.mkv")), PlayHandle.Podcast())
+        val song = PlayableItem(item(HttpUrl.of("https://home.test/torrent/stream/song.mp3")), PlayHandle.Podcast())
+
+        assertEquals(PlayRoute.VideoFile::class.java, film.routeNow(copy, false, audioPreferred = false).javaClass)
+        assertEquals(PlayRoute.AudioFile::class.java, song.routeNow(copy, false, audioPreferred = false).javaClass)
+    }
+
+    @Test
+    fun `listening to a downloaded Jellyfin film still plays its sound`() {
+        val copy = LocalCopy("/data/film.mkv", audioOnly = false)
+        val film = jellyfinFilm()
+
+        assertEquals(
+            PlayRoute.AudioFile(film.playedFromDisk(copy), copy.path),
+            film.routeNow(copy, offline = true, audioPreferred = true),
+        )
+    }
+
     // ---- Handles that already point at a file ----
 
     @Test
