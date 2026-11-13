@@ -19,6 +19,7 @@ import com.dewijones92.totum.data.backup.titleOf
 import com.dewijones92.totum.data.backup.toPlayable
 import com.dewijones92.totum.data.home.HomeJob
 import com.dewijones92.totum.data.home.HomeJobState
+import com.dewijones92.totum.data.home.retrying
 import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayableItem
@@ -36,6 +37,7 @@ class HomeSection(
     val onCancel: (MediaItemId) -> Unit = {},
     val onRetry: (MediaItemId) -> Unit = {},
     val onCopy: (MediaItemId) -> Unit = {},
+    val onMove: (MediaItemId) -> Unit = {},
     val onPlay: (PlayableItem) -> Unit = {},
     val storage: StorageUsage? = null,
 )
@@ -92,10 +94,20 @@ private fun HomeButtons(job: HomeJob, local: DownloadState, home: HomeSection) {
                 Text(stringResource(R.string.home_copy_now))
             }
         }
-        if (offers.retry) TextButton(onClick = { home.onRetry(id) }) { Text(stringResource(R.string.downloads_retry)) }
+        if (offers.copyNow) {
+            TextButton(onClick = { home.onMove(id) }, Modifier.testTag("$HOME_MOVE_TAG-${job.id}")) {
+                Text(stringResource(R.string.home_move_to_phone))
+            }
+        }
+        if (offers.retry) {
+            TextButton(onClick = { home.onRetry(id) }) {
+                Text(stringResource(if (job.retrying) R.string.downloads_retry_now else R.string.downloads_retry))
+            }
+        }
         TextButton(onClick = { home.onCancel(id) }) { Text(stringResource(offers.remove)) }
     }
 }
 
 const val HOME_JOB_TAG = "home-job"
 const val HOME_COPY_TAG = "home-copy"
+const val HOME_MOVE_TAG = "home-move"

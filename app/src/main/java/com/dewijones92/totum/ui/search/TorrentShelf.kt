@@ -26,6 +26,8 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.search.SearchHit
 import com.dewijones92.totum.data.search.TorrentPicks
 import com.dewijones92.totum.data.torrent.TorrentProgress
+import com.dewijones92.totum.data.torrent.extraIds
+import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.ui.common.LocalPlayStates
 
 @Stable
@@ -108,6 +110,12 @@ internal const val TORRENT_CONTROLS_TAG = "torrent-controls"
 internal const val TORRENT_BEST_TAG = "torrent-best"
 internal const val TORRENT_FILTER_TAG = "torrent-filter"
 internal const val TORRENT_TRUSTED_TAG = "torrent-trusted-only"
+
+@Composable
+internal fun rememberTorrentExtras(viewModel: SearchViewModel): Set<MediaItemId> {
+    val seen by viewModel.torrentsSeen.collectAsStateWithLifecycle()
+    return remember(seen) { seen.extraIds() }
+}
 
 @Composable
 internal fun rememberTorrentProgress(viewModel: SearchViewModel): (SearchHit.Torrent) -> List<String> {

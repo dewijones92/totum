@@ -73,6 +73,45 @@ class SharedMetadataRepairTest {
     }
 
     @Test
+    fun `a torrent item with no picture learns one by its torrent's name, in the queue and downloads`() = runTest {
+        val poster = HttpUrl.of("https://images.metahub.space/poster/medium/tt1/img")
+        val torrent = PlayableItem(
+            MediaItem(
+                MediaItemId("torrent:abc:1"),
+                SourceId("torrent"),
+                "A film",
+                publishedAt = null,
+                duration = null,
+                author = "A.Film.2025.1080p",
+                mediaUrl = HttpUrl.of("https://home.test/stream/a.mkv"),
+            ),
+            PlayHandle.Podcast(),
+        )
+        val downloads = FakeDownloadManager()
+        downloads.download(torrent, audioOnly = false)
+        val queue = MutableStateFlow(QueueSnapshot(entries = listOf(QueueEntry(torrent))))
+        val learned = mutableListOf<MediaItem>()
+        val asked = mutableListOf<String>()
+        SharedMetadataRepair(
+            queue,
+            downloads,
+            { null },
+            learned::add,
+            {},
+            backgroundScope,
+            posterOf = { item ->
+                asked += item.item.author.orEmpty()
+                poster
+            },
+        ).start()
+        runCurrent()
+
+        assertEquals(listOf("A.Film.2025.1080p"), asked)
+        assertEquals(listOf(poster), learned.map { it.thumbnailUrl })
+        assertEquals(poster, downloads.observeRecords().first().single().item.item.thumbnailUrl)
+    }
+
+    @Test
     fun `a failed metadata lookup retries without a queue edit`() = runTest {
         val downloads = FakeDownloadManager()
         val queue = MutableStateFlow(QueueSnapshot(entries = listOf(QueueEntry(placeholder))))

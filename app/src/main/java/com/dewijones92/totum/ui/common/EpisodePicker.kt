@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
@@ -15,8 +17,10 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -28,6 +32,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dewijones92.totum.R
 import com.dewijones92.totum.data.download.DownloadManager
 import com.dewijones92.totum.domain.DownloadState
+import com.dewijones92.totum.domain.ItemShield
+import com.dewijones92.totum.domain.MediaItemId
+import com.dewijones92.totum.domain.PlayableItem
+import com.dewijones92.totum.domain.formatBytes
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.PlayState
 import com.dewijones92.totum.domain.QualityLabel
@@ -39,6 +47,7 @@ import com.dewijones92.totum.settings.DownloadChoice
 import com.dewijones92.totum.settings.DownloadPlace
 
 const val EPISODE_PICKER_TAG = "episode-picker"
+const val EPISODE_EXTRAS_TAG = "episode-extras"
 
 @Composable
 internal fun EpisodePicker(
@@ -60,17 +69,21 @@ internal fun EpisodePicker(
         }
     }
     var ticked by remember(current) {
-        mutableStateOf(current.items.filter { startsTicked(it, known[it.item.id], choice) }.map { it.item.id }.toSet())
+        mutableStateOf(
+            current.items.filter { startsTicked(it, known[it.item.id], choice, it.item.id in current.extras) }
+                .map { it.item.id }.toSet(),
+        )
     }
     val onPhone = current.items.count { known[it.item.id] is DownloadState.Downloaded }
     val plays = LocalPlayStates.current
     val shield = LocalItemShield.current
+    var extrasOpen by rememberSaveable(current.title) { mutableStateOf(false) }
     AlertDialog(
         onDismissRequest = episodes::dismiss,
         modifier = Modifier.testTag(EPISODE_PICKER_TAG),
         title = { Text(stringResource(R.string.episodes_title, current.title)) },
         text = {
-            Column {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
                 Text(stringResource(R.string.episodes_on_phone, onPhone, current.items.size))
                 if (suggestedPlace != null && episodes.homeAvailable) PlaceChips(place) { place = it }
                 if (current.offersAChoice) ChoiceChips(choice, qualities) { choice = it }
@@ -87,7 +100,9 @@ internal fun EpisodePicker(
                     inset = 0.dp,
                     fillsScreen = false,
                 ) { shown, _ ->
-                    val shownIds = shown.mapTo(mutableSetOf()) { it.item.id }
+                    val (extraRows, mainRows) = shown.partition { it.item.id in current.extras }
+                    val visible = if (extrasOpen) shown else mainRows
+                    val shownIds = visible.mapTo(mutableSetOf()) { it.item.id }
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         TextButton(onClick = { ticked = ticked + shownIds }) {
                             Text(stringResource(R.string.episodes_all))
@@ -97,17 +112,33 @@ internal fun EpisodePicker(
                         }
                     }
                     LazyColumn(Modifier.heightIn(max = LIST_MAX_HEIGHT)) {
-                        items(shown, key = { it.item.id.value }) { item ->
-                            val id = item.item.id
-                            val title = shield.titleOf(item.item)
-                            val played by remember(plays, id) { derivedStateOf { plays.value[id] } }
-                            val note = listOfNotNull(stateNote(known[id]), playNote(played))
-                                .joinToString(" · ").ifEmpty { null }
-                            LabelledCheckbox(
-                                id in ticked,
-                                if (note == null) title else "$title · $note"
-                            ) { on ->
-                                ticked = if (on) ticked + id else ticked - id
+                        items(mainRows, key = { it.item.id.value }) { item ->
+                            PickerRow(item, current, known, plays, shield, checked = item.item.id in ticked) { on ->
+                                ticked = if (on) ticked + item.item.id else ticked - item.item.id
+                            }
+                        }
+                        if (extraRows.isNotEmpty()) {
+                            item(key = "extras-toggle") {
+                                TextButton(
+                                    onClick = { extrasOpen = !extrasOpen },
+                                    modifier = Modifier.testTag(EPISODE_EXTRAS_TAG),
+                                ) {
+                                    Text(
+                                        stringResource(
+                                            if (extrasOpen) R.string.episodes_extras_open else R.string.episodes_extras,
+                                            extraRows.size,
+                                            formatBytes(extraRows.sumOf { sizeOf(current, it) }),
+                                        ),
+                                    )
+                                }
+                            }
+                            if (extrasOpen) {
+                                items(extraRows, key = { it.item.id.value }) { item ->
+                                    val on = item.item.id in ticked
+                                    PickerRow(item, current, known, plays, shield, checked = on) { now ->
+                                        ticked = if (now) ticked + item.item.id else ticked - item.item.id
+                                    }
+                                }
                             }
                         }
                     }
@@ -122,6 +153,32 @@ internal fun EpisodePicker(
         },
         dismissButton = { TextButton(onClick = episodes::dismiss) { Text(stringResource(R.string.cancel)) } },
     )
+}
+
+private fun sizeOf(ask: EpisodeDownloads.Ask, item: PlayableItem): Long = ask.details[item.item.id]?.sizeBytes ?: 0L
+
+@Composable
+private fun PickerRow(
+    item: PlayableItem,
+    ask: EpisodeDownloads.Ask,
+    known: Map<MediaItemId, DownloadState>,
+    plays: State<Map<MediaItemId, PlayState>>,
+    shield: ItemShield,
+    checked: Boolean,
+    onChange: (Boolean) -> Unit,
+) {
+    val itemId = item.item.id
+    val played by remember(plays, itemId) { derivedStateOf { plays.value[itemId] } }
+    val detail = ask.details[itemId]
+    val note = listOfNotNull(
+        stateNote(known[itemId]),
+        playNote(played),
+        detail?.sizeBytes?.takeIf { it > 0 }?.let(::formatBytes),
+        item.item.duration?.let(::formatClock),
+        stringResource(R.string.episodes_extra).takeIf { itemId in ask.extras },
+    ).joinToString(" · ").ifEmpty { null }
+    val title = shield.titleOf(item.item)
+    LabelledCheckbox(checked, if (note == null) title else "$title · $note", onChange = onChange)
 }
 
 @Composable

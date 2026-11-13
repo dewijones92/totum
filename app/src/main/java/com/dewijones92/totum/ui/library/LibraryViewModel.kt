@@ -6,6 +6,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.data.torrent.extraIds
 import com.dewijones92.totum.data.download.DownloadManager
 import com.dewijones92.totum.data.download.RetryPlan
 import com.dewijones92.totum.data.download.clearFailed
@@ -20,6 +21,8 @@ import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayState
 import com.dewijones92.totum.domain.PlayableItem
+import com.dewijones92.totum.downloads.home.HomePlay
+import com.dewijones92.totum.downloads.home.homePlayOf
 import com.dewijones92.totum.domain.StorageUsage
 import com.dewijones92.totum.domain.formatBytes
 import com.dewijones92.totum.domain.suggestCleanup
@@ -65,6 +68,7 @@ class LibraryViewModel(
     private val io: CoroutineDispatcher = Dispatchers.IO,
     private val operations: Operations? = null,
     private val deleting: (Int) -> String = { "$it" },
+    private val homePlay: (PlayableItem) -> HomePlay? = { null },
 ) : TrackedViewModel("library") {
 
     /** A download with the space it actually occupies on disk. */
@@ -233,7 +237,18 @@ class LibraryViewModel(
     }
 
     fun playFromHome(item: PlayableItem) {
-        viewModelScope.launch { queue.playNow(item) }
+        val group = homePlay(item)
+        if (group == null) {
+            Diag.log("library", "${item.item.id.value}: played from its row at home on its own, not in a torrent group")
+            viewModelScope.launch { queue.playNow(item) }
+            return
+        }
+        Diag.log(
+            "library",
+            "${item.item.id.value}: played from home through its torrent's group \"${group.group.title}\" " +
+                "(${group.items.size} file(s) at home)",
+        )
+        queue.playAll(group.items, group.group, startAt = group.startAt)
     }
 
     fun delete(entry: Entry) {
@@ -291,6 +306,13 @@ class LibraryViewModel(
                     locked = container.lockingDownloads.locks.locked,
                     operations = container.operations,
                     deleting = { n -> resources?.getQuantityString(R.plurals.deleting_downloads, n, n) ?: "$n" },
+                    homePlay = { item ->
+                        homePlayOf(
+                            item,
+                            container.homeDownloads.jobs.value.values,
+                            container.torrentsSeen?.records?.value.orEmpty().extraIds(),
+                        )
+                    },
                 )
             }
         }

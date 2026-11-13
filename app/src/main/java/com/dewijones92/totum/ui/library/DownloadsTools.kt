@@ -128,6 +128,7 @@ internal fun activeLists(
             home.onCancel,
             home.onRetry,
             home.onCopy,
+            home.onMove,
             home.onPlay,
             home.storage,
         ),

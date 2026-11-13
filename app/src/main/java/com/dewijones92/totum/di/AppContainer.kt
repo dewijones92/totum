@@ -86,6 +86,7 @@ import com.dewijones92.totum.data.sponsorblock.SkipSegmentSource
 import com.dewijones92.totum.data.sponsorblock.SponsorBlockSegmentSource
 import com.dewijones92.totum.data.torrent.Apibay
 import com.dewijones92.totum.data.torrent.HomeTorrentServer
+import com.dewijones92.totum.data.torrent.Cinemeta
 import com.dewijones92.totum.data.torrent.HttpHomeTorrentServer
 import com.dewijones92.totum.data.torrent.TorrentCategory
 import com.dewijones92.totum.data.torrent.TorrentProgress
@@ -970,6 +971,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                 copyOnWifi = { appPreferences.settings.value.copyHomeOnWifi },
                 kept = PrefsKeptAtHome(context),
                 moving = PrefsKeptAtHome(context, "totum_moving_home"),
+                movingToPhone = PrefsKeptAtHome(context, "totum_moving_to_phone"),
                 identity = { requesterIdentity.requester() },
             ),
             downloads = lockingDownloads,
@@ -1549,7 +1551,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             downloadManager,
             networkStatus,
             applicationScope,
-            MetadataLookups(videoPlaybackLauncher, youTubeRelated, musicCatalogue),
+            MetadataLookups(videoPlaybackLauncher, youTubeRelated, musicCatalogue) { homeTorrentServer },
         )
         startQueueAutoDownloader(this)
         startHomeAhead(this)
@@ -2202,6 +2204,7 @@ private fun homeTorrentServerOf(prefs: AppPreferences, httpClient: OkHttpClient)
         prowlarrApiKey = { prefs.settings.value.prowlarrApiKey },
         token = { prefs.settings.value.homeServerToken },
         torrentio = Torrentio(httpClient),
+        cinemeta = Cinemeta(httpClient),
         apibay = Apibay(httpClient),
     )
 }

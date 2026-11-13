@@ -33,6 +33,7 @@ import com.dewijones92.totum.data.search.SearchHit
 import com.dewijones92.totum.data.torrent.TorrentCategory
 import com.dewijones92.totum.data.torrent.TorrentProgress
 import com.dewijones92.totum.domain.DownloadState
+import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.Transfer
 import com.dewijones92.totum.domain.TransferPlace
 import com.dewijones92.totum.playback.cast.soundOnlyOnTheTvByName
@@ -65,8 +66,9 @@ internal fun TorrentHitRow(
     val menu = LocalTorrentMenu.current
     val homeJobs = LocalHomeJobs.current.value
     val local = LocalDownloadStates.current.value
-    val atHome = remember(hit, homeJobs, local) {
-        torrentAtHome(TorrentProgress.hashOf(hit.link), homeJobs) { local[it] ?: DownloadState.NotDownloaded }
+    val extras = LocalTorrentExtras.current
+    val atHome = remember(hit, homeJobs, local, extras) {
+        torrentAtHome(TorrentProgress.hashOf(hit.link), homeJobs, extras) { local[it] ?: DownloadState.NotDownloaded }
     }
     val homeChip = atHome?.let { torrentHomeWords(it) }
     val chips = listOfNotNull(homeChip) + progress + hit.trust
@@ -92,6 +94,8 @@ internal fun TorrentHitRow(
 }
 
 internal val LocalTorrentProgress = compositionLocalOf<(SearchHit.Torrent) -> List<String>> { { emptyList() } }
+
+internal val LocalTorrentExtras = compositionLocalOf<Set<MediaItemId>> { emptySet() }
 
 internal val LocalTorrentMenu = compositionLocalOf<((SearchHit.Torrent) -> Unit)?> { null }
 

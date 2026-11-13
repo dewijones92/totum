@@ -3,6 +3,7 @@ package com.dewijones92.totum.ui.search
 import com.dewijones92.totum.data.backup.BackupItem
 import com.dewijones92.totum.data.home.HomeJob
 import com.dewijones92.totum.data.home.HomeJobState
+import com.dewijones92.totum.data.home.HomeRetry
 import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.MediaItemId
 import org.junit.Assert.assertEquals
@@ -33,6 +34,34 @@ class TorrentAtHomeTest {
             job("torrent:2db6:1", HomeJobState.DOWNLOADING, bytes = 450)
         ).associateBy { MediaItemId(it.id) }
         assertEquals(TorrentAtHome.Downloading(45), torrentAtHome("2db6", running, nothingOnPhone))
+    }
+
+    @Test
+    fun `extras done at home do not make the film ready, the film does`() {
+        val extra = MediaItemId("torrent:2db6:2")
+        val extras = setOf(extra)
+        val filmRunning = listOf(
+            job("torrent:2db6:1", HomeJobState.DOWNLOADING, bytes = 80),
+            job("torrent:2db6:2", HomeJobState.DONE),
+        ).associateBy { MediaItemId(it.id) }
+        assertEquals(TorrentAtHome.Downloading(8), torrentAtHome("2db6", filmRunning, extras, nothingOnPhone))
+
+        val filmDone = listOf(
+            job("torrent:2db6:1", HomeJobState.DONE),
+            job("torrent:2db6:2", HomeJobState.DONE),
+        ).associateBy { MediaItemId(it.id) }
+        assertEquals(
+            TorrentAtHome.Ready(listOf(MediaItemId("torrent:2db6:1"))),
+            torrentAtHome("2db6", filmDone, extras, nothingOnPhone),
+        )
+    }
+
+    @Test
+    fun `a film the Pi is retrying is still downloading, not gone`() {
+        val retrying = listOf(
+            job("torrent:2db6:1", HomeJobState.WAITING).copy(retry = HomeRetry(2, 4, 1)),
+        ).associateBy { MediaItemId(it.id) }
+        assertEquals(TorrentAtHome.Downloading(0), torrentAtHome("2db6", retrying, nothingOnPhone))
     }
 
     @Test

@@ -1173,6 +1173,9 @@
     <string name="unstar_done">☆ Unstarred “%1$s”</string>
     <string name="star_account_problem">⚠️ %1$s here, but the YouTube like did not land: %2$s</string>
     <string name="episodes_title">⬇️ Download from “%1$s”</string>
+    <string name="episodes_extras">📎 Extras (%1$d · %2$s), unticked: show</string>
+    <string name="episodes_extras_open">📎 Extras (%1$d · %2$s): hide</string>
+    <string name="episodes_extra">📎 Extra</string>
     <string name="episodes_on_phone">📥 %1$d of %2$d on the phone</string>
     <string name="episodes_all">Select all</string>
     <string name="episodes_none">Select none</string>
@@ -1305,6 +1308,7 @@
     <string name="home_state_done_on_phone">✅ On 📱 Phone and 🏠 Pi</string>
     <string name="home_delete">🗑️ Delete from Pi</string>
     <string name="home_copy_now">📥 Copy to 📱 Phone now</string>
+    <string name="home_move_to_phone">📥 Move to 📱 Phone (delete it from 🏠 Pi once it is here)</string>
     <string name="home_delete_phone_only">🗑️ Delete from phone (keep on Pi)</string>
     <string name="home_delete_home_only">🗑️ Delete from Pi (keep on phone)</string>
     <string name="home_delete_at_home">🗑️ Delete from Pi</string>

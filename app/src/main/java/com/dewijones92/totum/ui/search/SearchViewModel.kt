@@ -478,7 +478,7 @@ class SearchViewModel(
                 return@launch
             }
             Diag.log("search", "offering ${items.size} file(s) of \"${hit.title}\" to download")
-            episodes.ask(prepared!!.name, items)
+            episodes.ask(prepared!!.name, items, TorrentPlayables.details(prepared!!))
         }
     }
 
@@ -498,10 +498,6 @@ class SearchViewModel(
                 TorrentCategory.ANY -> MediaContentKind.STANDARD
             }
             items = prepared?.let { TorrentPlayables.queueItems(server, it, kind, hit.artworkUrl) }.orEmpty()
-            Diag.log(
-                "search",
-                "\"${hit.title}\" artwork: ${hit.artworkUrl ?: "none (no poster or IMDb id from its site)"}"
-            )
             val warning = prepared?.let { TorrentTrust.filesWarning(it.files) }
             warning?.let { Diag.warn("search", "\"${hit.title}\": $it") }
             if (items.isEmpty()) OperationEnd.Nothing else OperationEnd.Done(items.size, note = warning)

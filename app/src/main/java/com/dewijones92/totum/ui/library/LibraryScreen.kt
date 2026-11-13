@@ -331,6 +331,7 @@ private fun DownloadsScreen(
             onCancel = container.homeDownloads::cancel,
             onRetry = container.homeDownloads::retry,
             onCopy = container.homeDownloads::copyNow,
+            onMove = container.homeDownloads::moveToPhone,
             storage = homeStorage,
             onPlay = viewModel::playFromHome,
         ),

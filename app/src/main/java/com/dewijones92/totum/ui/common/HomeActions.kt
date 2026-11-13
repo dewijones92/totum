@@ -44,6 +44,12 @@ internal fun HomeDownloadActions(id: MediaItemId?, onDismiss: () -> Unit) {
         onDismiss,
     )
     SheetAction(
+        { home.moveToPhone(id) }.takeIf { HomeRow.offers(job, local).copyNow },
+        Icons.Outlined.Download,
+        R.string.home_move_to_phone,
+        onDismiss,
+    )
+    SheetAction(
         {
             home.deleteOnPhoneOnly(id)
         }.takeIf { onPhone },

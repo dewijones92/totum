@@ -2,6 +2,7 @@ package com.dewijones92.totum.ui.search
 
 import com.dewijones92.totum.data.home.HomeJob
 import com.dewijones92.totum.data.home.HomeJobState
+import com.dewijones92.totum.data.home.busy
 import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.TorrentIds
@@ -17,17 +18,25 @@ internal fun torrentAtHome(
     hash: String?,
     jobs: Map<MediaItemId, HomeJob>,
     local: (MediaItemId) -> DownloadState,
+): TorrentAtHome? = torrentAtHome(hash, jobs, emptySet(), local)
+
+internal fun torrentAtHome(
+    hash: String?,
+    jobs: Map<MediaItemId, HomeJob>,
+    extras: Set<MediaItemId>,
+    local: (MediaItemId) -> DownloadState,
 ): TorrentAtHome? {
     hash ?: return null
     val prefix = "${TorrentIds.PREFIX}${hash.lowercase()}:"
-    val mine = jobs.filterKeys { it.value.startsWith(prefix) }.values
-    if (mine.isEmpty()) return null
+    val all = jobs.filterKeys { it.value.startsWith(prefix) }.values
+    if (all.isEmpty()) return null
+    val mine = all.filter { MediaItemId(it.id) !in extras }.ifEmpty { all }
     val done = mine.filter { it.state == HomeJobState.DONE }
     val copyable = done.map { MediaItemId(it.id) }.filter { id ->
         val there = local(id)
         there !is DownloadState.Downloaded && there !is DownloadState.Downloading
     }
-    val running = mine.firstOrNull { it.state == HomeJobState.DOWNLOADING || it.state == HomeJobState.WAITING }
+    val running = mine.firstOrNull { it.busy }
     return when {
         copyable.isNotEmpty() -> TorrentAtHome.Ready(copyable)
         running != null -> TorrentAtHome.Downloading(percentOf(running.bytes, running.totalBytes))

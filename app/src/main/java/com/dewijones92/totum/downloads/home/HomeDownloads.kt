@@ -58,6 +58,7 @@ class PhoneSide(
     val kept: KeptAtHome = InMemoryKeptAtHome(),
     val moving: KeptAtHome = InMemoryKeptAtHome(),
     val identity: suspend () -> Requester = { Requester("unknown", "This phone") },
+    val movingToPhone: KeptAtHome = InMemoryKeptAtHome(),
 )
 
 class Pacing(
@@ -105,9 +106,11 @@ class HomeDownloads(
     private val wake = Channel<String>(Channel.CONFLATED)
     private val moves = HomeMoves(phone.moving) { deleteOnPhoneOnly(it) }
     private val uploader = PhoneUploads(client, operations, notices, moves) { refresh(it) }
+    private val phoneMoves = PhoneMoves(phone.movingToPhone, { cancel(it) })
 
     fun watch() {
         if (client == null) return
+        scope.launch { phoneDownloads.observeDownloads().collect { phoneMoves.settle(known.value, it) } }
         scope.launch {
             var why = "tick"
             while (true) {
@@ -160,6 +163,20 @@ class HomeDownloads(
         val item = job.item.toPlayable() ?: return
         phone.kept.release(id.value)
         Diag.log(TAG, "\"${job.item.title}\": copy to the phone now (asked; whatever the network)")
+        scope.launch { phoneDownloads.download(item, audioOnly = job.audioOnly) }
+    }
+
+    fun moveToPhone(id: MediaItemId) {
+        val job = known.value[id]?.takeIf { it.state == HomeJobState.DONE }
+            ?: return Diag.warn(TAG, "${id.value}: not moved to the phone, home has no finished file for it")
+        val item = job.item.toPlayable() ?: return Diag.warn(TAG, "${id.value}: not moved, its item cannot be rebuilt")
+        phone.kept.release(id.value)
+        phoneMoves.begin(id)
+        Diag.log(
+            TAG,
+            "\"${job.item.title}\": moving from home to the phone; the copy at home is deleted only once the " +
+                "phone's has landed with the same size (${job.totalBytes ?: job.bytes}B, audioOnly=${job.audioOnly})",
+        )
         scope.launch { phoneDownloads.download(item, audioOnly = job.audioOnly) }
     }
 
@@ -217,6 +234,7 @@ class HomeDownloads(
                 uploadLimitBytes = answer.value.uploadLimitBytes
                 status.read(answer.value)
                 moves.finish(now)
+                phoneMoves.settle(now, phoneDownloads.observeDownloads().first())
                 follower.followAll(now.values)
             }
         }

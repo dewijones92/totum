@@ -106,6 +106,7 @@ fun SearchScreen(
         TorrentMenuSheet(viewModel, container)
         CompositionLocalProvider(
             LocalTorrentProgress provides progressOf,
+            LocalTorrentExtras provides rememberTorrentExtras(viewModel),
             LocalTorrentMenu provides viewModel::openTorrentMenu,
         ) {
             SearchContent(

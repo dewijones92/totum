@@ -2,6 +2,8 @@ package com.dewijones92.totum.downloads
 
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.download.DownloadManager
+import com.dewijones92.totum.data.torrent.TorrentFileDetail
+import com.dewijones92.totum.data.torrent.TorrentFileRole
 import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItemId
@@ -34,16 +36,26 @@ class EpisodeDownloads(
 ) {
     val homeAvailable: Boolean get() = home?.available == true
 
-    data class Ask(val title: String, val items: List<PlayableItem>) {
+    data class Ask(
+        val title: String,
+        val items: List<PlayableItem>,
+        val details: Map<MediaItemId, TorrentFileDetail> = emptyMap(),
+    ) {
         val offersAChoice: Boolean get() = items.any { it.handle is PlayHandle.Video && !it.isSong }
+        val extras: Set<MediaItemId> get() = details.filterValues { it.role == TorrentFileRole.EXTRA }.keys
     }
 
     private val _asking = MutableStateFlow<Ask?>(null)
     val asking: StateFlow<Ask?> = _asking.asStateFlow()
 
-    fun ask(title: String, items: List<PlayableItem>) {
-        Diag.log(TAG, "choose episodes of \"$title\": ${items.size} offered, all ticked")
-        _asking.value = Ask(title, items)
+    fun ask(title: String, items: List<PlayableItem>, details: Map<MediaItemId, TorrentFileDetail> = emptyMap()) {
+        val ask = Ask(title, items, details)
+        Diag.log(
+            TAG,
+            "choose episodes of \"$title\": ${items.size} offered, ${items.size - ask.extras.size} ticked, " +
+                "${ask.extras.size} extra(s) left unticked",
+        )
+        _asking.value = ask
     }
 
     fun dismiss() {
@@ -125,6 +137,12 @@ class EpisodeDownloads(
 
 private val PlayableItem.isSong: Boolean get() = item.contentKind == MediaContentKind.MUSIC
 
-internal fun startsTicked(item: PlayableItem, state: DownloadState?, choice: DownloadChoice): Boolean =
+internal fun startsTicked(
+    item: PlayableItem,
+    state: DownloadState?,
+    choice: DownloadChoice,
+    extra: Boolean = false,
+): Boolean = !extra && (
     state !is DownloadState.Downloaded ||
         (state.audioOnly && choice is DownloadChoice.Video && item.handle is PlayHandle.Video && !item.isSong)
+    )

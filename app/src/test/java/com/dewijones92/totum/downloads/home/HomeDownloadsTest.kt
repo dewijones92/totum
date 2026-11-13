@@ -292,4 +292,42 @@ class HomeDownloadsTest {
         assertEquals(listOf(disk, ai), home.problems.value)
         assertEquals(listOf("problem ❌ The AI service on the Pi is not answering"), notices.said)
     }
+
+    @Test
+    fun `move to the phone copies first and deletes at home only once the phone's copy has landed whole`() = runTest {
+        val home = home(this)
+        val id = MediaItemId("abcdefghijk")
+        api.listed = listOf(job(HomeJobState.DONE))
+        home.refresh("done")
+
+        home.moveToPhone(id)
+        advanceUntilIdle()
+        assertEquals(listOf(id to false), local.requested)
+        assertTrue("nothing deleted at home while the copy is on its way", api.cancelled.isEmpty())
+
+        val copy = java.io.File.createTempFile("film", ".media").apply { writeBytes(ByteArray(10)) }
+        local.place(DownloadedMedia(video, copy.path, audioOnly = false))
+        home.refresh("the copy landed")
+        advanceUntilIdle()
+
+        assertEquals(listOf("abcdefghijk"), api.cancelled)
+        copy.delete()
+    }
+
+    @Test
+    fun `move to the phone leaves home's file when the copy is not the same size`() = runTest {
+        val home = home(this)
+        api.listed = listOf(job(HomeJobState.DONE))
+        home.refresh("done")
+        home.moveToPhone(MediaItemId("abcdefghijk"))
+        advanceUntilIdle()
+
+        val copy = java.io.File.createTempFile("film", ".media").apply { writeBytes(ByteArray(7)) }
+        local.place(DownloadedMedia(video, copy.path, audioOnly = false))
+        home.refresh("the copy landed short")
+        advanceUntilIdle()
+
+        assertTrue(api.cancelled.isEmpty())
+        copy.delete()
+    }
 }

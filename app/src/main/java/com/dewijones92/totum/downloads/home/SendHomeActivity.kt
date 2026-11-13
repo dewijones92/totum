@@ -28,6 +28,7 @@ class SendHomeActivity : Activity() {
             { url -> container.videoPlaybackLauncher.describe(url, SOURCE) },
             { container.appPreferences.settings.value.downloadChoice },
             container.operations,
+            { prepared -> container.torrentsSeen?.remember(prepared) },
         )
         Toast.makeText(app, R.string.send_home_sending, Toast.LENGTH_SHORT).show()
         container.applicationScope.launch {

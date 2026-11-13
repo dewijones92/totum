@@ -3,6 +3,8 @@ package com.dewijones92.totum.downloads.home
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.data.torrent.HomeTorrentServer
+import com.dewijones92.totum.data.torrent.PreparedTorrent
+import com.dewijones92.totum.data.torrent.TorrentFileRole
 import com.dewijones92.totum.data.torrent.TorrentLink
 import com.dewijones92.totum.data.torrent.TorrentPlayables
 import com.dewijones92.totum.domain.MediaItem
@@ -36,6 +38,7 @@ class SendHome(
     private val describe: suspend (HttpUrl) -> MediaItem?,
     private val choice: () -> DownloadChoice?,
     private val operations: Operations? = null,
+    private val remember: suspend (PreparedTorrent) -> Unit = {},
 ) {
     suspend fun send(text: String?): Sent {
         val shared = text.orEmpty()
@@ -60,9 +63,16 @@ class SendHome(
         } ?: return refused(NotSent.NOT_PREPARED, magnet)
         val files = TorrentPlayables.queueItems(server, prepared)
         if (files.isEmpty()) return refused(NotSent.NOTHING_PLAYABLE, magnet)
-        Diag.log("home", "shared magnet to send home: \"${prepared.name}\", ${files.size} playable file(s)")
-        files.forEach { home.start(it, null) }
-        return Sent.Torrent(prepared.name, files.size)
+        remember(prepared)
+        val details = TorrentPlayables.details(prepared)
+        val wanted = files.filter { details[it.item.id]?.role != TorrentFileRole.EXTRA }
+        Diag.log(
+            "home",
+            "shared magnet to send home: \"${prepared.name}\", ${files.size} playable file(s), sending " +
+                "${wanted.size} main file(s); ${files.size - wanted.size} extra(s) stay on the torrent",
+        )
+        wanted.forEach { home.start(it, null) }
+        return Sent.Torrent(prepared.name, wanted.size)
     }
 
     private fun refused(why: NotSent, text: String): Sent {

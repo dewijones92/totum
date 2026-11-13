@@ -1,14 +1,17 @@
 package com.dewijones92.totum.queue
 
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.data.download.DownloadManager
 import com.dewijones92.totum.data.queue.QueueSnapshot
+import com.dewijones92.totum.data.torrent.HomeTorrentServer
 import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.PublishedAge
+import com.dewijones92.totum.domain.TorrentIds
 import com.dewijones92.totum.domain.hasPlaceholderTitle
 import com.dewijones92.totum.innertube.music.YouTubeMusicCatalogue
 import com.dewijones92.totum.innertube.related.RelatedResult
@@ -39,6 +42,7 @@ internal class SharedMetadataRepair(
     private val now: () -> Long = System::currentTimeMillis,
     private val dateOf: suspend (MediaItemId) -> Instant? = { null },
     private val artistOf: suspend (PlayableItem) -> String? = { null },
+    private val posterOf: suspend (PlayableItem) -> HttpUrl? = { null },
 ) {
     private class Tries(val count: Int, val nextAt: Long)
 
@@ -54,7 +58,8 @@ internal class SharedMetadataRepair(
                     .filter { it.item.hasPlaceholderTitle && it.handle is PlayHandle.Video }
                 val dates = (near + records.map { it.item }).filter { it.needsADate }
                 val artists = (snapshot.entries.map { it.item } + records.map { it.item }).filter { it.needsAnArtist }
-                (titles + dates + artists).distinctBy { it.item.id }
+                val posters = (snapshot.entries.map { it.item } + records.map { it.item }).filter { it.needsAPoster }
+                (titles + dates + artists + posters).distinctBy { it.item.id }
             }.distinctUntilChanged().collectLatest { candidates -> repairAll(candidates) }
         }
     }
@@ -107,6 +112,15 @@ internal class SharedMetadataRepair(
         return item.item.copy(author = artist)
     }
 
+    private suspend fun learnPoster(item: PlayableItem): MediaItem? {
+        val poster = posterOf(item) ?: return null
+        Diag.log(
+            "metadata",
+            "${item.item.id.value}: a poster found by its torrent name \"${item.item.author}\": $poster",
+        )
+        return item.item.copy(thumbnailUrl = poster)
+    }
+
     @Suppress("TooGenericExceptionCaught")
     private suspend fun repair(item: PlayableItem): Boolean {
         return try {
@@ -114,6 +128,7 @@ internal class SharedMetadataRepair(
                 Need.TITLE ->
                     resolve(item)?.takeIf { it.id == item.item.id && it.title.isNotBlank() && !it.hasPlaceholderTitle }
                 Need.ARTIST -> learnArtist(item)
+                Need.POSTER -> learnPoster(item)
                 Need.DATE -> learnDate(item)
             }
             currentCoroutineContext().ensureActive()
@@ -142,6 +157,7 @@ internal class MetadataLookups(
     val launcher: VideoPlaybackLauncher,
     val related: YouTubeRelated,
     val music: YouTubeMusicCatalogue,
+    val torrents: () -> HomeTorrentServer? = { null },
 )
 
 internal fun startSharedMetadataRepair(
@@ -164,6 +180,7 @@ internal fun startSharedMetadataRepair(
             (lookups.related.relatedTo(id.value) as? RelatedResult.Success)?.publishedOn?.let(PublishedAge::ofDay)
         },
         artistOf = ArtistLookup(lookups.music)::of,
+        posterOf = { item -> item.item.author?.let { lookups.torrents()?.posterFor(it) } },
     ).start()
 }
 
@@ -179,12 +196,16 @@ private val MediaItem.saysNoArtist: Boolean
 private val PlayableItem.needsAnArtist: Boolean
     get() = item.saysNoArtist && !item.hasPlaceholderTitle
 
-private enum class Need(val label: String) { TITLE("title"), DATE("date"), ARTIST("artist") }
+private val PlayableItem.needsAPoster: Boolean
+    get() = item.sourceId == TorrentIds.SOURCE && item.thumbnailUrl == null && !item.author.isNullOrBlank()
+
+private enum class Need(val label: String) { TITLE("title"), DATE("date"), ARTIST("artist"), POSTER("poster") }
 
 private val PlayableItem.need: Need
     get() = when {
         item.hasPlaceholderTitle -> Need.TITLE
         needsAnArtist -> Need.ARTIST
+        needsAPoster -> Need.POSTER
         else -> Need.DATE
     }
 

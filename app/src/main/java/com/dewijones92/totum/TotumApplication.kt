@@ -10,6 +10,7 @@ import com.dewijones92.totum.common.HomeServerAuth
 import com.dewijones92.totum.common.HomeServerHosts
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.di.DefaultAppContainer
+import com.dewijones92.totum.diagnostics.EventTail
 import com.dewijones92.totum.diagnostics.MainThreadWatch
 import com.dewijones92.totum.domain.ItemShields
 import com.dewijones92.totum.downloads.EmbeddedSubtitleWarmer
@@ -44,6 +45,10 @@ class TotumApplication : Application(), SingletonImageLoader.Factory {
         ItemShields.use(container.aiFeatures.spoilerShield)
         // First thing, so a crash during the rest of startup is still captured.
         container.installCrashReporting()
+        EventTail(java.io.File(filesDir, "event-tail.json")).also { tail ->
+            tail.restore()
+            tail.start(container.applicationScope)
+        }
         MainThreadWatch().start(this)
         // Fetch the latest yt-dlp in the background so YouTube-breaking changes
         // self-heal; the download applies on the next start.

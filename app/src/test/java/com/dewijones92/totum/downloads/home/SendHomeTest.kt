@@ -97,6 +97,18 @@ class SendHomeTest {
     }
 
     @Test
+    fun `a shared film with featurettes sends only the film home`() = runTest {
+        torrents.files = listOf(
+            TorrentFile(index = 1, path = "Film/Film.2025.mkv", sizeBytes = 5_000_000_000),
+            TorrentFile(index = 2, path = "Film/Featurettes/Making of.mkv", sizeBytes = 100_000_000),
+        )
+        val sent = send(this).send("magnet:?xt=urn:btih:abc123&dn=Film")
+        advanceUntilIdle()
+        assertEquals(Sent.Torrent("Some.Release", 1), sent)
+        assertEquals(listOf("torrent:abc123:1"), api.started.map { it.item.itemId })
+    }
+
+    @Test
     fun `text with no link is refused and nothing is sent`() = runTest {
         val sent = send(this).send("just some words")
         advanceUntilIdle()
