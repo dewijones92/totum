@@ -105,4 +105,62 @@ class GitHubReportTest {
 
         assertTrue(draft.body.lines().none { it.length > GitHubReport.EVENT_LINE_CHARS + 20 })
     }
+
+    private fun frames(count: Int): String =
+        "java.lang.IllegalStateException: boom\n" +
+            (1..count).joinToString("\n") { "\tat com.dewijones92.totum.Frame$it.run(Frame$it.kt:$it)" }
+
+    @Test
+    fun `a short stack trace is in the body and the link under its own heading`() {
+        val draft = GitHubReport.draft("Totum crashed", facts, emptyList(), redactor, trace = frames(5))
+
+        assertTrue(draft.body.contains("Stack trace"))
+        assertTrue(draft.body.contains("Frame5.run(Frame5.kt:5)"))
+        assertTrue(decoded(draft.url).contains("Frame5.run(Frame5.kt:5)"))
+        assertFalse(draft.traceCut)
+    }
+
+    @Test
+    fun `a stack trace too long for the link is kept whole in the body and cut from the link`() {
+        val draft = GitHubReport.draft("Totum crashed", facts, emptyList(), redactor, trace = frames(400))
+
+        assertTrue(draft.url.length.toString(), draft.url.length <= GitHubReport.MAX_URL_CHARS)
+        assertTrue(draft.traceCut)
+        assertFalse(draft.noteCut)
+        assertTrue(draft.body.contains("Frame400.run(Frame400.kt:400)"))
+        assertTrue(decoded(draft.url).contains("Frame1.run(Frame1.kt:1)"))
+        assertFalse(decoded(draft.url).contains("Frame400.run(Frame400.kt:400)"))
+    }
+
+    @Test
+    fun `activity lines go before any of the stack trace does`() {
+        val events = (1..400).map { "line $it " + "word ".repeat(20) }
+
+        val draft = GitHubReport.draft("Totum crashed", facts, events, redactor, trace = frames(60))
+
+        assertTrue(draft.url.length <= GitHubReport.MAX_URL_CHARS)
+        assertFalse(draft.traceCut)
+        assertTrue(decoded(draft.url).contains("Frame60.run(Frame60.kt:60)"))
+        assertTrue(draft.eventsKept < events.size)
+    }
+
+    @Test
+    fun `the stack trace is redacted like everything else`() {
+        val trace = "java.io.IOException: refused for $token at totum.home.example.org\n\tat a.B.c(B.kt:1)"
+
+        val draft = GitHubReport.draft("Totum crashed", facts, emptyList(), redactor, trace = trace)
+
+        listOf(draft.body, draft.url, decoded(draft.url)).forEach { text ->
+            assertFalse(text, token in text)
+            assertFalse(text, "example.org" in text)
+        }
+    }
+
+    @Test
+    fun `with no stack trace there is no trace section`() {
+        val draft = GitHubReport.draft("note", facts, emptyList(), redactor)
+
+        assertFalse(draft.body.contains("Stack trace"))
+        assertFalse(draft.traceCut)
+    }
 }
