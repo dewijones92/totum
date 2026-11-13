@@ -69,6 +69,7 @@ class CastWireTest {
             CastEvent.Note("the TV ran nothing"),
             CastWire.parse("""{"event":"note","message":"the TV ran nothing"}"""),
         )
+        assertEquals(CastEvent.Connection("LOST"), CastWire.parse("""{"event":"connection","state":"LOST"}"""))
         assertNull(CastWire.parse("""{"event":"volume"}"""))
         assertNull(CastWire.parse("not json"))
         assertNull(CastWire.parse("""{"event":"mystery"}"""))

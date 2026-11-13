@@ -4,9 +4,11 @@ import com.dewijones92.totum.data.targets.QueueMode
 import com.dewijones92.totum.data.targets.Target
 import com.dewijones92.totum.data.targets.TargetKind
 import com.dewijones92.totum.data.targets.TargetQueueRequest
+import com.dewijones92.totum.data.targets.TroubleKind
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -70,6 +72,39 @@ class TargetDecksTest {
         assertEquals(0, states.getValue("lg").entries.size)
         assertEquals(1, bar.requests.size)
         assertEquals(0, tv.requests.size)
+    }
+
+    @Test
+    fun `asked for at the same moment, a target gets one deck and one kit`() = runBlocking {
+        val kits = java.util.concurrent.atomic.AtomicInteger()
+        val slow = TargetSource {
+            listOf(
+                FoundTarget(speaker("bar")) {
+                    kits.incrementAndGet()
+                    Thread.sleep(150)
+                    TargetKit(bar, barLink)
+                },
+            )
+        }
+        val decks = decks(slow)
+
+        val asked = (1..6).map { async(Dispatchers.Default) { decks.deck("bar") } }
+            .map { it.await() }
+
+        assertEquals("kits made: ${kits.get()}", 1, kits.get())
+        assertTrue(asked.all { it === asked.first() })
+    }
+
+    @Test
+    fun `a lost connection a player reports reaches its deck`() = runBlocking {
+        val decks = decks(speakers)
+        (decks.deck("bar") ?: error("no bar")).enqueue(send("a"))
+
+        bar.onLost("the connection was LOST")
+        repeat(100) { if (decks.all().single().trouble == null) Thread.sleep(50) }
+
+        assertEquals(TroubleKind.SWITCHED_OFF, decks.all().single().trouble?.kind)
+        assertEquals(false, decks.all().single().playing)
     }
 
     @Test

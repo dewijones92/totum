@@ -23,6 +23,7 @@ internal sealed interface CastEvent {
     data class Failure(val message: String) : CastEvent
     data class Handback(val quit: Boolean, val why: String) : CastEvent
     data class Note(val message: String) : CastEvent
+    data class Connection(val state: String) : CastEvent
 }
 
 internal object CastWire {
@@ -65,6 +66,7 @@ internal object CastWire {
             "error" -> CastEvent.Failure(obj.text("message") ?: "unknown")
             "handback" -> CastEvent.Handback(obj.text("quit") == "true", obj.text("why") ?: "no reason given")
             "note" -> CastEvent.Note(obj.text("message") ?: "")
+            "connection" -> CastEvent.Connection(obj.text("state") ?: "unknown")
             else -> null
         }
     }

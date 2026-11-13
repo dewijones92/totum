@@ -149,6 +149,58 @@ class CastControlTest {
     }
 
     @Test
+    fun `a lost connection drops the helper, tells the player, and the next reach starts a fresh one`() {
+        val counter = File(dir, "runs")
+        val control = control(
+            helper(
+                """
+                n=${'$'}(cat "${counter.path}" 2>/dev/null || echo 0); n=${'$'}((n+1)); echo ${'$'}n > "${counter.path}"
+                echo '{"event":"ready","name":"LG TV","model":"webOS"}'
+                if [ "${'$'}n" = 1 ]; then
+                  while read line; do
+                    case "${'$'}line" in *'"cmd":"load"'*) echo '{"event":"connection","state":"LOST"}' ;; esac
+                  done
+                fi
+                cat > /dev/null
+                """.trimIndent()
+            )
+        )
+        val lost = CopyOnWriteArrayList<String>()
+        val latch = CountDownLatch(1)
+        control.onLost = { reason ->
+            lost += reason
+            latch.countDown()
+        }
+        runBlocking { control.reachable() }
+        control.load("https://new", "audio/mpeg", "New", 0)
+
+        assertTrue("the loss reached the player", latch.await(WAIT_S, TimeUnit.SECONDS))
+        assertEquals(1, lost.size)
+        assertTrue(lost.single(), lost.single().contains("LOST"))
+        assertTrue("a fresh helper connects", runBlocking { control.reachable() })
+        assertEquals("2", counter.readText().trim())
+    }
+
+    @Test
+    fun `a connection that comes back or is still connecting is not a loss`() {
+        val log = File(dir, "sent.log")
+        val control = control(
+            recordingHelper(
+                log,
+                """echo '{"event":"connection","state":"CONNECTING"}'; echo '{"event":"connection","state":"CONNECTED"}'"""
+            )
+        )
+        val lost = CopyOnWriteArrayList<String>()
+        control.onLost = { lost += it }
+
+        runBlocking { control.reachable() }
+        Thread.sleep(SETTLE_MS)
+
+        assertTrue(lost.toList().toString(), lost.isEmpty())
+        control.stop()
+    }
+
+    @Test
     fun `a release with no helper running is not an error`() {
         control(helper("exit 0")).release()
     }

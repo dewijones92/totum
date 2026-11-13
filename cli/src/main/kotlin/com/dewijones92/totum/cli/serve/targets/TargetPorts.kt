@@ -4,6 +4,8 @@ import com.dewijones92.totum.data.targets.SoundSettings
 import com.dewijones92.totum.data.targets.Target
 import com.dewijones92.totum.data.targets.TargetEntry
 import com.dewijones92.totum.data.targets.TargetPower
+import com.dewijones92.totum.data.targets.TargetTrouble
+import com.dewijones92.totum.data.targets.TroubleKind
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.playback.cast.CastItem
 
@@ -29,6 +31,9 @@ internal interface TargetPlayer {
     val positionMs: Long?
     val durationMs: Long?
     var onEnded: (failed: Boolean) -> Unit
+    var onLost: (reason: String) -> Unit
+        get() = {}
+        set(value) {}
     val failure: String? get() = null
     val notice: String? get() = null
     val live: Boolean get() = false
@@ -38,7 +43,8 @@ internal interface TargetPlayer {
 internal interface TargetLink {
     suspend fun connect(): String?
     suspend fun release()
-    val unreachable: String? get() = null
+    val unreachable: TargetTrouble? get() = null
+    val sinkWaitMs: Long get() = 0
 }
 
 internal fun interface TargetSounds {
@@ -48,6 +54,8 @@ internal fun interface TargetSounds {
         urlFor(item, picture)?.let { TargetStream(it) }
 
     fun whyNone(item: PlayableItem): String = "no stream was found for it"
+
+    fun refusedUntil(item: PlayableItem): Long? = null
 }
 
 internal fun interface ProgressReporter {
@@ -64,4 +72,25 @@ internal class FoundTarget(val target: Target, val kit: () -> TargetKit)
 
 internal fun interface TargetSource {
     suspend fun find(fresh: Boolean): List<FoundTarget>
+}
+
+internal class Problem(val trouble: TargetTrouble, val text: String)
+
+internal object TroubleWords {
+    fun problem(label: String, trouble: TargetTrouble, title: String? = null): Problem =
+        Problem(trouble, text(label, trouble, title))
+
+    fun text(label: String, trouble: TargetTrouble, title: String?): String = when (trouble.kind) {
+        TroubleKind.NOT_CONNECTED -> "📶 Couldn't reach $label: it isn't connected (off or out of range)"
+        TroubleKind.SWITCH_ON -> "📶 Switch $label on, then try again"
+        TroubleKind.SWITCHED_OFF -> "📺 $label was switched off"
+        TroubleKind.WONT_WAKE -> "❌ $label didn't wake: check 'Turn on via Wi-Fi' in its settings"
+        TroubleKind.COULD_NOT_PLAY -> "❌ Couldn't play ${title ?: "that"}: ${trouble.reason ?: "no reason given"}"
+        TroubleKind.YOUTUBE_BACKOFF ->
+            "⏳ YouTube is refusing the Pi for now; try again around ${clockOf(trouble.untilMs)}"
+        TroubleKind.STALLED -> "⚠️ ${title ?: "It"} has stopped moving on $label"
+    }
+
+    private fun clockOf(ms: Long?): String =
+        ms?.let { java.text.SimpleDateFormat("HH:mm", java.util.Locale.UK).format(java.util.Date(it)) } ?: "later"
 }

@@ -38,6 +38,7 @@ internal class RecordingPlayer : TargetPlayer {
     override val positionMs: Long? = 1_000
     override val durationMs: Long? = 60_000
     override var onEnded: (failed: Boolean) -> Unit = {}
+    override var onLost: (reason: String) -> Unit = {}
 }
 
 internal class ConnectingLink(var sink: String? = "bar-sink") : TargetLink {

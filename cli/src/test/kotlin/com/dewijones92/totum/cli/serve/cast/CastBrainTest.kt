@@ -209,6 +209,27 @@ class CastBrainTest {
     }
 
     @Test
+    fun `a cut end that races with the next item loading does not stop the new item`() {
+        val (cutter, check) = cutting()
+        val end = streams.timelineFor("LG TV|cut1")!!.endTvUs!!
+        var ended: Boolean? = null
+        cutter.onEnded = { ended = it }
+        control.reading = CastReading(positionMs = end / 1_000, durationMs = 10_000, playing = true, atMs = 1_000)
+        val next = CastItem("next", fixtures.tone("n.wav", 2).path, listening = true, durationMs = 2_000)
+        control.onReading = {
+            control.onReading = {}
+            cutter.play(request(next))
+        }
+
+        check()
+
+        assertEquals("the new item was loaded once and left playing", 2, control.loads.size)
+        assertEquals(1, control.calls.count { it == "stop" } - 1)
+        assertEquals(null, ended)
+        cutter.stop()
+    }
+
+    @Test
     fun `when the cut audio ends before the source does the TV is stopped and the queue moves on`() {
         val (cutter, check) = cutting()
         val end = streams.timelineFor("LG TV|cut1")!!.endTvUs!!

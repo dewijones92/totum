@@ -45,6 +45,25 @@ public data class TargetEntry(
 public enum class TargetPower { ON, ASLEEP, WAKING }
 
 @Serializable
+public enum class TroubleKind {
+    NOT_CONNECTED,
+    SWITCH_ON,
+    SWITCHED_OFF,
+    WONT_WAKE,
+    COULD_NOT_PLAY,
+    YOUTUBE_BACKOFF,
+    STALLED,
+}
+
+@Serializable
+public data class TargetTrouble(
+    val kind: TroubleKind,
+    val itemId: String? = null,
+    val reason: String? = null,
+    val untilMs: Long? = null,
+)
+
+@Serializable
 public data class TargetState(
     val target: Target,
     val entries: List<TargetEntry> = emptyList(),
@@ -59,6 +78,8 @@ public data class TargetState(
     val repeat: RepeatMode = RepeatMode.OFF,
     val live: Boolean = false,
     val power: TargetPower = TargetPower.ON,
+    val starting: Boolean = false,
+    val trouble: TargetTrouble? = null,
 ) {
     val current: TargetEntry? get() = entries.getOrNull(at)
 }
@@ -97,6 +118,7 @@ public data class TargetControl(
     val sound: SoundSettings? = null,
     val repeat: RepeatMode? = null,
     val itemId: String? = null,
+    val itemIds: List<String>? = null,
 )
 
 public fun QueueEntry.toTargetEntry(from: Requester? = null, ownerId: String? = null): TargetEntry = TargetEntry(

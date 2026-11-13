@@ -16,6 +16,7 @@ internal interface CastControl {
     fun release()
     fun reading(): CastReading?
     var onEnded: (failed: Boolean) -> Unit
+    var onLost: (reason: String) -> Unit
     suspend fun reachable(): Boolean
     val model: String? get() = null
 }
@@ -26,9 +27,12 @@ internal class PyCastControl(
     private val python: String = System.getenv("TOTUM_PYTHON") ?: "python3",
     private val helper: String = System.getenv("TOTUM_CAST_HELPER") ?: "/opt/totum/chromecast_helper.py",
     private val clock: () -> Long = System::currentTimeMillis,
+    private val handbackFile: java.io.File? = null,
 ) : CastControl {
 
     override var onEnded: (failed: Boolean) -> Unit = {}
+
+    override var onLost: (reason: String) -> Unit = {}
 
     @Volatile private var process: Process? = null
 
@@ -55,7 +59,8 @@ internal class PyCastControl(
         ready = false
         problem = null
         return try {
-            val started = ProcessBuilder(python, helper, host).redirectError(ProcessBuilder.Redirect.INHERIT).start()
+            val command = listOfNotNull(python, helper, host, handbackFile?.path)
+            val started = ProcessBuilder(command).redirectError(ProcessBuilder.Redirect.INHERIT).start()
             process = started
             writer = started.outputStream.bufferedWriter()
             Diag.log("cast-target", "$label: helper ${started.pid()} started for $host")
@@ -86,6 +91,7 @@ internal class PyCastControl(
                     "$label: handed back, ${if (event.quit) "receiver app quit" else "left open"}: ${event.why}",
                 )
                 is CastEvent.Note -> Diag.log("cast-target", "$label: helper note: ${event.message}")
+                is CastEvent.Connection -> connection(event.state)
                 is CastEvent.Failure -> {
                     problem = event.message
                     Diag.warn("cast-target", "$label: ${event.message}")
@@ -95,6 +101,22 @@ internal class PyCastControl(
         }
         Diag.log("cast-target", "$label: helper ${started.pid()} ended, exit ${started.waitFor()}")
         if (process === started) process = null
+    }
+
+    private fun connection(state: String) {
+        val lost = state in LOST_STATES
+        Diag.log(
+            "cast-target",
+            "$label: connection $state" + if (lost) ", so the helper is dropped and Totum lets go of the TV" else ""
+        )
+        if (!lost) return
+        ready = false
+        loaded = false
+        val gone = process
+        process = null
+        writer = null
+        gone?.destroy()
+        onLost("the connection to $label was $state")
     }
 
     private fun status(event: CastEvent.Status) {
@@ -197,6 +219,7 @@ internal class PyCastControl(
 
     private companion object {
         const val LOGGED = 200
+        val LOST_STATES = setOf("LOST", "DISCONNECTED", "FAILED")
         const val READY_TRIES = 20
         const val READY_POLL_MS = 500L
         const val MS_PER_S = 1_000

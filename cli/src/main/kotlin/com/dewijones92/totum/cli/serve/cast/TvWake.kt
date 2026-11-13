@@ -60,6 +60,12 @@ internal class TvWake(
         }
     }
 
+    fun markAsleep() {
+        if (power == TargetPower.ASLEEP) return
+        Diag.log("cast-target", "$label: ${power.name} -> ASLEEP (its connection was lost)")
+        power = TargetPower.ASLEEP
+    }
+
     suspend fun ensureAwake(): Boolean = lock.withLock {
         sentWake = false
         if (answers()) {

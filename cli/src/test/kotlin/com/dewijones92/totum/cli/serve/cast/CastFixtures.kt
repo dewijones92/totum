@@ -139,9 +139,16 @@ internal class FakeCastControl : CastControl {
         calls += "release"
     }
 
-    override fun reading(): CastReading? = reading
+    var onReading: () -> Unit = {}
+
+    override fun reading(): CastReading? {
+        onReading()
+        return reading
+    }
 
     override var onEnded: (failed: Boolean) -> Unit = {}
+
+    override var onLost: (reason: String) -> Unit = {}
 
     val reachableAnswers = ArrayDeque<Boolean>()
     var reachableAsked = 0

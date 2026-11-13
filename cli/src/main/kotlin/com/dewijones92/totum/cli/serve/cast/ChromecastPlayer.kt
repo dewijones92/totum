@@ -10,9 +10,12 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.targets.Target
 import com.dewijones92.totum.data.targets.TargetKind
 import com.dewijones92.totum.data.targets.TargetPower
+import com.dewijones92.totum.data.targets.TargetTrouble
+import com.dewijones92.totum.data.targets.TroubleKind
 import com.dewijones92.totum.playback.cast.CastItem
 import com.dewijones92.totum.playback.cast.Http
 import com.dewijones92.totum.playback.cast.LocalManifests
+import java.io.File
 import kotlin.concurrent.thread
 
 internal class ChromecastPlayer(
@@ -25,6 +28,8 @@ internal class ChromecastPlayer(
 ) : TargetPlayer {
 
     private val tv = PiCastTv(label) { control.model }
+
+    private val itemLock = Any()
 
     @Volatile private var rawUrl: String? = null
 
@@ -40,13 +45,28 @@ internal class ChromecastPlayer(
 
     override val power: TargetPower get() = wake?.power ?: TargetPower.ON
 
+    private var lostHandler: (reason: String) -> Unit = {}
+
+    init {
+        control.onLost = { reason ->
+            wake?.markAsleep()
+            lostHandler(reason)
+        }
+    }
+
     override var onEnded: (failed: Boolean) -> Unit
         get() = control.onEnded
         set(value) {
             control.onEnded = value
         }
 
-    override fun play(request: PlayRequest) {
+    override var onLost: (reason: String) -> Unit
+        get() = lostHandler
+        set(value) {
+            lostHandler = value
+        }
+
+    override fun play(request: PlayRequest) = synchronized(itemLock) {
         stop()
         tv.notice = null
         val wanted = request.cast ?: CastItem(request.title, request.url, listening = !request.picture)
@@ -76,13 +96,19 @@ internal class ChromecastPlayer(
         if (mediaId != id || endTvUs == null) return false
         val reading = control.reading() ?: return false
         if (!reading.playing || reading.positionAt(clock()) * MICROS_PER_MS < endTvUs - SLACK_US) return false
-        Diag.log(
-            "cast-target",
-            "$label: the cut audio ends at ${endTvUs / MICROS_PER_MS}ms on the TV (at " +
-                "${reading.positionAt(clock())}ms now); stopping the TV so the queue moves on",
-        )
-        watching = null
-        control.stop()
+        synchronized(itemLock) {
+            if (mediaId != id || watching == null) {
+                Diag.log("cast-target", "$label: the cut audio of $id ended, but another item is loaded now; left alone")
+                return true
+            }
+            Diag.log(
+                "cast-target",
+                "$label: the cut audio ends at ${endTvUs / MICROS_PER_MS}ms on the TV (at " +
+                    "${reading.positionAt(clock())}ms now); stopping the TV so the queue moves on",
+            )
+            watching = null
+            control.stop()
+        }
         control.onEnded(false)
         return true
     }
@@ -104,7 +130,7 @@ internal class ChromecastPlayer(
 
     override val volumePercent: Int? get() = control.volumePercent()
 
-    override fun stop() {
+    override fun stop() = synchronized(itemLock) {
         watching = null
         liveNow = false
         control.stop()
@@ -160,13 +186,13 @@ internal class CastLink(
     private val wake: TvWake? = null,
 ) : TargetLink {
 
-    @Volatile override var unreachable: String? = null
+    @Volatile override var unreachable: TargetTrouble? = null
         private set
 
     override suspend fun connect(): String? {
         unreachable = null
         if (wake != null && !wake.ensureAwake()) {
-            unreachable = wake.failure
+            unreachable = TargetTrouble(TroubleKind.WONT_WAKE)
             return null
         }
         val tries = if (wake?.sentWake == true) TRIES_AFTER_A_WAKE else 1
@@ -212,13 +238,18 @@ internal class ChromecastSource(
     private val known: List<KnownCasts>,
     private val streams: PiStreams,
     private val extraBroadcasts: List<String> = emptyList(),
+    private val handbackDir: java.io.File? = null,
 ) : TargetSource {
 
     override suspend fun find(fresh: Boolean): List<FoundTarget> = known.map { cast ->
         val kind = if (cast.name.contains("chromecast", ignoreCase = true)) TargetKind.CHROMECAST else TargetKind.TV
         val id = cast.name.lowercase().replace(Regex("[^a-z0-9]+"), "-").trim('-')
         FoundTarget(Target(id, cast.name, kind)) {
-            val control = PyCastControl(cast.host, cast.name)
+            val control = PyCastControl(
+                cast.host,
+                cast.name,
+                handbackFile = handbackDir?.let { File(it.apply { mkdirs() }, "handback-$id.json") },
+            )
             val wake = wakeFor(cast)
             TargetKit(ChromecastPlayer(cast.name, control, streams, wake), CastLink(cast.host, control, wake))
         }

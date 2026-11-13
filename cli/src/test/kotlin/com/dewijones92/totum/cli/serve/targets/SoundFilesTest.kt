@@ -49,6 +49,22 @@ class SoundFilesTest {
     }
 
     @Test
+    fun `only audio files are played, whatever else sits in the folder`() {
+        root.resolve("notes.txt").writeText("not sound")
+        root.resolve("no-extension").writeBytes(ByteArray(8))
+        root.resolve("clip.MP3").writeBytes(ByteArray(8))
+
+        refused("file:///sounds/notes.txt")
+        refused("file:///sounds/no-extension")
+        assertEquals(
+            FileAnswer.Found(root.resolve("clip.MP3").canonicalFile),
+            files.resolve(fileItem("file:///sounds/clip.MP3")),
+        )
+        val why = (files.resolve(fileItem("file:///sounds/notes.txt")) as FileAnswer.Refused).why
+        assertTrue(why, why.contains("not an audio file"))
+    }
+
+    @Test
     fun `a name with a space is fine`() {
         assertEquals(
             FileAnswer.Found(root.resolve("rain 2.mp3").canonicalFile),

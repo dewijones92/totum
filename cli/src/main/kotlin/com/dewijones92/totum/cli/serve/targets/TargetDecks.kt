@@ -2,7 +2,9 @@ package com.dewijones92.totum.cli.serve.targets
 
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.targets.TargetState
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -26,18 +28,25 @@ internal class TargetDecks(
 
     init {
         scope.launch {
+            var sinceReport = 0L
             while (true) {
-                delay(REPORT_EVERY_MS)
-                decks.values.forEach {
-                    runCatching { it.tick() }.onFailure { e ->
-                        Diag.warn(
-                            "targets",
-                            "tick failed",
-                            e
-                        )
+                delay(WATCH_EVERY_MS)
+                sinceReport += WATCH_EVERY_MS
+                decks.values.forEach { deck ->
+                    runCatching { deck.watch() }.onFailure { e -> Diag.warn("targets", "watch failed", e) }
+                    if (sinceReport >= REPORT_EVERY_MS) {
+                        runCatching { deck.tick() }.onFailure { e -> Diag.warn("targets", "tick failed", e) }
                     }
                 }
+                if (sinceReport >= REPORT_EVERY_MS) sinceReport = 0
             }
+        }
+    }
+
+    fun startInBackground(deck: TargetDeck): Job = scope.launch {
+        runCatching { deck.startPending() }.onFailure { e ->
+            if (e is CancellationException) throw e
+            Diag.warn("targets", "starting what was queued failed", e)
         }
     }
 
@@ -66,7 +75,7 @@ internal class TargetDecks(
         known
     }
 
-    private fun deckFor(found: FoundTarget): TargetDeck = decks.getOrPut(found.target.id) {
+    private fun deckFor(found: FoundTarget): TargetDeck = decks.computeIfAbsent(found.target.id) {
         val kit = found.kit()
         TargetDeck(
             found.target,
@@ -82,11 +91,15 @@ internal class TargetDecks(
             },
             reporter = reporter,
             ownerId = ownerId,
-        ).also { deck -> kit.player.onEnded = { failed -> scope.launch { deck.ended(failed) } } }
+        ).also { deck ->
+            kit.player.onEnded = { failed -> scope.launch { deck.ended(failed) } }
+            kit.player.onLost = { reason -> scope.launch { deck.lost(reason) } }
+        }
     }
 
     private companion object {
         const val LOOK_EVERY_MS = 60_000L
         const val REPORT_EVERY_MS = 30_000L
+        const val WATCH_EVERY_MS = 5_000L
     }
 }

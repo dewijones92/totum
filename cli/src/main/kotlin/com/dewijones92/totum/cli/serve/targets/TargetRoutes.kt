@@ -12,6 +12,7 @@ import com.dewijones92.totum.data.targets.TargetsAnswer
 import com.dewijones92.totum.data.targets.TargetsJson
 import com.sun.net.httpserver.HttpExchange
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.builtins.serializer
 
@@ -28,8 +29,20 @@ internal class TargetRoutes(private val decks: TargetDecks) : Routes {
                 )
             method != "POST" -> exchange.reply(NOT_FOUND, """{"error":"no such route"}""")
             path == "/targets/queue" -> withDeck(exchange, TargetQueueRequest.serializer()) { deck, request ->
-                when (val result = deck.enqueue(request)) {
-                    is EnqueueResult.Accepted -> result.state
+                val began = System.currentTimeMillis()
+                when (val result = deck.accept(request)) {
+                    is EnqueueResult.Accepted -> {
+                        val start = decks.startInBackground(deck)
+                        withTimeoutOrNull(GRACE_MS) { start.join() }
+                        deck.state().also {
+                            Diag.log(
+                                "targets",
+                                "POST /targets/queue ${request.mode} ${request.items.size} answered after " +
+                                    "${System.currentTimeMillis() - began}ms, starting=${it.starting} " +
+                                    "playing=${it.playing}",
+                            )
+                        }
+                    }
                     is EnqueueResult.Refused -> throw Refusal(result.why)
                 }
             }
@@ -74,6 +87,7 @@ internal class TargetRoutes(private val decks: TargetDecks) : Routes {
         const val CONFLICT = 409
         const val UNPROCESSABLE = 422
         const val LOGGED = 300
+        const val GRACE_MS = 1_500L
         val PATHS = setOf("/targets", "/targets/queue", "/targets/control")
     }
 }

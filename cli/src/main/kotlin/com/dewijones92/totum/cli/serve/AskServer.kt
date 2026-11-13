@@ -263,14 +263,22 @@ internal suspend fun serveAsk(port: Int, out: (String) -> Unit, polite: Politene
             home::soundOf,
             jellyfin?.let { j -> { id -> j.streamUrl(id) } },
             SoundFiles(File(System.getenv("TOTUM_SOUNDS") ?: "/sounds")),
-            home::castOf,
+            liveRefusedUntil = { polite.botBackOff.until.value?.takeIf { it > System.currentTimeMillis() } },
+            castFromHome = home::castOf,
         ),
         listOf(
-            SpeakerSource(shell, targetsDir, streams::locally),
+            SpeakerSource(
+                shell,
+                targetsDir,
+                streams::locally,
+                System.getenv("TOTUM_SPEAKERS_SWITCHED_ON_BY_HAND").orEmpty().split(',')
+                    .map { it.trim().lowercase() }.filter { it.isNotEmpty() }.toSet(),
+            ),
             ChromecastSource(
                 knownCastsFrom(System.getenv("TOTUM_CAST_TARGETS")),
                 streams,
                 System.getenv("TOTUM_WAKE_BROADCAST").orEmpty().split(','),
+                targetsDir,
             ),
         ),
         YouTubeProgress(home.watchHistory, home::signedInToYouTube),

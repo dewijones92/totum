@@ -6,6 +6,7 @@ import com.dewijones92.totum.data.queue.QueueEntry
 import com.dewijones92.totum.data.queue.QueueSnapshot
 import com.dewijones92.totum.data.queue.appendingAll
 import com.dewijones92.totum.data.queue.insertingAllNext
+import com.dewijones92.totum.data.queue.removingAll
 import com.dewijones92.totum.data.queue.removingAt
 import com.dewijones92.totum.data.targets.QueueMode
 import com.dewijones92.totum.data.targets.Requester
@@ -18,16 +19,20 @@ import com.dewijones92.totum.data.targets.TargetPower
 import com.dewijones92.totum.data.targets.TargetQueueRequest
 import com.dewijones92.totum.data.targets.TargetReporting
 import com.dewijones92.totum.data.targets.TargetState
+import com.dewijones92.totum.data.targets.TargetTrouble
+import com.dewijones92.totum.data.targets.TroubleKind
 import com.dewijones92.totum.data.targets.nextAfterEnd
 import com.dewijones92.totum.data.targets.onATarget
 import com.dewijones92.totum.data.targets.toSnapshot
 import com.dewijones92.totum.data.targets.toTargetEntry
 import com.dewijones92.totum.domain.MediaContentKind
+import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.Picture
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.RepeatMode
 import com.dewijones92.totum.domain.picture
 import com.dewijones92.totum.domain.skipsSilence
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.io.File
@@ -52,7 +57,15 @@ internal class TargetDeck(
     private var queue = QueueSnapshot()
     private var playing = false
     private var destination: String? = null
-    private var problem: String? = null
+    private var problem: Problem? = null
+    private var starting = false
+    private var pending: PendingStart? = null
+    private var placeMs = 0L
+    private var lastSeenMs: Long? = null
+    private var movedAtMs = 0L
+    private var linkMs = 0L
+    private var sinkWaitMs = 0L
+    private var resolveMs = 0L
     private var sound = SoundSettings()
     private var repeat = RepeatMode.OFF
     private var startedAtMs = 0L
@@ -68,24 +81,31 @@ internal class TargetDeck(
         entries = queue.entries.map { provenance.stamp(it.toTargetEntry()) },
         at = queue.currentIndex,
         playing = playing,
-        positionMs = (if (queue.current != null) player.positionMs else null) ?: 0,
+        positionMs = (if (queue.current != null) player.positionMs else null) ?: placeMs,
         durationMs = queue.current?.takeUnless { isLive() }
             ?.let { player.durationMs ?: it.item.item.duration?.inWholeMilliseconds },
         volume = player.volumePercent,
         linked = destination != null,
-        problem = problem ?: player.notice,
+        problem = problem?.text ?: player.notice,
         sound = sound,
         repeat = repeat,
         live = isLive(),
         power = player.power,
+        starting = starting,
+        trouble = problem?.trouble,
     )
 
     private fun isLive(): Boolean = queue.current?.item?.item?.contentKind == MediaContentKind.LIVE || player.live
 
-    suspend fun enqueue(request: TargetQueueRequest): EnqueueResult =
-        reachingFirst(needsLink = true) { enqueueLocked(request) }
+    suspend fun enqueue(request: TargetQueueRequest): EnqueueResult {
+        val accepted = accept(request)
+        if (accepted is EnqueueResult.Accepted) startPending()
+        return if (accepted is EnqueueResult.Accepted) EnqueueResult.Accepted(state()) else accepted
+    }
 
-    private suspend fun enqueueLocked(request: TargetQueueRequest): EnqueueResult {
+    suspend fun accept(request: TargetQueueRequest): EnqueueResult = lock.withLock { acceptLocked(request) }
+
+    private fun acceptLocked(request: TargetQueueRequest): EnqueueResult {
         val wanted = request.playables(random, target.id)
         if (wanted.isEmpty()) {
             Diag.warn("targets", "${target.id}: nothing playable in a ${request.mode} of ${request.items.size}")
@@ -101,22 +121,56 @@ internal class TargetDeck(
             QueueMode.END -> queue.appendingAll(wanted, group)
             QueueMode.PLAY -> queue.insertingAllNext(wanted, group)
         }
+        val starts = request.mode == QueueMode.REPLACE || request.mode == QueueMode.PLAY || !playing
         Diag.log(
             "targets",
             "${target.id}: ${request.mode} ${wanted.size} item(s) group=${group?.title} shuffle=${request.shuffle} " +
                 "from=${request.from?.label}(owner=${request.from?.id == ownerId()}) " +
                 "startItem=${request.startItemId} " +
-                "startAtMs=${request.startAtMs} queue=${queue.entries.size} playing=$playing",
+                "startAtMs=${request.startAtMs} queue=${queue.entries.size} playing=$playing " +
+                "accepted, ${if (starts) "starting it next" else "nothing to start"}",
         )
-        if (request.mode == QueueMode.REPLACE || request.mode == QueueMode.PLAY || !playing) {
+        if (starts) {
             val first = queue.entries.indexOfFirst {
                 it.item.item.id.value == (request.startItemId ?: wanted.first().item.id.value)
             }
-            startAt(first.coerceAtLeast(0), request.startAtMs.takeIf { !request.shuffle } ?: 0)
-        } else {
-            save()
+            pending = PendingStart(first.coerceAtLeast(0), request.startAtMs.takeIf { !request.shuffle } ?: 0)
+            starting = true
         }
+        save()
         return EnqueueResult.Accepted(state())
+    }
+
+    suspend fun startPending() {
+        if (lock.withLock { pending == null }) return
+        reachingFirst(needsLink = true) { startPendingLocked() }
+    }
+
+    private suspend fun startPendingLocked() {
+        val start = pending ?: return
+        pending = null
+        val began = clock()
+        resolveMs = 0
+        try {
+            startAt(start.index, start.startAtMs)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Diag.warn("targets", "${target.id}: starting item ${start.index} failed", e)
+            problem = TroubleWords.problem(
+                target.label,
+                TargetTrouble(TroubleKind.COULD_NOT_PLAY, queue.entries.getOrNull(start.index)?.itemId(), "${e.message}"),
+                queue.entries.getOrNull(start.index)?.item?.item?.title,
+            )
+            playing = false
+        } finally {
+            starting = pending != null
+        }
+        Diag.log(
+            "targets",
+            "${target.id}: start of item ${start.index} done, playing=$playing " +
+                "link=${linkMs}ms sinkWait=${sinkWaitMs}ms resolve=${resolveMs}ms total=${clock() - began + linkMs}ms",
+        )
     }
 
     suspend fun control(control: TargetControl): TargetState =
@@ -136,13 +190,18 @@ internal class TargetDeck(
             }
             TargetAction.PAUSE -> if (playing) {
                 reportProgress(finished = false)
+                captureThePlace()
                 player.pause(true)
                 playing = false
             }
             TargetAction.NEXT -> moveTo(queue.place + 1)
             TargetAction.PREVIOUS -> moveTo((queue.place - 1).coerceAtLeast(0))
             TargetAction.JUMP -> index?.let { moveTo(it) }
-            TargetAction.SEEK -> control.positionMs?.let(player::seek)
+            TargetAction.SEEK -> control.positionMs?.let {
+                player.seek(it)
+                placeMs = it
+                lastSeenMs = null
+            }
             TargetAction.VOLUME -> control.volume?.let {
                 val wanted = it.coerceIn(0, MAX_VOLUME)
                 Diag.log("targets", "${target.id}: volume set to $wanted from the phone")
@@ -152,7 +211,7 @@ internal class TargetDeck(
                 problem = null
                 finish("stopped")
             }
-            TargetAction.REMOVE -> index?.let { remove(it) }
+            TargetAction.REMOVE -> control.itemIds?.let { removeIds(it) } ?: index?.let { remove(it) }
             TargetAction.SOUND -> control.sound?.let { changeSound(it) }
             TargetAction.REPEAT -> control.repeat?.let(::setRepeat)
             TargetAction.WAKE -> woken()
@@ -212,7 +271,12 @@ internal class TargetDeck(
                 if (tooSoon) " (too soon after starting to repeat)" else "",
         )
         if (failed) {
-            problem = "❌ Couldn't play $title: ${player.failure ?: "the player stopped with an error"}"
+            val reason = player.failure ?: "the player stopped with an error"
+            problem = TroubleWords.problem(
+                target.label,
+                TargetTrouble(TroubleKind.COULD_NOT_PLAY, queue.current?.itemId(), reason),
+                title,
+            )
         } else {
             problem = null
             reportProgress(finished = true)
@@ -220,7 +284,8 @@ internal class TargetDeck(
         startAt(next)
     }
 
-    private fun unreachableReason(): String = link.unreachable ?: "⚠️ Couldn't reach ${target.label}"
+    private fun unreachableProblem(): Problem =
+        TroubleWords.problem(target.label, link.unreachable ?: TargetTrouble(TroubleKind.NOT_CONNECTED))
 
     private suspend fun woken() {
         if (destination != null) {
@@ -229,8 +294,8 @@ internal class TargetDeck(
         }
         val reached = reachedAhead
         if (reached == null) {
-            problem = unreachableReason()
-            Diag.warn("targets", "${target.id}: wake asked, $problem")
+            problem = unreachableProblem()
+            Diag.warn("targets", "${target.id}: wake asked, ${problem?.text}")
             return
         }
         problem = null
@@ -249,9 +314,15 @@ internal class TargetDeck(
 
     private suspend fun <T> reachingFirst(needsLink: Boolean, block: suspend () -> T): T {
         val linked = lock.withLock { destination != null }
+        val began = clock()
         val ahead = if (linked || !needsLink) null else link.connect()
+        val connectedFor = clock() - began
         return lock.withLock {
             reachedAhead = ahead
+            if (!linked && needsLink) {
+                linkMs = connectedFor
+                sinkWaitMs = link.sinkWaitMs
+            }
             try {
                 block()
             } finally {
@@ -261,12 +332,84 @@ internal class TargetDeck(
     }
 
     suspend fun tick() = lock.withLock {
-        if (playing) reportProgress(finished = false)
+        if (playing) {
+            reportProgress(finished = false)
+            captureThePlace()
+            save()
+        }
+    }
+
+    suspend fun watch() {
+        if (!lock.tryLock()) return
+        try {
+            watchLocked()
+        } finally {
+            lock.unlock()
+        }
+    }
+
+    private fun watchLocked() {
+        if (!playing || starting) {
+            lastSeenMs = null
+            return
+        }
+        val position = player.positionMs
+        val now = clock()
+        if (position == null || position != lastSeenMs) {
+            lastSeenMs = position
+            movedAtMs = now
+            if (problem?.trouble?.kind == TroubleKind.STALLED) {
+                Diag.log("targets", "${target.id}: moving again at ${position}ms, the stall is over")
+                problem = null
+            }
+            return
+        }
+        if (now - movedAtMs >= STALL_MS && problem == null) {
+            val entry = queue.current
+            val trouble = TargetTrouble(TroubleKind.STALLED, entry?.itemId())
+            problem = TroubleWords.problem(target.label, trouble, entry?.item?.item?.title)
+            Diag.warn(
+                "targets",
+                "${target.id}: no progress for ${now - movedAtMs}ms while playing ${entry?.item?.item?.title} " +
+                    "(stuck at ${position}ms)",
+            )
+        }
+    }
+
+    suspend fun lost(reason: String) = lock.withLock {
+        if (!playing && destination == null) {
+            Diag.log("targets", "${target.id}: connection lost ($reason) with nothing playing, ignored")
+            return@withLock
+        }
+        val entry = queue.current
+        captureThePlace()
+        Diag.warn(
+            "targets",
+            "${target.id}: connection lost ($reason) while ${if (playing) "playing" else "linked"} " +
+                "${entry?.item?.item?.title}; stopping and keeping the place at ${placeMs}ms",
+        )
+        playing = false
+        starting = false
+        problem = TroubleWords.problem(
+            target.label,
+            TargetTrouble(TroubleKind.SWITCHED_OFF, entry?.itemId()),
+            entry?.item?.item?.title,
+        )
+        player.stop()
+        destination = null
+        save()
+    }
+
+    private fun captureThePlace() {
+        val current = queue.current ?: return
+        if (isLive() || current.item.item.contentKind == MediaContentKind.LIVE) return
+        player.positionMs?.let { placeMs = it }
     }
 
     private suspend fun moveTo(index: Int) {
         problem = null
         if (playing) reportProgress(finished = false)
+        placeMs = 0
         startAt(index)
     }
 
@@ -275,8 +418,16 @@ internal class TargetDeck(
         if (queue.current != null && destination != null) {
             player.pause(false)
             playing = true
+            lastSeenMs = null
         } else {
-            startAt(queue.place.coerceAtLeast(0))
+            val index = queue.place.coerceAtLeast(0)
+            val live = queue.entries.getOrNull(index)?.item?.item?.contentKind == MediaContentKind.LIVE
+            Diag.log(
+                "targets",
+                "${target.id}: play from the saved place ${if (live) "(live, at the edge)" else "${placeMs}ms"} " +
+                    "of item $index",
+            )
+            startAt(index, if (live) 0 else placeMs)
         }
     }
 
@@ -294,13 +445,34 @@ internal class TargetDeck(
     private suspend fun startAt(index: Int, startAtMs: Long = 0) {
         var at = index
         while (at in queue.entries.indices) {
+            val reached = destination ?: reachedAhead
+            if (reached == null) {
+                queue = queue.copy(currentIndex = at)
+                problem = unreachableProblem()
+                playing = false
+                Diag.warn(
+                    "targets",
+                    "${target.id}: target unreachable, holding at $at before looking anything up: ${problem?.text}"
+                )
+                save()
+                return
+            }
+            destination = reached
             val item = queue.entries[at].item
             val picture = target.kind.hasPicture && item.picture != Picture.NO
             val itemSound = sound.copy(skipSilence = item.item.contentKind.skipsSilence(sound.skipSilence))
+            val lookedUpAt = clock()
             val stream = sounds.streamFor(item, picture)
+            resolveMs += clock() - lookedUpAt
             if (stream == null) {
                 val why = sounds.whyNone(item)
-                problem = "❌ Couldn't play ${item.item.title}: $why"
+                val until = sounds.refusedUntil(item)
+                val kind = if (until != null) TroubleKind.YOUTUBE_BACKOFF else TroubleKind.COULD_NOT_PLAY
+                problem = TroubleWords.problem(
+                    target.label,
+                    TargetTrouble(kind, item.item.id.value, why, until),
+                    item.item.title,
+                )
                 Diag.warn(
                     "targets",
                     "${target.id}: no stream for ${item.item.id.value} (${item.item.title}) " +
@@ -309,19 +481,14 @@ internal class TargetDeck(
                 at++
                 continue
             }
-            val reached = destination ?: reachedAhead?.also { destination = it }
             queue = queue.copy(currentIndex = at)
-            if (reached == null) {
-                problem = unreachableReason()
-                playing = false
-                Diag.warn("targets", "${target.id}: target unreachable, holding at $at")
-                save()
-                return
-            }
+            placeMs = if (item.item.contentKind == MediaContentKind.LIVE) 0 else startAtMs
             player.play(
                 PlayRequest(stream.url, reached, itemSound, startAtMs, picture, item.item.title, stream.cast)
             )
             playing = true
+            lastSeenMs = null
+            movedAtMs = clock()
             startedAtMs = clock()
             Diag.log(
                 "targets",
@@ -333,7 +500,7 @@ internal class TargetDeck(
             queue.entries.getOrNull(at + 1)?.let { lookAhead(it.item) }
             return
         }
-        finish("reached the end", report = false)
+        finish("reached the end", report = false, keepPlace = false)
     }
 
     private suspend fun reportProgress(finished: Boolean) {
@@ -354,12 +521,25 @@ internal class TargetDeck(
         if (index !in queue.entries.indices) return
         val wasCurrent = index == queue.currentIndex
         queue = queue.removingAt(index)
+        if (wasCurrent) placeMs = 0
         if (wasCurrent && playing) startAt(index)
     }
 
-    private suspend fun finish(why: String, report: Boolean = true) {
+    private suspend fun removeIds(ids: List<String>) {
+        val gone = ids.mapTo(HashSet()) { MediaItemId(it) }
+        val wasCurrent = queue.current?.item?.item?.id in gone
+        val keptBefore = queue.entries.take(queue.currentIndex.coerceAtLeast(0)).count { it.item.item.id !in gone }
+        val before = queue.entries.size
+        queue = queue.removingAll(gone)
+        Diag.log("targets", "${target.id}: removed ${before - queue.entries.size} of ${ids.size} named item(s)")
+        if (wasCurrent) placeMs = 0
+        if (wasCurrent && playing) startAt(keptBefore)
+    }
+
+    private suspend fun finish(why: String, report: Boolean = true, keepPlace: Boolean = true) {
         val wasLinked = destination != null
         if (report && playing) reportProgress(finished = false)
+        if (keepPlace) captureThePlace() else placeMs = 0
         player.stop()
         playing = false
         if (wasLinked) link.release()
@@ -369,7 +549,15 @@ internal class TargetDeck(
     }
 
     private fun save() = store.save(
-        state().copy(playing = false, problem = null, volume = null, live = false, power = TargetPower.ON),
+        state().copy(
+            playing = false,
+            problem = null,
+            volume = null,
+            live = false,
+            power = TargetPower.ON,
+            starting = false,
+            trouble = null,
+        ),
         target.id
     )
 
@@ -379,6 +567,7 @@ internal class TargetDeck(
         sound = saved.sound
         repeat = saved.repeat.takeIf { it.onATarget } ?: RepeatMode.OFF
         provenance.restore(saved.entries)
+        placeMs = saved.positionMs.takeIf { queue.current != null } ?: 0
         Diag.log("targets", "${target.id}: restored ${queue.entries.size} item(s), paused at ${queue.currentIndex}")
     }
 }
@@ -386,6 +575,12 @@ internal class TargetDeck(
 private const val MAX_VOLUME = 100
 
 private const val MIN_REPEAT_PLAY_MS = 2_000L
+
+private const val STALL_MS = 20_000L
+
+private fun QueueEntry.itemId(): String = item.item.id.value
+
+private class PendingStart(val index: Int, val startAtMs: Long)
 
 private val INDEXED_ACTIONS = setOf(TargetAction.JUMP, TargetAction.REMOVE)
 

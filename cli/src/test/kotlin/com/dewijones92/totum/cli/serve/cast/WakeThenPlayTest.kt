@@ -12,6 +12,7 @@ import com.dewijones92.totum.data.targets.TargetControl
 import com.dewijones92.totum.data.targets.TargetKind
 import com.dewijones92.totum.data.targets.TargetPower
 import com.dewijones92.totum.data.targets.TargetQueueRequest
+import com.dewijones92.totum.data.targets.TroubleKind
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.yield
 import org.junit.Assert.assertEquals
@@ -54,6 +55,7 @@ class WakeThenPlayTest {
     private fun deckWith(wake: TvWake?): TargetDeck {
         val streams = PiStreams(ProcessedSound("ffmpeg-not-run") { null }, null, 0)
         val player = ChromecastPlayer("LG TV", control, streams, wake = wake, clock = { now })
+        player.onLost = { reason -> runBlocking { deck.lost(reason) } }
         return TargetDeck(
             Target("lg-tv", "LG TV", TargetKind.TV),
             player,
@@ -100,6 +102,36 @@ class WakeThenPlayTest {
     }
 
     @Test
+    fun `a TV switched off mid-item stops the deck asleep with its place kept, and play wakes it and resumes`() =
+        runBlocking {
+            answersFromProbe = 0
+            deckWith(wake())
+            play()
+            control.reading = CastReading(positionMs = 42_000, durationMs = 60_000, playing = true, atMs = now)
+            assertEquals(1, control.loads.size)
+
+            probes = 0
+            answersFromProbe = 3
+            control.onLost("the connection to LG TV was LOST")
+
+            val off = deck.state()
+            assertEquals(false, off.playing)
+            assertEquals(TargetPower.ASLEEP, off.power)
+            assertEquals(TroubleKind.SWITCHED_OFF, off.trouble?.kind)
+            assertEquals("📺 LG TV was switched off", off.problem)
+            assertEquals(42_000L, off.positionMs)
+            assertEquals(0, off.at)
+
+            val woken = deck.control(TargetControl(TargetAction.PLAY))
+
+            assertTrue("the wake was sent: $sent", sent.isNotEmpty())
+            assertEquals(2, control.loads.size)
+            assertEquals(42_000L, control.loads.last().startAtMs)
+            assertTrue(woken.playing)
+            assertNull(woken.trouble)
+        }
+
+    @Test
     fun `a TV that already answers is played to without a wake`() {
         answersFromProbe = 0
         deckWith(wake())
@@ -119,7 +151,8 @@ class WakeThenPlayTest {
         val result = play() as EnqueueResult.Accepted
 
         assertTrue(sent.isEmpty())
-        assertEquals("⚠️ Couldn't reach LG TV", result.state.problem)
+        assertEquals("📶 Couldn't reach LG TV: it isn't connected (off or out of range)", result.state.problem)
+        assertEquals(TroubleKind.NOT_CONNECTED, result.state.trouble?.kind)
         assertEquals(TargetPower.ON, result.state.power)
     }
 
@@ -144,7 +177,8 @@ class WakeThenPlayTest {
         val result = play() as EnqueueResult.Accepted
 
         assertEquals(2, control.reachableAsked)
-        assertEquals("⚠️ Couldn't reach LG TV", result.state.problem)
+        assertEquals("📶 Couldn't reach LG TV: it isn't connected (off or out of range)", result.state.problem)
+        assertEquals(TroubleKind.NOT_CONNECTED, result.state.trouble?.kind)
     }
 
     @Test

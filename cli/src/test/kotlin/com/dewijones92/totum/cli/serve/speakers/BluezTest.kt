@@ -1,5 +1,6 @@
 package com.dewijones92.totum.cli.serve.speakers
 
+import com.dewijones92.totum.data.targets.TroubleKind
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -61,5 +62,31 @@ class BluezTest {
         assertFalse(shell.ran.any { it.startsWith("bluetoothctl connect") || it.startsWith("bluetoothctl disconnect") })
         val off = FakeShell().apply { linksOnConnect = false }
         assertNull(BluezLink("54:15:89:76:CD:A4", off, pollMs = 0, tries = 2).connect())
+    }
+
+    @Test
+    fun `a speaker that never links is not connected, and one switched on by hand says to switch it on`() = runBlocking {
+        val off = FakeShell().apply { linksOnConnect = false }
+        val link = BluezLink("54:15:89:76:CD:A4", off, pollMs = 0, tries = 2)
+        assertNull(link.unreachable)
+
+        link.connect()
+
+        assertEquals(TroubleKind.NOT_CONNECTED, link.unreachable?.kind)
+        val byHand = BluezLink("54:15:89:76:CD:A4", off, pollMs = 0, tries = 2, switchedOnByHand = true)
+        byHand.connect()
+        assertEquals(TroubleKind.SWITCH_ON, byHand.unreachable?.kind)
+    }
+
+    @Test
+    fun `a link that works clears the reason, and says how long it waited for the sink`() = runBlocking {
+        val shell = FakeShell()
+        var now = 1_000L
+        val link = BluezLink("54:15:89:76:CD:A4", shell, pollMs = 0, clock = { now.also { now += 250 } })
+
+        link.connect()
+
+        assertNull(link.unreachable)
+        assertTrue("waited ${link.sinkWaitMs}ms", link.sinkWaitMs >= 250)
     }
 }

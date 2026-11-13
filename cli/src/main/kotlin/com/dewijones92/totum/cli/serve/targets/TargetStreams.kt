@@ -3,6 +3,7 @@ package com.dewijones92.totum.cli.serve.targets
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.jellyfin.isJellyfin
 import com.dewijones92.totum.data.jellyfin.jellyfinId
+import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.playback.cast.CastItem
@@ -12,6 +13,7 @@ internal class TargetStreams(
     private val fromHome: suspend (PlayableItem, Boolean) -> String?,
     private val jellyfin: ((String) -> String)?,
     private val files: SoundFiles = SoundFiles(File("/sounds")),
+    private val liveRefusedUntil: () -> Long? = { null },
     private val castFromHome: (suspend (PlayableItem, Boolean) -> CastItem?)? = null,
 ) : TargetSounds {
 
@@ -30,6 +32,10 @@ internal class TargetStreams(
     }
 
     override suspend fun urlFor(item: PlayableItem, picture: Boolean): String? {
+        refusedUntil(item, picture)?.let {
+            Diag.warn("targets", "${item.item.id.value}: a live stream for a speaker, and YouTube is refusing the Pi until $it")
+            return null
+        }
         when (val file = files.resolve(item)) {
             is FileAnswer.Found -> return file.file.path
             is FileAnswer.Refused -> return null
@@ -45,10 +51,16 @@ internal class TargetStreams(
         return jellyfin?.invoke(id)
     }
 
+    override fun refusedUntil(item: PlayableItem): Long? = refusedUntil(item, picture = false)
+
+    private fun refusedUntil(item: PlayableItem, picture: Boolean): Long? =
+        liveRefusedUntil().takeIf { !picture && item.item.contentKind == MediaContentKind.LIVE && item.handle is PlayHandle.Video }
+
     override fun whyNone(item: PlayableItem): String {
         val file = files.resolve(item)
         return when {
             file is FileAnswer.Refused -> file.why
+            refusedUntil(item) != null -> "YouTube is refusing the Pi for now"
             item.item.id.isJellyfin && jellyfin == null -> "Jellyfin is not set up on this Pi"
             else -> super.whyNone(item)
         }

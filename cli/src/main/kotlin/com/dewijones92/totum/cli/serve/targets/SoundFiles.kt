@@ -35,6 +35,8 @@ internal class SoundFiles(private val root: File) {
             !inside -> FileAnswer.Refused(ONLY_SOUNDS)
             !file.exists() -> FileAnswer.Refused("there is no sound file called $name on the Pi")
             !file.isFile -> FileAnswer.Refused("$name is not a sound file")
+            file.extension.lowercase() !in AUDIO_EXTENSIONS ->
+                FileAnswer.Refused("$name is not an audio file (${AUDIO_EXTENSIONS.joinToString(", ")})")
             else -> FileAnswer.Found(file)
         }
     }
@@ -43,6 +45,7 @@ internal class SoundFiles(private val root: File) {
         const val SCHEME = "file:"
         const val PREFIX = "file:///sounds/"
         const val ONLY_SOUNDS = "only sound files in the sounds folder can be played from the Pi"
+        val AUDIO_EXTENSIONS = listOf("mp3", "m4a", "aac", "ogg", "oga", "opus", "flac", "wav")
         val NAME = Regex("""[A-Za-z0-9][A-Za-z0-9._ -]*""")
     }
 }

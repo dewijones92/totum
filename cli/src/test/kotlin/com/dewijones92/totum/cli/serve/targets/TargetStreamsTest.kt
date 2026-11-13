@@ -115,6 +115,36 @@ class TargetStreamsTest {
     private fun withHome(cast: CastItem?) =
         TargetStreams({ _, picture -> "https://home/audio:$picture" }, null, SoundFiles(sounds)) { _, _ -> cast }
 
+    private val live = youtube.copy(item = youtube.item.copy(contentKind = com.dewijones92.totum.domain.MediaContentKind.LIVE))
+
+    @Test
+    fun `live on a speaker while YouTube is refusing the Pi has no stream, and says until when`() = runBlocking {
+        val streams = TargetStreams(
+            { _, _ -> "https://home/live" },
+            null,
+            SoundFiles(sounds),
+            liveRefusedUntil = { 1_700_000_000_000 },
+        )
+
+        assertEquals(null, streams.streamFor(live, picture = false))
+        assertEquals(1_700_000_000_000, streams.refusedUntil(live))
+        assertEquals("YouTube is refusing the Pi for now", streams.whyNone(live))
+    }
+
+    @Test
+    fun `a back-off touches neither a recorded video nor a TV's live picture`() = runBlocking {
+        val streams = TargetStreams(
+            { _, picture -> "https://home/audio:$picture" },
+            null,
+            SoundFiles(sounds),
+            liveRefusedUntil = { 1_700_000_000_000 },
+        )
+
+        assertEquals("https://home/audio:false", streams.streamFor(youtube, picture = false)?.url)
+        assertEquals(null, streams.refusedUntil(youtube))
+        assertEquals("https://home/audio:true", streams.streamFor(live, picture = true)?.url)
+    }
+
     @Test
     fun `a YouTube picture for a TV is the phone's pair of streams and its ladder`() = runBlocking {
         val stream = withHome(ladder).streamFor(youtube, picture = true)!!

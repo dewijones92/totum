@@ -7,6 +7,8 @@ import com.dewijones92.totum.cli.serve.targets.TargetSource
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.targets.Target
 import com.dewijones92.totum.data.targets.TargetKind
+import com.dewijones92.totum.data.targets.TargetTrouble
+import com.dewijones92.totum.data.targets.TroubleKind
 import kotlinx.coroutines.delay
 
 internal data class FoundSpeaker(val speaker: Target, val mac: String)
@@ -50,11 +52,21 @@ internal class BluezLink(
     private val shell: Shell,
     private val pollMs: Long = POLL_MS,
     private val tries: Int = TRIES,
+    private val switchedOnByHand: Boolean = false,
+    private val clock: () -> Long = System::currentTimeMillis,
 ) : TargetLink {
     private val sink = "bluez_sink.${mac.replace(':', '_')}.a2dp_sink"
     private var connectedHere = false
 
+    @Volatile override var unreachable: TargetTrouble? = null
+        private set
+
+    @Volatile override var sinkWaitMs: Long = 0
+        private set
+
     override suspend fun connect(): String? {
+        unreachable = null
+        sinkWaitMs = 0
         if (sinkIndex() != null) {
             Diag.log("speakers", "$mac already linked, sink $sink")
             return sink
@@ -63,15 +75,22 @@ internal class BluezLink(
             "speakers",
             "linking $mac: ${shell.run(listOf("bluetoothctl", "connect", mac))?.trim()?.lines()?.lastOrNull()}"
         )
+        val waitingSince = clock()
         repeat(tries) { attempt ->
             if (sinkIndex() != null) {
                 connectedHere = true
+                sinkWaitMs = clock() - waitingSince
                 Diag.log("speakers", "$mac linked after ${attempt + 1} look(s), sink $sink")
                 return sink
             }
             delay(pollMs)
         }
-        Diag.warn("speakers", "$mac: no sink $sink after ${tries * pollMs / MS_PER_S}s")
+        sinkWaitMs = clock() - waitingSince
+        unreachable = TargetTrouble(if (switchedOnByHand) TroubleKind.SWITCH_ON else TroubleKind.NOT_CONNECTED)
+        Diag.warn(
+            "speakers",
+            "$mac: no sink $sink after ${tries * pollMs / MS_PER_S}s (${unreachable?.kind}, switchedOnByHand=$switchedOnByHand)"
+        )
         return null
     }
 
@@ -108,12 +127,17 @@ internal class SpeakerSource(
     private val shell: Shell,
     private val dir: java.io.File,
     private val locally: (label: String, url: String) -> String = { _, url -> url },
+    private val switchedOnByHand: Set<String> = emptySet(),
 ) : TargetSource {
     private val discovery = BluezSpeakers(shell)
 
     override suspend fun find(fresh: Boolean): List<FoundTarget> = discovery.find().map { found ->
         FoundTarget(found.speaker) {
-            TargetKit(MpvPlayer(found.speaker.id, dir, locally = locally), BluezLink(found.mac, shell))
+            val byHand = found.speaker.id in switchedOnByHand || found.speaker.label.lowercase() in switchedOnByHand
+            TargetKit(
+                MpvPlayer(found.speaker.id, dir, locally = locally),
+                BluezLink(found.mac, shell, switchedOnByHand = byHand),
+            )
         }
     }
 }
