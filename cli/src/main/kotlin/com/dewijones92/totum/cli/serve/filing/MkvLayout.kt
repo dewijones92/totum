@@ -21,6 +21,7 @@ enum class MkvLayout {
         private const val MAX_ID_BYTES = 4
         private const val MAX_SIZE_BYTES = 8
         private const val UNKNOWN_SIZE = -1L
+        private const val BYTE_MASK = 0xFF
 
         fun of(file: File): MkvLayout = try {
             RandomAccessFile(file, "r").use(::layoutOf)
@@ -30,12 +31,19 @@ enum class MkvLayout {
         }
 
         private fun layoutOf(input: RandomAccessFile): MkvLayout {
-            val head = header(input) ?: return NOT_MKV
-            if (head.id != EBML || head.size < 0) return NOT_MKV
-            input.seek(input.filePointer + head.size)
+            val head = header(input)
+            if (head == null || head.id != EBML || head.size < 0) return NOT_MKV
+            skip(input, head.size)
             val segment = header(input) ?: return UNREADABLE
-            if (segment.id != SEGMENT) return NOT_MKV
-            val end = if (segment.size < 0) input.length() else minOf(input.length(), input.filePointer + segment.size)
+            return if (segment.id != SEGMENT) NOT_MKV else firstOf(input, endOf(input, segment))
+        }
+
+        private fun skip(input: RandomAccessFile, bytes: Long) = input.seek(input.filePointer + bytes)
+
+        private fun endOf(input: RandomAccessFile, segment: Header): Long =
+            if (segment.size < 0) input.length() else minOf(input.length(), input.filePointer + segment.size)
+
+        private fun firstOf(input: RandomAccessFile, end: Long): MkvLayout {
             repeat(MAX_ELEMENTS) {
                 if (input.filePointer >= end) return UNREADABLE
                 val child = header(input) ?: return UNREADABLE
@@ -43,7 +51,7 @@ enum class MkvLayout {
                     child.id == TRACKS -> return TRACKS_FIRST
                     child.id == CLUSTER -> return TRACKS_AFTER_CLUSTERS
                     child.size < 0 -> return UNREADABLE
-                    else -> input.seek(input.filePointer + child.size)
+                    else -> skip(input, child.size)
                 }
             }
             return UNREADABLE
@@ -64,13 +72,13 @@ enum class MkvLayout {
             if (first < 0) return null
             val length = Integer.numberOfLeadingZeros(first) - (Int.SIZE_BITS - Byte.SIZE_BITS) + 1
             if (length !in 1..maxBytes) return null
-            val payloadMask = 0xFF shr length
+            val payloadMask = BYTE_MASK shr length
             var value = if (keepMarker) first.toLong() else (first and payloadMask).toLong()
             var allOnes = (first and payloadMask) == payloadMask
             repeat(length - 1) {
                 val next = input.read()
                 if (next < 0) return null
-                if (next != 0xFF) allOnes = false
+                if (next != BYTE_MASK) allOnes = false
                 value = (value shl Byte.SIZE_BITS) or next.toLong()
             }
             return Vint(value, unknown = allOnes && !keepMarker)

@@ -64,7 +64,9 @@ internal class HomeFollower(
                 val end = known.map { it[MediaItemId(job.id)] }
                     .onEach {
                         progress.report(step = it?.percent() ?: 0, steps = PERCENT)
-                        progress.retrying(it?.retry?.let { r -> Retrying(r.attempt, r.of, r.atEpochMs, it.error.orEmpty()) })
+                        progress.retrying(
+                            it?.retry?.let { r -> Retrying(r.attempt, r.of, r.atEpochMs, it.error.orEmpty()) }
+                        )
                     }
                     .mapNotNull { endOf(it) }
                     .first()

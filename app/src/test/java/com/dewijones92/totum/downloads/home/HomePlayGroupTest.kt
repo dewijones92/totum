@@ -63,7 +63,11 @@ class HomePlayGroupTest {
 
     @Test
     fun `a file that is not a torrent's is never grouped`() {
-        val video = job("abc", 1, "Video").let { it.copy(id = "abcdefghijk", item = it.item.copy(itemId = "abcdefghijk")) }
+        val video = job(
+            "abc",
+            1,
+            "Video"
+        ).let { it.copy(id = "abcdefghijk", item = it.item.copy(itemId = "abcdefghijk")) }
 
         assertNull(homePlayOf(video.item.toPlayable()!!, listOf(video, film), emptySet()))
     }

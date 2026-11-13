@@ -39,7 +39,9 @@ class CinemetaTest {
 
     @Test
     fun `a release name is looked up by its title and year and wears the poster for the IMDb id`() = runTest {
-        catalogue("Spinal%20Tap%20II%3A%20The%20End%20Continues" to ("tt9999999" to "Spinal Tap II: The End Continues|2025"))
+        catalogue(
+            "Spinal%20Tap%20II%3A%20The%20End%20Continues" to ("tt9999999" to "Spinal Tap II: The End Continues|2025")
+        )
 
         val poster = cinemeta().posterFor(
             "Spinal Tap II: The End Continues (2025) (1080p BluRay x265 10bit EAC3 Atmos 7.1 r00t) [QxR]",

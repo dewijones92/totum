@@ -325,6 +325,7 @@ class DefaultDownloadManagerTest {
 
         assertEquals(listOf(false), requested)
     }
+
     @Test
     fun `asking again for a download still running says it is being downloaded, not that it is on the phone`() =
         runTest {
@@ -431,7 +432,6 @@ private class SlowToCommit(private val delegate: DownloadStore) : DownloadStore 
         delay(1)
         return delegate.get(id)
     }
-
 }
 
 private data class PlayableAndState(

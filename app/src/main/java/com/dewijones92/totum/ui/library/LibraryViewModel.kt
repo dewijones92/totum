@@ -6,11 +6,11 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
-import com.dewijones92.totum.data.torrent.extraIds
 import com.dewijones92.totum.data.download.DownloadManager
 import com.dewijones92.totum.data.download.RetryPlan
 import com.dewijones92.totum.data.download.clearFailed
 import com.dewijones92.totum.data.queue.QueueGroup
+import com.dewijones92.totum.data.torrent.extraIds
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.CleanupCandidate
 import com.dewijones92.totum.domain.CleanupGroup
@@ -21,11 +21,11 @@ import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayState
 import com.dewijones92.totum.domain.PlayableItem
-import com.dewijones92.totum.downloads.home.HomePlay
-import com.dewijones92.totum.downloads.home.homePlayOf
 import com.dewijones92.totum.domain.StorageUsage
 import com.dewijones92.totum.domain.formatBytes
 import com.dewijones92.totum.domain.suggestCleanup
+import com.dewijones92.totum.downloads.home.HomePlay
+import com.dewijones92.totum.downloads.home.homePlayOf
 import com.dewijones92.totum.operations.Operations
 import com.dewijones92.totum.operations.showing
 import com.dewijones92.totum.queue.PlaybackQueue

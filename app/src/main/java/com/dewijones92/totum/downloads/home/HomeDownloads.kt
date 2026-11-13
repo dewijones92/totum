@@ -10,8 +10,8 @@ import com.dewijones92.totum.data.home.HomeJobRequest
 import com.dewijones92.totum.data.home.HomeJobState
 import com.dewijones92.totum.data.home.HomeJobsApi
 import com.dewijones92.totum.data.home.HomeProblem
-import com.dewijones92.totum.data.home.busy
 import com.dewijones92.totum.data.home.PhoneDecoder
+import com.dewijones92.totum.data.home.busy
 import com.dewijones92.totum.data.targets.Requester
 import com.dewijones92.totum.domain.HomeCopy
 import com.dewijones92.totum.domain.ItemShields

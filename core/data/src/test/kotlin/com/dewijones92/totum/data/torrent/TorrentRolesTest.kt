@@ -78,7 +78,10 @@ class TorrentRolesTest {
 
     @Test
     fun `the clean name drops the release tail and keeps the year`() {
-        assertEquals("Toy Story 5 (2026)", TorrentNames.clean("Toy.Story.5.2026.1080p.WEBRip.10Bit.DDP5.1.x265-NeoNoir"))
+        assertEquals(
+            "Toy Story 5 (2026)",
+            TorrentNames.clean("Toy.Story.5.2026.1080p.WEBRip.10Bit.DDP5.1.x265-NeoNoir")
+        )
         assertEquals("Some Show", TorrentNames.clean("Some.Show.S01.1080p-GROUP"))
         assertEquals("plain name", TorrentNames.clean("plain name"))
     }

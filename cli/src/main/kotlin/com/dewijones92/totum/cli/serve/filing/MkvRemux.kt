@@ -52,8 +52,12 @@ internal class MkvRemux(
             return failed(video, problem)
         }
         return try {
-            val replace = arrayOf(StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
-            Files.move(temp.toPath(), video.toPath(), *replace)
+            Files.move(
+                temp.toPath(),
+                video.toPath(),
+                StandardCopyOption.REPLACE_EXISTING,
+                StandardCopyOption.ATOMIC_MOVE,
+            )
             Diag.log("filing", "${video.name}: remuxed so Tracks come first (${size}B -> ${after}B)")
             MkvRemuxOutcome.Fixed(size, after)
         } catch (e: IOException) {

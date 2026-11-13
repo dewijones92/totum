@@ -77,24 +77,24 @@ class HomeJobsScreenTest {
         rule.setContent {
             TotumTheme {
                 androidx.compose.runtime.CompositionLocalProvider(LocalHomeJobs provides known) {
-                DownloadsContent(
-                    downloaded = emptyList(),
-                    inProgress = emptyList(),
-                    failed = emptyList(),
-                    storage = StorageUsage(itemCount = 0, usedBytes = 0, freeBytes = null),
-                    sort = DownloadSort.DEFAULT,
-                    onBack = {},
-                    onPlay = {},
-                    onDelete = {},
-                    onCancel = {},
-                    onCancelAll = {},
-                    onRetry = {},
-                    onDismiss = {},
-                    onAddToPlaylist = {},
-                    onSetSort = {},
-                    sections = Sections(current = DownloadsSection.AT_HOME),
-                    home = HomeSection(available = true, jobs = jobs),
-                )
+                    DownloadsContent(
+                        downloaded = emptyList(),
+                        inProgress = emptyList(),
+                        failed = emptyList(),
+                        storage = StorageUsage(itemCount = 0, usedBytes = 0, freeBytes = null),
+                        sort = DownloadSort.DEFAULT,
+                        onBack = {},
+                        onPlay = {},
+                        onDelete = {},
+                        onCancel = {},
+                        onCancelAll = {},
+                        onRetry = {},
+                        onDismiss = {},
+                        onAddToPlaylist = {},
+                        onSetSort = {},
+                        sections = Sections(current = DownloadsSection.AT_HOME),
+                        home = HomeSection(available = true, jobs = jobs),
+                    )
                 }
             }
         }

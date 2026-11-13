@@ -15,8 +15,8 @@ import com.dewijones92.totum.cli.serve.filing.Filing
 import com.dewijones92.totum.cli.serve.filing.FolderLibrary
 import com.dewijones92.totum.cli.serve.filing.Jellyfin
 import com.dewijones92.totum.cli.serve.filing.LibraryFiler
-import com.dewijones92.totum.cli.serve.filing.Shelf
 import com.dewijones92.totum.cli.serve.filing.MkvRemux
+import com.dewijones92.totum.cli.serve.filing.Shelf
 import com.dewijones92.totum.cli.serve.filing.SidecarMaker
 import com.dewijones92.totum.cli.serve.jellyfin.JellyfinBrowse
 import com.dewijones92.totum.cli.serve.jellyfin.JellyfinNotSetUp
@@ -35,12 +35,12 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.ask.AskAnswer
 import com.dewijones92.totum.data.ask.AskJob
 import com.dewijones92.totum.data.ask.AskJson
-import com.dewijones92.totum.data.torrent.Cinemeta
 import com.dewijones92.totum.data.ask.AskRequest
 import com.dewijones92.totum.data.ask.JobState
 import com.dewijones92.totum.data.ask.VetAnswer
 import com.dewijones92.totum.data.ask.VetRequest
 import com.dewijones92.totum.data.home.HomeProblem
+import com.dewijones92.totum.data.torrent.Cinemeta
 import com.dewijones92.totum.polite.Politeness
 import com.sun.net.httpserver.HttpExchange
 import com.sun.net.httpserver.HttpServer
@@ -236,7 +236,6 @@ internal suspend fun serveAsk(port: Int, out: (String) -> Unit, polite: Politene
     val brain = brainFromEnv()
     val jellyfin = jellyfinFromEnv()
     val downloadDir = File(System.getenv("TOTUM_DOWNLOADS") ?: "${System.getProperty("user.home")}/totum-downloads")
-    val filingProblems = FilingProblems()
     val health = HomeHealth(
         HomeHealth.Probes(
             freeBytes = { downloadDir.apply { mkdirs() }.usableSpace },
@@ -244,14 +243,13 @@ internal suspend fun serveAsk(port: Int, out: (String) -> Unit, polite: Politene
             jellyfin = jellyfin?.let { j -> { withContext(Dispatchers.IO) { j.reachable() } } },
             youTube = polite,
         ),
-        filing = filingProblems,
     )
     val home = HomeDownloads(
         dataDir = File(System.getenv("TOTUM_DATA") ?: "${System.getProperty("user.home")}/.totum"),
         downloadDir = downloadDir,
         scope = this,
         rewrites = rewritesFrom(System.getenv("TOTUM_REWRITE")),
-        filer = filerFromEnv(brain, jellyfin, problems = filingProblems),
+        filer = filerFromEnv(brain, jellyfin, problems = health.filing),
         health = health,
         polite = polite,
         posterFor = Cinemeta(OkHttpClient())::posterFor,

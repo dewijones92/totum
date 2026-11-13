@@ -15,7 +15,7 @@ public object TorrentRoles {
             Diag.log(
                 "torrent",
                 "${torrent.hash.take(HASH_CHARS)} \"${torrent.name}\" file roles: " +
-                    roled.joinToString(" | ") { "#${it.file.index} ${it.role.name.lowercase()} (${it.file.sizeBytes}B)" },
+                    roled.joinToString(" | ") { file -> describe(file) },
             )
         }
     }
@@ -42,6 +42,9 @@ public object TorrentRoles {
         }
         return playable.map { RoledFile(it, if (it == promoted) TorrentFileRole.MAIN else roles.getValue(it)) }
     }
+
+    private fun describe(roled: RoledFile): String =
+        "#${roled.file.index} ${roled.role.name.lowercase()} (${roled.file.sizeBytes}B)"
 
     private fun TorrentFile.inFolder(pattern: Regex): Boolean =
         path.split('/').dropLast(1).any { pattern.containsMatchIn(it.trim()) }

@@ -77,8 +77,8 @@ import com.dewijones92.totum.ui.common.rememberRemoveWithUndo
 import com.dewijones92.totum.ui.music.AlbumRow
 import com.dewijones92.totum.ui.music.ArtistRow
 import com.dewijones92.totum.ui.search.BookHitRow
-import com.dewijones92.totum.ui.search.LocalTorrentMenu
 import com.dewijones92.totum.ui.search.LocalTorrentExtras
+import com.dewijones92.totum.ui.search.LocalTorrentMenu
 import com.dewijones92.totum.ui.search.LocalTorrentProgress
 import com.dewijones92.totum.ui.search.PodcastHitRow
 import com.dewijones92.totum.ui.search.SearchScope

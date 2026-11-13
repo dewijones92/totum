@@ -19,6 +19,7 @@ import java.time.Instant
  * `MediaItem.mediaUrl` takes it unchanged and there is no new playback path, no new download
  * strategy, and nothing about pieces or peers anywhere in the app.
  */
+@Suppress("TooManyFunctions")
 public interface HomeTorrentServer {
 
     /** Results ordered by the caller's preference, or a failure that says why. */

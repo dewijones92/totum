@@ -79,7 +79,7 @@ public object TorrentPlayables {
         Diag.log(
             "torrent",
             "\"${torrent.name}\" artwork: " +
-                (found?.let { "looked up by title and year, $it" } ?: "none (no poster from its site, none found by title)"),
+                (found?.let { "looked up by title and year, $it" } ?: "none (none from its site, none found by title)"),
         )
         return found
     }

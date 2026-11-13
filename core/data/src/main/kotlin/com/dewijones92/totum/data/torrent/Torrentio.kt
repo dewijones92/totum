@@ -10,9 +10,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.OkHttpClient
-import okhttp3.Request
 import java.io.IOException
-import java.net.URLEncoder
 import kotlin.time.TimeSource
 
 public class Torrentio(
@@ -69,7 +67,11 @@ public class Torrentio(
         return results
     }
 
-    private suspend fun catalogue(kind: String, asked: Asked): Cinemeta.Meta? = cinemeta.find(kind, asked.title, asked.year)
+    private suspend fun catalogue(kind: String, asked: Asked): Cinemeta.Meta? = cinemeta.find(
+        kind,
+        asked.title,
+        asked.year
+    )
 
     private suspend fun get(url: String): String? = cinemeta.get(url)
 
@@ -124,8 +126,5 @@ public class Torrentio(
 
         private fun sizeOf(amount: String, unit: String): Long? =
             amount.toDoubleOrNull()?.let { Math.round(it * UNITS.getValue(unit)) }
-
-        private fun String.wordsOf(): Set<String> =
-            lowercase().split(Regex("""[^\p{L}\p{N}]+""")).filter { it.isNotEmpty() }.toSet()
     }
 }

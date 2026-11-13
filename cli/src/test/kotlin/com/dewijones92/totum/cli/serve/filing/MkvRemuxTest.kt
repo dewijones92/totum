@@ -21,7 +21,9 @@ class MkvRemuxTest {
 
     private fun element(idHex: String, payload: ByteArray = ByteArray(0)): ByteArray {
         val size = payload.size
-        val sizeBytes = if (size < 0x7F) byteArrayOf((0x80 or size).toByte()) else {
+        val sizeBytes = if (size < 0x7F) {
+            byteArrayOf((0x80 or size).toByte())
+        } else {
             byteArrayOf(0x40.or(size shr 8).toByte(), size.toByte())
         }
         return id(idHex) + sizeBytes + payload

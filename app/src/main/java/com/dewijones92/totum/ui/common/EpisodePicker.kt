@@ -6,18 +6,18 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -33,12 +33,12 @@ import com.dewijones92.totum.R
 import com.dewijones92.totum.data.download.DownloadManager
 import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.ItemShield
-import com.dewijones92.totum.domain.MediaItemId
-import com.dewijones92.totum.domain.PlayableItem
-import com.dewijones92.totum.domain.formatBytes
 import com.dewijones92.totum.domain.MediaItem
+import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayState
+import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.QualityLabel
+import com.dewijones92.totum.domain.formatBytes
 import com.dewijones92.totum.domain.searchableText
 import com.dewijones92.totum.domain.titleOf
 import com.dewijones92.totum.downloads.EpisodeDownloads
@@ -75,8 +75,6 @@ internal fun EpisodePicker(
         )
     }
     val onPhone = current.items.count { known[it.item.id] is DownloadState.Downloaded }
-    val plays = LocalPlayStates.current
-    val shield = LocalItemShield.current
     var extrasOpen by rememberSaveable(current.title) { mutableStateOf(false) }
     AlertDialog(
         onDismissRequest = episodes::dismiss,
@@ -111,37 +109,15 @@ internal fun EpisodePicker(
                             Text(stringResource(R.string.episodes_none))
                         }
                     }
-                    LazyColumn(Modifier.heightIn(max = LIST_MAX_HEIGHT)) {
-                        items(mainRows, key = { it.item.id.value }) { item ->
-                            PickerRow(item, current, known, plays, shield, checked = item.item.id in ticked) { on ->
-                                ticked = if (on) ticked + item.item.id else ticked - item.item.id
-                            }
-                        }
-                        if (extraRows.isNotEmpty()) {
-                            item(key = "extras-toggle") {
-                                TextButton(
-                                    onClick = { extrasOpen = !extrasOpen },
-                                    modifier = Modifier.testTag(EPISODE_EXTRAS_TAG),
-                                ) {
-                                    Text(
-                                        stringResource(
-                                            if (extrasOpen) R.string.episodes_extras_open else R.string.episodes_extras,
-                                            extraRows.size,
-                                            formatBytes(extraRows.sumOf { sizeOf(current, it) }),
-                                        ),
-                                    )
-                                }
-                            }
-                            if (extrasOpen) {
-                                items(extraRows, key = { it.item.id.value }) { item ->
-                                    val on = item.item.id in ticked
-                                    PickerRow(item, current, known, plays, shield, checked = on) { now ->
-                                        ticked = if (now) ticked + item.item.id else ticked - item.item.id
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    PickerList(
+                        mainRows,
+                        extraRows,
+                        current,
+                        known,
+                        ticked,
+                        extrasOpen,
+                        onToggleExtras = { extrasOpen = !extrasOpen },
+                    ) { id, on -> ticked = if (on) ticked + id else ticked - id }
                 }
             }
         },
@@ -153,6 +129,48 @@ internal fun EpisodePicker(
         },
         dismissButton = { TextButton(onClick = episodes::dismiss) { Text(stringResource(R.string.cancel)) } },
     )
+}
+
+@Composable
+private fun PickerList(
+    mainRows: List<PlayableItem>,
+    extraRows: List<PlayableItem>,
+    ask: EpisodeDownloads.Ask,
+    known: Map<MediaItemId, DownloadState>,
+    ticked: Set<MediaItemId>,
+    extrasOpen: Boolean,
+    onToggleExtras: () -> Unit,
+    onTick: (MediaItemId, Boolean) -> Unit,
+) {
+    val plays = LocalPlayStates.current
+    val shield = LocalItemShield.current
+    LazyColumn(Modifier.heightIn(max = LIST_MAX_HEIGHT)) {
+        items(mainRows, key = { it.item.id.value }) { item ->
+            PickerRow(item, ask, known, plays, shield, checked = item.item.id in ticked) { on ->
+                onTick(item.item.id, on)
+            }
+        }
+        if (extraRows.isNotEmpty()) {
+            item(key = "extras-toggle") {
+                TextButton(onClick = onToggleExtras, modifier = Modifier.testTag(EPISODE_EXTRAS_TAG)) {
+                    Text(
+                        stringResource(
+                            if (extrasOpen) R.string.episodes_extras_open else R.string.episodes_extras,
+                            extraRows.size,
+                            formatBytes(extraRows.sumOf { sizeOf(ask, it) }),
+                        ),
+                    )
+                }
+            }
+            if (extrasOpen) {
+                items(extraRows, key = { it.item.id.value }) { item ->
+                    PickerRow(item, ask, known, plays, shield, checked = item.item.id in ticked) { on ->
+                        onTick(item.item.id, on)
+                    }
+                }
+            }
+        }
+    }
 }
 
 private fun sizeOf(ask: EpisodeDownloads.Ask, item: PlayableItem): Long = ask.details[item.item.id]?.sizeBytes ?: 0L
