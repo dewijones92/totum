@@ -108,6 +108,29 @@ class ScreenLinkTest {
     }
 
     @Test
+    fun `the page's seek bar asks the phone to seek that screen to a position`() {
+        val asked = mutableListOf<Pair<String, Long>>()
+        link.onSeek = { id, positionMs -> asked += id to positionMs }
+        get("/screen/hello?key=k3y&name=PC&id=pc1")
+
+        assertEquals(Http.OK, get("/screen/seek?key=k3y&id=pc1&pos=93000").status)
+        assertEquals(listOf("pc1" to 93_000L), asked)
+    }
+
+    @Test
+    fun `a seek from a stranger, with the wrong key or with no usable position is refused and nothing seeks`() {
+        val asked = mutableListOf<Pair<String, Long>>()
+        link.onSeek = { id, positionMs -> asked += id to positionMs }
+        get("/screen/hello?key=k3y&name=PC&id=pc1")
+
+        assertEquals(Http.CLIENT_ERROR, get("/screen/seek?key=k3y&id=stranger&pos=5").status)
+        assertEquals(Http.CLIENT_ERROR, get("/screen/seek?key=wrong&id=pc1&pos=5").status)
+        assertEquals(Http.CLIENT_ERROR, get("/screen/seek?key=k3y&id=pc1&pos=soon").status)
+        assertEquals(Http.CLIENT_ERROR, get("/screen/seek?key=k3y&id=pc1&pos=-4").status)
+        assertTrue(asked.isEmpty())
+    }
+
+    @Test
     fun `nothing outside the screen paths is answered here`() {
         assertEquals(null, link.replyTo(HttpRequest("GET", "/c/token/manifest.mpd", emptyMap(), "x")))
     }

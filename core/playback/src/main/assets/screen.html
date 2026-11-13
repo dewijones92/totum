@@ -25,6 +25,13 @@
   #watch:disabled { opacity: .6; cursor: wait; }
   #watch[hidden] { display: none; }
   #switch { color: var(--accent); }
+  #bar { position: fixed; left: 0; right: 0; bottom: 0; display: none; align-items: center; gap: 14px;
+    padding: 28px 24px 14px; background: linear-gradient(transparent, rgba(0,0,0,.75)); color: #fff;
+    font-size: 16px; opacity: 0; transition: opacity .25s; }
+  #bar.on { display: flex; }
+  #bar.shown { opacity: 1; }
+  #seek { flex: 1; accent-color: var(--accent); height: 22px; cursor: pointer; }
+  #clock { min-width: 120px; text-align: right; font-variant-numeric: tabular-nums; }
 </style>
 </head>
 <body>
@@ -39,6 +46,7 @@
   </div>
 </div>
 <div id="stage"><video id="video" playsinline></video></div>
+<div id="bar"><input id="seek" type="range" min="0" max="0" value="0" step="1" aria-label="Position"><span id="clock">0:00 / 0:00</span></div>
 <div id="tap"><div>▶️ Click once to allow sound and full screen</div></div>
 <div id="status"></div>
 <script>
@@ -97,6 +105,45 @@
     return fetch('/screen/' + path + '?' + q.toString(), { cache: 'no-store' });
   };
 
+  const bar = document.getElementById('bar');
+  const seek = document.getElementById('seek');
+  const clock = document.getElementById('clock');
+  let dragging = false;
+  let hideBarTimer = 0;
+  const mmss = (seconds) => {
+    const s = Math.max(0, Math.floor(seconds || 0));
+    const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = String(s % 60).padStart(2, '0');
+    return h ? h + ':' + String(m).padStart(2, '0') + ':' + x : m + ':' + x;
+  };
+  function drawBar() {
+    const duration = isFinite(video.duration) ? video.duration : 0;
+    if (!dragging) {
+      seek.max = Math.round(duration * 1000);
+      seek.value = Math.round(video.currentTime * 1000);
+    }
+    clock.textContent = mmss(Number(seek.value) / 1000) + ' / ' + mmss(duration);
+  }
+  function showBar() {
+    bar.classList.add('shown');
+    clearTimeout(hideBarTimer);
+    hideBarTimer = setTimeout(() => bar.classList.remove('shown'), 3000);
+  }
+  document.addEventListener('mousemove', showBar);
+  video.addEventListener('timeupdate', drawBar);
+  video.addEventListener('durationchange', drawBar);
+  seek.addEventListener('input', () => { dragging = true; drawBar(); showBar(); });
+  seek.addEventListener('change', async () => {
+    dragging = false;
+    const pos = Number(seek.value);
+    say('⏩ Asking your phone to go to ' + mmss(pos / 1000) + '…');
+    try {
+      const reply = await api('seek', { id, pos });
+      if (!reply.ok) say('⚠️ Your phone refused the seek (' + reply.status + ')');
+    } catch (e) {
+      say('⚠️ Cannot reach your phone to seek: ' + e.message);
+    }
+  });
+
   function unlock() {
     unlocked = true;
     tap.classList.remove('on');
@@ -115,6 +162,7 @@
       player.addEventListener('error', (e) => { lastError = 'shaka ' + (e.detail && e.detail.code); });
     }
     stage.classList.add('on');
+    bar.classList.add('on');
     document.getElementById('wait').style.display = 'none';
     const given = new URL(command.url);
     await player.load(location.origin + given.pathname + given.search, (command.pos || 0) / 1000);
@@ -146,6 +194,7 @@
         video.pause();
         if (player) await player.unload();
         stage.classList.remove('on');
+        bar.classList.remove('on');
         document.getElementById('wait').style.display = 'grid';
         say('⏹️ Stopped');
         return;

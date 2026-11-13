@@ -436,6 +436,8 @@ public class PlaybackService : MediaSessionService() {
         val remote = RemoteCastPlayer.Builder(this)
             .setMediaItemConverter(TotumCastConverter(streams))
             .setTrackSelector(TotumCastTrackSelector())
+            .setSeekBackIncrementMs(SeekSteps.BACK_MS)
+            .setSeekForwardIncrementMs(SeekSteps.FORWARD_MS)
             .build()
         val cast = TimeMappedCastPlayer(remote, streams::timelineFor)
         cast.addListener(watchTheTv(cast))

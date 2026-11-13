@@ -52,6 +52,9 @@ public class ScreenLink(
     public var onWatch: (String) -> Unit = {}
 
     @Volatile
+    public var onSeek: (String, Long) -> Unit = { _, _ -> }
+
+    @Volatile
     public var nowPlaying: NowPlaying? = null
 
     public fun present(): List<Screen> = screens.values.filter {
@@ -82,6 +85,7 @@ public class ScreenLink(
             "/screen/poll" -> poll(query)
             "/screen/state" -> state(query)
             "/screen/watch" -> watch(query, request.from)
+            "/screen/seek" -> seek(query, request.from)
             else -> json(Http.NOT_FOUND, """{"error":"no such call"}""")
         }
     }
@@ -149,6 +153,22 @@ public class ScreenLink(
             "Watch here pressed on \"${screen.name}\" ($id) from $from; now=${nowPlaying ?: "nothing on the phone"}"
         )
         onWatch(id)
+        return json(Http.OK, """{"asked":true}""")
+    }
+
+    private fun seek(query: Map<String, String>, from: String): HttpReply {
+        val id = query["id"] ?: return json(Http.CLIENT_ERROR, """{"error":"no id"}""")
+        val positionMs = query["pos"]?.toLongOrNull()?.takeIf { it >= 0 }
+        if (screens[id] == null || positionMs == null) {
+            Diag.warn(
+                TAG,
+                "seek from $from for screen $id refused (said hello=${screens[id] != null}, pos=${query["pos"]})"
+            )
+            return json(Http.CLIENT_ERROR, """{"error":"unknown screen or position"}""")
+        }
+        touch(id)
+        Diag.log(TAG, "the seek bar on screen $id asks for ${positionMs}ms (from $from)")
+        onSeek(id, positionMs)
         return json(Http.OK, """{"asked":true}""")
     }
 

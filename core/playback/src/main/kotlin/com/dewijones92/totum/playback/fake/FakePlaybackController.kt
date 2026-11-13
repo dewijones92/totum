@@ -16,6 +16,7 @@ import com.dewijones92.totum.playback.PlaybackEvent
 import com.dewijones92.totum.playback.PlaybackProblem
 import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.playback.ScreenTargets
+import com.dewijones92.totum.playback.SeekSteps
 import com.dewijones92.totum.playback.SkipDirection
 import com.dewijones92.totum.playback.StreamFailure
 import com.dewijones92.totum.playback.VideoRung
@@ -266,11 +267,11 @@ public class FakePlaybackController(override val player: Player? = null) : Playb
     }
 
     override fun seekBackward() {
-        _state.update { it?.copy(positionMs = (it.positionMs - SEEK_BACK_MS).coerceAtLeast(0)) }
+        _state.update { it?.copy(positionMs = (it.positionMs - SeekSteps.BACK_MS).coerceAtLeast(0)) }
     }
 
     override fun seekForward() {
-        _state.update { it?.copy(positionMs = it.positionMs + SEEK_FORWARD_MS) }
+        _state.update { it?.copy(positionMs = it.positionMs + SeekSteps.FORWARD_MS) }
     }
 
     public val savedSpeeds: MutableList<Float> = CopyOnWriteArrayList()
@@ -391,8 +392,6 @@ public class FakePlaybackController(override val player: Player? = null) : Playb
     }
 
     private companion object {
-        const val SEEK_BACK_MS = 10_000L
-        const val SEEK_FORWARD_MS = 30_000L
         const val EVENT_BUFFER = 8
     }
 }

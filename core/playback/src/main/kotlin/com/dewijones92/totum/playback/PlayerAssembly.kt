@@ -47,14 +47,10 @@ internal fun buildPlayerWithPreloads(
                 true,
             )
             .setHandleAudioBecomingNoisy(true)
-            .setSeekBackIncrementMs(SEEK_BACK_MS)
-            .setSeekForwardIncrementMs(SEEK_FORWARD_MS),
+            .setSeekBackIncrementMs(SeekSteps.BACK_MS)
+            .setSeekForwardIncrementMs(SeekSteps.FORWARD_MS),
     )
     return player to preloading.build()
 }
 
 private const val MICROS_PER_MS = 1_000L
-
-// Podcast-style transport: small hop back to re-hear, bigger hop forward.
-private const val SEEK_BACK_MS = 10_000L
-private const val SEEK_FORWARD_MS = 30_000L

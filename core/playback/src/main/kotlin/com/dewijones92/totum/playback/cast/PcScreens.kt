@@ -36,6 +36,7 @@ internal class PcScreens(
         screen.follow()
         link.onScreensChanged = { present -> status.screens(present) }
         link.onWatch = { id -> main.post { watch(id) } }
+        link.onSeek = { id, positionMs -> main.post { seek(id, positionMs) } }
         val base = streams.serveScreens()
         status.screenPage(base?.let { "$it/screen#key=$key" })
         Diag.log(TAG, "the PC screen page is served at ${base ?: "no Wi-Fi address yet"}/screen")
@@ -59,6 +60,20 @@ internal class PcScreens(
         )
         play(id)
         if (hadItem) player.play() else session.wantsAnItem()
+    }
+
+    fun seek(id: String, tvPositionMs: Long) {
+        val screenIsActive = session.current() === player
+        if (!screenIsActive || screen.screenId != id) {
+            Diag.log(
+                TAG,
+                "dewidebug the seek bar on screen $id asked for ${tvPositionMs}ms, but that screen is not the one " +
+                    "playing (screen player active=$screenIsActive, active screen=${screen.screenId}); ignored",
+            )
+            return
+        }
+        Diag.log(TAG, "the seek bar on screen $id: ${tvPositionMs}ms")
+        screen.seekTo(tvPositionMs)
     }
 
     fun observe(source: Player) = source.addListener(

@@ -602,6 +602,7 @@ public class Media3PlaybackController(
             ?.let { "at ${it.className}.${it.methodName}(${it.fileName ?: "Unknown Source"}:${it.lineNumber})" }
         Diag.log("seek", "the app seeks to ${positionMs}ms [${caller ?: "caller unknown"}]")
         withController { controller ->
+            controller.noteIfRefused(Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM, "a seek to ${positionMs}ms")
             val max = controller.duration.takeIf { it > 0 } ?: Long.MAX_VALUE
             controller.seekTo(positionMs.coerceIn(0, max))
             _state.value = controller.currentPlaybackState()
@@ -610,6 +611,7 @@ public class Media3PlaybackController(
 
     override fun seekBackward() {
         withController {
+            it.noteIfRefused(Player.COMMAND_SEEK_BACK, "seek back")
             it.seekBack()
             _state.value = it.currentPlaybackState()
         }
@@ -617,9 +619,20 @@ public class Media3PlaybackController(
 
     override fun seekForward() {
         withController {
+            it.noteIfRefused(Player.COMMAND_SEEK_FORWARD, "seek forward")
             it.seekForward()
             _state.value = it.currentPlaybackState()
         }
+    }
+
+    private fun MediaController.noteIfRefused(command: Int, what: String) {
+        if (isCommandAvailable(command)) return
+        Diag.log(
+            "seek",
+            "dewidebug the app asked for $what but the session's player refuses command $command " +
+                "[remote=${deviceInfo.playbackType == DeviceInfo.PLAYBACK_TYPE_REMOTE}, " +
+                "item=${currentMediaItem?.mediaId}, positionMs=$currentPosition]",
+        )
     }
 
     override fun setFadeLevel(level: Float) {
