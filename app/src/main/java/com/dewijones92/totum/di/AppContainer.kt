@@ -175,7 +175,6 @@ import com.dewijones92.totum.exsurge.ExsurgeState
 import com.dewijones92.totum.exsurge.TakeoverActivity
 import com.dewijones92.totum.exsurge.exsurgeController
 import com.dewijones92.totum.groups.FileGroupNewsStore
-import com.dewijones92.totum.groups.GroupAccountProgress
 import com.dewijones92.totum.groups.GroupNews
 import com.dewijones92.totum.groups.GroupNewsNotifier
 import com.dewijones92.totum.groups.PublishDays
@@ -339,6 +338,7 @@ import com.dewijones92.totum.video.AccountResumePositions
 import com.dewijones92.totum.video.AccountSubscriptions
 import com.dewijones92.totum.video.AndroidSabrRoute
 import com.dewijones92.totum.video.CastAwareCodecSupport
+import com.dewijones92.totum.video.ChannelAccountProgress
 import com.dewijones92.totum.video.EmbeddedPlayer
 import com.dewijones92.totum.video.FileLiveStatesStore
 import com.dewijones92.totum.video.FileLookupStore
@@ -1638,7 +1638,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                     channelRepository,
                     latestUploads::feedOf,
                     publishDays::dayOf,
-                    GroupAccountProgress(youTubeFeeds)::read,
+                    ChannelAccountProgress(youTubeFeeds)::read,
                 ),
                 podcast = PodcastSourceItems(podcastRepository),
             ),

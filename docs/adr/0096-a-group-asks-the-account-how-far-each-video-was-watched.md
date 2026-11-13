@@ -1,11 +1,11 @@
 ---
-title: A group asks the account how far each of its videos was watched
+title: A group or a channel page asks the account how far each of its videos was watched
 kind: adr
 status: accepted
-updated: 2026-10-29
+updated: 2026-11-13
 ---
 
-# 96. A group asks the account how far each of its videos was watched
+# 96. A group or a channel page asks the account how far each of its videos was watched
 
 - Status: Accepted
 - Date: 2026-10-29
@@ -31,15 +31,22 @@ Backpacker Ben gave 28 tiles (15 of them watched), Carry On Cat 24 (12) and Bald
   and the group is listed as before (`ChannelSourceItems.accountProgressOf`).
 - The 10% floor rule ([progress-sync](../features/progress-sync.md)) is unchanged: a video YouTube reports at 10%
   shows the "started" dot, not a bar.
+- **A channel page does the same** (2026-11-13, triage finding 95, [ADR 108](0108-consistent-everywhere-and-its-recorded-exceptions.md)):
+  the same channel's rows showed no marks on its own page while they did in a group. Loading the Videos tab (on
+  opening, and each time it refreshes) asks the account for that channel through the one `ChannelAccountProgress`
+  that a group uses, without holding the list back; rows pick the marks up live.
 
 ## Consequences
 
 - One more signed-in TV request per channel each time a group is opened or refreshed, through the polite gate.
-- Each one logs `[group] "<channel>": account tiles=N progressKnown=M <id>=<pos>s/<dur>s …`, so a report shows which
+- Each one logs `[account-progress] "<channel>": account tiles=N progressKnown=M <id>=<pos>s/<dur>s …` (it said `[group]` until 2026-11-13), so a report shows which
   videos had marks and what YouTube said.
 - Only the tiles of the channel's first TV page are asked (about 25–50), which covers a group's recent videos; older
   ones still rely on the history.
 - Verified on totum-api35, signed in to Dewi's account: the Travel Group page showed ✓ on a finished video, a bar on
   a part-watched one and the dot on three at 10%.
-- Tests: `HttpYouTubeFeedsTest` (a channel browsed as the account, its progress seen) and `GroupFeedTest` (every
-  member asked, a failure loses no items).
+- Tests: `HttpYouTubeFeedsTest` (a channel browsed as the account, its progress seen), `GroupFeedTest` (every
+  member asked, a failure loses no items) and `ChannelAccountProgressTest` (a channel page asks on opening and on a
+  stale refresh, not on a fresh reuse, and a failed read loses only the marks).
+- Only the Videos tab's first TV page is asked: a channel's Shorts tab, its later pages and a handle-only channel
+  (no `UC…` id until yt-dlp resolves one) still show local marks plus whatever history knows.

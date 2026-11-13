@@ -3,7 +3,7 @@ title: Explore channel content (InnerTube tabs)
 kind: feature
 status: shipped
 area: channel
-updated: 2026-11-06
+updated: 2026-11-13
 ---
 
 # Explore channel content
@@ -91,6 +91,16 @@ The channel's view-model outlives the screen, so a reopened channel used to show
 Playlists lists (those already loaded) when 5 minutes old or when their last load failed, and so does selecting a
 loaded tab: the old list stays with a progress bar, a failed refresh keeps it, and the diagnostics say whether the
 list was reused and how old it was. One rule and one load path for the three tabs.
+
+## Watched marks on the channel page (2026-11-13)
+
+The rows here showed no tick, bar or started dot for videos the account had watched elsewhere, while the same
+channel's rows did inside a group (triage finding 95, [ADR 96](../adr/0096-a-group-asks-the-account-how-far-each-video-was-watched.md)).
+Loading the Videos tab, on opening and on every stale refresh, now also asks the account for that channel through
+`ChannelAccountProgress` (`video/`), the one read a group uses; the list is not held back and the rows pick the marks up
+live. Only the Videos tab's first TV page is asked; Shorts, later pages and a handle-only channel are listed in
+[consistency-leftovers](../todos/consistency-leftovers.md). Log: `[account-progress] "<channel>": account tiles=N progressKnown=M …`,
+and `[channel] "<channel>" account progress could not be read` when it fails. Test: `ChannelAccountProgressTest`.
 
 ## Playlists open from every channel (2026-09-06)
 

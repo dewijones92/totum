@@ -1,4 +1,4 @@
-package com.dewijones92.totum.groups
+package com.dewijones92.totum.video
 
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.domain.MediaSource
@@ -7,7 +7,7 @@ import com.dewijones92.totum.innertube.feeds.FeedResult
 import com.dewijones92.totum.innertube.feeds.SeenProgress
 import com.dewijones92.totum.innertube.feeds.YouTubeFeeds
 
-class GroupAccountProgress(private val feeds: YouTubeFeeds) {
+class ChannelAccountProgress(private val feeds: YouTubeFeeds) {
 
     suspend fun read(channel: MediaSource.VideoChannel) {
         val channelId = channel.youTubeChannelId
@@ -34,7 +34,7 @@ class GroupAccountProgress(private val feeds: YouTubeFeeds) {
     }
 
     private companion object {
-        const val TAG = "group"
+        const val TAG = "account-progress"
         const val MS = 1_000
     }
 }

@@ -34,6 +34,8 @@ import com.dewijones92.totum.ui.common.toMediaItem
 import com.dewijones92.totum.ui.common.toMediaItemPage
 import com.dewijones92.totum.ui.group.GroupActions
 import com.dewijones92.totum.video.AccountSubscriptions
+import com.dewijones92.totum.video.ChannelAccountProgress
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -70,7 +72,11 @@ class ChannelViewModel(
      * channel reached by handle, whose URL carries no `UC…` id. They are alternatives for
      * the same job, so they travel together.
      */
-    class ChannelReader(val innerTube: YouTubeChannel, val fallback: ChannelRepository)
+    class ChannelReader(
+        val innerTube: YouTubeChannel,
+        val fallback: ChannelRepository,
+        val accountProgress: suspend (MediaSource.VideoChannel) -> Unit,
+    )
 
     enum class Tab { VIDEOS, SHORTS, PLAYLISTS, SEARCH }
 
@@ -316,6 +322,7 @@ class ChannelViewModel(
 
     private fun loadVideos(refreshing: Boolean) =
         reload(videosTab, refreshing, if (channelId != null) "InnerTube" else "yt-dlp") {
+            readAccountProgress()
             channelId?.let { id ->
                 when (val r = reader.innerTube.videos(id)) {
                     is ChannelVideos.Success -> r.page.map { it.toMediaItem(source.id) }.listedHere()
@@ -325,6 +332,22 @@ class ChannelViewModel(
                 // page by nature rather than by omission.
             } ?: fallbackVideos()?.let { Page.last(it) }
         }
+
+    private fun readAccountProgress() {
+        viewModelScope.launch {
+            try {
+                reader.accountProgress(source)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (@Suppress("TooGenericExceptionCaught") failure: Exception) {
+                Diag.warn(
+                    "channel",
+                    "\"${source.title}\" account progress could not be read; rows show local progress only",
+                    failure,
+                )
+            }
+        }
+    }
 
     private fun <T> reload(lens: TabLens<T>, refreshing: Boolean, route: String, fetch: suspend () -> Page<T>?) {
         val name = lens.tab.name.lowercase()
@@ -479,7 +502,11 @@ class ChannelViewModel(
                 initializer {
                     ChannelViewModel(
                         source = source,
-                        reader = ChannelReader(container.youTubeChannel, container.channelRepository),
+                        reader = ChannelReader(
+                            container.youTubeChannel,
+                            container.channelRepository,
+                            ChannelAccountProgress(container.youTubeFeeds)::read,
+                        ),
                         queue = container.playbackQueue,
                         accountSubscriptions = container.accountSubscriptions,
                         downloads = container.downloadManager,
