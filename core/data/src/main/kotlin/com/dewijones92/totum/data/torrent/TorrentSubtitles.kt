@@ -4,6 +4,11 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.SubtitleFormat
 import com.dewijones92.totum.common.SubtitleTrack
 import com.dewijones92.totum.domain.MediaItem
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.ConcurrentHashMap
 
@@ -67,24 +72,44 @@ public object TorrentSubtitles {
 public class TorrentSidecarSubtitles(
     private val server: HomeTorrentServer,
     private val waitMs: Long = WAIT_MS,
+    private val lateWaitMs: Long = LATE_WAIT_MS,
+    private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
 ) {
     private val prepared = ConcurrentHashMap<String, PreparedTorrent>()
+    private val inFlight = ConcurrentHashMap<String, Deferred<PreparedTorrent?>>()
+    private val timedOutBefore = ConcurrentHashMap.newKeySet<String>()
 
     public fun remember(torrent: PreparedTorrent) {
         prepared[torrent.hash] = torrent
+    }
+
+    private suspend fun fileListOf(hash: String): PreparedTorrent? {
+        prepared[hash]?.let { return it }
+        val job = inFlight.computeIfAbsent(hash) {
+            scope.async { server.prepare(TorrentLink.Magnet("magnet:?xt=urn:btih:$hash"))?.also(::remember) }
+                .also { started -> started.invokeOnCompletion { inFlight.remove(hash) } }
+        }
+        val patience = if (hash in timedOutBefore) lateWaitMs else waitMs
+        val got = withTimeoutOrNull(patience) { job.await() }
+        if (got == null && job.isActive) {
+            val first = timedOutBefore.add(hash)
+            Diag.log(
+                TAG,
+                "$hash: no file list within ${patience}ms; it keeps being fetched" +
+                    if (first) ", and the next lookup waits up to ${lateWaitMs}ms" else "",
+            )
+        }
+        return got
     }
 
     public suspend fun forItem(item: MediaItem): List<SubtitleTrack> {
         val parts = item.id.value.split(':')
         if (parts.size != ID_PARTS || parts[0] != "torrent") return emptyList()
         val (hash, index) = parts[1] to parts[2].toIntOrNull()
-        val torrent = prepared[hash] ?: withTimeoutOrNull(waitMs) {
-            server.prepare(TorrentLink.Magnet("magnet:?xt=urn:btih:$hash"))
-        }
-            ?.also(::remember)
+        val torrent = fileListOf(hash)
         val video = torrent?.files?.firstOrNull { it.index == index }
         if (torrent == null || video == null) {
-            Diag.log(TAG, "${item.id.value}: no file list within ${waitMs}ms, so no subtitle files looked for")
+            Diag.log(TAG, "${item.id.value}: no file list yet, so no subtitle files looked for")
             return emptyList()
         }
         val found = TorrentSubtitles.forVideo(torrent, video)
@@ -107,6 +132,7 @@ public class TorrentSidecarSubtitles(
     private companion object {
         const val TAG = "subtitles"
         const val WAIT_MS = 1_500L
+        const val LATE_WAIT_MS = 8_000L
         const val ID_PARTS = 3
     }
 }

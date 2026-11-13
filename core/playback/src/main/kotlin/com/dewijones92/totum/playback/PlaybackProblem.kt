@@ -13,6 +13,10 @@ public sealed interface PlaybackProblem {
 
     public data class Failed(override val errorName: String) : PlaybackProblem
 
+    public data class NoTrackList(public val summary: String) : PlaybackProblem {
+        override val errorName: String get() = "NO_TRACKS"
+    }
+
     public val isPicture: Boolean get() = this is CannotDecode && track == TrackKind.VIDEO
 }
 

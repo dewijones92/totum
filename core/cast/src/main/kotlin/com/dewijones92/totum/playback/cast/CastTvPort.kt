@@ -19,4 +19,6 @@ public interface CastTvPort {
     public fun problem(now: CastProblem?)
 
     public fun stage(mediaId: String, now: CastStage?, percent: Int? = null) {}
+
+    public fun failed(mediaId: String, reason: String?) {}
 }

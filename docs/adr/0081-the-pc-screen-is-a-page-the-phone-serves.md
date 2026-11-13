@@ -79,3 +79,12 @@ the queue's current item when the phone has nothing loaded); a "📱 Dewi's Totu
 the phone says "🖥️ Ready for your PC" while charging on Wi-Fi. The PC no longer has to be picked on the phone. See
 [ADR 93](0093-the-private-area-opens-the-pc-screen-and-watch-here-takes-over.md).
 
+
+## Amended 2026-11-13: the page has a seek bar, and the screen accepts seeks and next/previous ([ADR 161](0161-casting-fixes-from-the-diagnostics-of-7-to-11-november.md))
+
+`ScreenPlayer` did not list seek back, seek forward, next or previous among its commands, so the media session refused
+the phone's own back and forward taps while a screen played. It lists them now and steps 10 s back and 30 s forward.
+The page gets a seek bar with the time (shown on mouse movement), which asks the phone for a position
+(`/screen/seek?key&id&pos`, the same key and hello as the other calls); the phone seeks that screen's own player in the
+page's time. A slider was the coordinator's call. Stale reports are counted and logged once per pair of loads, and ten in a
+row make the phone send the current load again once.

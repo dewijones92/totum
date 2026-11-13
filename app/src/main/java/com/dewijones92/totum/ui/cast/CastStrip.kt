@@ -74,6 +74,13 @@ fun CastStrip(state: PlaybackState, modifier: Modifier = Modifier, actions: @Com
                     modifier = Modifier.padding(end = 8.dp, bottom = 6.dp),
                 )
             }
+            state.castFailure?.let { reason ->
+                Text(
+                    stringResource(R.string.cast_strip_could_not_start, device, state.title, reason),
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(end = 8.dp, bottom = 6.dp),
+                )
+            }
             state.castVideoRefused?.let { what ->
                 Text(
                     stringResource(R.string.cast_strip_sound_only, device, what),

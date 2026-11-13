@@ -1,6 +1,7 @@
 package com.dewijones92.totum.playback
 
 import android.os.SystemClock
+import androidx.media3.common.DeviceInfo
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import com.dewijones92.totum.common.Diag
@@ -107,6 +108,10 @@ internal class PlaybackDiagnostics(
     override fun onIsLoadingChanged(isLoading: Boolean) {
         if (isLoading) return
         val current = player() ?: return
+        if (current.isOnAReceiver()) {
+            Vitals.add("playback.loadPausesWhileCasting")
+            return
+        }
         val buffered = current.bufferedPosition
         val ahead = buffered - current.currentPosition
         val unfetched = current.duration.takeIf { it > 0 }?.minus(buffered)
@@ -137,12 +142,22 @@ internal class PlaybackDiagnostics(
         val loading = player.isLoading
         val aheadMs = player.bufferedPosition - player.currentPosition
         val unfetchedMs = player.duration.takeIf { it > 0 }?.minus(player.bufferedPosition)
+        val onAReceiver = player.isOnAReceiver()
     }
 
     private var stallOnset: StallOnset? = null
 
     private fun judgeStall(onset: StallOnset, waitedMs: Long) {
         if (onset.loading) return
+        if (onset.onAReceiver) {
+            Diag.log(
+                "playback",
+                "dewidebug a stall of ${waitedMs}ms at ${onset.atMs}ms while casting: the TV's buffer is not " +
+                    "the phone's, so no lost tail is claimed (the cast step-down watch judges TV stalls)",
+            )
+            Vitals.add("playback.stallsWhileCasting")
+            return
+        }
         val facts = "${onset.aheadMs}ms buffered ahead and ${onset.unfetchedMs}ms of the item never fetched, " +
             "stalled ${waitedMs}ms"
         when {
@@ -397,6 +412,8 @@ internal class PlaybackDiagnostics(
  * tail is judged separately, and only once it has lasted, because a seek's masked state reads as
  * "buffering, nothing ahead, not loading" for the few milliseconds before the player catches up.
  */
+internal fun Player.isOnAReceiver(): Boolean = deviceInfo?.playbackType == DeviceInfo.PLAYBACK_TYPE_REMOTE
+
 internal fun loadStopIsAFault(aheadMs: Long, unfetchedMs: Long?): Boolean {
     if (unfetchedMs == null || unfetchedMs <= SHORT_OF_THE_END_MS) return false
     return aheadMs <= TOO_LITTLE_AHEAD_MS

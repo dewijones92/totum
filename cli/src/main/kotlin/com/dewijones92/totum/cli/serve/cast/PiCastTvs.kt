@@ -60,6 +60,12 @@ internal class PiCastTvs : CastTvPort {
         Diag.log("cast-target", "${tv.label}: cast problem now ${now ?: "none"}")
     }
 
+    override fun failed(mediaId: String, reason: String?) {
+        val tv = byMedia[mediaId] ?: return
+        tv.notice = reason?.let { "❌ The TV couldn't start it: $it" }
+        Diag.log("cast-target", "${tv.label}: failure notice ${reason ?: "cleared"}")
+    }
+
     override fun stage(mediaId: String, now: CastStage?, percent: Int?) {
         val tv = byMedia[mediaId] ?: return
         Diag.log("cast-target", "${tv.label}: stage ${now ?: "flowing"}${percent?.let { " $it%" }.orEmpty()}")

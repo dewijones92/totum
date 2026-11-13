@@ -5,20 +5,36 @@ import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URL
 
-public class UpstreamReply(private val conn: HttpURLConnection) {
-    public val status: Int = conn.responseCode
+public class UpstreamReply(
+    public val status: Int,
+    public val contentType: String,
+    public val contentRange: String?,
+    public val contentLength: Long?,
+    private val open: () -> InputStream,
+) {
     public val failed: Boolean get() = status >= Http.CLIENT_ERROR
-    public val contentType: String get() = conn.contentType ?: "application/octet-stream"
-    public val contentRange: String? get() = conn.getHeaderField("Content-Range")
-    public val contentLength: Long? get() = conn.getHeaderField("Content-Length")?.toLongOrNull()
     internal val totalLength: Long? get() = contentRange?.substringAfter('/')?.toLongOrNull()
 
-    public fun body(): InputStream = if (failed) conn.errorStream ?: ByteArray(0).inputStream() else conn.inputStream
+    public fun body(): InputStream = open()
+
+    public companion object {
+        public fun of(conn: HttpURLConnection): UpstreamReply {
+            val status = conn.responseCode
+            return UpstreamReply(
+                status = status,
+                contentType = conn.contentType ?: "application/octet-stream",
+                contentRange = conn.getHeaderField("Content-Range"),
+                contentLength = conn.getHeaderField("Content-Length")?.toLongOrNull(),
+            ) {
+                if (status >= Http.CLIENT_ERROR) conn.errorStream ?: ByteArray(0).inputStream() else conn.inputStream
+            }
+        }
+    }
 }
 
 public object Upstream {
 
-    public fun get(url: String, range: String?): UpstreamReply = UpstreamReply(
+    public fun get(url: String, range: String?): UpstreamReply = UpstreamReply.of(
         (URL(url).openConnection() as HttpURLConnection).apply {
             connectTimeout = TIMEOUT_MS
             readTimeout = TIMEOUT_MS

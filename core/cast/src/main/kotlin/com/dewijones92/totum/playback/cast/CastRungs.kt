@@ -73,6 +73,8 @@ public class CastRungs(
         return showable.map { it.height }.filter { it < sent }.maxOrNull()
     }
 
+    public fun showableSummary(): String = showable.joinToString { it.label }.ifEmpty { "none" }
+
     public fun describe(): String? = rungs.takeIf { it.isNotEmpty() }?.joinToString(" | ") { it.second.describe() }
 
     public fun urlOf(index: Int): String? = rungs.getOrNull(index)?.first?.url

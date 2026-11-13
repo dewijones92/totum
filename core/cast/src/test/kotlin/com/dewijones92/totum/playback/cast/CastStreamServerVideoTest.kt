@@ -126,6 +126,47 @@ class CastStreamServerVideoTest {
     }
 
     @Test
+    fun `a SubRip sidecar at an address is offered to the TV and served as WebVTT`() {
+        val srt = File(dir, "film.en.srt").apply { writeText("1\n00:00:01,000 --> 00:00:02,500\nHello\n") }
+        val origin = RangeOrigin(mapOf("film.en.srt" to srt)).also { origins += it }
+        val item = CastItem(
+            "talk",
+            "https://example.com/talk.mp3",
+            listening = true,
+            subtitles = listOf(CastSubtitleSource(origin.url("film.en.srt"), "en", "English")),
+        )
+
+        val (base, manifest) = manifestOf(item)
+        val served = get("$base/subtitles/0.vtt")
+
+        assertTrue(manifest, manifest.contains("subtitles/0.vtt"))
+        assertEquals(200, served.first)
+        val text = String(served.second)
+        assertTrue(text, text.startsWith("WEBVTT"))
+        assertTrue(text, text.contains("00:00:01.000 -->"))
+        assertFalse(text, text.contains("00:00:01,000"))
+    }
+
+    @Test
+    fun `a downloaded film with two of its own subtitle tracks saved lists both for the TV`() {
+        val tools = MediaTools(null, null, File(dir, "cache"), File(dir, "keep"))
+        val film = resource("hevc-audio-first.mkv", "film.mkv")
+        val saved = File(File(File(dir, "keep"), "embedded-subs"), "${film.name}-${film.length()}").apply { mkdirs() }
+        File(saved, "2-eng.vtt").writeText("WEBVTT\n\n00:00:01.000 --> 00:00:02.000\nOne\n")
+        File(saved, "3-fre.vtt").writeText("WEBVTT\n\n00:00:01.000 --> 00:00:02.000\nUn\n")
+        File(saved, "done").writeText("2")
+        val withTools = CastStreamServer({ FakeAudioEngine() }, { false }, host, tv, tools, port)
+
+        val url = withTools.urlFor(CastItem("film", film.path, durationMs = 4_000))!!
+        val manifest = String(get(url).second)
+
+        assertTrue(manifest, manifest.contains("subtitles/0.vtt"))
+        assertTrue(manifest, manifest.contains("subtitles/1.vtt"))
+        assertEquals(200, get(url.substringBeforeLast('/') + "/subtitles/1.vtt").first)
+        withTools.stopAll()
+    }
+
+    @Test
     fun `a Matroska file's own subtitles are not served until they are saved, and saving is asked for once`() {
         val tools = MediaTools(null, null, File(dir, "cache"), File(dir, "keep"))
         val withTools = CastStreamServer({ FakeAudioEngine() }, { false }, host, tv, tools, port)

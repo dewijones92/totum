@@ -67,6 +67,12 @@ internal class FakeCastTv(var screen: CastScreen? = null) : CastTvPort {
     override fun stage(mediaId: String, now: CastStage?, percent: Int?) {
         stages += mediaId to now
     }
+
+    val failures = mutableListOf<Pair<String, String?>>()
+
+    override fun failed(mediaId: String, reason: String?) {
+        failures += mediaId to reason
+    }
 }
 
 internal fun fetchFrom(url: String, range: String? = null): Pair<Int, ByteArray> {

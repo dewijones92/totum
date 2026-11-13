@@ -175,3 +175,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 161 | [The screen stays on for a video playing, and for a paused full-screen video only while charging](0161-the-screen-stays-on-for-a-video-and-for-a-paused-one-on-the-charger.md) | Accepted |
 | 162 | [Exsurge keeps a durable history of its settings changes](0162-exsurge-keeps-a-durable-history-of-its-settings-changes.md) | Accepted |
 | 163 | [A long silence cut on a video is paid out in short clock jumps](0163-a-long-silence-cut-on-a-video-is-paid-out-in-short-clock-jumps.md) | Accepted |
+| 164 | [Casting fixes from the diagnostics of 7 to 11 November](0164-casting-fixes-from-the-diagnostics-of-7-to-11-november.md) | Accepted |

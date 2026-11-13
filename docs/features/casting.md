@@ -3,7 +3,7 @@ title: Casting
 kind: feature
 area: playback
 status: prototype
-updated: 2026-11-06
+updated: 2026-11-13
 ---
 
 # Casting
@@ -196,3 +196,23 @@ of a downloaded file offers them; `EmbeddedSubtitleWarmer` prepares every downlo
 "saving them now for the next cast"). Checked on the stand-in: a test MKV with an English SRT track showed its cue.
 
 - **The Pi casts with this same code** ([ADR 156](../adr/0156-one-casting-brain-the-pi-casts-with-the-phones-own-code.md)): `CastStreamServer` in `:core:cast` decides and serves (rung choice, manifest, relayed video, processed-audio segments, captions, live, the sound-only fallback); the phone supplies MediaCodec (`MediaCodecAudioEngine`) and Media3, the Pi supplies ffmpeg (`FfmpegAudioEngine`). `CastStreams` in `:core:playback` is only the adapter from a `MediaItem`.
+
+## Fixes from the diagnostics of 7 to 11 November (2026-11-13, [ADR 161](../adr/0161-casting-fixes-from-the-diagnostics-of-7-to-11-november.md))
+
+- **Back 10 s, forward 30 s** on the TV and the PC screen too, as on the phone.
+- **Stepping down** counts one starvation once, and a picture frozen for 12 s steps down by itself (also after a seek).
+- **The relay reads ahead:** the next range is fetched while the TV plays the current one; on the phone the source is the
+  playback cache. Log lines: `<id> video request #N range=… from=upstream|memory: first byte in …ms, …KB sent in …ms (… Mbit/s while
+  transferring), aborted=no|yes[, SLOW]`, then `video relay, last 30s: …` summaries, `read-ahead of a-b …` notes.
+- **A file whose track list is at its end** says so (toast on the phone, the cast strip on a TV) instead of staying silent.
+  Log lines: `… still has no tracks the player can use …: 0 track(s): none; …`, `audio <label>: no audio track to cast: …`.
+- **SubRip subtitle files** (a torrent's `.srt`) reach the TV. A streamed file's own embedded tracks do not
+  (`a streamed file's own subtitle tracks cannot be pulled out …`); a downloaded file's still do.
+- **PC screen:** a seek bar with the time; back, forward, next and previous work from the phone; stale reports are counted
+  (`stale reports in the last 30s: …`, `… sending load N to the page again`).
+- **Failures say why:** `❌ <TV> couldn't start “<title>”: <reason>` after three failed manifests or sound segments in a
+  minute (logs: `… failed (n of 3 before the user is told)`, `telling the user`). While casting, the phone no longer
+  logs "the tail is not coming" for the TV's buffer.
+- **Needs a real TV:** the read-ahead on a throttled link, the 12 s step-down, the SubRip captions on the LG, and the seek
+  bar in Edge against a real phone.
+

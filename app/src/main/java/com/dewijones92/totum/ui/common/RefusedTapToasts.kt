@@ -77,6 +77,7 @@ private fun Context.problemWords(problem: PlaybackProblem): String = when (probl
         problem.format,
     )
     is PlaybackProblem.Failed -> getString(R.string.refused_player_error, problem.errorName)
+    is PlaybackProblem.NoTrackList -> getString(R.string.refused_no_track_list)
 }
 
 private fun Context.startsSoonMessage(title: String, soon: LiveState): String {

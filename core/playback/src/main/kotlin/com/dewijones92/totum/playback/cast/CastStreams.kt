@@ -41,6 +41,7 @@ internal class CastStreams(
         host = host,
         tvs = tvs,
         tools = context.castTools(),
+        upstream = PatientUpstream(CachedUpstream(cachedHttpFactory(context))::get)::get,
     )
 
     var screens: ScreenLink?
@@ -78,7 +79,7 @@ private fun MediaItem.toCastItem(uri: String): CastItem {
         ladder = ladderIn(extras),
         durationMs = mediaMetadata.durationMs,
         subtitles = localConfiguration?.subtitleConfigurations.orEmpty()
-            .filter { it.mimeType == MimeTypes.TEXT_VTT }
+            .filter { it.mimeType == MimeTypes.TEXT_VTT || it.mimeType == MimeTypes.APPLICATION_SUBRIP }
             .map { CastSubtitleSource(it.uri.toString(), it.language, it.label?.toString()) },
     )
 }

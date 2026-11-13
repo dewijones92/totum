@@ -272,6 +272,7 @@ public data class PlaybackState(
     val castDroppedFrom: Int? = null,
     val castFetchHeight: Int? = null,
     val castProblem: CastProblem? = null,
+    val castFailure: String? = null,
     val castVolume: CastVolume? = null,
     val castStage: CastStage? = null,
     val castStagePercent: Int? = null,

@@ -8,6 +8,7 @@ import com.dewijones92.totum.domain.pictureAt
 import com.dewijones92.totum.playback.CastProblem
 import com.dewijones92.totum.playback.CastStage
 import java.io.File
+import java.io.IOException
 import java.net.URI
 import java.security.SecureRandom
 import java.util.concurrent.ConcurrentHashMap
@@ -45,6 +46,7 @@ public class CastStreamServer(
     private val tools: MediaTools?,
     private val port: Int = DEFAULT_PORT,
     private val alsoServes: (HttpRequest) -> HttpReply? = { null },
+    private val upstream: (String, String?) -> UpstreamReply = PatientUpstream()::get,
 ) {
     private val videos = TvVideos(tvs)
 
@@ -82,7 +84,8 @@ public class CastStreamServer(
             Diag.log(
                 "cast",
                 "$mediaId: stalled, but there is no lower picture to send " +
-                    "(sending ${from?.label ?: "no ladder picture"}); it keeps going as it is",
+                    "(sending ${from?.label ?: "no ladder picture"}; the pictures this TV could be sent: " +
+                    "${rungs?.showableSummary() ?: "no session"}); it keeps going as it is",
             )
             return null
         }
@@ -95,6 +98,7 @@ public class CastStreamServer(
 
     private val random = SecureRandom()
     private val reach = CastReach(tvs, vpnInTheWay = { host.vpnInTheWay })
+    private val failures = CastFailures(tvs)
 
     @Suppress("TooManyFunctions")
     private inner class Session(
@@ -124,6 +128,8 @@ public class CastStreamServer(
         }
 
         @Volatile var videoRequests = 0
+
+        val relay = VideoRelay(upstream, RelayLog(item.mediaId, sink = { Diag.log("cast", it) }))
 
         @Volatile var flowing = false
 
@@ -168,8 +174,16 @@ public class CastStreamServer(
             }
         }
 
-        private fun chooseRung(url: String): Boolean =
-            rungs.choose(url, ladder, tvs.current(item.mediaId)?.screen, ceiling)
+        private fun chooseRung(url: String): Boolean {
+            if (ladder.isEmpty()) {
+                Diag.log(
+                    "cast",
+                    "${item.mediaId}: no quality ladder came with this item, so the TV can be sent one picture " +
+                        "only and a step-down has nowhere to go",
+                )
+            }
+            return rungs.choose(url, ladder, tvs.current(item.mediaId)?.screen, ceiling)
+        }
 
         private fun remoteFile(url: String) {
             videoReader = RangeReader { span -> Upstream.bytes(url, span) }
@@ -239,6 +253,11 @@ public class CastStreamServer(
             } ?: return null
             videoFile = remuxed
             return StreamLayouts.probe { span -> LocalRanges.bytes(remuxed, span) }
+        }
+
+        fun close() {
+            audio.close()
+            relay.close()
         }
 
         fun audioPart(part: String): HttpReply? {
@@ -356,6 +375,13 @@ public class CastStreamServer(
 
     private fun fromTheFile(videoUrl: String?, mediaId: String): List<CastSubtitleSource> {
         val tools = tools ?: return emptyList()
+        if (videoUrl?.startsWith("http") == true) {
+            Diag.log(
+                "cast",
+                "$mediaId: a streamed file's own subtitle tracks cannot be pulled out without reading all of it, " +
+                    "so only sidecar subtitle files reach the TV",
+            )
+        }
         val path = videoUrl?.takeIf { !it.startsWith("http") }?.let(::pathOf) ?: return emptyList()
         val file = File(path).takeIf { it.extension.equals("mkv", true) || it.extension == "media" }
             ?: return emptyList()
@@ -411,10 +437,11 @@ public class CastStreamServer(
         mine.forEach { (token, session) ->
             sessions.remove(token)
             order.remove(token)
-            session.audio.close()
+            session.close()
         }
         latest.remove(mediaId)
         videos.forget(mediaId)
+        failures.forget(mediaId)
         Diag.log("cast", "$mediaId: released ${mine.size} session(s)")
     }
 
@@ -426,7 +453,7 @@ public class CastStreamServer(
         sessions[token] = session
         latest[item.mediaId] = session
         order.addLast(token)
-        while (order.size > MAX_SESSIONS) order.pollFirst()?.let { sessions.remove(it)?.audio?.close() }
+        while (order.size > MAX_SESSIONS) order.pollFirst()?.let { sessions.remove(it)?.close() }
         host.hold(true)
         val url = "$base/c/$token/manifest.mpd"
         reach.handedOver(item.mediaId, token)
@@ -452,8 +479,9 @@ public class CastStreamServer(
 
     public fun stopAll() {
         reach.clear()
+        failures.clear()
         live.clear()
-        sessions.values.forEach { it.audio.close() }
+        sessions.values.forEach { it.close() }
         sessions.clear()
         ceilings.clear()
         steppingDown.clear()
@@ -471,6 +499,7 @@ public class CastStreamServer(
         host.hold(false)
     }
 
+    @Suppress("TooGenericExceptionCaught")
     private fun handle(request: HttpRequest): HttpReply {
         val parts = request.path.substringBefore('?').trim('/').split('/')
         val session = parts.getOrNull(1)?.let(sessions::get)
@@ -481,12 +510,14 @@ public class CastStreamServer(
         val what = parts.drop(2).joinToString("/")
         reach.reached(session.item.mediaId, request.from)
         val started = System.currentTimeMillis()
-        val reply = when {
-            what == "manifest.mpd" -> HttpReply.Bytes(Http.OK, Http.MPD, session.manifest().toByteArray())
-            what.startsWith("video") -> videoPart(session, what, request.header("range")) ?: return notFound()
-            what.startsWith("subtitles/") -> subtitle(session, what)
-            what.startsWith("audio/") -> session.audioPart(what.removePrefix("audio/")) ?: notFound()
-            else -> notFound()
+        val reply = try {
+            replyFor(session, what, request) ?: return notFound()
+        } catch (e: IOException) {
+            noteFailure(session, what, e)
+            throw e
+        } catch (e: RuntimeException) {
+            noteFailure(session, what, e)
+            throw e
         }
         if (what != "video") {
             Diag.log(
@@ -494,8 +525,35 @@ public class CastStreamServer(
                 "${request.from} ${request.method} $what in ${System.currentTimeMillis() - started}ms"
             )
         }
-        stageAfter(session, what)
+        val answered = replyStatus(reply) < Http.CLIENT_ERROR
+        if (answered) {
+            if (what == "manifest.mpd" || what.startsWith("audio/")) failures.worked(session.item.mediaId)
+            stageAfter(session, what)
+        } else {
+            Diag.warn(
+                "cast",
+                "${session.item.mediaId}: $what answered ${replyStatus(reply)}, so the stage is not marked done",
+            )
+        }
         return reply
+    }
+
+    private fun replyStatus(reply: HttpReply): Int = when (reply) {
+        is HttpReply.Bytes -> reply.status
+        is HttpReply.Stream -> reply.status
+    }
+
+    private fun replyFor(session: Session, what: String, request: HttpRequest): HttpReply? = when {
+        what == "manifest.mpd" -> HttpReply.Bytes(Http.OK, Http.MPD, session.manifest().toByteArray())
+        what.startsWith("video") -> videoPart(session, what, request.header("range"), request.method == "HEAD")
+        what.startsWith("subtitles/") -> subtitle(session, what)
+        what.startsWith("audio/") -> session.audioPart(what.removePrefix("audio/")) ?: notFound()
+        else -> notFound()
+    }
+
+    private fun noteFailure(session: Session, what: String, cause: Throwable) {
+        val ours = what == "manifest.mpd" || what.startsWith("audio/")
+        if (ours && SoundDecoders.missing(cause) == null) failures.failed(session.item.mediaId, what, cause)
     }
 
     private fun stageAfter(session: Session, what: String) {
@@ -523,7 +581,16 @@ public class CastStreamServer(
             }
             reply.body().use { it.readBytes() }.toString(Charsets.UTF_8)
         }
-        val cleaned = TvCaptions.clean(text)
+        val asVtt = if (text.trimStart('﻿').startsWith("WEBVTT")) {
+            text
+        } else {
+            Diag.log(
+                "cast",
+                "subtitles ${config.language} for ${session.item.mediaId}: SubRip text, made WebVTT for the TV",
+            )
+            EmbeddedSubtitles.srtToVtt(text)
+        }
+        val cleaned = TvCaptions.clean(asVtt)
         Diag.log(
             "cast",
             "subtitles ${config.language} for ${session.item.mediaId} cleaned for the TV, " +
@@ -534,12 +601,12 @@ public class CastStreamServer(
         return HttpReply.Bytes(Http.OK, "text/vtt", cleaned.text.toByteArray(Charsets.UTF_8))
     }
 
-    private fun videoPart(session: Session, what: String, range: String?): HttpReply? = when {
+    private fun videoPart(session: Session, what: String, range: String?, head: Boolean): HttpReply? = when {
         what.startsWith("video/r") -> what.removePrefix("video/r").toIntOrNull()?.let { i ->
             session.ready()
             session.rungs.urlOf(i)?.let { url ->
                 session.rungs.fetched(i)
-                proxy(session, url, range)
+                session.relay.serve(url, range, head)
             }
         }
         what.startsWith("video/") -> session.remuxedPart(what.removePrefix("video/"))
@@ -550,26 +617,8 @@ public class CastStreamServer(
             }
             LocalRanges.reply(file, range)
         }
-            ?: session.videoUrl?.let { proxy(session, it, range) }
+            ?: session.videoUrl?.let { session.relay.serve(it, range, head) }
         else -> null
-    }
-
-    private fun proxy(session: Session, upstream: String, range: String?): HttpReply {
-        val asked = System.currentTimeMillis()
-        val reply = Upstream.get(upstream, range)
-        val n = ++session.videoRequests
-        if (n <= VIDEO_LOG_FIRST || n % VIDEO_LOG_EVERY == 0) {
-            Diag.log(
-                "cast",
-                "video request #$n ($range): upstream ${reply.status} in ${System.currentTimeMillis() - asked}ms",
-            )
-        }
-        val extra = buildMap {
-            put("Accept-Ranges", "bytes")
-            reply.contentRange?.let { put("Content-Range", it) }
-        }
-        if (reply.failed) Diag.warn("cast", "video upstream answered ${reply.status} for range=$range")
-        return HttpReply.Stream(reply.status, reply.contentType, reply.contentLength, extra, reply::body)
     }
 
     public companion object {

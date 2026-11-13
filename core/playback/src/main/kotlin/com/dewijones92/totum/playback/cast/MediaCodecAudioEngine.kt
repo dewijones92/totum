@@ -14,6 +14,7 @@ import com.dewijones92.totum.playback.BoostingAudioProcessor
 import com.dewijones92.totum.playback.ChunkedDataSource
 import com.dewijones92.totum.playback.SilenceCuttingAudioProcessor
 import com.dewijones92.totum.playback.SpeechGate
+import com.dewijones92.totum.playback.TrackSummary
 import com.dewijones92.totum.playback.VolumeBoost
 import com.dewijones92.totum.playback.homeServerAware
 import com.dewijones92.totum.playback.totumExtractors
@@ -156,10 +157,15 @@ internal class MediaCodecAudioEngine(
 
     private fun extractor() = castExtractor(context, source.toUri())
 
-    private fun audioTrack(extractor: MediaExtractorCompat): Int =
-        (0 until extractor.trackCount).firstOrNull {
-            extractor.getTrackFormat(it).getString(MediaFormat.KEY_MIME)?.startsWith("audio/") == true
-        } ?: error("no audio track in $label")
+    private fun audioTrack(extractor: MediaExtractorCompat): Int {
+        val mimes = (0 until extractor.trackCount).map { extractor.getTrackFormat(it).getString(MediaFormat.KEY_MIME) }
+        val found = mimes.indexOfFirst { it?.startsWith("audio/") == true }
+        if (found >= 0) return found
+        val summary = TrackSummary.of(mimes, seekable = null)
+        Diag.warn("cast", "audio $label: no audio track to cast: $summary")
+        if (mimes.isEmpty()) throw NoReadableTracks(label, summary)
+        error("no audio track in $label ($summary)")
+    }
 
     private companion object {
         const val SPARE_FRESH_MS = 20_000L

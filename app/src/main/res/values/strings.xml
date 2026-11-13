@@ -862,6 +862,7 @@
     <string name="refused_cannot_decode_video">this phone can\'t play this video (%1$s)</string>
     <string name="refused_cannot_decode_sound">this phone can\'t play this sound (%1$s)</string>
     <string name="refused_player_error">playback failed (%1$s)</string>
+    <string name="refused_no_track_list">this file\'s track list is at its end, so this phone can\'t read it. The Pi will repair it when it is filed</string>
     <string name="refused_no_stream">YouTube gave no stream for it</string>
     <string name="refused_live_soon">🔴 “%1$s” has not started yet. Totum will tell you when it is live.</string>
     <string name="refused_live_at">🔴 “%1$s” starts %2$s. Totum will tell you when it is live.</string>
@@ -1152,6 +1153,7 @@
     <string name="cast_strip_vpn">🔒 A VPN on this phone is carrying your home network, so %1$s can\'t reach the phone. Turn the VPN off, or exclude Totum in the VPN app, then cast again.</string>
     <string name="cast_strip_sound_undecodable">🔇 This phone can\'t decode this film\'s sound, so %1$s can\'t play it. Pick another copy, one with AAC or MP3 sound.</string>
     <string name="cast_strip_not_fetching">⚠️ %1$s isn\'t fetching anything from the phone. Is the phone on the same Wi-Fi, and not on a guest network?</string>
+    <string name="cast_strip_could_not_start">❌ %1$s couldn\'t start “%2$s”: %3$s</string>
     <string name="cast_strip_sound_only">⚠️ %1$s can\'t show this video (%2$s), so it plays the sound only</string>
     <string name="library_starred">Starred</string>
     <string name="star">Star</string>

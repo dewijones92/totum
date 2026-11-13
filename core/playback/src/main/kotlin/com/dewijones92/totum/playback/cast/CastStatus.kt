@@ -20,6 +20,7 @@ internal class CastStatus(private val session: () -> MediaSession?) : CastTvPort
     private var fetchingHeights: Map<String, Int> = emptyMap()
     private var droppedFrom: Map<String, Int> = emptyMap()
     private var problem: CastProblem? = null
+    private var failure: Pair<String, String>? = null
     private var stage: Triple<String, CastStage, Int?>? = null
     private var screens: List<Screen> = emptyList()
     private var screenPage: String? = null
@@ -45,6 +46,17 @@ internal class CastStatus(private val session: () -> MediaSession?) : CastTvPort
         main.post {
             if (problem == now) return@post
             problem = now
+            publish()
+        }
+    }
+
+    override fun failed(mediaId: String, reason: String?) {
+        main.post {
+            val next = reason?.let { mediaId to it }
+            if (next == null && failure?.first != mediaId) return@post
+            if (failure == next) return@post
+            Diag.log("cast", "$mediaId: failure notice ${reason ?: "cleared"}")
+            failure = next
             publish()
         }
     }
@@ -82,6 +94,7 @@ internal class CastStatus(private val session: () -> MediaSession?) : CastTvPort
             fetchingHeights = emptyMap()
             droppedFrom = emptyMap()
             problem = null
+            failure = null
             stage = null
         }
         publish()
@@ -92,6 +105,10 @@ internal class CastStatus(private val session: () -> MediaSession?) : CastTvPort
             tv?.let { putString(EXTRA_CAST_DEVICE, it.name) }
             putBundle(EXTRA_CAST_REFUSED, Bundle().apply { refusals.forEach(::putString) })
             problem?.let { putString(EXTRA_CAST_PROBLEM, it.name) }
+            failure?.let { (id, reason) ->
+                putString(EXTRA_CAST_FAILED_ITEM, id)
+                putString(EXTRA_CAST_FAILED_REASON, reason)
+            }
             stage?.let { (id, now, percent) ->
                 putString(EXTRA_CAST_STAGE_ITEM, id)
                 putString(EXTRA_CAST_STAGE, now.name)
@@ -122,6 +139,8 @@ internal class CastStatus(private val session: () -> MediaSession?) : CastTvPort
         const val EXTRA_CAST_SENT_CODEC: String = "cast_sent_codec"
         const val EXTRA_CAST_DROPPED_FROM: String = "cast_dropped_from"
         const val EXTRA_CAST_PROBLEM: String = "cast_problem"
+        const val EXTRA_CAST_FAILED_ITEM: String = "cast_failed_item"
+        const val EXTRA_CAST_FAILED_REASON: String = "cast_failed_reason"
         const val EXTRA_CAST_STAGE: String = "cast_stage"
         const val EXTRA_CAST_STAGE_ITEM: String = "cast_stage_item"
         const val EXTRA_CAST_STAGE_PERCENT: String = "cast_stage_percent"

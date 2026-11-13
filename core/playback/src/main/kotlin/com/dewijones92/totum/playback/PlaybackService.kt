@@ -41,6 +41,7 @@ import com.dewijones92.totum.playback.cast.ScreenSession
 import com.dewijones92.totum.playback.cast.TimeMappedCastPlayer
 import com.dewijones92.totum.playback.cast.TotumCastConverter
 import com.dewijones92.totum.playback.cast.TotumCastTrackSelector
+import com.dewijones92.totum.playback.cast.cachedHttpFactory
 import com.dewijones92.totum.playback.cast.standInScreen
 import com.google.android.gms.cast.framework.CastContext
 import com.google.common.util.concurrent.Futures
@@ -792,11 +793,6 @@ internal fun playbackSources(context: Context): DefaultMediaSourceFactory =
         .setLoadErrorHandlingPolicy(DoNotRetryWhatSabrHasGivenUpOn())
         .setDataSourceFactory(
             RefusedSubtitlesLoadEmpty(
-                SabrDataSourceFactory(
-                    PlaybackCache.factory(
-                        context,
-                        ChunkedDataSource.Factory(homeServerAware(DefaultDataSource.Factory(context)))
-                    ),
-                ),
+                SabrDataSourceFactory(cachedHttpFactory(context)),
             ),
         )

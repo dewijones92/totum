@@ -150,6 +150,8 @@ public class Media3PlaybackController(
     @Volatile
     private var castRefused: Map<String, String> = emptyMap()
     private var castProblem: CastProblem? = null
+    private var castFailedItem: String? = null
+    private var castFailedReason: String? = null
     private var castStageItem: String? = null
     private var castStage: CastStage? = null
     private var castStagePercent: Int? = null
@@ -204,6 +206,13 @@ public class Media3PlaybackController(
                 // Observation is a separate listener from state mapping, so a logging
                 // change can never affect what the UI sees.
                 connected.addListener(PlaybackDiagnostics(player = { controller }))
+                connected.addListener(
+                    NoTracksWatch(
+                        player = { controller },
+                        later = { delayMs, action -> mainThread.postDelayed(action, delayMs) },
+                        report = { _events.tryEmit(it) },
+                    ),
+                )
                 remoteEnd.onEnded = { ended -> announceEnd("the receiver dropped it", ended) }
                 connected.addListener(remoteEnd)
                 connected.currentMediaItem?.mediaId?.ifBlank { null }?.takeIf { !connected.playWhenReady }?.let {
@@ -903,6 +912,8 @@ public class Media3PlaybackController(
         castProblem = extras.getString(CastStatus.EXTRA_CAST_PROBLEM)?.let { name ->
             CastProblem.entries.firstOrNull { it.name == name }
         }
+        castFailedItem = extras.getString(CastStatus.EXTRA_CAST_FAILED_ITEM)
+        castFailedReason = extras.getString(CastStatus.EXTRA_CAST_FAILED_REASON)
         castStageItem = extras.getString(CastStatus.EXTRA_CAST_STAGE_ITEM)
         castStage = extras.getString(CastStatus.EXTRA_CAST_STAGE)?.let { name ->
             CastStage.entries.firstOrNull { it.name == name }
@@ -917,7 +928,7 @@ public class Media3PlaybackController(
             "cast",
             "cast status: device=${castDeviceName ?: "none"} refused=$castRefused sentHeights=$castSentHeights " +
                 "sentCodecs=$castSentCodecs droppedFrom=$castDroppedFrom " +
-                "problem=${castProblem ?: "none"} fetching=$castFetchHeights " +
+                "problem=${castProblem ?: "none"} failure=${castFailedReason ?: "none"} fetching=$castFetchHeights " +
                 "stage=${castStage ?: "none"} ${castStagePercent?.let { "$it%" }.orEmpty()} " +
                 "for ${castStageItem ?: "-"} " +
                 "screenPage=${_screens.value.pageUrl?.substringBefore('#') ?: "none"}",
@@ -1429,6 +1440,7 @@ public class Media3PlaybackController(
             castDroppedFrom = castDroppedFrom[current.mediaId],
             castFetchHeight = castFetchHeights[current.mediaId],
             castProblem = castProblem,
+            castFailure = castFailedReason.takeIf { castFailedItem == current.mediaId },
             castVolume = castVolumeOf(),
             castStage = castStage.takeIf { castStageItem == current.mediaId },
             castStagePercent = castStagePercent.takeIf { castStageItem == current.mediaId },
