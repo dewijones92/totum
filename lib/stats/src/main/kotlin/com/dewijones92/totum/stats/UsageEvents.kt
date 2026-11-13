@@ -14,19 +14,22 @@ public fun settle(raw: List<RawUsage>, from: Long, now: Long): Settled {
         when (usage.kind) {
             RawKind.SCREEN_ON -> StatEvent.PhoneScreen(usage.at, on = true)
             RawKind.SCREEN_OFF -> StatEvent.PhoneScreen(usage.at, on = false)
-            RawKind.KEYGUARD_HIDDEN -> StatEvent.PhoneUnlock(usage.at, firstAppAfter(sorted, usage.at))
+            RawKind.KEYGUARD_HIDDEN -> StatEvent.PhoneUnlock(usage.at, firstAppAt(sorted, usage.at))
             RawKind.APP_FOREGROUND, RawKind.APP_BACKGROUND -> null
         }
     }
     return Settled(events.distinct(), until)
 }
 
-private fun firstAppAfter(sorted: List<RawUsage>, unlockAt: Long): String? = sorted.firstOrNull {
-    it.kind == RawKind.APP_FOREGROUND &&
-        it.at in unlockAt..unlockAt + FIRST_APP_WINDOW_MS &&
-        it.packageName != null &&
-        it.packageName !in SYSTEM_PACKAGES
-}?.packageName
+private fun firstAppAt(sorted: List<RawUsage>, unlockAt: Long): String? {
+    val apps = sorted.filter {
+        it.kind == RawKind.APP_FOREGROUND && it.packageName != null && it.packageName !in SYSTEM_PACKAGES
+    }
+    return (
+        apps.lastOrNull { it.at in unlockAt - FIRST_APP_LEAD_MS..unlockAt }
+            ?: apps.firstOrNull { it.at in unlockAt..unlockAt + FIRST_APP_WINDOW_MS }
+        )?.packageName
+}
 
 public fun unlockTimes(raw: List<RawUsage>): List<Long> =
     raw.filter { it.kind == RawKind.KEYGUARD_HIDDEN }.map { it.at }.distinct().sorted()
@@ -38,4 +41,5 @@ public fun foregroundApp(raw: List<RawUsage>): String? {
 }
 
 internal const val FIRST_APP_WINDOW_MS = 5_000L
+private const val FIRST_APP_LEAD_MS = 2_000L
 private val SYSTEM_PACKAGES = setOf("com.android.systemui")

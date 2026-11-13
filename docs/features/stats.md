@@ -3,7 +3,7 @@ title: Stats
 kind: feature
 area: library
 status: built — awaiting a week of real use on Dewi's phone
-updated: 2026-10-14
+updated: 2026-11-13
 ---
 
 # Stats
@@ -22,6 +22,7 @@ Library → **📊 Stats** (ADR 44). Everything is computed when the page opens 
 | 📱 Flat-phone nudges | nudged, turned on (within 15 min), not today, ignored | — |
 | ⏰ Daily alarms | asked, yes, no, rang, snoozed, stopped, average time to stop (snoozes included) | — |
 | 🧭 App use | searches, downloads and MB, pins, shuffles, videos shown | — |
+| 📱 Phone use | unlocks, screen time, longest gap, per hour and 7/30-day trends, first apps, unlock nudges (own section, own range; see [phone-use](phone-use.md)) | tap a bar or an app: its unlocks |
 
 A play **counts** once 30 s or half of it has been heard. Recording started on 2026-10-14; Exsurge reaches back
 through its saved outcomes.

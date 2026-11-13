@@ -27,6 +27,7 @@ alone until they need more.
 | Live streams: play from the live head at 1x; one that has not started says "🔴 Starts soon", is waited for politely (progress strip, Cancel) and calls you when live | playback | built 2026-11-06 (ADR 69 amended; tests owed) | [live-streams.md](live-streams.md) |
 | Casting with Totum's processing (DASH from the phone: original video packets, processed audio) | playback | prototype 2026-10-21 — YouTube video + boost on the LG and Chromecast Ultra, skip silences for talk, speed, TV seek/next, queue autoplay, stop/restart (ADR 68) | [casting.md](casting.md) |
 | Stats (listens, side quests, app use) | library | built 2026-10-14 — Library → 📊 Stats from an event log, with drill-downs (ADR 44) | [stats.md](stats.md) |
+| 📱 Phone use: unlocks and screen time from Android's usage history in Stats, and an optional "still want in?" nudge when you unlock again soon | library | built 2026-11-13 (ADR 160; needs Usage access; checked on totum-api35) | [phone-use.md](phone-use.md) |
 | Downloads clean-up suggestions | downloads | built 2026-10-13 — four groups, review then delete, dequeues what it deletes | [downloads-cleanup.md](downloads-cleanup.md) |
 | Shuffle all (channel, podcast, group) | queue/channel | shipped — every page, Shorts asked, one queue group; 🔀 on every group chip (2026-10-14) | [shuffle-all.md](shuffle-all.md) |
 | Google Drive backup | backup | built 2026-10-15 — a Drive folder or file via the picker, latest + 7 dailies, on every change, merge on restore, launch prompt | [drive-backup.md](drive-backup.md) |

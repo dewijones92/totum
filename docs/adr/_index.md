@@ -171,3 +171,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 157 | [A player error with no recovery tells the user why, and offers Listen when the picture is the problem](0157-a-player-error-with-no-recovery-tells-the-user-and-offers-listen.md) | Accepted |
 | 158 | [Targets, end-of-batch fixes: loops, ids, a loopback listener, slow answers, a TV that is switched off, resume, structured problems](0158-targets-end-of-batch-fixes.md) | Accepted |
 | 159 | [A crash screen for everyone, reports to the Pi as a setting, and a state dump with every report](0159-a-crash-screen-and-a-state-dump-for-every-report.md) | Accepted |
+| 160 | [Phone use is read from Android's own history, and the unlock nudge only asks](0160-phone-use-is-read-from-androids-own-history-and-the-nudge-only-asks.md) | Accepted |

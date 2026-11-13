@@ -45,6 +45,36 @@ class PhoneUseStatsTest {
     }
 
     @Test
+    fun `the app that resumed just before the keyguard went away is the first app, as Android reports it`() {
+        val settled = settle(
+            listOf(
+                raw("2026-11-13T09:00:00Z", RawKind.SCREEN_ON),
+                raw("2026-11-13T09:00:00.600Z", RawKind.APP_FOREGROUND, "org.smarttube.focus"),
+                raw("2026-11-13T09:00:01Z", RawKind.KEYGUARD_HIDDEN),
+                raw("2026-11-13T09:00:03Z", RawKind.APP_FOREGROUND, "com.android.chrome"),
+            ),
+            from = at("2026-11-13T08:00:00Z"),
+            now = at("2026-11-13T09:05:00Z"),
+        )
+
+        assertEquals(unlock("2026-11-13T09:00:01Z", "org.smarttube.focus"), settled.events.last())
+    }
+
+    @Test
+    fun `an app that resumed long before the unlock is not its first app`() {
+        val settled = settle(
+            listOf(
+                raw("2026-11-13T08:55:00Z", RawKind.APP_FOREGROUND, "com.whatsapp"),
+                raw("2026-11-13T09:00:00Z", RawKind.KEYGUARD_HIDDEN),
+            ),
+            from = at("2026-11-13T08:00:00Z"),
+            now = at("2026-11-13T09:05:00Z"),
+        )
+
+        assertEquals(listOf<StatEvent>(unlock("2026-11-13T09:00:00Z")), settled.events)
+    }
+
+    @Test
     fun `an unlock still inside the first-app window is held back until its app could have been seen`() {
         val events = listOf(
             raw("2026-11-13T09:00:00Z", RawKind.KEYGUARD_HIDDEN),
