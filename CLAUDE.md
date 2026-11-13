@@ -366,6 +366,15 @@ The project's emulator AVD is **`totum-api35`** (API 35, x86_64). Boot it with
 `-gpu swiftshader_indirect` — the hardware GPU segfaults on sustained 4K/live decode and takes the whole
 emulator down mid-test.
 
+**One emulator, owned by the orchestrator** (2026-11-13: two builders each booted `totum-api35` at once, both
+copies died, and RAM allows only one). The orchestrator boots it; a builder never does. A builder takes
+`flock /tmp/totum-emulator.lock` for each short session and checks `adb -s emulator-5554 emu avd name` says
+`totum-api35` (another session's SmartTube emulator has used 5554). Boot with the isolated **36.6.11** binary,
+because the SDK's 37.2 hangs and crashes on a cold start here: `systemd-run --user --scope
+/home/dewi/claude-tasks/totum-playback-fixes-20261012/emulator-36/emulator/emulator -avd totum-api35 -no-window -gpu
+swiftshader_indirect -no-boot-anim -no-audio -no-snapshot -cores 2 -memory 2048` (its own scope, so an OOM kill takes
+the emulator, not the session).
+
 **It is signed IN as of 2026-08-20 17:26.** Do not trust that sentence — this section has been wrong in
 both directions within a day, so **check** rather than read: a non-empty `youtube_account.xml` in
 `run-as com.dewijones92.totum ls -l shared_prefs/` is the only answer that counts. It was signed out
