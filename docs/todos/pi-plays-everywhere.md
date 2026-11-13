@@ -135,6 +135,14 @@ on a speaker during a real back-off; the 1.5 s grace on a real slow start; the h
 **Not built:** failing fast when `bluetoothctl connect` says it failed (the Pi still waits up to 15 s for the sink); a TV
 that hangs while still reporting `PLAYING` is not detected.
 
+### Soundmic kept awake, one volume, 2026-11-13 ([ADR 165](../adr/0165-a-speaker-is-kept-awake-and-has-one-volume-its-own.md))
+
+Done: `TOTUM_SPEAKERS_KEEP_AWAKE` (link kept, reconnects with a back-off, inaudible sound about a minute apart), the
+speaker's own Bluetooth volume behind the slider with a logged fallback to mpv's, `volumeMode` and `keepAwake` on the
+wire and in the remote panel. **Owed (device):** that the Soundmic's transport exists when the slider moves and takes an
+absolute `Volume`; that mpv's silence on its sink keeps it awake (else `TOTUM_SPEAKERS_KEEP_AWAKE_SIGNAL=noise`); the
+soundbar's slider in `HARDWARE` mode; the image's new `systemd` package giving a working `busctl` over the mounted system bus.
+
 ### Review fixes, 2026-11-07
 
 Findings of the end-of-batch review and two sweeps, fixed: the target chip no longer outlives the Queue tab, and Kid TV,

@@ -46,8 +46,16 @@ sound processing on the Pi). Brief: [pi-plays-everywhere.md](../todos/pi-plays-e
   A second phone's sign-in hand-over is refused until the first phone signs the Pi out.
 - **Volume is the device's own.** A play never changes a TV's or a speaker's volume; only the phone's volume slider does.
   The slider shows the level the device reports (a Chromecast says it on connect and when it changes), or "🔈 Volume not
-  known" when it has not said; a speaker's is the level last chosen from the phone, until the Pi restarts. A volume saved
-  by an older version is ignored.
+  known" when it has not said. A volume saved by an older version is ignored.
+- **A speaker's volume is the speaker's own** ([ADR 165](../adr/0165-a-speaker-is-kept-awake-and-has-one-volume-its-own.md)). The slider writes the Bluetooth transport's
+  absolute `Volume` (`busctl`, 0 to 127) and shows what the speaker reports, including a change made on its own buttons;
+  mpv stays at 100%. With no transport or no `Volume` property it falls back to mpv's volume and the line says "🔉 …
+  Totum's, the speaker's own is not available". Reading never writes.
+- **A speaker can be kept awake.** `TOTUM_SPEAKERS_KEEP_AWAKE=Soundmic` (or `Soundmic@07:00-22:30`; names or ids) keeps
+  that speaker linked when a queue ends, reconnects it if it drops (2, 4, 8, 10 minutes apart) and sends two seconds of
+  inaudible sound to its sink about once a minute while nothing plays (`TOTUM_SPEAKERS_KEEP_AWAKE_SIGNAL=silence|noise`).
+  The remote panel says "🟢 Kept awake", "⏳ … reconnecting…" or "💤 … outside its hours". Unnamed speakers, the soundbar
+  included, are untouched. Built and unit-tested 2026-11-13; **not yet seen on the real Soundmic**.
 - **TV sound switches** are greyed, with a note, while the TV is showing a picture.
 - **A TV that is off is listed and wakes on a play.** `TOTUM_CAST_TARGETS` accepts `name=address@aa:bb:cc:dd:ee:ff`; such a
   TV shows 💤 on its chip and "💤 Off · tap to wake" in its header while it is off. Playing to it (or tapping that) sends
