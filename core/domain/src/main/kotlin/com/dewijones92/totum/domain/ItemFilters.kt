@@ -69,7 +69,7 @@ public data class ItemFilters(
         KindFilter.ANY -> true
         KindFilter.MUSIC -> item.listening == Listening.MUSIC
         KindFilter.TALK -> item.listening == Listening.TALK
-        KindFilter.VIDEO -> item.pillar == MediaKind.VIDEO && item.listening == Listening.TALK
+        KindFilter.VIDEO -> item.picture == Picture.YES && item.listening == Listening.TALK
         KindFilter.LIVE -> liveNow
     }
 

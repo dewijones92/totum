@@ -68,6 +68,24 @@ class ItemFiltersTest {
     }
 
     @Test
+    fun `video means anything with a picture, so a Jellyfin film and a video torrent count`() {
+        val videos = ItemFilters(kind = KindFilter.VIDEO)
+        val jellyfinFilm = item("jellyfin:abc", 90.minutes, null, video = false).copy(
+            mediaUrl = HttpUrl.of("https://pi.test/jellyfin/stream/abc"),
+        )
+        val torrentFilm = item("torrent:def", 90.minutes, null, video = false).copy(
+            mediaUrl = HttpUrl.of("https://pi.test/torrent/stream/def.mkv"),
+        )
+        val torrentAudio = item("torrent:ghi", 60.minutes, null, video = false).copy(
+            mediaUrl = HttpUrl.of("https://pi.test/torrent/stream/ghi.mp3"),
+        )
+
+        assertTrue("Jellyfin film", videos.accepts(jellyfinFilm, false, now))
+        assertTrue("video torrent", videos.accepts(torrentFilm, false, now))
+        assertFalse("sound torrent", videos.accepts(torrentAudio, false, now))
+    }
+
+    @Test
     fun `plays offline accepts by the extra answer and not by the download answer`() {
         val offline = ItemFilters(downloaded = DownloadedFilter.PLAYS_OFFLINE)
         val a = item("a", 5.minutes, null)

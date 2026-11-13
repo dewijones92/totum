@@ -4,7 +4,8 @@ import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaKind
-import com.dewijones92.totum.domain.isJellyfin
+import com.dewijones92.totum.domain.Picture
+import com.dewijones92.totum.domain.picture
 import com.dewijones92.totum.playback.PlaybackState
 import java.time.Instant
 
@@ -51,7 +52,7 @@ private fun whoAndWhat(item: MediaItem?, state: PlaybackState): List<ItemFact> =
     val publisher = (item?.publisher ?: state.publisher)?.takeIf { it.isNotBlank() && it != item?.author }
     publisher?.let { add(ItemFact.Publisher(it)) }
     item?.album?.title?.let { add(ItemFact.Album(it)) }
-    val video = state.kind == MediaKind.VIDEO || item?.isJellyfin == true
+    val video = state.kind == MediaKind.VIDEO || item?.picture == Picture.YES
     add(ItemFact.Kind(item?.contentKind ?: state.contentKind, isVideo = video))
     if (item?.membersOnly == true) add(ItemFact.MembersOnly)
 }

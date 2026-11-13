@@ -6,7 +6,7 @@ public enum class Picture { YES, NO, UNKNOWN }
 
 public val MediaItem.picture: Picture
     get() = when {
-        pillar == MediaKind.VIDEO -> Picture.YES
+        pillar == MediaKind.VIDEO || isJellyfin -> Picture.YES
         else -> mediaUrl?.let(::pictureAt) ?: Picture.UNKNOWN
     }
 
