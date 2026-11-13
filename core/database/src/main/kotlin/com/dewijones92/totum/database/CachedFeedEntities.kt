@@ -17,11 +17,8 @@ import androidx.room.Transaction
  * yesterday's feed instantly and refreshes behind it, which is the whole difference.
  *
  * **Deliberately NOT on [PlaylistItemColumns].** That contract exists to rebuild a
- * `PlayableItem` — it carries a playback handle and drops duration, view count, upload date
- * and the members-only flag, because the queue and history do not render them. A feed row
- * renders exactly those, and needs no handle (one is derived at play time). Sharing the
- * contract would mean either losing the metadata Dewi asked lists to show, or widening four
- * other tables that have no use for it.
+ * `PlayableItem` — it carries a playback handle, which a feed row does not need (one is
+ * derived at play time), and four tables share it.
  */
 @Entity(
     tableName = "cached_feed_items",

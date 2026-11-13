@@ -85,9 +85,11 @@ Decided, not yet built (next consistency batch):
   before its season mark with the year dropped, so two packs of one show share their skips; a torrent film has no key
   and no skips section (`showKey`, `showTitleOf`, the episode code parser now one copy in `:core:domain`, `EpisodeCode.kt`).
 - D3 the thin top busy bar folds into the progress strip; needs a design for background lookups, which the bar
-  covers today and which must not fill the strip.
+  covers today and which must not fill the strip. Still open on 2026-11-13.
 - The audit's remaining items: stored queue/history rows lose show notes and chapters (a schema bump); private page
-  spinners into the strip; six empty-state looks; three search-field designs.
+  spinners into the strip; six empty-state looks; three search-field designs. All four still open on 2026-11-13, with
+  their evidence and effort in [consistency-leftovers](../todos/consistency-leftovers.md), the one list of what is
+  left.
 
 Consistency sweep, 2026-11-06 (done): one download wording on the strip and the Pi notices; the leftover "at home"
 words say "the Pi"; a bulk delete says "Delete from both" when a Pi copy exists; the episode picker names the codec; a
@@ -122,7 +124,6 @@ Recorded exceptions from that pass:
   one item and no address worth copying (its chapters have the full menu).
 - **A torrent pack's menu has no Copy link** (already recorded under the groups above): a pack has no public address.
   Its Star stars every file and its Not for me suppresses the pack by its show title.
-- **Clear all searches has no Undo yet**; only forgetting one query does.
 - **Group membership Undo re-adds the channel at the end of the group**, not in its old slot (the store appends by position).
 
 Recorded exceptions from the Pi-plays-everywhere review, 2026-11-07 (the coordinator's calls; Dewi delegated them):
@@ -142,6 +143,15 @@ year as its date fact and its overview in Details, wears its poster everywhere (
 the shared image loader sends the device token), and its page uses the shared back header
 ([ADR 154](0154-jellyfin-is-browsed-and-streamed-through-the-pi.md)). A player error with no recovery is told to the user
 through the refused-tap message, for every source ([ADR 157](0157-a-player-error-with-no-recovery-tells-the-user-and-offers-listen.md)).
+
+Leftovers sweep, 2026-11-13 (every leftover re-checked against the code; the table is
+[consistency-leftovers](../todos/consistency-leftovers.md)): fixed, **Clear all recent searches offers Undo**
+(`SearchViewModel.clearHistory` returns the cleared slots, `rememberClearRecent`), **a channel page's rows carry the
+account's watched marks** like a group's (triage finding 95, [ADR 96](0096-a-group-asks-the-account-how-far-each-video-was-watched.md)),
+and the stale comment on the cached-feed rows is true again. Still open: D3, show notes and chapters on stored rows,
+private spinners, empty-state looks, search-field designs, group membership Undo returning to the old slot, the channel
+marks on Shorts and later pages, and marks on search results and related videos (a product call: no per-video progress
+call exists).
 
 ## Consequences
 
