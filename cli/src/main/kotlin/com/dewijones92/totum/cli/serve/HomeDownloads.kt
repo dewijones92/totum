@@ -2,6 +2,7 @@ package com.dewijones92.totum.cli.serve
 
 import com.dewijones92.totum.cli.serve.filing.LibraryFiler
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.common.YoungStreamUrl
 import com.dewijones92.totum.data.ask.AskJson
 import com.dewijones92.totum.data.backup.toBackup
@@ -9,11 +10,13 @@ import com.dewijones92.totum.data.backup.toPlayable
 import com.dewijones92.totum.data.download.DefaultDownloadManager
 import com.dewijones92.totum.data.download.DownloadStrategy
 import com.dewijones92.totum.data.download.JsonDownloadStore
+import com.dewijones92.totum.data.download.RetryPlan
 import com.dewijones92.totum.data.home.AccountHandover
 import com.dewijones92.totum.data.home.HomeJob
 import com.dewijones92.totum.data.home.HomeJobRequest
 import com.dewijones92.totum.data.home.HomeJobState
 import com.dewijones92.totum.data.home.HomeJobs
+import com.dewijones92.totum.data.home.HomeRetry
 import com.dewijones92.totum.data.home.PhoneDecoder
 import com.dewijones92.totum.data.net.OkHttpTextFetcher
 import com.dewijones92.totum.data.sponsorblock.SponsorBlockSegmentSource
@@ -21,6 +24,7 @@ import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
+import com.dewijones92.totum.domain.isTorrent
 import com.dewijones92.totum.innertube.auth.AccessToken
 import com.dewijones92.totum.innertube.auth.AccessTokenResult
 import com.dewijones92.totum.innertube.auth.HttpYouTubeAuth
@@ -99,9 +103,13 @@ internal class HomeDownloads(
     private val polite: Politeness,
     rawEngine: YtDlpEngine = ProcessYtDlpEngine(),
     transport: Interceptor? = null,
+    readTimeoutS: Long = READ_TIMEOUT_S,
+    private val torrentReadTimeoutS: Long = TORRENT_READ_TIMEOUT_S,
 ) : Home {
-    private val http = polite.gated(OkHttpClient.Builder().readTimeout(READ_TIMEOUT_S, TimeUnit.SECONDS))
+    private val http = polite.gated(OkHttpClient.Builder().readTimeout(readTimeoutS, TimeUnit.SECONDS))
         .apply { transport?.let(::addInterceptor) }.build()
+    private val torrentHttp = http.newBuilder().readTimeout(torrentReadTimeoutS, TimeUnit.SECONDS).build()
+    private val torrServer = TorrServerReset(http)
     private val engine: YtDlpEngine = polite.gated(rawEngine)
     private val tokens = FileTokenStore(File(dataDir, "youtube.json"))
     private val ownership = YouTubeOwnership(File(dataDir, "youtube-owner.json"))
@@ -126,10 +134,10 @@ internal class HomeDownloads(
         store = store,
         strategy = object : DownloadStrategy {
             override fun download(item: PlayableItem, target: File, audioOnly: Boolean) =
-                strategyFor(item).download(item, target, audioOnly)
+                strategyFor(item).download(item.fetchedAt(), target, audioOnly)
 
             override fun download(item: PlayableItem, target: File, audioOnly: Boolean, maxHeight: Int?) =
-                strategyFor(item).download(item, target, audioOnly, maxHeight)
+                strategyFor(item).download(item.fetchedAt(), target, audioOnly, maxHeight)
         },
         scope = scope,
     )
@@ -138,13 +146,25 @@ internal class HomeDownloads(
         HomeFiling(store, downloadDir, filer).start(scope, manager.observeRecords())
     }
 
-    private fun strategyFor(item: PlayableItem): DownloadStrategy = videoAndPodcastDownloads(
-        engine = engine,
-        preferredAudioLanguages = { listOf("en") },
-        resolver = resolverFor(decodersOf[item.item.id.value].orEmpty()),
-        transferClient = http,
-        sabr = SabrRoute.NONE,
-    )
+    private fun PlayableItem.fetchedAt(): PlayableItem {
+        val original = item.mediaUrl ?: return this
+        val rewritten = rewrites.apply(original.value)
+        if (rewritten == original.value) return this
+        val url = HttpUrl.parse(rewritten) ?: return this
+        return copy(item = item.copy(mediaUrl = url))
+    }
+
+    private fun strategyFor(item: PlayableItem): DownloadStrategy {
+        val torrent = item.item.isTorrent
+        val routes = videoAndPodcastDownloads(
+            engine = engine,
+            preferredAudioLanguages = { listOf("en") },
+            resolver = resolverFor(decodersOf[item.item.id.value].orEmpty()),
+            transferClient = if (torrent) torrentHttp else http,
+            sabr = SabrRoute.NONE,
+        )
+        return if (torrent) ResetsTorrentsOnFailure(routes, torrServer::reset) else routes
+    }
 
     private fun resolverFor(decoders: List<PhoneDecoder>): VideoResolver = resolvers.getOrPut(decoders) {
         Diag.log("home", "a resolver for ${PhoneCodecs(decoders).screen}")
@@ -171,8 +191,7 @@ internal class HomeDownloads(
 
     override suspend fun start(request: HomeJobRequest): Started {
         if (free() < freeFloorBytes) return Started.Refused("❌ Not enough space on the Pi (${free() / GB} GB free)")
-        val item = request.item.copy(mediaUrl = request.item.mediaUrl?.let(rewrites::apply)).toPlayable()
-            ?: return Started.Refused("❌ That item can't be downloaded")
+        val item = request.item.toPlayable() ?: return Started.Refused("❌ That item can't be downloaded")
         decodersOf[item.item.id.value] = request.decoders
         saveDecoders(decodersFile, decodersOf)
         Diag.log(
@@ -186,7 +205,8 @@ internal class HomeDownloads(
 
     override suspend fun jobs(): HomeJobs {
         val records = manager.observeRecords().first()
-        val jobs = records.map { it.item.toJob(it.state) }
+        val plans = manager.retryPlans().first()
+        val jobs = records.map { it.item.toJob(it.state, plans[it.item.item.id]) }
         val signedIn = account.isSignedIn()
         return HomeJobs(
             jobs,
@@ -304,10 +324,11 @@ internal class HomeDownloads(
         const val MAX_UPLOAD_BYTES = 64L * 1_000_000_000L
         private const val GB = 1_000_000_000L
         private const val READ_TIMEOUT_S = 60L
+        private const val TORRENT_READ_TIMEOUT_S = 600L
     }
 }
 
-private fun PlayableItem.toJob(state: DownloadState): HomeJob {
+private fun PlayableItem.toJob(state: DownloadState, plan: RetryPlan?): HomeJob {
     val base = HomeJob(item.id.value, toBackup(), HomeJobState.WAITING, audioOnly = false)
     return when (state) {
         is DownloadState.Downloading -> base.copy(
@@ -321,7 +342,15 @@ private fun PlayableItem.toJob(state: DownloadState): HomeJob {
             bytes = File(state.localPath).length(),
             totalBytes = File(state.localPath).length(),
         )
-        is DownloadState.Failed -> base.copy(state = HomeJobState.FAILED, error = state.reason)
+        is DownloadState.Failed -> if (plan == null) {
+            base.copy(state = HomeJobState.FAILED, error = state.reason)
+        } else {
+            base.copy(
+                state = HomeJobState.WAITING,
+                error = state.reason,
+                retry = HomeRetry(plan.attempt, plan.of, plan.atMs),
+            )
+        }
         DownloadState.NotDownloaded -> base
     }
 }

@@ -35,6 +35,9 @@ public enum class HomeJobState {
 }
 
 @Serializable
+public data class HomeRetry(val attempt: Int, val of: Int, val atEpochMs: Long)
+
+@Serializable
 public data class HomeJob(
     val id: String,
     val item: BackupItem,
@@ -43,7 +46,12 @@ public data class HomeJob(
     val bytes: Long = 0,
     val totalBytes: Long? = null,
     val error: String? = null,
+    val retry: HomeRetry? = null,
 )
+
+public val HomeJob.retrying: Boolean get() = retry != null
+
+public val HomeJob.busy: Boolean get() = state == HomeJobState.WAITING || state == HomeJobState.DOWNLOADING
 
 public fun HomeJob.transfer(): Transfer? = when (state) {
     HomeJobState.WAITING -> Transfer.waiting(TransferPlace.WEB, TransferPlace.PI)
