@@ -1,16 +1,24 @@
 package com.dewijones92.totum.playback
 
 import android.content.Context
+import android.os.Handler
 import android.os.SystemClock
 import androidx.annotation.OptIn
+import androidx.media3.common.util.ExperimentalApi
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.DefaultRenderersFactory
+import androidx.media3.exoplayer.Renderer
 import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.exoplayer.audio.DefaultAudioSink
+import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
+import androidx.media3.exoplayer.video.MediaCodecVideoRenderer
+import androidx.media3.exoplayer.video.VideoRendererEventListener
 import com.dewijones92.totum.common.Diag
 import kotlin.concurrent.thread
 
-@OptIn(markerClass = [UnstableApi::class])
+private const val LATE_THRESHOLD_TO_DROP_INPUT_US = 15_000L
+
+@OptIn(markerClass = [UnstableApi::class, ExperimentalApi::class])
 @UnstableApi
 internal fun silenceAwareRenderers(
     context: Context,
@@ -30,7 +38,32 @@ internal fun silenceAwareRenderers(
             .setAudioProcessorChain(SilenceCuttingAudioProcessorChain(cutter, after = arrayOf(booster)))
             .setAudioTrackBufferSizeProvider(SkipSilenceOutputBuffer(skipSilence))
             .build()
-        return HeardSilenceAudioSink(sink, cutter, { video.selected }, { video.droppedFrames })
+        return HeardSilenceAudioSink(sink, cutter, { video.selected }, { video.droppedFrames }, video::cutOwed)
+    }
+
+    override fun buildVideoRenderers(
+        context: Context,
+        extensionRendererMode: Int,
+        mediaCodecSelector: MediaCodecSelector,
+        enableDecoderFallback: Boolean,
+        eventHandler: Handler,
+        eventListener: VideoRendererEventListener,
+        allowedVideoJoiningTimeMs: Long,
+        out: ArrayList<Renderer>,
+    ) {
+        out += SilenceCutPauseVideoRenderer(
+            MediaCodecVideoRenderer.Builder(context)
+                .setCodecAdapterFactory(codecAdapterFactory)
+                .setMediaCodecSelector(mediaCodecSelector)
+                .setAllowedJoiningTimeMs(allowedVideoJoiningTimeMs)
+                .setEnableDecoderFallback(enableDecoderFallback)
+                .setEventHandler(eventHandler)
+                .setEventListener(eventListener)
+                .setMaxDroppedFramesToNotify(DefaultRenderersFactory.MAX_DROPPED_VIDEO_FRAME_COUNT_TO_NOTIFY)
+                .experimentalSetParseAv1SampleDependencies(true)
+                .experimentalSetLateThresholdToDropDecoderInputUs(LATE_THRESHOLD_TO_DROP_INPUT_US),
+            { video.cutOwedUs },
+        )
     }
 }
 

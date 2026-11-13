@@ -14,6 +14,7 @@ internal class HeardSilenceAudioSink(
     private val cutter: SilenceCuttingAudioProcessor,
     private val videoPlaying: () -> Boolean = { false },
     private val lateVideoFrames: () -> Long = { 0L },
+    private val cutOwed: (Long) -> Unit = {},
 ) : ForwardingAudioSink(sink) {
 
     private val clock = HeardClock()
@@ -41,6 +42,7 @@ internal class HeardSilenceAudioSink(
         val position = clock.position(counted, cutter.framesToUs(cutter.skippedFrames)) { heardUs ->
             cutter.framesToUs(cutter.heard?.skippedBy(cutter.usToFrames(heardUs)) ?: 0L)
         }
+        cutOwed(clock.owingUs)
         if (clock.releasedUs > 0) cutHeard()
         return position
     }
@@ -56,6 +58,7 @@ internal class HeardSilenceAudioSink(
         seenFlushes = cutter.flushes
         cutter.takePreviousSkippedBy()
         clock.seeked()
+        cutOwed(0L)
     }
 
     private fun noticeFlush() {
@@ -63,6 +66,7 @@ internal class HeardSilenceAudioSink(
         seenFlushes = cutter.flushes
         val midStream = clock.started
         clock.processorsFlushed(cutter.takePreviousSkippedBy())
+        cutOwed(0L)
         if (midStream) {
             Diag.log(
                 "silence",

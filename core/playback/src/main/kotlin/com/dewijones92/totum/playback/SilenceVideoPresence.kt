@@ -16,6 +16,14 @@ internal class SilenceVideoPresence : AnalyticsListener {
     var droppedFrames: Long = 0L
         private set
 
+    @Volatile
+    var cutOwedUs: Long = 0L
+        private set
+
+    fun cutOwed(us: Long) {
+        cutOwedUs = us
+    }
+
     override fun onTracksChanged(eventTime: AnalyticsListener.EventTime, tracks: Tracks) {
         selected = tracks.isTypeSelected(C.TRACK_TYPE_VIDEO)
     }

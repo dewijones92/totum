@@ -27,6 +27,8 @@ class HeardSilenceAudioSinkTest {
     private var announced = 0
     private var videoPlaying = false
     private var lateFrames = 0L
+    private var reportedOwedUs = 0L
+    private val owedReports = mutableListOf<Long>()
 
     private val inner = Proxy.newProxyInstance(
         AudioSink::class.java.classLoader,
@@ -50,7 +52,10 @@ class HeardSilenceAudioSinkTest {
         }
     } as AudioSink
 
-    private val sink = HeardSilenceAudioSink(inner, cutter, { videoPlaying }, { lateFrames }).apply {
+    private val sink = HeardSilenceAudioSink(inner, cutter, { videoPlaying }, { lateFrames }) {
+        reportedOwedUs = it
+        owedReports += it
+    }.apply {
         setListener(object : AudioSink.Listener {
             override fun onPositionDiscontinuity() = Unit
             override fun onUnderrun(bufferSize: Int, bufferSizeMs: Long, elapsedSinceLastFeedMs: Long) = Unit
@@ -156,6 +161,44 @@ class HeardSilenceAudioSinkTest {
         assertEquals(jumps.count { it > 0 }, announced)
     }
 
+    @Test
+    fun `on a video the cut still to move is reported while it is paid out and is zero once paid`() {
+        videoPlaying = true
+        jumpsWhilePlayingPast(sevenSecondPause)
+
+        assertTrue(
+            "the renderer was told a cut was still to move: $owedReports",
+            owedReports.max() > MOST_OF_THE_PAUSE_US,
+        )
+        assertEquals("and that it was all moved in the end", 0L, reportedOwedUs)
+    }
+
+    @Test
+    fun `with no video nothing is ever reported as still to move`() {
+        videoPlaying = false
+        jumpsWhilePlayingPast(sevenSecondPause)
+
+        assertEquals("nothing owed: $owedReports", 0L, owedReports.max())
+    }
+
+    @Test
+    fun `a seek tells the renderer that nothing is still to move`() {
+        videoPlaying = true
+        play(sevenSecondPause)
+        val skippedUs = cutter.framesToUs(cutter.skippedFrames)
+        sinkPositionUs = FIRST_CUT_US - 50_000 + skippedUs
+        sink.getCurrentPositionUs(false)
+        repeat(PAST_THE_CUT_STEPS) {
+            sinkPositionUs += STEP_US
+            sink.getCurrentPositionUs(false)
+        }
+        assertTrue("a cut is still owed before the seek: $reportedOwedUs", reportedOwedUs > 0)
+
+        sink.flush()
+
+        assertEquals(0L, reportedOwedUs)
+    }
+
     private fun jumpsWhilePlayingPast(input: ShortArray): List<Long> {
         play(input)
         val skippedUs = cutter.framesToUs(cutter.skippedFrames)
@@ -249,6 +292,7 @@ class HeardSilenceAudioSinkTest {
         const val FIRST_CUT_US = SPEECH_US + SilenceCutter.PAD_MS * 1_000L
         const val STEP_US = 10_000L
         const val STEPS = 100
+        const val PAST_THE_CUT_STEPS = 10
         const val MOST_OF_THE_PAUSE_US = 6_500_000L
         const val VIDEO_JUMP_CAP_US = 400_000L
         const val PEAK = 8_000.0
