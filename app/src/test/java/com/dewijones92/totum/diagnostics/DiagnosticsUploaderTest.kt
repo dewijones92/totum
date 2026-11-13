@@ -1,8 +1,8 @@
 package com.dewijones92.totum.diagnostics
 
 import com.dewijones92.totum.common.HomeServerAuth
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.runBlocking
 import mockwebserver3.MockResponse
@@ -45,7 +45,10 @@ class DiagnosticsUploaderTest {
         signedIn: Boolean = true,
         sendToHome: Boolean = true,
         underInstrumentation: Boolean = false,
-        dump: suspend () -> ByteArray? = { dumpAsked++; dumpBytes },
+        dump: suspend () -> ByteArray? = {
+            dumpAsked++
+            dumpBytes
+        },
     ) = DiagnosticsUploader(
         pending = { files.filter(File::exists) },
         client = OkHttpClient(),

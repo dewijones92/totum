@@ -12,11 +12,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.fragment.app.FragmentActivity
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
+import com.dewijones92.totum.diagnostics.CrashActivity
 import com.dewijones92.totum.domain.ChosenWay
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayReason
 import com.dewijones92.totum.domain.PlayableItem
-import com.dewijones92.totum.diagnostics.CrashActivity
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.downloads.DownloadsRequests
 import com.dewijones92.totum.kidlock.KidLockWindow

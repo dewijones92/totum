@@ -7,6 +7,7 @@ import com.dewijones92.totum.data.diagnostics.StateDump
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.JsonObject
 import java.io.File
 
 internal class StateDumpSource(
@@ -18,10 +19,11 @@ internal class StateDumpSource(
     suspend fun gzipped(): ByteArray = withContext(work) {
         val began = System.currentTimeMillis()
         val built = StateDump.build(inputs(), preferences(), installId())
+        val kept = (built.json["preferences"] as? JsonObject)?.size
         Diag.log(
             "diagnostics",
             "state dump built in ${System.currentTimeMillis() - began}ms: ${built.gzipped.size} bytes gzipped, " +
-                "counts ${built.counts}, ${built.preferenceFiles} preference file(s) kept, " +
+                "counts ${built.counts}, $kept preference file(s) kept, " +
                 "${built.skippedFiles.size} credential file(s) left out ${built.skippedFiles}, " +
                 "${built.droppedKeys} secret key(s) dropped, ${built.redactedValues} value(s) redacted",
         )

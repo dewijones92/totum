@@ -35,7 +35,6 @@ public object StateDump {
         public val json: JsonObject,
         public val gzipped: ByteArray,
         public val counts: Map<String, Int>,
-        public val preferenceFiles: Int,
         public val skippedFiles: List<String>,
         public val droppedKeys: Int,
         public val redactedValues: Int,
@@ -47,7 +46,8 @@ public object StateDump {
         installId: String = "",
     ): Built {
         val (kept, skipped) = preferences.entries.partition { (file, _) -> !isCredentialFile(file) }
-        val inputs = given.copy(secrets = given.secrets + skipped.flatMap { it.value.values }.filterIsInstance<String>())
+        val credentials = skipped.flatMap { it.value.values }.filterIsInstance<String>()
+        val inputs = given.copy(secrets = given.secrets + credentials)
         val state = AppStateBuilder.build(inputs)
         val backup = inputs.backup.copy(queue = inputs.queue.entries.map { it.item.toBackup() })
         val root = JsonObject(
@@ -68,7 +68,6 @@ public object StateDump {
             json = json,
             gzipped = packText(json.toString()),
             counts = state.counts,
-            preferenceFiles = kept.size,
             skippedFiles = skipped.map { it.key }.sorted(),
             droppedKeys = scrubbed.droppedKeys + state.droppedKeys,
             redactedValues = scrubbed.redactedValues + state.redactedValues,
@@ -89,7 +88,8 @@ public object StateDump {
         return (BackupCodec.decode(section.toString()) as? BackupReadResult.Ok)?.backup
     }
 
-    private fun isCredentialFile(name: String): Boolean = CREDENTIAL_FILES.any { name == it || name.startsWith("${it}_") }
+    private fun isCredentialFile(name: String): Boolean =
+        CREDENTIAL_FILES.any { name == it || name.startsWith("${it}_") }
 
     private fun preferencesJson(files: Map<String, Map<String, Any?>>): JsonObject =
         JsonObject(files.toSortedMap().mapValues { (_, values) -> fileJson(values) })

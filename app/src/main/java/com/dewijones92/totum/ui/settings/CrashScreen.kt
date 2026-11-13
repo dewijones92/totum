@@ -45,22 +45,11 @@ import java.time.format.FormatStyle
 internal fun CrashScreen(record: CrashRecord, container: AppContainer, onContinue: () -> Unit) {
     val settings by container.appPreferences.settings.collectAsStateWithLifecycle()
     var reporting by rememberSaveable { mutableStateOf(false) }
-    var piStatus by rememberSaveable { mutableStateOf<String?>(null) }
-    val scope = rememberCoroutineScope()
-    val copy = rememberSuspendCopier()
-    val copyWhat = stringResource(R.string.crash_copy_what)
     val redactor = remember(settings.homeServerBase, settings.homeServerToken, settings.prowlarrApiKey) {
         reportRedactorFor(settings.homeServerBase, settings.homeServerToken, settings.prowlarrApiKey)
     }
-    val sending = stringResource(R.string.crash_sending)
-    val sent = stringResource(R.string.crash_sent)
-    val kept = stringResource(R.string.crash_kept)
     val note = remember(record) { CrashRecords.noteFor(record) }
     val shownTrace = remember(record, redactor) { redactor.redact(record.stackTrace.trim()) }
-    val whenText = remember(record) {
-        DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM)
-            .format(Instant.ofEpochMilli(record.atEpochMs).atZone(ZoneId.systemDefault()))
-    }
 
     Surface(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -71,19 +60,7 @@ internal fun CrashScreen(record: CrashRecord, container: AppContainer, onContinu
                 .padding(16.dp)
                 .testTag("crash-screen"),
         ) {
-            Text(stringResource(R.string.crash_title), style = MaterialTheme.typography.headlineMedium)
-            Text(stringResource(R.string.crash_summary), style = MaterialTheme.typography.bodyMedium)
-            Text(
-                text = stringResource(R.string.crash_when, whenText, record.thread),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(
-                text = redactor.redact(note.removePrefix("Totum crashed: ")),
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.testTag("crash-message"),
-            )
+            CrashHeader(record, redactor.redact(note.removePrefix("Totum crashed: ")))
             Button(
                 onClick = {
                     Diag.log("diagnostics", "crash screen: Report on GitHub tapped (${record.exception})")
@@ -91,28 +68,8 @@ internal fun CrashScreen(record: CrashRecord, container: AppContainer, onContinu
                 },
                 modifier = Modifier.fillMaxWidth().testTag("crash-github"),
             ) { Text(stringResource(R.string.report_github_row)) }
-            OutlinedButton(
-                onClick = {
-                    Diag.log("diagnostics", "crash screen: Copy tapped, ${shownTrace.length} chars of stack trace")
-                    scope.launch { copy(redactor.redact(note) + "\n\n" + shownTrace, copyWhat) }
-                },
-                modifier = Modifier.fillMaxWidth().testTag("crash-copy"),
-            ) { Text(stringResource(R.string.crash_copy)) }
-            if (settings.signedInToHome()) {
-                OutlinedButton(
-                    enabled = piStatus != sending,
-                    onClick = {
-                        Diag.log("diagnostics", "crash screen: Send to my Pi tapped")
-                        piStatus = sending
-                        container.sendPendingReportsToPi { outcome ->
-                            piStatus = if (outcome.kept == 0 && outcome.sent > 0) sent else kept
-                            Diag.log("diagnostics", "crash screen: send to my Pi finished: $outcome")
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth().testTag("crash-pi"),
-                ) { Text(stringResource(R.string.crash_send_pi)) }
-                piStatus?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
-            }
+            CopyButton(redactor.redact(note) + "\n\n" + shownTrace)
+            if (settings.signedInToHome()) SendToPiButton(container)
             TextButton(
                 onClick = {
                     Diag.log("diagnostics", "crash screen: Continue tapped")
@@ -141,4 +98,60 @@ internal fun CrashScreen(record: CrashRecord, container: AppContainer, onContinu
             trace = record.stackTrace,
         )
     }
+}
+
+@Composable
+private fun CrashHeader(record: CrashRecord, message: String) {
+    val whenText = remember(record) {
+        DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM)
+            .format(Instant.ofEpochMilli(record.atEpochMs).atZone(ZoneId.systemDefault()))
+    }
+    Text(stringResource(R.string.crash_title), style = MaterialTheme.typography.headlineMedium)
+    Text(stringResource(R.string.crash_summary), style = MaterialTheme.typography.bodyMedium)
+    Text(
+        text = stringResource(R.string.crash_when, whenText, record.thread),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    Text(
+        text = message,
+        style = MaterialTheme.typography.titleMedium,
+        color = MaterialTheme.colorScheme.error,
+        modifier = Modifier.testTag("crash-message"),
+    )
+}
+
+@Composable
+private fun CopyButton(text: String) {
+    val scope = rememberCoroutineScope()
+    val copy = rememberSuspendCopier()
+    val what = stringResource(R.string.crash_copy_what)
+    OutlinedButton(
+        onClick = {
+            Diag.log("diagnostics", "crash screen: Copy tapped, ${text.length} chars")
+            scope.launch { copy(text, what) }
+        },
+        modifier = Modifier.fillMaxWidth().testTag("crash-copy"),
+    ) { Text(stringResource(R.string.crash_copy)) }
+}
+
+@Composable
+private fun SendToPiButton(container: AppContainer) {
+    var status by rememberSaveable { mutableStateOf<String?>(null) }
+    val sending = stringResource(R.string.crash_sending)
+    val sent = stringResource(R.string.crash_sent)
+    val kept = stringResource(R.string.crash_kept)
+    OutlinedButton(
+        enabled = status != sending,
+        onClick = {
+            Diag.log("diagnostics", "crash screen: Send to my Pi tapped")
+            status = sending
+            container.homeReports.sendPending { outcome ->
+                status = if (outcome.kept == 0 && outcome.sent > 0) sent else kept
+                Diag.log("diagnostics", "crash screen: send to my Pi finished: $outcome")
+            }
+        },
+        modifier = Modifier.fillMaxWidth().testTag("crash-pi"),
+    ) { Text(stringResource(R.string.crash_send_pi)) }
+    status?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
 }

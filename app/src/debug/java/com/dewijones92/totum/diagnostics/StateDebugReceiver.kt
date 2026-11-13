@@ -33,7 +33,7 @@ class StateDebugReceiver : BroadcastReceiver() {
     }
 
     private suspend fun dump(context: Context, container: com.dewijones92.totum.di.AppContainer) {
-        val bytes = container.stateDump()
+        val bytes = container.homeReports.stateDump()
         if (bytes == null) {
             Diag.warn(TAG, "dewidebug dump-state: nothing was gathered")
             return

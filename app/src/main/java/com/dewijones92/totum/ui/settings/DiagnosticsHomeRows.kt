@@ -31,6 +31,8 @@ import kotlin.coroutines.suspendCoroutine
 private const val SEND_STATE_KEY = "send-state"
 private const val BYTES_PER_KB = 1024
 
+private fun Int.inKb(): Int = (this / BYTES_PER_KB).coerceAtLeast(1)
+
 @Composable
 internal fun SendReportsHomeRow(container: AppContainer, settings: AppPreferences.Settings) {
     SwitchRow(
@@ -64,14 +66,14 @@ internal fun SendStateRow(container: AppContainer) {
                 container.applicationScope.launch {
                     var outcome: StateSend = StateSend.NotGathered
                     container.operations.tracking(SEND_STATE_KEY, OperationKind.TASK, sendingLabel) {
-                        outcome = suspendCoroutine { continuation -> container.sendStateToPi { continuation.resume(it) } }
+                        outcome = suspendCoroutine { next -> container.homeReports.sendState { next.resume(it) } }
                         when (val done = outcome) {
                             is StateSend.Sent -> OperationEnd.Done(1)
                             else -> OperationEnd.Failed(done.toString())
                         }
                     }
                     result = when (val done = outcome) {
-                        is StateSend.Sent -> resources.getString(sentFormat, (done.bytes / BYTES_PER_KB).coerceAtLeast(1))
+                        is StateSend.Sent -> resources.getString(sentFormat, done.bytes.inKb())
                         StateSend.NotSignedIn -> noSignIn
                         StateSend.NotGathered -> notGathered
                         StateSend.Refused -> refused

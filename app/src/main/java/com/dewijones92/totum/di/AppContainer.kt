@@ -116,17 +116,17 @@ import com.dewijones92.totum.diagnostics.CrashReporter
 import com.dewijones92.totum.diagnostics.DiagnosticSnapshot
 import com.dewijones92.totum.diagnostics.DiagnosticsStore
 import com.dewijones92.totum.diagnostics.DiagnosticsUploader
-import com.dewijones92.totum.diagnostics.StateDumpSource
-import com.dewijones92.totum.diagnostics.StateSend
-import com.dewijones92.totum.diagnostics.UploadOutcome
-import com.dewijones92.totum.diagnostics.preferencesOf
 import com.dewijones92.totum.diagnostics.EncodedScreenshot
+import com.dewijones92.totum.diagnostics.HomeReports
 import com.dewijones92.totum.diagnostics.InstallId
 import com.dewijones92.totum.diagnostics.ReportSink
+import com.dewijones92.totum.diagnostics.StateDumpSource
+import com.dewijones92.totum.diagnostics.UploaderHomeReports
 import com.dewijones92.totum.diagnostics.featureDiagnostics
 import com.dewijones92.totum.diagnostics.installAndroidLogSink
 import com.dewijones92.totum.diagnostics.installFlightRecorder
 import com.dewijones92.totum.diagnostics.knownHomeHosts
+import com.dewijones92.totum.diagnostics.preferencesOf
 import com.dewijones92.totum.diagnostics.runningOnAnEmulator
 import com.dewijones92.totum.diagnostics.runningUnderInstrumentation
 import com.dewijones92.totum.diagnostics.thisDevice
@@ -511,11 +511,7 @@ interface AppContainer {
      */
     fun sendDiagnostics(note: String, screenshots: List<EncodedScreenshot> = emptyList())
 
-    fun sendPendingReportsToPi(onDone: (UploadOutcome) -> Unit)
-
-    fun sendStateToPi(onDone: (StateSend) -> Unit)
-
-    suspend fun stateDump(): ByteArray?
+    val homeReports: HomeReports
 
     /** User-curated local playlists, mixing podcasts and videos. */
     val localPlaylistStore: LocalPlaylistStore
@@ -1496,12 +1492,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         )
     }
 
-    override fun sendPendingReportsToPi(onDone: (UploadOutcome) -> Unit) =
-        diagnosticsUploader.sendDiagnosticsNow(onDone)
-
-    override fun sendStateToPi(onDone: (StateSend) -> Unit) = diagnosticsUploader.sendStateNow(onDone)
-
-    override suspend fun stateDump(): ByteArray? = stateDumps.gzipped()
+    override val homeReports: HomeReports by lazy { UploaderHomeReports(diagnosticsUploader, stateDumps) }
 
     override fun sendDiagnostics(note: String, screenshots: List<EncodedScreenshot>) =
         sendDiagnostics(crashReporter, diagnosticsUploader, note, screenshots)
