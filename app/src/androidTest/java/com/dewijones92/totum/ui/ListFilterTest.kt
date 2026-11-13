@@ -15,6 +15,7 @@ import androidx.compose.ui.focus.FocusManager
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotFocused
 import androidx.compose.ui.test.getBoundsInRoot
@@ -170,6 +171,26 @@ class ListFilterTest {
         composeTestRule.onNodeWithTag(SCROLLED_LIST).performScrollToIndex(0)
 
         composeTestRule.onNodeWithTag(FILTER_FIELD_TAG).assertIsNotFocused()
+    }
+
+    @Test
+    fun `a filter field that leads a scrolling list is in view once its toggle opens it`() {
+        composeTestRule.setContent {
+            TotumTheme {
+                val filter = rememberListFilter("leading")
+                Column {
+                    FilterToggle(filter, total = ROWS)
+                    LazyColumn(Modifier.testTag(SCROLLED_LIST)) {
+                        filterField(filter, shown = ROWS, total = ROWS, hosted = true)
+                        items((1..ROWS).toList()) { Text("Row $it", Modifier.height(ROW_HEIGHT)) }
+                    }
+                }
+            }
+        }
+        composeTestRule.onNode(hasContentDescription("Filter", substring = true) and hasClickAction()).performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithTag(FILTER_FIELD_TAG).assertIsDisplayed()
     }
 
     @Test
@@ -534,7 +555,8 @@ class ListFilterTest {
             TotumTheme { ProvidePlayStates(container, onOpenSource = {}) { GroupScreen(container, "g", onBack = {}) } }
         }
         composeTestRule.waitUntil(TIMEOUT_MS) {
-            composeTestRule.onAllNodesWithText("Chelsea collapse").fetchSemanticsNodes().isNotEmpty()
+            composeTestRule.onAllNodesWithText("Chelsea collapse").fetchSemanticsNodes().isNotEmpty() &&
+                composeTestRule.onAllNodesWithTag("group-refreshing-divider").fetchSemanticsNodes().isEmpty()
         }
 
         type("brigton")

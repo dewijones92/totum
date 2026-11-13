@@ -5,9 +5,11 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
@@ -268,7 +270,7 @@ fun LazyListScope.filterField(
     hosted: Boolean = false,
     nothingToFilter: (@Composable () -> Unit)? = null,
 ) {
-    item { FilterField(filter, shown, total, hosted = hosted) }
+    item { Box(Modifier.heightIn(min = 1.dp)) { FilterField(filter, shown, total, hosted = hosted) } }
     filterOutcome(filter, shown, total, nothingToFilter)
 }
 
