@@ -3,7 +3,7 @@ title: The player screen — tinted by what is playing
 kind: feature
 status: shipped
 area: player
-updated: 2026-10-16
+updated: 2026-11-13
 ---
 
 # The player screen
@@ -100,6 +100,13 @@ either, which is a decent argument for writing one.
 |---|---|
 | JVM unit | `ArtworkColourTest` (10) — a small vivid area beats a large dull one; letterboxing and white logos ignored; similar images do not collapse to one colour; transparent pixels excluded; null when nothing is usable; always opaque |
 | Instrumented | `PlayerKeepsEveryControlTest` (2) — every control on the video player and on the audio player, still reachable |
+
+## The screen stays on (2026-11-13, ADR 160)
+
+One helper, `KeepScreenOnForVideo`, for the full player and the Shorts reel: a playing video keeps the screen on; a
+paused one in full screen keeps it on only while the phone is charging (plug and unplug are followed). Every change logs
+`screenawake` with the reason. The kid lock keeps its own always-on window ([ADR 76](../adr/0076-kid-lock-pins-the-app-to-a-bare-video.md)).
+Test: `ScreenAwakeTest`.
 
 ## Rotation into fullscreen (2026-10-05)
 

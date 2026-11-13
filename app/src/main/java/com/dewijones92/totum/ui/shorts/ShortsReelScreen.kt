@@ -54,6 +54,7 @@ import com.dewijones92.totum.domain.titleOf
 import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.ui.common.ItemActionSheet
+import com.dewijones92.totum.ui.common.KeepScreenOnForVideo
 import com.dewijones92.totum.ui.common.LocalItemShield
 import com.dewijones92.totum.ui.common.VideoSurface
 import com.dewijones92.totum.ui.common.rememberField
@@ -103,6 +104,11 @@ fun ShortsReelScreen(
     val pager = rememberPagerState(initialPage = openOn) { shorts.size }
 
     ReelQueueBinding(shorts, state, pager, queue, runTitle = shortsRun)
+    KeepScreenOnForVideo(
+        playing = state?.let { it.hasVideo && it.isPlaying } == true,
+        fullscreen = true,
+        where = "the Shorts reel",
+    )
 
     Surface(color = Color.Black, modifier = modifier.fillMaxSize()) {
         VerticalPager(state = pager, modifier = Modifier.fillMaxSize()) { page ->
@@ -290,6 +296,11 @@ private fun ShortsEmpty(onBack: () -> Unit, modifier: Modifier = Modifier) {
     }
 }
 
-private data class ReelPlayback(val itemId: MediaItemId, val hasVideo: Boolean, val isBuffering: Boolean) {
-    constructor(state: PlaybackState) : this(state.itemId, state.hasVideo, state.isBuffering)
+private data class ReelPlayback(
+    val itemId: MediaItemId,
+    val hasVideo: Boolean,
+    val isBuffering: Boolean,
+    val isPlaying: Boolean,
+) {
+    constructor(state: PlaybackState) : this(state.itemId, state.hasVideo, state.isBuffering, state.isPlaying)
 }

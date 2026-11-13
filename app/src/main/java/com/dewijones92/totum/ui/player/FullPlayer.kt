@@ -45,7 +45,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
@@ -58,7 +57,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
@@ -83,6 +81,7 @@ import com.dewijones92.totum.ui.cast.CastStrip
 import com.dewijones92.totum.ui.common.FilterField
 import com.dewijones92.totum.ui.common.FilterToggle
 import com.dewijones92.totum.ui.common.ItemActionSheet
+import com.dewijones92.totum.ui.common.KeepScreenOnForVideo
 import com.dewijones92.totum.ui.common.LiveBadge
 import com.dewijones92.totum.ui.common.LocalSourceArtwork
 import com.dewijones92.totum.ui.common.MediaThumbnail
@@ -162,9 +161,13 @@ fun FullPlayerOverlay(
     toggles: PlaybackToggles,
     queue: QueueControls = QueueControls.None,
 ) {
-    KeepScreenOnWhilePlayingVideo(active = state.hasVideo && state.isPlaying)
     var fullscreenMode by rememberFullscreenMode(state)
     val fullscreen = fullscreenMode != FullscreenMode.WINDOWED
+    KeepScreenOnForVideo(
+        playing = state.hasVideo && state.isPlaying,
+        fullscreen = fullscreen,
+        where = "the player",
+    )
     // `videoPlayer` is non-null only for a video; only a video can go fullscreen.
     val videoPlayer = player.takeIf { state.hasVideo }
 
@@ -715,16 +718,6 @@ private fun ArtworkStage(state: PlaybackState) {
         )
         // Spinner over the artwork while audio is buffering, mirroring the video stage.
         LoadingOverlay(state.isLoading())
-    }
-}
-
-/** Stops the screen dimming while a video is actually playing. */
-@Composable
-private fun KeepScreenOnWhilePlayingVideo(active: Boolean) {
-    val view = LocalView.current
-    DisposableEffect(active) {
-        view.keepScreenOn = active
-        onDispose { view.keepScreenOn = false }
     }
 }
 
