@@ -232,6 +232,13 @@ private fun keepAwakeFromEnv(): KeepAwakeSettings = KeepAwakeSettings.parse(
 private const val DEFAULT_CAST_PORT = 8771
 private const val DEFAULT_LOOPBACK_PORT = 8772
 
+private fun CoroutineScope.sweepEvery(states: AskStates) = launch {
+    while (true) {
+        delay(STATE_SWEEP_MS)
+        states.prune()
+    }
+}
+
 internal suspend fun serveAsk(port: Int, out: (String) -> Unit, polite: Politeness): Int = coroutineScope {
     val brain = brainFromEnv()
     val jellyfin = jellyfinFromEnv()
@@ -292,13 +299,7 @@ internal suspend fun serveAsk(port: Int, out: (String) -> Unit, polite: Politene
         ownerId = home::youTubeOwnerId,
         warmDecks = keepAwake.any,
     )
-    val states = AskStates()
-    launch {
-        while (true) {
-            delay(STATE_SWEEP_MS)
-            states.prune()
-        }
-    }
+    val states = AskStates().also { sweepEvery(it) }
     val targetRoutes = TargetRoutes(targets)
     val routes = listOfNotNull(
         targetRoutes,
