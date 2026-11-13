@@ -54,7 +54,10 @@ class TorrentSidecarSubtitlesWaitTest {
     fun `the lookup after a timeout waits longer for the file list that is still on its way`() = runBlocking {
         val subtitles = TorrentSidecarSubtitles(slowServer, waitMs = 50, lateWaitMs = 5_000)
         subtitles.forItem(episode())
-        Thread { Thread.sleep(300); gate.complete(Unit) }.start()
+        Thread {
+            Thread.sleep(300)
+            gate.complete(Unit)
+        }.start()
 
         val started = System.currentTimeMillis()
         val second = subtitles.forItem(episode())

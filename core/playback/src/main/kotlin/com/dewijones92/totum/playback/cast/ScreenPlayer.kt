@@ -63,7 +63,7 @@ internal class ScreenPlayer(
     override fun getState(): State {
         val current = items.getOrNull(index)
         val builder = State.Builder()
-            .setAvailableCommands(SCREEN_COMMANDS)
+            .setAvailableCommands(screenCommands())
             .setSeekBackIncrementMs(SeekSteps.BACK_MS)
             .setSeekForwardIncrementMs(SeekSteps.FORWARD_MS)
             .setPlayWhenReady(wantsToPlay, Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST)
@@ -231,9 +231,9 @@ internal val SCREEN_COMMAND_IDS: List<Int> = listOf(
     Player.COMMAND_SET_TRACK_SELECTION_PARAMETERS,
 )
 
-private val SCREEN_COMMANDS: Player.Commands by lazy {
+@UnstableApi
+private fun screenCommands(): Player.Commands =
     Player.Commands.Builder().apply { SCREEN_COMMAND_IDS.forEach(::add) }.build()
-}
 
 internal fun captionsWanted(parameters: TrackSelectionParameters): String? =
     captionsWanted(parameters.preferredTextLanguages, C.TRACK_TYPE_TEXT in parameters.disabledTrackTypes)

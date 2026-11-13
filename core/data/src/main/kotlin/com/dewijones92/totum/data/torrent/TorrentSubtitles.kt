@@ -9,8 +9,10 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.coroutines.ContinuationInterceptor
 
 public data class SubtitleFile(
     val file: TorrentFile,
@@ -73,7 +75,7 @@ public class TorrentSidecarSubtitles(
     private val server: HomeTorrentServer,
     private val waitMs: Long = WAIT_MS,
     private val lateWaitMs: Long = LATE_WAIT_MS,
-    private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
+    private val scope: CoroutineScope? = null,
 ) {
     private val prepared = ConcurrentHashMap<String, PreparedTorrent>()
     private val inFlight = ConcurrentHashMap<String, Deferred<PreparedTorrent?>>()
@@ -85,8 +87,10 @@ public class TorrentSidecarSubtitles(
 
     private suspend fun fileListOf(hash: String): PreparedTorrent? {
         prepared[hash]?.let { return it }
+        val callers = currentCoroutineContext()[ContinuationInterceptor]
         val job = inFlight.computeIfAbsent(hash) {
-            scope.async { server.prepare(TorrentLink.Magnet("magnet:?xt=urn:btih:$hash"))?.also(::remember) }
+            val keepGoing = scope ?: CoroutineScope(SupervisorJob() + (callers ?: Dispatchers.Default))
+            keepGoing.async { server.prepare(TorrentLink.Magnet("magnet:?xt=urn:btih:$hash"))?.also(::remember) }
                 .also { started -> started.invokeOnCompletion { inFlight.remove(hash) } }
         }
         val patience = if (hash in timedOutBefore) lateWaitMs else waitMs
