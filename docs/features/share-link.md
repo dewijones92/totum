@@ -3,7 +3,7 @@ title: Share and copy link on every item
 kind: feature
 status: built 2026-11-06, Batch A (tests written 2026-11-07)
 area: app
-updated: 2026-11-07
+updated: 2026-11-13
 ---
 
 # Share and copy link on every item
@@ -30,6 +30,13 @@ titles**, because a group has no address.
 - `rememberCopier` is the old `rememberCopy` split in two (the details section's copy button is unchanged);
   `rememberSharer` is new and both live in `LinksAndCopy.kt`.
 - `HttpUrl.host` is new in `:lib:common`.
+
+## A share that arrives with no link (2026-11-13)
+
+When another app SENDs Totum text with no link in it, Totum now says "⚠️ No link in what was shared" instead of only
+logging (finding 151). The log line describes the share without its content: `SEND mime=text/plain stream=false
+textLength=0` (`describeShare`), then the reason (`whyNotPlayable`). A share that has a link, just not a YouTube one, still
+only logs; no wording for that was agreed. Tests: `SharedLinkTest` (`describeShare`, `shareFeedback`).
 
 ## Diagnostics
 

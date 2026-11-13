@@ -28,12 +28,17 @@ internal fun whyNotPlayable(rawText: String?): String {
     return "${links.size} link(s), none a YouTube video: $hosts"
 }
 
-internal fun logUnplayableShare(action: String?, text: String?, via: String) {
-    if (action != Intent.ACTION_SEND && action != Intent.ACTION_VIEW) return
-    Diag.warn(
-        "share",
-        "a ${action.substringAfterLast('.')} reached the app via $via but nothing plays: ${whyNotPlayable(text)}",
-    )
+internal const val NO_LINK_SHARED = "⚠️ No link in what was shared"
+
+internal fun describeShare(action: String?, mime: String?, hasStream: Boolean, text: String?): String =
+    "${action?.substringAfterLast('.') ?: "no action"} mime=${mime ?: "none"} stream=$hasStream " +
+        "textLength=${text?.length ?: 0}"
+
+internal fun shareFeedback(action: String?, text: String?): String? =
+    if (action == Intent.ACTION_SEND && linksIn(text).isEmpty()) NO_LINK_SHARED else null
+
+internal fun logUnplayableShare(share: String, text: String?, via: String) {
+    Diag.warn("share", "a share reached the app via $via but nothing plays [$share]: ${whyNotPlayable(text)}")
 }
 
 private fun linksIn(rawText: String?): List<HttpUrl> =

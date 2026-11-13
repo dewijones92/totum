@@ -186,7 +186,7 @@ class MainActivity : FragmentActivity() {
         val url = intent.sharedWatchUrl()
         val arrival = intent.arrival(restored)
         if (url == null && album == null) {
-            if (arrival == ShareArrival.FRESH) logUnplayableShare(intent.action, intent.sharedText(), via)
+            if (arrival == ShareArrival.FRESH) noteUnplayableShare(intent, via)
             return
         }
         val way = intent.openedFrom()
@@ -221,6 +221,18 @@ class MainActivity : FragmentActivity() {
                 PlayableItem(item, PlayHandle.Video(url)),
                 reason = PlayReason.Chosen(way),
             )
+        }
+    }
+
+    private fun noteUnplayableShare(intent: Intent, via: String) {
+        val action = intent.action
+        if (action != Intent.ACTION_SEND && action != Intent.ACTION_VIEW) return
+        val text = intent.sharedText()
+        val share = describeShare(action, intent.type, intent.hasExtra(Intent.EXTRA_STREAM), text)
+        logUnplayableShare(share, text, via)
+        shareFeedback(action, text)?.let { notice ->
+            Toast.makeText(this, notice, Toast.LENGTH_LONG).show()
+            Diag.log("share", "told the user: $notice [$share]")
         }
     }
 

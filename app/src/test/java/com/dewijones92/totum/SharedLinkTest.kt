@@ -3,6 +3,7 @@ package com.dewijones92.totum
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.domain.SourceId
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Test
 
@@ -166,5 +167,40 @@ class SharedLinkTest {
             "1 link(s), none a YouTube video: example.com",
             whyNotPlayable("see https://example.com/blog?x=1")
         )
+    }
+
+    @Test
+    fun `a share is described by its type, whether it had a stream, and the length of its text, never the text`() {
+        assertEquals(
+            "SEND mime=text/plain stream=false textLength=11",
+            describeShare("android.intent.action.SEND", "text/plain", hasStream = false, text = "secret word"),
+        )
+        assertEquals(
+            "SEND mime=image/png stream=true textLength=0",
+            describeShare("android.intent.action.SEND", "image/png", hasStream = true, text = null),
+        )
+        assertEquals(
+            "VIEW mime=none stream=false textLength=0",
+            describeShare("android.intent.action.VIEW", null, hasStream = false, text = ""),
+        )
+        assertFalse(
+            describeShare("android.intent.action.SEND", "text/plain", hasStream = false, text = "secret word")
+                .contains("secret")
+        )
+    }
+
+    @Test
+    fun `a share with no link at all says so`() {
+        assertEquals("⚠️ No link in what was shared", shareFeedback("android.intent.action.SEND", null))
+        assertEquals("⚠️ No link in what was shared", shareFeedback("android.intent.action.SEND", ""))
+        assertEquals("⚠️ No link in what was shared", shareFeedback("android.intent.action.SEND", "just some words"))
+    }
+
+    @Test
+    fun `a share with a link, or anything that is not a share, has no feedback of its own`() {
+        assertNull(shareFeedback("android.intent.action.SEND", "see https://example.com/blog"))
+        assertNull(shareFeedback("android.intent.action.SEND", watch))
+        assertNull(shareFeedback("android.intent.action.VIEW", null))
+        assertNull(shareFeedback(null, null))
     }
 }
