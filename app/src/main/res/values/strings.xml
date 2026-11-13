@@ -625,6 +625,10 @@
     <string name="pin_removed">📍 Unpinned \"%1$s\"</string>
     <string name="group_member_removed">🧹 Removed \"%1$s\" from the group</string>
     <string name="recent_search_forgotten">🧹 Forgot the search \"%1$s\"</string>
+    <plurals name="search_history_cleared">
+        <item quantity="one">🧹 Cleared %d recent search</item>
+        <item quantity="other">🧹 Cleared %d recent searches</item>
+    </plurals>
     <string name="recent_forgotten">🧹 Removed \"%1$s\" from Recently</string>
     <string name="pin_home_unsupported">⚠️ This home screen does not take shortcuts; \"%1$s\" is pinned in the app</string>
     <string name="pin_could_not_play">❌ Couldn\'t play \"%1$s\" right now</string>

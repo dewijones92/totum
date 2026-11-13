@@ -305,8 +305,17 @@ class SearchViewModel(
         viewModelScope.launch { history.restore(slot) }
     }
 
-    fun clearHistory() {
+    fun clearHistory(): List<HistorySlot> {
+        val shown = uiState.value.history
+        val slots = shown.mapIndexed { index, query -> HistorySlot(index, query) }
+        Diag.log("search", "cleared search history: ${shown.size} recent search(es) forgotten")
         viewModelScope.launch { history.clear() }
+        return slots
+    }
+
+    fun restoreHistory(slots: List<HistorySlot>) {
+        Diag.log("search", "put ${slots.size} recent search(es) back in search history")
+        viewModelScope.launch { slots.forEach { history.restore(it) } }
     }
 
     /**

@@ -104,6 +104,22 @@ fun rememberForgetRecent(remove: (String) -> HistorySlot?, restore: (HistorySlot
 }
 
 @Composable
+fun rememberClearRecent(clear: () -> List<HistorySlot>, restore: (List<HistorySlot>) -> Unit): () -> Unit {
+    val resources = LocalResources.current
+    val clearWithUndo = rememberRemoveWithUndo(
+        offers = LocalSnackbarOffers.current,
+        undoLabel = stringResource(R.string.undo),
+        tag = "recent",
+        removedMessage = { slots: List<HistorySlot> ->
+            resources.getQuantityString(R.plurals.search_history_cleared, slots.size, slots.size)
+        },
+        remove = { _: Unit -> clear().takeIf { it.isNotEmpty() } },
+        restore = restore,
+    )
+    return { clearWithUndo(Unit) }
+}
+
+@Composable
 fun RecentSearchChips(recents: RecentSearches?, onPick: (String) -> Unit, modifier: Modifier = Modifier) {
     val forget = rememberForgetRecent(remove = { recents?.remove(it) }, restore = { recents?.restore(it) })
     val shown = recents?.recent.orEmpty()

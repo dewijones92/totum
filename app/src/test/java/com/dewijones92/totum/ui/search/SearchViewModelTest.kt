@@ -6,6 +6,8 @@ import com.dewijones92.totum.common.PageToken
 import com.dewijones92.totum.data.history.fake.InMemoryPlayHistoryStore
 import com.dewijones92.totum.data.podcast.fake.FakePodcastRepository
 import com.dewijones92.totum.data.queue.fake.InMemoryQueueStore
+import com.dewijones92.totum.data.search.HistorySlot
+import com.dewijones92.totum.data.search.SearchHistoryStore
 import com.dewijones92.totum.data.search.SearchHit
 import com.dewijones92.totum.data.search.SearchOutcome
 import com.dewijones92.totum.data.search.SearchSection
@@ -66,6 +68,7 @@ class SearchViewModelTest {
         albumSearch: SearchSource = SearchSource { _, _, _ -> SearchOutcome.Success(Page.last(emptyList())) },
         artistSearch: SearchSource = SearchSource { _, _, _ -> SearchOutcome.Success(Page.last(emptyList())) },
         scope: SearchScope = SearchScope.EVERYTHING,
+        history: SearchHistoryStore = InMemorySearchHistoryStore(),
     ) = SearchViewModel(
         sources = SearchSources(
             podcasts = podcastSearch,
@@ -92,7 +95,7 @@ class SearchViewModelTest {
             CoroutineScope(dispatcher),
             InMemoryQueueStore(),
         ),
-        history = InMemorySearchHistoryStore(),
+        history = history,
     )
 
     /** The video titles currently on screen — one accessor, so the section's shape lives in one place. */
@@ -373,5 +376,46 @@ class SearchViewModelTest {
         advanceUntilIdle()
 
         assertTrue(viewModel.uiState.value.resolveFailed)
+    }
+
+    @Test
+    fun `clear all hands back every recent search in its slot and empties the history`() = runTest(dispatcher) {
+        val viewModel = viewModel(history = InMemorySearchHistoryStore(listOf("gruffalo", "peppa", "bluey")))
+        backgroundScope.launch { viewModel.uiState.collect {} }
+        advanceUntilIdle()
+
+        val cleared = viewModel.clearHistory()
+        advanceUntilIdle()
+
+        assertEquals(
+            listOf(HistorySlot(0, "gruffalo"), HistorySlot(1, "peppa"), HistorySlot(2, "bluey")),
+            cleared,
+        )
+        assertEquals(emptyList<String>(), viewModel.uiState.value.history)
+    }
+
+    @Test
+    fun `restoring what clear all handed back brings the history back in its old order`() = runTest(dispatcher) {
+        val viewModel = viewModel(history = InMemorySearchHistoryStore(listOf("gruffalo", "peppa", "bluey")))
+        backgroundScope.launch { viewModel.uiState.collect {} }
+        advanceUntilIdle()
+
+        val cleared = viewModel.clearHistory()
+        advanceUntilIdle()
+        assertEquals(emptyList<String>(), viewModel.uiState.value.history)
+
+        viewModel.restoreHistory(cleared)
+        advanceUntilIdle()
+
+        assertEquals(listOf("gruffalo", "peppa", "bluey"), viewModel.uiState.value.history)
+    }
+
+    @Test
+    fun `clearing an empty history offers nothing to undo`() = runTest(dispatcher) {
+        val viewModel = viewModel()
+        backgroundScope.launch { viewModel.uiState.collect {} }
+        advanceUntilIdle()
+
+        assertEquals(emptyList<HistorySlot>(), viewModel.clearHistory())
     }
 }

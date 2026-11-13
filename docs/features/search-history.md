@@ -3,7 +3,7 @@ title: Search history
 kind: feature
 status: shipped
 area: search
-updated: 2026-11-06
+updated: 2026-11-13
 ---
 
 # Search history
@@ -32,7 +32,9 @@ case-insensitively, capped at 10.
   instead of the empty prompt once there's history.
 - Forgetting one (the ✕ or a long-press, here and in every filter, channel, transcript and Ask box) offers Undo on the
   shell's snackbar and puts the query back in its slot (`SearchHistoryStore.restore(HistorySlot)`,
-  `rememberForgetRecent`). Clear all has no Undo yet.
+  `rememberForgetRecent`).
+- Clear all offers Undo too (2026-11-13): `SearchViewModel.clearHistory` returns every cleared slot,
+  `restoreHistory(slots)` puts them back in their old order (`rememberClearRecent`, "🧹 Cleared N recent searches").
 
 ## Files
 
@@ -42,7 +44,8 @@ case-insensitively, capped at 10.
 
 ## Tests
 
-`SearchHistoryStoreTest` (order / dedup / cap / remove / clear); `RecentSearchesTest` (instrumented: the other
+`SearchHistoryStoreTest` (order / dedup / cap / remove / clear); `SearchViewModelTest` (clear all hands back every slot,
+restoring them keeps the old order, an empty history offers nothing); `RecentSearchesTest` (instrumented: the other
 boxes keep a settled query, offer it again, ignore half-typed ones, and keep one list per kind).
 
 Logs: `[recent] <scope>: kept "<q>" (<why>)`, `picked "<q>" from N recent`, `forgot "<q>"`. Verified

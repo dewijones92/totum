@@ -72,6 +72,7 @@ import com.dewijones92.totum.ui.common.SelectableMediaList
 import com.dewijones92.totum.ui.common.VideoChannelSaver
 import com.dewijones92.totum.ui.common.mediaFacts
 import com.dewijones92.totum.ui.common.pillFieldColors
+import com.dewijones92.totum.ui.common.rememberClearRecent
 import com.dewijones92.totum.ui.common.rememberForgetRecent
 import com.dewijones92.totum.ui.common.rememberMediaItemActions
 import com.dewijones92.totum.ui.common.rowFacts
@@ -96,6 +97,7 @@ fun SearchScreen(
     val resources = LocalResources.current
     val actions = rememberMediaItemActions(container)
     val forgetHistory = rememberForgetRecent(viewModel::removeHistory, viewModel::restoreHistory)
+    val clearHistory = rememberClearRecent(viewModel::clearHistory, viewModel::restoreHistory)
     // "Go to channel" needs somewhere to land, so Search hosts the channel page as an
     // overlay exactly as the Videos tab does.
     var browsingChannel by rememberSaveable(stateSaver = VideoChannelSaver) {
@@ -125,7 +127,7 @@ fun SearchScreen(
                     )
                 },
                 onRemoveHistory = forgetHistory,
-                onClearHistory = viewModel::clearHistory,
+                onClearHistory = clearHistory,
                 actions = actions,
                 more = SearchMore(videos = viewModel::loadMoreVideos, music = viewModel::moreMusic),
                 onGoToChannel = { item ->
