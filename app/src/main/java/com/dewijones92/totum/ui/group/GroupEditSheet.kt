@@ -3,12 +3,11 @@ package com.dewijones92.totum.ui.group
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -32,19 +31,21 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.di.AppContainer
+import com.dewijones92.totum.domain.FuzzyMatch
 import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.domain.SourceGroup
+import com.dewijones92.totum.domain.fuzzyFiltered
+import com.dewijones92.totum.domain.searchableText
 import com.dewijones92.totum.ui.common.rememberRemoveWithUndo
 import com.dewijones92.totum.ui.common.rememberSnackbarOffers
 import kotlinx.coroutines.launch
-
-private const val MATCHES_SHOWN = 30
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -82,30 +83,46 @@ internal fun GroupEditSheet(container: AppContainer, group: SourceGroup, onDismi
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ) {
         Box(Modifier.fillMaxWidth()) {
-            Column(
+            val found = remember(subscribed, group, query) { matches(subscribed, group, query) }
+            LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             ) {
-                Text(stringResource(R.string.group_edit), style = MaterialTheme.typography.titleLarge)
-                NameRow(name, { name = it }, saveable = name.isNotBlank() && name.trim() != group.name) {
-                    Diag.log("group", "\"${group.name}\" renamed \"${name.trim()}\" from its page")
-                    scope.launch { store.rename(group.id, name.trim()) }
+                item { Text(stringResource(R.string.group_edit), style = MaterialTheme.typography.titleLarge) }
+                item {
+                    NameRow(name, { name = it }, saveable = name.isNotBlank() && name.trim() != group.name) {
+                        Diag.log("group", "\"${group.name}\" renamed \"${name.trim()}\" from its page")
+                        scope.launch { store.rename(group.id, name.trim()) }
+                    }
                 }
-                Text(stringResource(R.string.group_channels), style = MaterialTheme.typography.titleMedium)
-                group.members.forEach { MemberRow(it, member = true, toggle) }
-                OutlinedTextField(
-                    value = query,
-                    onValueChange = { query = it },
-                    singleLine = true,
-                    label = { Text(stringResource(R.string.group_find_channel)) },
-                    modifier = Modifier.fillMaxWidth().testTag("group-find-channel"),
-                )
-                matches(subscribed, group, query).forEach { MemberRow(it, member = false, toggle) }
-                OutlinedButton(
-                    onClick = { confirmingDelete = true },
-                    modifier = Modifier.padding(bottom = 16.dp).testTag("group-delete")
-                ) {
-                    Text(stringResource(R.string.group_delete))
+                item { Text(stringResource(R.string.group_channels), style = MaterialTheme.typography.titleMedium) }
+                items(group.members, key = { "member:${it.id.value}" }) { MemberRow(it, member = true, toggle) }
+                item {
+                    OutlinedTextField(
+                        value = query,
+                        onValueChange = { query = it },
+                        singleLine = true,
+                        label = { Text(stringResource(R.string.group_find_channel)) },
+                        modifier = Modifier.fillMaxWidth().testTag("group-find-channel"),
+                    )
+                }
+                if (query.isNotBlank()) {
+                    item {
+                        Text(
+                            text = pluralStringResource(R.plurals.group_find_count, found.size, found.size, query.trim()),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+                items(found, key = { "match:${it.id.value}" }) { MemberRow(it, member = false, toggle) }
+                item {
+                    OutlinedButton(
+                        onClick = { confirmingDelete = true },
+                        modifier = Modifier.padding(bottom = 16.dp).testTag("group-delete")
+                    ) {
+                        Text(stringResource(R.string.group_delete))
+                    }
                 }
             }
             SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter))
@@ -155,11 +172,13 @@ private fun DeleteConfirm(name: String, onClose: () -> Unit, onDelete: () -> Uni
     )
 }
 
-private fun matches(subscribed: List<MediaSource.VideoChannel>, group: SourceGroup, query: String): List<MediaSource> {
-    val words = query.trim()
-    if (words.isEmpty()) return emptyList()
-    return subscribed.filter { channel -> channel.id !in group && channel.title.contains(words, ignoreCase = true) }
-        .take(MATCHES_SHOWN)
+internal fun matches(
+    subscribed: List<MediaSource.VideoChannel>,
+    group: SourceGroup,
+    query: String,
+): List<MediaSource> {
+    if (!FuzzyMatch.hasTerms(query)) return emptyList()
+    return subscribed.filter { channel -> channel.id !in group }.fuzzyFiltered(query) { it.searchableText }
 }
 
 @Composable

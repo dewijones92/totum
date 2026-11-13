@@ -1190,6 +1190,10 @@
     <string name="group_notifications_now_on">🔔 Notifications on for %1$s</string>
     <string name="group_save_name">Save</string>
     <string name="group_channels">Channels</string>
+    <plurals name="group_find_count">
+        <item quantity="one">🔎 %1$d channel matches “%2$s”</item>
+        <item quantity="other">🔎 %1$d channels match “%2$s”</item>
+    </plurals>
     <string name="group_find_channel">Add a subscribed channel: type its name</string>
     <string name="group_delete">🗑️ Delete group</string>
     <string name="group_delete_confirm">Delete %1$s? Its channels stay subscribed.</string>
