@@ -37,6 +37,7 @@ import com.dewijones92.totum.ui.cast.ScreenButton
 import com.dewijones92.totum.ui.common.LiveBadge
 import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.PillarBadge
+import com.dewijones92.totum.ui.common.wrappingAs
 import com.dewijones92.totum.ui.common.WHY_PLAYING_TITLE_TAG
 import com.dewijones92.totum.ui.common.WhyIsThisPlayingDialog
 import com.dewijones92.totum.ui.common.mediaDateText
@@ -72,7 +73,7 @@ internal fun TitleBlock(state: PlaybackState) {
             )
         }
         Text(
-            text = state.title,
+            text = state.title.wrappingAs(state.itemId),
             style = MaterialTheme.typography.headlineSmall,
             modifier = Modifier
                 .padding(top = 2.dp)

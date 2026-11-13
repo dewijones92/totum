@@ -51,7 +51,7 @@ internal fun ProvideSpoilerShield(container: AppContainer, content: @Composable 
 }
 
 @Composable
-internal fun MediaItem.face(): ItemFace = LocalItemShield.current.face(this)
+internal fun MediaItem.face(): ItemFace = LocalItemShield.current.face(this).wrappingAs(id)
 
 @Composable
 internal fun rememberResultHidden(state: PlaybackState): Boolean {

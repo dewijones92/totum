@@ -202,7 +202,7 @@ private fun NowPlayingText(state: PlaybackState, starting: Starting?, modifier: 
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (starting == null) LiveBadge(state.itemId, state.contentKind, Modifier.padding(end = 6.dp))
             Text(
-                text = starting?.title ?: state.title,
+                text = starting?.title ?: state.title.wrappingAs(state.itemId),
                 style = MaterialTheme.typography.titleSmall,
                 modifier = Modifier.weight(1f, fill = false),
             )

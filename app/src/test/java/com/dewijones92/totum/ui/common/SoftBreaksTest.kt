@@ -1,5 +1,7 @@
 package com.dewijones92.totum.ui.common
 
+import com.dewijones92.totum.domain.MediaItemId
+import com.dewijones92.totum.domain.TorrentIds
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -25,5 +27,13 @@ class SoftBreaksTest {
         val name = "The.Show.S01E02.720p_HDTV.x264-GRP"
 
         assertEquals(name, name.breakableAtDotsAndUnderscores().replace("\u200B", ""))
+    }
+
+    @Test
+    fun `a torrent id wraps at its dots wherever its name is shown, any other id keeps the name`() {
+        val name = "Movie.2019.1080p.WEBRip.x264-GRP"
+
+        assertEquals(name.breakableAtDotsAndUnderscores(), name.wrappingAs(MediaItemId("${TorrentIds.PREFIX}abc")))
+        assertEquals(name, name.wrappingAs(MediaItemId("dQw4w9WgXcQ")))
     }
 }
