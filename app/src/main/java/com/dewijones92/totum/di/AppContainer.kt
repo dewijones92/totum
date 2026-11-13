@@ -170,6 +170,8 @@ import com.dewijones92.totum.downloads.home.PrefsKeptAtHome
 import com.dewijones92.totum.downloads.home.chosenForHome
 import com.dewijones92.totum.exsurge.ExsurgeController
 import com.dewijones92.totum.exsurge.ExsurgeLiveUpdate
+import com.dewijones92.totum.exsurge.ExsurgeState
+import com.dewijones92.totum.exsurge.TakeoverActivity
 import com.dewijones92.totum.exsurge.exsurgeController
 import com.dewijones92.totum.groups.FileGroupNewsStore
 import com.dewijones92.totum.groups.GroupAccountProgress
@@ -238,6 +240,11 @@ import com.dewijones92.totum.notifications.DownloadNotifier
 import com.dewijones92.totum.notifications.SharedPrefsSeenItemsTracker
 import com.dewijones92.totum.notifications.YouTubeSubscriptionItemsSource
 import com.dewijones92.totum.operations.Operations
+import com.dewijones92.totum.phoneuse.AndroidPhoneUsePorts
+import com.dewijones92.totum.phoneuse.PhoneUse
+import com.dewijones92.totum.phoneuse.PhoneUseContext
+import com.dewijones92.totum.phoneuse.SharedPrefsPhoneUseStore
+import com.dewijones92.totum.phoneuse.withPhoneUse
 import com.dewijones92.totum.pins.HomeScreenShortcuts
 import com.dewijones92.totum.pins.PinPlayer
 import com.dewijones92.totum.pins.PinStore
@@ -482,6 +489,7 @@ interface AppContainer {
     val exsurge: ExsurgeController
     val dailyAlarms: DailyAlarmController
     val workApps: WorkAppsQuiet
+    val phoneUse: PhoneUse
 
     /** The unified up-next queue (what plays after the current item), both pillars. */
     val playbackQueue: PlaybackQueue
@@ -1048,7 +1056,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                 pinStore
             ).withRecent(recentActions).withNotForMe(notForMe).withBedtime(bedtime).withWorkApps(workApps)
                 .withDailyAlarms(dailyAlarms).withRecorderChoices(RecorderChoiceStore(context))
-                .withKidTv(kidTv),
+                .withKidTv(kidTv).withPhoneUse(phoneUse),
             appVersion = BuildConfig.VERSION_NAME,
             extras = BackupService.Extras(
                 groups = sourceGroupStore,
@@ -1056,6 +1064,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                 others = listOf(
                     "not-for-me" to notForMe.items,
                     "bedtime" to bedtime.settings,
+                    "phone-use" to phoneUse.settings,
                     "work-apps" to workApps.settings,
                     "daily-alarms" to dailyAlarms.view.map { it.alarms }.distinctUntilChanged(),
                 ),
@@ -1189,6 +1198,26 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             kidLocked = { kidLock.modeOn.value },
             scope = applicationScope,
         )
+    }
+
+    override val phoneUse: PhoneUse by lazy {
+        PhoneUse(
+            store = SharedPrefsPhoneUseStore(context),
+            ports = AndroidPhoneUsePorts(context),
+            record = statsLog::record,
+            context = PhoneUseContext(
+                exsurgeActive = ::exsurgeOnScreen,
+                alarmRinging = { dailyAlarms.ringingNow },
+                kidLocked = { kidLock.modeOn.value },
+                videoPlaying = { playbackController.state.value?.let { it.hasVideo && it.isPlaying } == true },
+                ownPackage = context.packageName,
+            ),
+            scope = applicationScope,
+        )
+    }
+
+    private fun exsurgeOnScreen(): Boolean = TakeoverActivity.resumed || exsurge.view.value.memory.state.let {
+        it is ExsurgeState.Summoned || it is ExsurgeState.Rising || it is ExsurgeState.OnBreak
     }
 
     override val exsurge: ExsurgeController by lazy {
@@ -1439,7 +1468,8 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                 isMetered = networkStatus::isMetered,
                 exsurge = {
                     exsurge.diagnostics + ExsurgeLiveUpdate.diagnostics(context) + dailyAlarms.diagnostics +
-                        workApps.diagnostics + bedtime.diagnostics + RecorderDiagnostics.values(context) +
+                        workApps.diagnostics + bedtime.diagnostics + phoneUse.diagnostics +
+                        RecorderDiagnostics.values(context) +
                         listCounts() + kidTv.diagnostics + tripMode.diagnostics
                 },
                 appUpdate = { appUpdate.diagnostics() + appInstaller.diagnostics() + whatsNew.diagnostics() },

@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="phone_use_name">📱 Phone use</string>
+    <string name="phone_use_intro">Totum counts how often you unlock your phone and how long the screen is on, from the history Android already keeps, so nothing has to run all day. You can also ask it to stop you for a moment when you unlock again soon after the last time.</string>
+    <string name="phone_use_channel">Phone use nudge</string>
+
+    <string name="phone_use_access_title">Usage access</string>
+    <string name="phone_use_access_on">✅ Usage access is on</string>
+    <string name="phone_use_access_off">⚠️ Usage access is off</string>
+    <string name="phone_use_access_why">Android only lets an app read when the screen came on, when the phone was unlocked and which app opened first once you allow this, once. Totum keeps only those times and app names on this phone; it does not read what is in any app.</string>
+    <string name="phone_use_access_open">Open usage access</string>
+    <string name="phone_use_access_restricted">ℹ️ If Android greys the switch out: Settings → Apps → Totum → ⋮ → Allow restricted settings, then try again.</string>
+
+    <string name="phone_use_nudge_card">Unlock nudge</string>
+    <string name="phone_use_nudge_on">🟢 The nudge is on</string>
+    <string name="phone_use_nudge_off">⚪ The nudge is off</string>
+    <string name="phone_use_nudge_switch">Nudge me when I unlock again soon</string>
+    <string name="phone_use_nudge_switch_summary">A full-screen \"still want in?\" that you can wave through after five seconds</string>
+    <string name="phone_use_nudge_within">Nudge me if I unlock within this long of the last unlock</string>
+    <plurals name="phone_use_nudge_minutes">
+        <item quantity="one">⏳ %d min</item>
+        <item quantity="other">⏳ %d min</item>
+    </plurals>
+    <string name="phone_use_nudge_needs_access">⚠️ The nudge needs usage access to see your earlier unlocks. Until it is on, nothing is shown.</string>
+    <string name="phone_use_nudge_honest">ℹ️ Totum cannot lock your phone: Android does not let an app do that. The nudge is a screen that asks, and it never stops you. Back and Home always work, and it stays out of calls, the camera, navigation, Exsurge, alarms, the kid lock and a video playing in Totum.</string>
+
+    <string name="phone_use_nudge_title">⏳ Still want in?</string>
+    <string name="phone_use_nudge_line">⏳ You unlocked %1$s (%2$d today). Still want in?</string>
+    <string name="phone_use_ago_under_a_minute">less than a minute ago</string>
+    <plurals name="phone_use_ago_minutes">
+        <item quantity="one">%d min ago</item>
+        <item quantity="other">%d min ago</item>
+    </plurals>
+    <string name="phone_use_nudge_hint">Putting it down for a bit is allowed.</string>
+    <string name="phone_use_nudge_home">🏠 Not now</string>
+    <string name="phone_use_nudge_continue">Continue</string>
+    <string name="phone_use_nudge_continue_in">⏳ Continue in %d s</string>
+
+    <string name="phone_use_stats_title">📱 Phone use</string>
+    <string name="phone_use_stats_today">📅 Today</string>
+    <string name="phone_use_stats_unlocks">🔓 Unlocks</string>
+    <string name="phone_use_stats_screen">📱 Screen on</string>
+    <string name="phone_use_stats_longest_gap">⏳ Longest gap between unlocks</string>
+    <string name="phone_use_stats_since_last">🕐 Since the last unlock</string>
+    <string name="phone_use_stats_per_hour">🕰️ Unlocks per hour today</string>
+    <string name="phone_use_stats_per_hour_hint">Tap an hour to see its unlocks.</string>
+    <string name="phone_use_stats_trend">📈 Trend</string>
+    <string name="phone_use_stats_7_days">7 days</string>
+    <string name="phone_use_stats_30_days">30 days</string>
+    <string name="phone_use_stats_trend_hint">Tap a day to see its unlocks. A gap counts only between two unlocks on the same day.</string>
+    <string name="phone_use_stats_summary">📊 Summary</string>
+    <string name="phone_use_stats_total">🔓 Unlocks in %1$d days</string>
+    <string name="phone_use_stats_average">📊 Average a day</string>
+    <string name="phone_use_stats_average_value">%1$s unlocks · %2$s</string>
+    <string name="phone_use_stats_first_apps">📲 First app after an unlock</string>
+    <string name="phone_use_stats_nudges">⏳ Unlock nudges</string>
+    <string name="phone_use_stats_nudge_shown">⏳ Shown</string>
+    <string name="phone_use_stats_nudge_continued">✅ Continued</string>
+    <string name="phone_use_stats_nudge_left">🏠 Went home</string>
+    <string name="phone_use_stats_nudge_unanswered">🤷 Left without answering</string>
+    <string name="phone_use_stats_none">📭 No unlocks recorded yet</string>
+    <string name="phone_use_stats_setup">Set up in Settings → 📱 Phone use</string>
+    <plurals name="phone_use_stats_unlocks_count">
+        <item quantity="one">%d unlock</item>
+        <item quantity="other">%d unlocks</item>
+    </plurals>
+    <string name="phone_use_detail_on_screen">%1$s on screen</string>
+    <string name="phone_use_detail_unknown_app">an app Totum could not name</string>
+</resources>

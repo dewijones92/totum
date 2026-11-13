@@ -37,6 +37,7 @@ import com.dewijones92.totum.bedtime.BedtimeScreen
 import com.dewijones92.totum.dailyalarms.DailyAlarmsScreen
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.diagnostics.diagnosticsNote
+import com.dewijones92.totum.phoneuse.PhoneUseScreen
 import com.dewijones92.totum.settings.AppPreferences
 import com.dewijones92.totum.ui.common.BackHeader
 import com.dewijones92.totum.ui.common.ListThenDetail
@@ -102,6 +103,8 @@ fun SettingsScreen(container: AppContainer, onBack: () -> Unit, modifier: Modifi
                 WorkAppsQuietScreen(container.workApps, onBack = close, modifier = modifier)
             SettingsSubPage.BEDTIME ->
                 BedtimeScreen(container.bedtime, onBack = close, modifier = modifier)
+            SettingsSubPage.PHONE_USE ->
+                PhoneUseScreen(container.phoneUse, onBack = close, modifier = modifier)
             SettingsSubPage.DIAGNOSTICS -> DiagnosticsScreen(onBack = close, modifier = modifier)
             SettingsSubPage.NOT_FOR_ME -> NotForMeScreen(container.notForMe, onBack = close, modifier = modifier)
             SettingsSubPage.KID_TV -> KidTvScreen(container, onBack = close, modifier = modifier)
@@ -197,6 +200,12 @@ private fun SideQuestRows(open: (SettingsSubPage?) -> Unit) {
         NavRow(
             label = stringResource(R.string.bedtime_name),
             onClick = { open(SettingsSubPage.BEDTIME) }
+        )
+    }
+    AnchoredRow(SettingsRow.PHONE_USE) {
+        NavRow(
+            label = stringResource(R.string.phone_use_name),
+            onClick = { open(SettingsSubPage.PHONE_USE) }
         )
     }
     AnchoredRow(SettingsRow.NOT_FOR_ME) {

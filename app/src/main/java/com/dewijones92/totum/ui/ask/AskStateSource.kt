@@ -87,7 +87,9 @@ class AskStateSource(
             records = ports.records(),
             locked = ports.locked(),
             listens = all.filterIsInstance<StatEvent.Listen>().map(::listenFact),
-            stats = all.filterNot { it is StatEvent.Listen }.map { StatFact(it.at, typeOf(it), StatsCodec.line(it)) },
+            stats = all.filterNot {
+                it is StatEvent.Listen || it is StatEvent.PhoneScreen
+            }.map { StatFact(it.at, typeOf(it), StatsCodec.line(it)) },
             trail = items,
             trailCursor = position,
             events = events,
@@ -124,5 +126,8 @@ class AskStateSource(
         is StatEvent.Nudge -> "nudge"
         is StatEvent.AlarmChange -> "alarm"
         is StatEvent.AppUse -> "use:${event.what.name.lowercase()}"
+        is StatEvent.PhoneUnlock -> "phone-unlock"
+        is StatEvent.PhoneScreen -> "phone-screen"
+        is StatEvent.UnlockNudge -> "unlock-nudge"
     }
 }

@@ -108,6 +108,10 @@ import com.dewijones92.totum.music.MusicFavourites
 import com.dewijones92.totum.music.MusicRadio
 import com.dewijones92.totum.music.artistShuffle
 import com.dewijones92.totum.operations.Operations
+import com.dewijones92.totum.phoneuse.InMemoryPhoneUseStore
+import com.dewijones92.totum.phoneuse.NoPhoneUsePorts
+import com.dewijones92.totum.phoneuse.PhoneUse
+import com.dewijones92.totum.phoneuse.PhoneUseContext
 import com.dewijones92.totum.pins.HomeScreenShortcuts
 import com.dewijones92.totum.pins.InMemoryPinStore
 import com.dewijones92.totum.pins.PinPlayer
@@ -235,6 +239,13 @@ class FakeAppContainer(
         notify = { _, _ -> false }
     ),
     override val dailyAlarms: DailyAlarmController = DailyAlarmController(InMemoryDailyAlarmStore(), NoDailyAlarmPorts),
+    override val phoneUse: PhoneUse = PhoneUse(
+        InMemoryPhoneUseStore(),
+        NoPhoneUsePorts,
+        record = {},
+        context = PhoneUseContext({ false }, { false }, { false }, { false }, "com.dewijones92.totum"),
+        scope = CoroutineScope(SupervisorJob()),
+    ),
     override val workApps: WorkAppsQuiet = WorkAppsQuiet(InMemoryWorkAppsStore(), accessGranted = {
         false
     }, onChanged = {}),

@@ -9,6 +9,7 @@ internal enum class SettingsSubPage {
     DAILY_ALARMS,
     WORK_APPS,
     BEDTIME,
+    PHONE_USE,
     DIAGNOSTICS,
     NOT_FOR_ME,
     KID_TV,
@@ -156,6 +157,13 @@ internal enum class SettingsRow(
         R.string.bedtime_intro,
         "sleep timer night fade stop after item wake",
         SettingsSubPage.BEDTIME,
+    ),
+    PHONE_USE(
+        R.string.phone_use_name,
+        R.string.phone_use_name,
+        R.string.phone_use_intro,
+        "unlock screen time usage access nudge tracker checking phone",
+        SettingsSubPage.PHONE_USE,
     ),
     NOT_FOR_ME(
         R.string.not_for_me_settings_row,

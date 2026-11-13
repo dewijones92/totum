@@ -17,22 +17,32 @@ import com.dewijones92.totum.stats.ExsurgeTotals
 import com.dewijones92.totum.stats.ListenTotals
 import com.dewijones92.totum.stats.NudgeTotals
 import com.dewijones92.totum.stats.Period
+import com.dewijones92.totum.stats.PhoneToday
+import com.dewijones92.totum.stats.PhoneTrend
 import com.dewijones92.totum.stats.StatEvent
 import com.dewijones92.totum.stats.Streaks
 import com.dewijones92.totum.stats.TopEntry
 import com.dewijones92.totum.stats.TopKind
+import com.dewijones92.totum.stats.UnlockNudgeTotals
+import com.dewijones92.totum.stats.UnlockRow
 import com.dewijones92.totum.stats.UseTotals
 import com.dewijones92.totum.stats.alarmTotals
 import com.dewijones92.totum.stats.bars
 import com.dewijones92.totum.stats.exsurgeTotals
+import com.dewijones92.totum.stats.firstApps
+import com.dewijones92.totum.stats.forApp
 import com.dewijones92.totum.stats.forTop
 import com.dewijones92.totum.stats.heatmap
 import com.dewijones92.totum.stats.inBar
 import com.dewijones92.totum.stats.nudgeTotals
+import com.dewijones92.totum.stats.phoneToday
+import com.dewijones92.totum.stats.phoneTrend
 import com.dewijones92.totum.stats.since
 import com.dewijones92.totum.stats.streaks
 import com.dewijones92.totum.stats.top
 import com.dewijones92.totum.stats.totals
+import com.dewijones92.totum.stats.unlockNudgeTotals
+import com.dewijones92.totum.stats.unlockRows
 import com.dewijones92.totum.stats.useTotals
 import com.dewijones92.totum.stats.within
 import kotlinx.coroutines.CoroutineDispatcher
@@ -45,6 +55,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.Duration
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
 
 class StatsViewModel(
@@ -54,6 +65,9 @@ class StatsViewModel(
     private val now: () -> Instant = Instant::now,
     private val zone: () -> ZoneId = ZoneId::systemDefault,
     private val computation: CoroutineDispatcher = Dispatchers.Default,
+    private val phoneAccess: () -> Boolean = { true },
+    private val screenOnNow: () -> Boolean = { true },
+    private val appLabel: (String) -> String = { it },
 ) : ViewModel() {
     private var showing: Job? = null
 
@@ -68,13 +82,27 @@ class StatsViewModel(
         val nudges: NudgeTotals,
         val alarms: AlarmTotals,
         val use: UseTotals,
+        val phone: PhonePage,
     )
 
-    data class Detail(val title: String, val listens: List<StatEvent.Listen>)
+    data class PhonePage(
+        val accessGranted: Boolean,
+        val today: PhoneToday,
+        val trend: PhoneTrend,
+        val firstApps: List<TopEntry>,
+        val nudges: UnlockNudgeTotals,
+    )
+
+    data class Detail(
+        val title: String,
+        val listens: List<StatEvent.Listen>,
+        val unlocks: List<UnlockRow>? = null,
+    )
 
     private var events: List<StatEvent> = emptyList()
     private val _page = MutableStateFlow<Page?>(null)
     val page: StateFlow<Page?> = _page.asStateFlow()
+    private var phoneTrendDays = DEFAULT_TREND_DAYS
     private val _detail = MutableStateFlow<Detail?>(null)
     val detail: StateFlow<Detail?> = _detail.asStateFlow()
 
@@ -83,6 +111,11 @@ class StatsViewModel(
             events = withContext(computation) { load() }
             show(_page.value?.period ?: Period.WEEK)
         }
+    }
+
+    fun showPhoneTrend(days: Int) {
+        phoneTrendDays = days
+        show(_page.value?.period ?: Period.WEEK)
     }
 
     fun show(period: Period) {
@@ -106,9 +139,39 @@ class StatsViewModel(
             nudges = nudgeTotals(events, since),
             alarms = alarmTotals(events, since),
             use = useTotals(events, since),
+            phone = phonePage(at),
         ).also {
             Diag.log("stats", "showing $period: ${inPeriod.size} listen(s) of ${listens.size}, ${events.size} event(s)")
         }
+    }
+
+    private fun phonePage(at: Instant): PhonePage {
+        val screen = screenOnNow()
+        val trend = phoneTrend(events, phoneTrendDays, at, zone(), screen)
+        val since = trend.bars.first().key.let { LocalDate.parse(it).atStartOfDay(zone()).toInstant().toEpochMilli() }
+        return PhonePage(
+            accessGranted = phoneAccess(),
+            today = phoneToday(events, at, zone(), screen),
+            trend = trend,
+            firstApps = firstApps(phoneRows(at), since),
+            nudges = unlockNudgeTotals(events, since),
+        )
+    }
+
+    private fun phoneRows(at: Instant = now()) = unlockRows(events, at.toEpochMilli(), screenOnNow())
+
+    fun openPhoneBar(bar: Bar) {
+        val rows = phoneRows().inBar(bar, zone())
+        Diag.log("stats", "drill into phone use \"${bar.key}\": ${rows.size} unlock(s)")
+        _detail.value = Detail(bar.label, emptyList(), rows.sortedByDescending { it.at })
+    }
+
+    fun openPhoneApp(entry: TopEntry) {
+        val first = _page.value?.phone?.trend?.bars?.first()?.key ?: return
+        val since = LocalDate.parse(first).atStartOfDay(zone()).toInstant().toEpochMilli()
+        val rows = phoneRows().forApp(entry.key, since)
+        Diag.log("stats", "drill into phone use app \"${entry.key}\": ${rows.size} unlock(s)")
+        _detail.value = Detail(appLabel(entry.key), emptyList(), rows.sortedByDescending { it.at })
     }
 
     fun openBar(bar: Bar) = open(bar.label, current().inBar(bar, zone()))
@@ -130,15 +193,24 @@ class StatsViewModel(
     }
 
     companion object {
-        fun factory(container: AppContainer): ViewModelProvider.Factory = viewModelFactory {
-            initializer {
-                StatsViewModel(
-                    load = container.statsLog::all,
-                    breaks = { container.exsurge.breaks.map(BreakOutcome::record) },
-                    exsurgeOn = { container.exsurge.view.value.settings.enabled },
-                )
+        private const val DEFAULT_TREND_DAYS = 7
+
+        fun factory(container: AppContainer, appLabel: (String) -> String): ViewModelProvider.Factory =
+            viewModelFactory {
+                initializer {
+                    StatsViewModel(
+                        load = {
+                            container.phoneUse.sync("stats opened")
+                            container.statsLog.all()
+                        },
+                        breaks = { container.exsurge.breaks.map(BreakOutcome::record) },
+                        exsurgeOn = { container.exsurge.view.value.settings.enabled },
+                        phoneAccess = container.phoneUse::accessGranted,
+                        screenOnNow = container.phoneUse::screenOn,
+                        appLabel = appLabel,
+                    )
+                }
             }
-        }
     }
 }
 

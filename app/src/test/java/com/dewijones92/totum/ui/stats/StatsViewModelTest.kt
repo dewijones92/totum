@@ -4,6 +4,8 @@ import com.dewijones92.totum.stats.ListenKind
 import com.dewijones92.totum.stats.Period
 import com.dewijones92.totum.stats.StatEvent
 import com.dewijones92.totum.stats.TopKind
+import com.dewijones92.totum.stats.UnlockNudgeTotals
+import com.dewijones92.totum.stats.UnlockNudgeWhat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -13,6 +15,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Before
 import org.junit.Test
 import java.time.Instant
@@ -41,19 +44,22 @@ class StatsViewModelTest {
         durationMs = 180_000,
     )
 
-    private val events = mutableListOf(
+    private val events = mutableListOf<StatEvent>(
         listen("2026-10-14T09:00:00Z", "Satie"),
         listen("2026-10-14T10:00:00Z", "Satie"),
         listen("2026-10-01T10:00:00Z", "Chopin"),
     )
 
-    private fun model() = StatsViewModel(
+    private fun model(access: Boolean = true, label: (String) -> String = { it }) = StatsViewModel(
         load = { events },
         breaks = { emptyList() },
         exsurgeOn = { true },
         now = { now },
         zone = { ZoneId.of("Europe/London") },
         computation = dispatcher,
+        phoneAccess = { access },
+        screenOnNow = { false },
+        appLabel = label,
     )
 
     @Test
@@ -98,5 +104,70 @@ class StatsViewModelTest {
         advanceUntilIdle()
 
         assertEquals(3, model.page.value?.totals?.all?.plays)
+    }
+
+    private fun phoneEvents() = listOf(
+        StatEvent.PhoneUnlock(Instant.parse("2026-10-14T08:00:00Z").toEpochMilli(), "com.whatsapp"),
+        StatEvent.PhoneUnlock(Instant.parse("2026-10-14T08:05:00Z").toEpochMilli(), "com.whatsapp"),
+        StatEvent.PhoneUnlock(Instant.parse("2026-10-14T13:00:00Z").toEpochMilli(), "com.android.chrome"),
+        StatEvent.PhoneUnlock(Instant.parse("2026-10-10T13:00:00Z").toEpochMilli(), "com.android.chrome"),
+        StatEvent.PhoneUnlock(Instant.parse("2026-09-20T13:00:00Z").toEpochMilli(), "com.android.chrome"),
+        StatEvent.PhoneScreen(Instant.parse("2026-10-14T08:00:00Z").toEpochMilli(), true),
+        StatEvent.PhoneScreen(Instant.parse("2026-10-14T08:10:00Z").toEpochMilli(), false),
+        StatEvent.UnlockNudge(Instant.parse("2026-10-14T08:05:00Z").toEpochMilli(), UnlockNudgeWhat.SHOWN, 5, 2),
+        StatEvent.UnlockNudge(Instant.parse("2026-10-14T08:05:09Z").toEpochMilli(), UnlockNudgeWhat.CONTINUED),
+    )
+
+    @Test
+    fun `the phone section reads today and a 7 or 30 day trend from the same log`() = runTest(dispatcher) {
+        events += phoneEvents()
+        val model = model()
+        model.reload()
+        advanceUntilIdle()
+
+        val phone = model.page.value!!.phone
+        assertEquals(3, phone.today.unlocks)
+        assertEquals(10 * 60_000L, phone.today.screenMs)
+        assertEquals(7, phone.trend.bars.size)
+        assertEquals(4, phone.trend.unlocks)
+        assertEquals(UnlockNudgeTotals(1, 1, 0, 0), phone.nudges)
+        assertEquals(listOf("com.whatsapp", "com.android.chrome"), phone.firstApps.map { it.key })
+
+        model.showPhoneTrend(30)
+        advanceUntilIdle()
+        assertEquals(30, model.page.value!!.phone.trend.bars.size)
+        assertEquals(5, model.page.value!!.phone.trend.unlocks)
+    }
+
+    @Test
+    fun `an hour bar and a day bar and a first app each open the unlocks behind them, labelled with the app's name`() =
+        runTest(dispatcher) {
+            events += phoneEvents()
+            val model = model(label = { "label:$it" })
+            model.reload()
+            advanceUntilIdle()
+
+            model.openPhoneBar(model.page.value!!.phone.today.perHour[9])
+            assertEquals(2, model.detail.value?.unlocks?.size)
+            model.closeDetail()
+
+            model.openPhoneBar(model.page.value!!.phone.trend.bars.last())
+            assertEquals(3, model.detail.value?.unlocks?.size)
+            model.closeDetail()
+
+            model.openPhoneApp(model.page.value!!.phone.firstApps.first())
+            assertEquals("label:com.whatsapp", model.detail.value?.title)
+            assertEquals(2, model.detail.value?.unlocks?.size)
+        }
+
+    @Test
+    fun `without usage access the page says so and still has the log it already holds`() = runTest(dispatcher) {
+        events += phoneEvents()
+        val model = model(access = false)
+        model.reload()
+        advanceUntilIdle()
+
+        assertFalse(model.page.value!!.phone.accessGranted)
+        assertEquals(3, model.page.value!!.phone.today.unlocks)
     }
 }

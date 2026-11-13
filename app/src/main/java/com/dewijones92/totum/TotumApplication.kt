@@ -101,6 +101,8 @@ class TotumApplication : Application(), SingletonImageLoader.Factory {
             recordFinishedDownloads(container.downloadManager.observeDownloads(), container.statsLog)
         }
         container.dailyAlarms.tickAll("startup")
+        container.phoneUse.start()
+        container.applicationScope.launch { container.phoneUse.sync("app started") }
         cleanUpAfterAKilledRecording(this, container.applicationScope)
         warmTheEngineSoon()
         if (warmEngineAfterLaunch) {

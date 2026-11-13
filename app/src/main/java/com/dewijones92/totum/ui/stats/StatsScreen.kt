@@ -15,16 +15,19 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.dewijones92.totum.R
@@ -38,6 +41,7 @@ import com.dewijones92.totum.stats.Totals
 import com.dewijones92.totum.ui.common.BackHeader
 import com.dewijones92.totum.ui.common.ListThenDetail
 import com.dewijones92.totum.ui.common.LocalItemShield
+import com.dewijones92.totum.workapps.appLabel
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -45,12 +49,15 @@ import java.time.format.FormatStyle
 
 @Composable
 fun StatsScreen(container: AppContainer, onBack: () -> Unit, modifier: Modifier = Modifier) {
-    val viewModel: StatsViewModel = viewModel(factory = StatsViewModel.factory(container))
+    val context = LocalContext.current
+    val appLabel = remember(context) { { packageName: String -> context.appLabel(packageName) } }
+    val viewModel: StatsViewModel = viewModel(factory = StatsViewModel.factory(container, appLabel))
     val page by viewModel.page.collectAsStateWithLifecycle()
     val detail by viewModel.detail.collectAsStateWithLifecycle()
-    LaunchedEffect(viewModel) { viewModel.reload() }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.reload() }
     BackHandler(enabled = detail != null) { viewModel.closeDetail() }
     var byHours by rememberSaveable { mutableStateOf(false) }
+    var phoneByTime by rememberSaveable { mutableStateOf(false) }
     var topKind by rememberSaveable { mutableStateOf(TopKind.ARTISTS) }
     ListThenDetail(detail, listKey = "stats", list = {
         LazyColumn(modifier.fillMaxSize().testTag(STATS_SCREEN_TAG)) {
@@ -69,11 +76,22 @@ fun StatsScreen(container: AppContainer, onBack: () -> Unit, modifier: Modifier 
             topSection(current, topKind, { topKind = it }, viewModel::openTop)
             item { SectionTitle(R.string.stats_when) }
             item { Heatmap(current.heatmap) }
+            phoneUse(
+                current.phone,
+                phoneByTime,
+                PhoneUseActions(
+                    { phoneByTime = it },
+                    viewModel::showPhoneTrend,
+                    viewModel::openPhoneBar,
+                    viewModel::openPhoneApp,
+                    appLabel,
+                ),
+            )
             sideQuests(current)
             item { Hint(R.string.stats_counting_note) }
         }
     }) { open ->
-        StatsDetail(open, onBack = viewModel::closeDetail, modifier = modifier)
+        StatsDetail(open, appLabel, onBack = viewModel::closeDetail, modifier = modifier)
     }
 }
 
@@ -197,13 +215,27 @@ private fun UseCard(page: StatsViewModel.Page) = StatCard(R.string.stats_use) {
 }
 
 @Composable
-private fun StatsDetail(detail: StatsViewModel.Detail, onBack: () -> Unit, modifier: Modifier) {
+private fun StatsDetail(
+    detail: StatsViewModel.Detail,
+    appLabel: (String) -> String,
+    onBack: () -> Unit,
+    modifier: Modifier,
+) {
     val zone = ZoneId.systemDefault()
     val format = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT)
     val shield = LocalItemShield.current
     LazyColumn(modifier.fillMaxSize()) {
         item { BackHeader(detail.title, onBack) }
-        if (detail.listens.isEmpty()) item { Hint(R.string.stats_detail_empty) }
+        if (detail.listens.isEmpty() && detail.unlocks.isNullOrEmpty()) item { Hint(R.string.stats_detail_empty) }
+        items(detail.unlocks.orEmpty(), key = { "unlock-${it.at}" }) { unlock ->
+            StatLine(
+                Instant.ofEpochMilli(unlock.at).atZone(zone).format(format),
+                listOfNotNull(
+                    unlock.firstApp?.let(appLabel) ?: stringResource(R.string.phone_use_detail_unknown_app),
+                    unlock.screenMs?.let { stringResource(R.string.phone_use_detail_on_screen, heard(it)) },
+                ).joinToString(" · "),
+            )
+        }
         items(detail.listens, key = { it.playId }) { listen ->
             StatLine(
                 shield.titleOf(MediaItemId(listen.itemId), listen.title, listen.author),

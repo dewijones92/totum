@@ -6,7 +6,6 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Handler
 import android.os.Looper
-import android.provider.Settings
 import android.widget.Toast
 import com.dewijones92.totum.MainActivity
 import com.dewijones92.totum.R
@@ -16,6 +15,7 @@ import com.dewijones92.totum.playback.PlaybackInterruption
 import com.dewijones92.totum.reminders.kit.AlarmVoice
 import com.dewijones92.totum.reminders.kit.Buzzer
 import com.dewijones92.totum.reminders.kit.ExactAlarm
+import com.dewijones92.totum.reminders.kit.OverApps
 import com.dewijones92.totum.reminders.kit.Utterance
 import com.dewijones92.totum.reminders.kit.mayUseFullScreenIntent
 import java.time.Instant
@@ -50,7 +50,7 @@ class AndroidExsurgePorts(
         } else {
             notifications.showSummons(request)
         }
-        val overApps = request.overOtherApps && Settings.canDrawOverlays(context)
+        val overApps = request.overOtherApps && OverApps.granted(context)
         val fullScreen = mayUseFullScreenIntent(context.getSystemService(android.app.NotificationManager::class.java))
         Diag.log(
             ExsurgeController.TAG,
@@ -59,14 +59,12 @@ class AndroidExsurgePorts(
                 "overlay=$overApps fullScreenIntent=$fullScreen"
         )
         if (overApps) {
-            runCatching { context.startActivity(TakeoverActivity.intent(context)) }
-                .onFailure {
-                    Diag.warn(
-                        ExsurgeController.TAG,
-                        "dewidebug exsurge direct takeover refused; the notification remains",
-                        it
-                    )
-                }
+            OverApps.start(
+                context,
+                ExsurgeController.TAG,
+                TakeoverActivity.intent(context),
+                "exsurge takeover"
+            )
         }
     }
 
