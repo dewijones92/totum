@@ -40,6 +40,12 @@ internal interface ItemActions {
      */
     fun sourceLink(item: MediaItem): (() -> Unit)?
 
+    /**
+     * Resolves the item's channel or show and opens the group picker for it, or null when the item
+     * came from no channel or show (a torrent file, a Jellyfin film, a song).
+     */
+    fun addToGroup(item: MediaItem): (() -> Unit)? = null
+
     /** Opens the item's album page, or null when it names no album or nothing can open one. */
     fun albumLink(item: MediaItem): (() -> Unit)? = null
 

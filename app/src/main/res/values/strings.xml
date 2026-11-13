@@ -120,6 +120,8 @@
     <string name="queue_shuffle_groups">Shuffle the order of groups</string>
     <string name="go_to_channel">Go to channel</string>
     <string name="go_to_podcast">Go to podcast</string>
+    <string name="group_add_channel">Add channel to group</string>
+    <string name="group_add_show">Add show to group</string>
     <string name="go_to_artist">Go to artist</string>
     <string name="go_to_album">Go to album</string>
     <string name="music_see_all_songs">See all songs</string>

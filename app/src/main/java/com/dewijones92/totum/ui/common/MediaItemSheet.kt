@@ -23,6 +23,7 @@ import androidx.compose.material.icons.outlined.Album
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.GroupAdd
 import androidx.compose.material.icons.outlined.Headphones
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.Person
@@ -162,6 +163,12 @@ internal fun ActionSheet(
                 onGoToSource,
                 if (extras.music) Icons.Outlined.Person else pillarIcon(sourcePillar),
                 if (extras.music) R.string.go_to_artist else goToSourceLabelRes(sourcePillar),
+                onDismiss,
+            )
+            SheetAction(
+                extras.item?.let { LocalItemActions.current?.addToGroup(it) },
+                Icons.Outlined.GroupAdd,
+                if (sourcePillar == MediaKind.VIDEO) R.string.group_add_channel else R.string.group_add_show,
                 onDismiss,
             )
             SheetAction(extras.onGoToAlbum, Icons.Outlined.Album, R.string.go_to_album, onDismiss)

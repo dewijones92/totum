@@ -13,6 +13,7 @@ import com.dewijones92.totum.common.HomeServerAuth
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.common.youTubeVideoId
 import com.dewijones92.totum.di.AppContainer
+import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaKind
@@ -27,6 +28,7 @@ import com.dewijones92.totum.innertube.music.RadioSeed
 import com.dewijones92.totum.music.ArtistCredits
 import com.dewijones92.totum.notforme.NotForMeRejecter
 import com.dewijones92.totum.settings.DownloadChoice
+import com.dewijones92.totum.ui.group.rememberGroupPicker
 import com.dewijones92.totum.ui.player.LocalTrail
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -51,8 +53,29 @@ internal fun ProvideItemActions(
     val copier = rememberCopier()
     val sharer = rememberSharer()
     val links = remember(copier, sharer) { ItemLinks(copier, sharer) }
-    val actions = remember(container, rowActions, scope, onOpenSource, openMusicPage, offers, resources, links) {
-        ContainerItemActions(container, rowActions, scope, onOpenSource, openMusicPage, offers, resources, links)
+    val groupPicker = rememberGroupPicker(container)
+    val actions = remember(
+        container,
+        rowActions,
+        scope,
+        onOpenSource,
+        openMusicPage,
+        offers,
+        resources,
+        links,
+        groupPicker,
+    ) {
+        ContainerItemActions(
+            container,
+            rowActions,
+            scope,
+            onOpenSource,
+            openMusicPage,
+            offers,
+            resources,
+            links,
+            groupPicker,
+        )
     }
     val openSource: (MediaSource) -> Unit = remember(onOpenSource) {
         {
@@ -102,6 +125,7 @@ private class ContainerItemActions(
     private val offers: SnackbarOffers?,
     private val resources: Resources,
     private val links: ItemLinks,
+    private val openGroupPicker: (MediaSource) -> Unit,
 ) : ItemActions {
     private val credits = ArtistCredits(container.musicCatalogue, container.operations) { title ->
         resources.getString(R.string.finding_artists, title)
@@ -153,6 +177,14 @@ private class ContainerItemActions(
             }
             container.sourceLocator.canLocate(item) -> { { rows.goToSource(item, onOpenSource) } }
             else -> null
+        }
+    }
+
+    override fun addToGroup(item: MediaItem): (() -> Unit)? {
+        if (item.contentKind == MediaContentKind.MUSIC || !container.sourceLocator.canLocate(item)) return null
+        return {
+            Diag.log("group", "add to a group from \"${item.title}\": finding its channel or show")
+            rows.goToSource(item, openGroupPicker)
         }
     }
 

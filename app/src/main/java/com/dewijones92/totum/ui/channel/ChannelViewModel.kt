@@ -32,6 +32,7 @@ import com.dewijones92.totum.innertube.playlists.Playlist
 import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.ui.common.toMediaItem
 import com.dewijones92.totum.ui.common.toMediaItemPage
+import com.dewijones92.totum.ui.group.GroupActions
 import com.dewijones92.totum.video.AccountSubscriptions
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -196,35 +197,22 @@ class ChannelViewModel(
     private fun List<MediaSource.VideoChannel>.artworkFor(c: Content): HttpUrl? =
         findChannel(source, channelId ?: c.resolvedChannelId)?.artworkUrl
 
-    /** Adds this channel to [group], or removes it. The picker is a checklist of these. */
+    private val groupActions = GroupActions(groups.store)
+
     fun toggleGroup(group: SourceGroup) {
-        viewModelScope.launch {
-            val added = groups.store.toggleMember(group.id, source)
-            Diag.log("group", "\"${source.title}\" ${if (added) "added to" else "removed from"} \"${group.name}\"")
-        }
+        viewModelScope.launch { groupActions.toggle(group, source) }
     }
 
     fun renameGroup(group: SourceGroup, name: String) {
-        viewModelScope.launch {
-            groups.store.rename(group.id, name)
-            Diag.log("group", "renamed \"${group.name}\" to \"$name\"")
-        }
+        viewModelScope.launch { groupActions.rename(group, name) }
     }
 
     fun deleteGroup(group: SourceGroup) {
-        viewModelScope.launch {
-            groups.store.delete(group.id)
-            Diag.log("group", "deleted \"${group.name}\" (${group.members.size} members)")
-        }
+        viewModelScope.launch { groupActions.delete(group) }
     }
 
-    /** Creates a group and puts this channel in it — you name one when you have something for it. */
     fun createGroupWith(name: String) {
-        viewModelScope.launch {
-            val id = groups.store.create(name)
-            groups.store.toggleMember(id, source)
-            Diag.log("group", "created \"$name\" starting with \"${source.title}\"")
-        }
+        viewModelScope.launch { groupActions.createWith(name, source) }
     }
 
     init {
