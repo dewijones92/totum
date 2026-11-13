@@ -44,6 +44,15 @@ public class FakeHomeTorrentServer(
     override fun audioStream(torrent: PreparedTorrent, file: TorrentFile): HttpUrl =
         HttpUrl.of("https://home.test/ts/audio/${torrent.hash}/${file.index}/index.m3u8")
 
+    public val posters: MutableMap<String, HttpUrl> = mutableMapOf()
+
+    public val postersAsked: MutableList<String> = mutableListOf()
+
+    override suspend fun posterFor(torrentName: String): HttpUrl? {
+        postersAsked += torrentName
+        return posters[torrentName]
+    }
+
     /** Records that warming was asked for; there is nothing to warm in memory. */
     public var warmed: MutableList<String> = mutableListOf()
 

@@ -21,6 +21,7 @@ public class Torrentio(
     private val torrentioBase: String = TORRENTIO_BASE,
 ) {
     private val json = Json { ignoreUnknownKeys = true }
+    private val cinemeta = Cinemeta(client, cinemetaBase)
 
     public suspend fun search(query: String): TorrentSearchResult {
         val started = TimeSource.Monotonic.markNow()
@@ -68,44 +69,9 @@ public class Torrentio(
         return results
     }
 
-    private suspend fun catalogue(kind: String, asked: Asked): Meta? {
-        val title = asked.title
-        if (title.wordsOf().isEmpty()) return null
-        val encoded = URLEncoder.encode(title, Charsets.UTF_8).replace("+", "%20")
-        val body = get("$cinemetaBase/catalog/$kind/top/search=$encoded.json") ?: return null
-        val metas = (runCatching { json.parseToJsonElement(body) }.getOrNull() as? JsonObject)
-            ?.get("metas") as? JsonArray ?: return null
-        val words = title.wordsOf()
-        val candidates = metas.mapNotNull { element ->
-            val meta = element as? JsonObject ?: return@mapNotNull null
-            val id = (meta["imdb_id"] ?: meta["id"])?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
-            val name = meta["name"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
-            val released = meta["releaseInfo"]?.jsonPrimitive?.contentOrNull.orEmpty()
-            Meta(id, name, released).takeIf { id.startsWith("tt") }
-        }
-        val named = candidates.filter { it.name.wordsOf().containsAll(words) }
-        val match = named.firstOrNull { asked.year != null && it.released.startsWith(asked.year) }
-            ?: asked.year?.let { year -> candidates.firstOrNull { it.name.wordsOf().containsAll(words + year) } }
-            ?: named.firstOrNull()
-        Diag.log(
-            "torrent",
-            "torrentio $kind catalogue \"$title\": ${candidates.size} entr(ies), " +
-                (match?.let { "using \"${it.name}\" (${it.id})" } ?: "none named with every word of the search"),
-        )
-        return match
-    }
+    private suspend fun catalogue(kind: String, asked: Asked): Cinemeta.Meta? = cinemeta.find(kind, asked.title, asked.year)
 
-    private suspend fun get(url: String): String? {
-        val request = Request.Builder().url(url).build()
-        return client.newCall(request).await().use { response ->
-            if (response.isSuccessful) {
-                response.body.string()
-            } else {
-                Diag.warn("torrent", "torrentio ${url.substringAfter("//").substringBefore('?')} HTTP ${response.code}")
-                null
-            }
-        }
-    }
+    private suspend fun get(url: String): String? = cinemeta.get(url)
 
     private fun JsonObject.toResult(): TorrentResult? {
         val hash = this["infoHash"]?.jsonPrimitive?.contentOrNull?.takeIf { HASH.matches(it) } ?: return null
@@ -121,8 +87,6 @@ public class Torrentio(
             indexer = site?.let { "$NAME · $it" } ?: NAME,
         )
     }
-
-    private data class Meta(val id: String, val name: String, val released: String)
 
     private data class Asked(val title: String, val season: Int, val episode: Int, val year: String?) {
         companion object {
@@ -146,7 +110,7 @@ public class Torrentio(
 
     public companion object {
         public const val NAME: String = "Torrentio"
-        public const val CINEMETA_BASE: String = "https://v3-cinemeta.strem.io"
+        public const val CINEMETA_BASE: String = Cinemeta.CINEMETA_BASE
         public const val TORRENTIO_BASE: String = "https://torrentio.strem.fun"
         private const val MOVIE = "movie"
         private const val SERIES = "series"

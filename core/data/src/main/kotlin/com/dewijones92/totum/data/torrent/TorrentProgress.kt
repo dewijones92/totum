@@ -53,12 +53,14 @@ public object TorrentProgress {
 
     private fun progressOf(mine: Map<Int, PlayState>, record: SeenTorrent?): List<String> {
         if (mine.isEmpty()) return emptyList()
-        val playable = record?.files?.size
-        val watched = mine.count { it.value is PlayState.Played }
-        val started = mine.entries.filter { it.value is PlayState.InProgress }.minByOrNull { it.key }
+        val extras = record?.files?.filter { it.extra }?.map { it.index }?.toSet().orEmpty()
+        val playable = record?.files?.count { !it.extra }
+        val counted = mine.filterKeys { it !in extras }.ifEmpty { mine }
+        val watched = counted.count { it.value is PlayState.Played }
+        val started = counted.entries.filter { it.value is PlayState.InProgress }.minByOrNull { it.key }
         if (playable == 1) {
             return listOf(
-                when (val state = mine.values.first()) {
+                when (val state = counted.values.first()) {
                     is PlayState.InProgress -> "▶️ ${minutesIn(state)}"
                     else -> "✅ Watched"
                 },

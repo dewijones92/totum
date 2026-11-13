@@ -111,6 +111,34 @@ class ProwlarrSearchTest {
         )
     }
 
+    @Test
+    fun `an indexer Prowlarr has paused is left out quietly, once, and not asked again straight away`() = runTest {
+        val asked = java.util.Collections.synchronizedList(mutableListOf<String>())
+        server.dispatcher = object : Dispatcher() {
+            override fun dispatch(request: RecordedRequest): MockResponse = when {
+                request.target.startsWith("/api/v1/indexer") -> ok(INDEXERS)
+                else -> {
+                    asked += request.target
+                    MockResponse.Builder().code(400).body(
+                        """{"message":"Search failed due to all selected indexers being unavailable"}""",
+                    ).build()
+                }
+            }
+        }
+        val prowlarr = search()
+
+        val first = withContext(Dispatchers.Default) {
+            prowlarr.updates("dune", TorrentCategory.AUDIOBOOKS, also = emptyList()).toList()
+        }.last()
+        val second = withContext(Dispatchers.Default) {
+            prowlarr.updates("hobbit", TorrentCategory.AUDIOBOOKS, also = emptyList()).toList()
+        }.last()
+
+        assertEquals(TorrentSearchResult.Success(emptyList()), first)
+        assertEquals(TorrentSearchResult.Success(emptyList()), second)
+        assertEquals("asked once, then left to rest: $asked", 1, asked.size)
+    }
+
     private companion object {
         const val RACES = 300
         const val NANOS_PER_MS = 1_000_000L

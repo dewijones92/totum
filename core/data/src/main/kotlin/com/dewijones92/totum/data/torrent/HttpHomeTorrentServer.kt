@@ -65,6 +65,7 @@ public class HttpHomeTorrentServer(
     private val clock: () -> Long = System::currentTimeMillis,
     private val torrentio: Torrentio? = null,
     private val apibay: Apibay? = null,
+    private val cinemeta: Cinemeta? = null,
 ) : HomeTorrentServer {
 
     private val prowlarr = ProwlarrSearch(
@@ -260,6 +261,9 @@ public class HttpHomeTorrentServer(
             }
         }
     }
+
+    override suspend fun posterFor(torrentName: String): HttpUrl? =
+        cinemeta?.posterFor(torrentName)?.let(HttpUrl::parse)
 
     private fun post(url: String, body: String): JsonObject? = try {
         val request = Request.Builder()

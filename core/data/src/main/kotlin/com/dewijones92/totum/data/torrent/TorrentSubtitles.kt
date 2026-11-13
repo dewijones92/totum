@@ -27,7 +27,7 @@ public object TorrentSubtitles {
         val folder = video.path.substringBeforeLast('/', "")
         val stem = video.name.substringBeforeLast('.')
         val subtitles = torrent.files.filter { it.format() != null }
-        val onlyVideo = torrent.files.count { it.isPlayable } == 1
+        val onlyVideo = TorrentRoles.classify(torrent.files).count { it.role == TorrentFileRole.MAIN } == 1
         val matched = subtitles.filter { sub ->
             val beside = sub.path.substringBeforeLast('/', "") == folder && sub.name.startsWith("$stem.")
             val inItsSubsFolder = sub.path.startsWith(prefixed(folder, "Subs/$stem/")) ||

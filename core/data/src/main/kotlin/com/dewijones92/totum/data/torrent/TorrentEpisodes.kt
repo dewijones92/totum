@@ -28,6 +28,13 @@ public object TorrentEpisodes {
      * does not is exactly as the torrent had it — never scrambled by a half-successful parse.
      */
     public fun playableInOrder(files: List<TorrentFile>): List<TorrentFile> {
+        val roles = TorrentRoles.classify(files).associate { it.file.index to it.role }
+        return episodeOrdered(files)
+            .filter { roles[it.index] != TorrentFileRole.SAMPLE }
+            .sortedBy { roles[it.index] == TorrentFileRole.EXTRA }
+    }
+
+    private fun episodeOrdered(files: List<TorrentFile>): List<TorrentFile> {
         val playable = files.filter { it.isPlayable }
         val parsed = playable.map { it to episodeOf(it.name) }
         return if (parsed.any { it.second != null }) {

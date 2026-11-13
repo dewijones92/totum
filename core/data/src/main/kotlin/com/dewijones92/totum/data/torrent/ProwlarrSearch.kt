@@ -143,6 +143,22 @@ internal class ProwlarrSearch(
             Indexer(id, name, proxied, categoriesOf(indexer)).takeIf { enabled }
         }
 
+    private val restingUntil = java.util.concurrent.ConcurrentHashMap<String, Long>()
+
+    private fun resting(name: String): Boolean = (restingUntil[name] ?: 0L) > clock()
+
+    private fun paused(label: String, said: String): TorrentSearchResult {
+        val known = restingUntil.put(label, clock() + REST_MS)
+        if (known == null || known <= clock()) {
+            Diag.warn(
+                "torrent",
+                "$label is paused by Prowlarr after errors (\"${said.take(LOGGED_BODY)}\"); its results are left " +
+                    "out and it is not asked again for ${REST_MS / MS_PER_S / SECONDS_A_MINUTE} minutes",
+            )
+        }
+        return TorrentSearchResult.Success(emptyList())
+    }
+
     private suspend fun searchOne(
         query: String,
         indexer: Indexer?,
@@ -157,6 +173,7 @@ internal class ProwlarrSearch(
             .header(TOKEN_HEADER, token())
             .build()
         val label = indexer?.name ?: "all indexers"
+        if (indexer != null && resting(indexer.name)) return TorrentSearchResult.Success(emptyList())
         return try {
             client.newCall(request).await().use { response -> read(response, query, label) }
         } catch (e: IOException) {
@@ -200,6 +217,12 @@ internal class ProwlarrSearch(
     private val noRedirects by lazy { client.newBuilder().followRedirects(false).build() }
 
     private fun read(response: Response, query: String, label: String): TorrentSearchResult {
+        if (response.code == HTTP_BAD_REQUEST) {
+            val text = response.body.string()
+            if (PAUSED.containsMatchIn(text)) return paused(label, text)
+            Diag.warn("torrent", "search for \"$query\" ($label) failed: HTTP 400 — ${text.take(LOGGED_BODY)}")
+            return TorrentSearchResult.Failure("the home server answered HTTP 400")
+        }
         if (!response.isSuccessful) {
             // Each code says something different to the person holding the phone, and
             // "HTTP 401" says nothing at all. A rejected token means the sign-in has to
@@ -246,6 +269,11 @@ private data class Indexer(
     val categories: Set<Int> = emptySet(),
 )
 
+private const val HTTP_BAD_REQUEST = 400
+private const val LOGGED_BODY = 160
+private const val SECONDS_A_MINUTE = 60L
+private const val REST_MS = 10 * 60_000L
+private val PAUSED = Regex("""(?i)indexers? (being|is|are) unavailable""")
 private const val WARM_EVERY_MS = 10 * 60_000L
 private const val WARM_QUERY = "ubuntu"
 private const val MS_PER_S = 1_000L

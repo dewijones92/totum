@@ -1,8 +1,10 @@
 package com.dewijones92.totum.data.torrent
 
+import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
+import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.Picture
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
@@ -36,26 +38,29 @@ public object TorrentPlayables {
      * One item per file rather than one per torrent: a season pack IS two dozen things to watch,
      * and collapsing it to one would make the queue lie about what is in it.
      */
-    public fun queueItems(
+    public suspend fun queueItems(
         server: HomeTorrentServer,
         torrent: PreparedTorrent,
         kind: MediaContentKind = MediaContentKind.STANDARD,
         artwork: HttpUrl? = null,
-    ): List<PlayableItem> =
-        TorrentEpisodes.playableInOrder(torrent.files).map { file ->
+    ): List<PlayableItem> {
+        val picture = artworkFor(server, torrent, artwork)
+        val roles = TorrentRoles.classify(torrent).filter { it.role != TorrentFileRole.SAMPLE }
+            .associate { it.file.index to it.role }
+        return TorrentEpisodes.playableInOrder(torrent.files).map { file ->
             PlayableItem(
                 item = MediaItem(
                     // The hash and file index together, so the same episode is the same item
                     // across restarts — which is what lets play-position and history work.
                     id = TorrentProgress.itemId(torrent.hash, file.index),
                     sourceId = SOURCE,
-                    title = titleFor(torrent, file),
+                    title = titleFor(torrent, file, roles),
                     publishedAt = null,
                     duration = null,
                     author = torrent.name,
                     mediaUrl = server.stream(torrent, file),
                     contentKind = kind,
-                    thumbnailUrl = artwork,
+                    thumbnailUrl = picture,
                 ),
                 // The audio-only variant, so Listen mode costs 2.1 MB/min instead of 15.2.
                 handle = PlayHandle.Podcast(
@@ -63,6 +68,21 @@ public object TorrentPlayables {
                 ),
             )
         }
+    }
+
+    private suspend fun artworkFor(server: HomeTorrentServer, torrent: PreparedTorrent, given: HttpUrl?): HttpUrl? {
+        if (given != null) {
+            Diag.log("torrent", "\"${torrent.name}\" artwork: the caller's, $given")
+            return given
+        }
+        val found = server.posterFor(torrent.name)
+        Diag.log(
+            "torrent",
+            "\"${torrent.name}\" artwork: " +
+                (found?.let { "looked up by title and year, $it" } ?: "none (no poster from its site, none found by title)"),
+        )
+        return found
+    }
 
     /**
      * What a row says.
@@ -71,10 +91,21 @@ public object TorrentPlayables {
      * they are about to watch. A pack takes the episode label, since the release name is already
      * on the group header above it and repeating it on every row is noise.
      */
-    private fun titleFor(torrent: PreparedTorrent, file: TorrentFile): String {
-        val playable = torrent.files.count { it.isPlayable }
-        return if (playable <= 1) torrent.name else TorrentEpisodes.label(file)
+    private fun titleFor(torrent: PreparedTorrent, file: TorrentFile, roles: Map<Int, TorrentFileRole>): String {
+        val playable = roles.size
+        if (playable <= 1) return torrent.name
+        val mains = roles.values.count { it == TorrentFileRole.MAIN }
+        return if (mains == 1 && roles[file.index] == TorrentFileRole.MAIN) {
+            TorrentNames.clean(torrent.name)
+        } else {
+            TorrentEpisodes.label(file)
+        }
     }
+
+    public fun details(torrent: PreparedTorrent): Map<MediaItemId, TorrentFileDetail> =
+        TorrentRoles.classify(torrent).associate {
+            TorrentProgress.itemId(torrent.hash, it.file.index) to TorrentFileDetail(it.file.sizeBytes, it.role)
+        }
 }
 
 /**
@@ -92,3 +123,5 @@ public object TorrentPlayables {
  */
 public val PlayableItem.hasAudioOnlyFetch: Boolean
     get() = item.sourceId != TorrentPlayables.SOURCE
+
+public data class TorrentFileDetail(public val sizeBytes: Long, public val role: TorrentFileRole)

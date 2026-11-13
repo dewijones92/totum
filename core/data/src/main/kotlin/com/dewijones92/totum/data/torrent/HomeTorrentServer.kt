@@ -78,6 +78,8 @@ public interface HomeTorrentServer {
     public suspend fun warmVideo(torrent: PreparedTorrent, file: TorrentFile): Unit = warmStream(stream(torrent, file))
 
     public suspend fun warmStream(streamUrl: HttpUrl)
+
+    public suspend fun posterFor(torrentName: String): HttpUrl? = null
 }
 
 public sealed interface TorrentSearchResult {
@@ -113,11 +115,7 @@ public data class TorrentResult(
     public val imdbId: String? = null,
 ) {
     public val artworkUrl: String?
-        get() = posterUrl ?: imdbId?.let { "$POSTER_FOR_IMDB/$it/img" }
-
-    private companion object {
-        const val POSTER_FOR_IMDB = "https://images.metahub.space/poster/medium"
-    }
+        get() = posterUrl ?: imdbId?.let(Posters::forImdb)
 }
 
 public enum class Uploader { VIP, TRUSTED, OFFICIAL, MEMBER, UNKNOWN }
