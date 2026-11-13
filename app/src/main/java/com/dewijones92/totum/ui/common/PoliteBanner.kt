@@ -25,6 +25,7 @@ import com.dewijones92.totum.R
 import com.dewijones92.totum.data.update.UpdateStatus
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.polite.Politeness
+import com.dewijones92.totum.ui.queue.PlayOnRow
 import kotlinx.coroutines.delay
 import java.time.Instant
 import java.time.ZoneId
@@ -90,6 +91,8 @@ fun ShellBanners(container: AppContainer) {
         val first = update !is UpdateStatus.OutOfDate
         OperationsStrip(running, padStatusBar = first, onCancel = container.operations::cancel)
         PoliteBanner(container.polite, signedIn, padStatusBar = first && running.isEmpty())
-        HomeProblemsBanner(homeProblems, padStatusBar = first && running.isEmpty() && !container.polite.bannerUp())
+        val aboveIsEmpty = running.isEmpty() && !container.polite.bannerUp()
+        HomeProblemsBanner(homeProblems, padStatusBar = first && aboveIsEmpty)
+        PlayOnRow(container.targets, padStatusBar = first && aboveIsEmpty && homeProblems.isEmpty())
     }
 }

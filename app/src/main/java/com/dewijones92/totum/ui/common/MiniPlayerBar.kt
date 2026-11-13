@@ -208,6 +208,7 @@ private fun NowPlayingText(state: PlaybackState, starting: Starting?, modifier: 
                 style = MaterialTheme.typography.titleSmall,
                 modifier = Modifier.weight(1f, fill = false),
             )
+            if (starting == null) DeviceMarkBadge(state.itemId, Modifier.padding(start = 6.dp))
         }
         if (starting != null) {
             Text(

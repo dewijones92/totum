@@ -66,7 +66,7 @@ class TargetChipsTest {
 
     private fun show(targets: TargetsRepository) {
         compose.setContent { TotumTheme { TargetChips(targets) } }
-        compose.waitUntil(WAIT_MS) { targets.targets.value.isNotEmpty() }
+        compose.waitUntil(WAIT_MS) { targets.options.value.size > 1 }
         compose.waitForIdle()
     }
 

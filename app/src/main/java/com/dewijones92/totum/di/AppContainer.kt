@@ -314,6 +314,7 @@ import com.dewijones92.totum.stars.STARRED_PLAYLIST_NAME
 import com.dewijones92.totum.stars.Stars
 import com.dewijones92.totum.stats.StatsLog
 import com.dewijones92.totum.targets.ContextTargetWords
+import com.dewijones92.totum.targets.DeviceMarks
 import com.dewijones92.totum.targets.PrefsPlayOn
 import com.dewijones92.totum.targets.PrefsTargetColours
 import com.dewijones92.totum.targets.RequesterIdentity
@@ -428,6 +429,7 @@ interface AppContainer {
     val aiFeatures: AiFeatures
     val homeDownloads: HomeDownloads
     val targets: TargetsRepository
+    val deviceMarks: DeviceMarks
     val sendToTarget: SendToTarget
     val jellyfin: JellyfinApi?
     val trail: TrailNavigation
@@ -933,6 +935,10 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             playOn = PrefsPlayOn(context),
             unmetered = { !networkStatus.isMetered() },
         )
+    }
+
+    override val deviceMarks: DeviceMarks by lazy {
+        DeviceMarks(targets, playbackController.state.map { it?.itemId?.value }, applicationScope)
     }
 
     private val requesterIdentity: RequesterIdentity by lazy { RequesterIdentity(context) }

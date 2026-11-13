@@ -76,7 +76,7 @@ sound processing on the Pi). Brief: [pi-plays-everywhere.md](../todos/pi-plays-e
   the strip (the state says `starting`) and the phone watches until the Pi has played it or said why not. Only then, if it
   did not, does the phone play the items itself, taking them off the Pi by id. A target that cannot be reached is not asked
   for a stream first, and its problem is shown in the phone's own words ("📶 Couldn't reach … it isn't connected (off or out
-  of range)", "📶 Switch … on, then try again", "🔑 Sign in to the home server again", "⏳ YouTube is refusing the Pi for
+  of range)", "🔌 Switch … on, then try again", "🔑 Sign in to the home server again", "⏳ YouTube is refusing the Pi for
   now; try again around 14:30").
 - **A TV switched off mid-item stops the deck and keeps its place.** The deck shows it asleep with "📺 LG TV was switched
   off"; Play wakes it and resumes at the saved second (a live item at the edge). STOP then Play, and a Pi restart then Play,
@@ -90,6 +90,15 @@ sound processing on the Pi). Brief: [pi-plays-everywhere.md](../todos/pi-plays-e
   (YouTube, say) the TV is left alone.
 - **A live stream has no length.** The strip shows "🔴 LIVE" instead of the bar and the clock (the TV's own "length" of
   a live stream is YouTube's 12-hour window, and `GET /targets` now sends none, with `live: true`).
+
+- **▶️ Play on… is one remembered choice, offered everywhere** ([ADR 166](../adr/0166-play-on-is-a-choice-that-remembers-the-last-device.md)).
+  The last used device is where every play, add, play next and shuffle all goes, from any tab, until another is picked; it
+  is kept across restarts and no longer ends with the Queue tab. At home (the home server answered, and an unmetered
+  connection) every device the Pi lists is offered, switched off ones with 💤; away from home only this phone is. A slim
+  "▶️ Play on [device ▾]" row under every tab's header shows and changes it, every item menu has "📡 Play on…" to play
+  that item on a pick, and picking a switched-off device wakes it at once (a play to a sleeping one wakes it as before).
+  The device's colour is on the item wherever it is playing (a "📺 LG TV" badge on rows, the queue, the mini player and the
+  full player). Peek stays on the phone; the phone's own notification is not recoloured.
 
 ## Files
 
@@ -116,7 +125,7 @@ sound processing on the Pi). Brief: [pi-plays-everywhere.md](../todos/pi-plays-e
 
 ## Not built (see the todo)
 
-PC browsers as targets; Home Assistant's brown noise and jazz through Totum (the Totum side is built; the dot-files adapter is in `tools/handoff/hermes-audio/`, not deployed); the mini-player pill
+PC browsers as targets (the picker takes any target kind that is reachable away, so a browser slots in); Home Assistant's brown noise and jazz through Totum (the Totum side is built; the dot-files adapter is in `tools/handoff/hermes-audio/`, not deployed); the mini-player pill
 and per-target notification; "Play on…" as a long press on every play button; skip silences on a picture (the phone does
 not either); playback speed on a target; the phone's silence mode and speech gate on a target; TV volume in the strip.
 Not seen on a real TV or speaker yet: the manifest, the relayed picture, the Pi's segments, live on a TV and on mpv.

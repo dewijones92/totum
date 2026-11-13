@@ -309,6 +309,26 @@ class TargetsRepositoryTest {
     }
 
     @Test
+    fun `picking wakes a switched-off device only, and the phone clears the choice`() =
+        runTest {
+            val asleep = tv.copy(power = TargetPower.ASLEEP)
+            api.answer = HomeAnswer.Ok(TargetsAnswer(listOf(asleep, bar)))
+            repository.refresh("test")
+
+            repository.choose(repository.options.value.first { it.id == "bar" })
+            assertTrue(api.controlled.isEmpty())
+            assertEquals("bar", playOn.load())
+
+            repository.choose(repository.options.value.first { it.id == "lg-tv" })
+            assertEquals(listOf("lg-tv" to TargetAction.WAKE), api.controlled.map { it.first to it.second.action })
+            assertEquals("lg-tv", playOn.load())
+
+            repository.choose(repository.options.value.first { it.isPhone })
+            assertNull(repository.selected.value)
+            assertNull(playOn.load())
+        }
+
+    @Test
     fun `an item playing on a device is marked with that device`() = runTest {
         val playing = bar.copy(entries = listOf(TargetEntry(item("a").toBackup())), at = 0, playing = true)
         api.answer = HomeAnswer.Ok(TargetsAnswer(listOf(tv, playing)))

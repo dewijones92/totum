@@ -313,6 +313,7 @@ private fun TitleAndSubtitle(
         // which is what happened when all three shared a single capped line.
         FactLines(subtitleLines, followMark)
         MediaItemStatus(shownAs(item, pillar), playState, downloadState, StatusRowSpacing, homeJobOf(item.id))
+        DeviceMarkBadge(item.id, Modifier.padding(top = 4.dp))
     }
 }
 

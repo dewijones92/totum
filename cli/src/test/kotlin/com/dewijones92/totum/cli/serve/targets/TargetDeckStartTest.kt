@@ -166,7 +166,7 @@ class TargetDeckStartTest {
 
         deck.enqueue(send("a"))
 
-        assertEquals("📶 Switch LG soundbar on, then try again", deck.state().problem)
+        assertEquals("🔌 Switch LG soundbar on, then try again", deck.state().problem)
         assertEquals(TroubleKind.SWITCH_ON, deck.state().trouble?.kind)
     }
 

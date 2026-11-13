@@ -12,6 +12,7 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HomeServerAuth
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.common.youTubeVideoId
+import com.dewijones92.totum.data.targets.PlayOnOption
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
@@ -28,6 +29,7 @@ import com.dewijones92.totum.innertube.music.RadioSeed
 import com.dewijones92.totum.music.ArtistCredits
 import com.dewijones92.totum.notforme.NotForMeRejecter
 import com.dewijones92.totum.settings.DownloadChoice
+import com.dewijones92.totum.targets.TargetsRepository
 import com.dewijones92.totum.ui.group.rememberGroupPicker
 import com.dewijones92.totum.ui.player.LocalTrail
 import kotlinx.coroutines.CoroutineScope
@@ -144,6 +146,18 @@ private class ContainerItemActions(
         val playable = items.mapNotNull { it.toPlayableOrNull() }
         Diag.log("download", "${items.size} selected to download (${playable.size} playable); asking how, in the sheet")
         container.episodeDownloads.ask(title, playable)
+    }
+
+    override val devices: TargetsRepository? get() = container.targets.takeIf { it.available }
+
+    override fun playOn(item: MediaItem, option: PlayOnOption) {
+        val playable = item.toPlayableOrNull() ?: run {
+            Diag.warn("targets", "play on ${option.target.label}: \"${item.title}\" has nothing playable")
+            return
+        }
+        Diag.log("targets", "play on ${option.target.label} asked from the item menu for \"${item.title}\"")
+        container.targets.choose(option)
+        scope.launch { container.playbackQueue.playNow(playable) }
     }
 
     override val downloadChoice: DownloadChoice?

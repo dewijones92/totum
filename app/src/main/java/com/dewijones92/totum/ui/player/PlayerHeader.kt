@@ -34,6 +34,7 @@ import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.playback.SleepTimerState
 import com.dewijones92.totum.ui.cast.CastButton
 import com.dewijones92.totum.ui.cast.ScreenButton
+import com.dewijones92.totum.ui.common.DeviceMarkBadge
 import com.dewijones92.totum.ui.common.LiveBadge
 import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.PillarBadge
@@ -91,6 +92,7 @@ internal fun TitleBlock(state: PlaybackState) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 6.dp)) {
             PillarBadge(shownAs(state.itemId, state.kind, state.contentKind))
             LiveBadge(state.itemId, state.contentKind, Modifier.padding(start = 8.dp))
+            DeviceMarkBadge(state.itemId, Modifier.padding(start = 8.dp))
         }
         ViewsAndDate(state)
     }

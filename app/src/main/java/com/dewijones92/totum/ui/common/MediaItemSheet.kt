@@ -121,6 +121,7 @@ internal fun ActionSheet(
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
             )
             SheetAction(onPlayInsteadOfCurrent, Icons.Filled.PlayCircle, R.string.queue_play_instead, onDismiss)
+            PlayOnSheetAction(extras.item, onDismiss)
             SheetAction(onPlayNext, Icons.AutoMirrored.Filled.PlaylistPlay, R.string.queue_play_next, onDismiss)
             SheetAction(onAddToQueue, Icons.AutoMirrored.Filled.QueueMusic, R.string.queue_add, onDismiss)
             SheetAction(onAddToPlaylist, Icons.AutoMirrored.Filled.PlaylistAdd, R.string.playlist_add_to, onDismiss)

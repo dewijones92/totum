@@ -22,7 +22,7 @@ class TargetWordsTest {
     @Test
     fun aSpeakerSwitchedOffAsksToSwitchItOn() {
         assertEquals(
-            "📶 Switch Soundmic on, then try again",
+            "🔌 Switch Soundmic on, then try again",
             words.trouble("Soundmic", TargetTrouble(TroubleKind.SWITCH_ON), null),
         )
     }

@@ -344,6 +344,13 @@ class FakeAppContainer(
             operations,
         )
     }
+    override val deviceMarks: com.dewijones92.totum.targets.DeviceMarks by lazy {
+        com.dewijones92.totum.targets.DeviceMarks(
+            targets,
+            kotlinx.coroutines.flow.flowOf(null),
+            applicationScope
+        )
+    }
     override val sendToTarget: com.dewijones92.totum.targets.SendToTarget by lazy {
         com.dewijones92.totum.targets.SendToTarget(
             targets,

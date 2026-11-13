@@ -33,6 +33,7 @@ internal fun ProvidePlayStates(
         .collectAsStateWithLifecycle(emptyMap())
     val artwork by remember(container) { container.sourceArtwork }.collectAsStateWithLifecycle(emptyMap())
     val homeJobs = remember(container) { container.homeDownloads.jobs }.collectAsStateWithLifecycle()
+    val deviceMarks = remember(container) { container.deviceMarks.marks }.collectAsStateWithLifecycle()
     val liveStates = remember(container) { container.liveStates.states }.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val setPlayed = remember(store, scope) {
@@ -56,6 +57,7 @@ internal fun ProvidePlayStates(
         LocalPictureOffer provides pictureOfferUi(container),
         LocalDownloadStates provides downloads,
         LocalHomeJobs provides homeJobs,
+        LocalDeviceMarks provides deviceMarks,
         LocalLiveStates provides liveStates,
         LocalLiveRefresher provides container.liveRefresher,
         LocalSetPlayed provides setPlayed,

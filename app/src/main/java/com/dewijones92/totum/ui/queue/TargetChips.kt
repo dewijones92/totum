@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Text
@@ -26,6 +25,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import com.dewijones92.totum.R
+import com.dewijones92.totum.data.targets.PlayOnOption
 import com.dewijones92.totum.data.targets.Target
 import com.dewijones92.totum.data.targets.TargetColours
 import com.dewijones92.totum.data.targets.TargetPower
@@ -45,7 +45,9 @@ internal fun Target.chipLabel(power: TargetPower = TargetPower.ON): String {
 @Composable
 fun TargetChips(targets: TargetsRepository, modifier: Modifier = Modifier) {
     if (!targets.available) return
-    val states by targets.targets.collectAsStateWithLifecycle()
+    val listed by targets.targets.collectAsStateWithLifecycle()
+    val offered by targets.options.collectAsStateWithLifecycle()
+    val states = listed.filter { state -> offered.any { it.id == state.target.id } }
     val selected by targets.selected.collectAsStateWithLifecycle()
     val colours by targets.colours.collectAsStateWithLifecycle()
     val lifecycle = LocalLifecycleOwner.current.lifecycle
@@ -83,14 +85,10 @@ fun TargetChips(targets: TargetsRepository, modifier: Modifier = Modifier) {
                 onClick = { picking = true },
             )
             DropdownMenu(expanded = picking, onDismissRequest = { picking = false }) {
-                idle.forEach { target ->
-                    DropdownMenuItem(
-                        text = { Text(target.chipLabel(power[target.id] ?: TargetPower.ON)) },
-                        onClick = {
-                            picking = false
-                            targets.select(target.id)
-                        },
-                    )
+                val idleOptions = idle.map { PlayOnOption(it, power[it.id] ?: TargetPower.ON) }
+                PlayOnMenuItems(idleOptions, colours, selected) {
+                    picking = false
+                    targets.select(it.target.id)
                 }
             }
         }
@@ -98,7 +96,7 @@ fun TargetChips(targets: TargetsRepository, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun TargetChip(label: String, colour: Color, selected: Boolean, onClick: () -> Unit) {
+internal fun TargetChip(label: String, colour: Color, selected: Boolean, onClick: () -> Unit) {
     FilterChip(
         selected = selected,
         onClick = onClick,

@@ -1,11 +1,13 @@
 package com.dewijones92.totum.ui.common
 
 import androidx.compose.runtime.staticCompositionLocalOf
+import com.dewijones92.totum.data.targets.PlayOnOption
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.settings.DownloadChoice
+import com.dewijones92.totum.targets.TargetsRepository
 
 /**
  * Everything you can do to a media item, available to any row without the screen wiring it.
@@ -48,6 +50,10 @@ internal interface ItemActions {
 
     /** Opens the item's album page, or null when it names no album or nothing can open one. */
     fun albumLink(item: MediaItem): (() -> Unit)? = null
+
+    val devices: TargetsRepository? get() = null
+
+    fun playOn(item: MediaItem, option: PlayOnOption) {}
 
     /** The remembered sound-or-video choice, so a menu can say what Download will do. */
     val downloadChoice: DownloadChoice? get() = null

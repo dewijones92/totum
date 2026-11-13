@@ -102,6 +102,8 @@ class TargetsRepository(
         if (!troubleFromRead) trouble.value = null
     }
 
+    fun choose(option: PlayOnOption) = select(option.target.id.takeUnless { option.isPhone }, wake = true)
+
     private fun destinationNow(): String? = PlayOn.destination(chosen.value, PlayOn.options(live.value, homeNow.value))
 
     fun troubleLine(state: TargetState): String? {

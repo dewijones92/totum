@@ -1431,6 +1431,10 @@
     <string name="target_chip_phone">📱 This phone</string>
     <string name="target_chip_more">➕ Play on…</string>
     <string name="target_send_to">📡 Send to…</string>
+    <string name="play_on_label">▶️ Play on</string>
+    <string name="play_on_current">%1$s ▾</string>
+    <string name="play_on_asleep_hint">💤 Off · picking it switches it on</string>
+    <string name="play_on_item">📡 Play on…</string>
     <string name="target_waiting_headline">⏳ Waiting for %1$s</string>
     <string name="target_waiting_hint">The home server has not listed it yet.</string>
     <string name="target_empty_headline">📭 Nothing queued on %1$s</string>
@@ -1462,7 +1466,7 @@
     <string name="target_seek_forward">Forward 30 seconds</string>
     <string name="target_sign_in_again">🔑 Sign in to the home server again</string>
     <string name="target_trouble_not_connected">📶 Couldn\'t reach %1$s: it isn\'t connected (off or out of range)</string>
-    <string name="target_trouble_switch_on">📶 Switch %1$s on, then try again</string>
+    <string name="target_trouble_switch_on">🔌 Switch %1$s on, then try again</string>
     <string name="target_trouble_switched_off">📺 %1$s was switched off</string>
     <string name="target_trouble_wont_wake">❌ %1$s didn\'t wake: check \'Turn on via Wi-Fi\' in its settings</string>
     <string name="target_trouble_youtube_backoff">⏳ YouTube is refusing the Pi for now; try again around %1$s</string>

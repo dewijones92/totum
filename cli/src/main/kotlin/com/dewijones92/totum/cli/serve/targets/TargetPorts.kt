@@ -105,7 +105,7 @@ internal object TroubleWords {
 
     fun text(label: String, trouble: TargetTrouble, title: String?): String = when (trouble.kind) {
         TroubleKind.NOT_CONNECTED -> "📶 Couldn't reach $label: it isn't connected (off or out of range)"
-        TroubleKind.SWITCH_ON -> "📶 Switch $label on, then try again"
+        TroubleKind.SWITCH_ON -> "🔌 Switch $label on, then try again"
         TroubleKind.SWITCHED_OFF -> "📺 $label was switched off"
         TroubleKind.WONT_WAKE -> "❌ $label didn't wake: check 'Turn on via Wi-Fi' in its settings"
         TroubleKind.COULD_NOT_PLAY -> "❌ Couldn't play ${title ?: "that"}: ${trouble.reason ?: "no reason given"}"
