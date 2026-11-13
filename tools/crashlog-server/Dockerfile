@@ -9,6 +9,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app ./app
 
 ENV CRASHLOG_DATA=/data
+ENV PYTHONPATH=/srv/app
 VOLUME ["/data"]
 EXPOSE 9140
 
