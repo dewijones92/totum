@@ -100,3 +100,5 @@ bot"), while the signed-in TV request answered with 40 fetchable formats and ser
   auto-download copied Pi files on any network.
 - **Deleting** a download on the phone deletes its copy at home too (`DeletesAtHomeToo`), unless the phone kept
   it (locked). Signing out of YouTube asks the Pi to forget the handed-over sign-in.
+
+Amended 2026-11-13 ([ADR 166](0166-home-torrents-hold-together-retries-shown-main-file-first-and-a-fixed-remux.md)): a job keeps the phone's own item address (the rewrite is applied only to fetch), and a failure with a retry planned is reported as waiting with its plan.

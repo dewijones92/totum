@@ -47,3 +47,5 @@ just crack on" — these are Claude's.
 - Tests: `StallWatchdogTest` (holds its place, red first), `TransientRetriesTest` (3),
   `DefaultDownloadManagerTest` (retries and lands, red first; permanent not retried), `PreloadUrlTest`
   (2, red first), `MainThreadStallsTest` (alive vital).
+
+Amended 2026-11-13 ([ADR 166](0166-home-torrents-hold-together-retries-shown-main-file-first-and-a-fixed-remux.md)): the Pi reads a torrent with a 10 minute timeout and resets the torrent in TorrServer after a transient failure.

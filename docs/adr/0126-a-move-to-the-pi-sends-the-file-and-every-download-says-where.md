@@ -54,3 +54,5 @@ each carried their own authed-call shell.
   its reason; the `uploadLimitBytes` pre-check avoids the common case.
 - An uploaded torrent or video lands where Pi downloads land, so it is filed into Jellyfin like one (ADR 111).
 - Every Pi-bound call that grows from here goes through `HomePiCall`.
+
+Amended 2026-11-13 ([ADR 166](0166-home-torrents-hold-together-retries-shown-main-file-first-and-a-fixed-remux.md)): Move to Phone, the other direction: copy, verify the same kind and size, then delete at home.

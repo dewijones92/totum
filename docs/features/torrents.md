@@ -167,3 +167,15 @@ A torrent of a video file offers Listen ⇄ Watch like a YouTube video, on its r
 of an audio file offers neither. Listen plays the home server's audio-only remux. The rule is the item's picture, not
 its pillar ([ADR 70](../adr/0070-listen-and-watch-follow-the-picture-not-the-pillar.md)); before it, torrents had no
 switch at all because they ride the podcast handle.
+
+## A film is its main file (2026-11-13, [ADR 166](../adr/0166-home-torrents-hold-together-retries-shown-main-file-first-and-a-fixed-remux.md))
+
+A torrent's playable files are MAIN, EXTRA or SAMPLE (`TorrentRoles`): extras by folder (Extras, Featurettes, Bonus,
+Behind the Scenes, Deleted Scenes, Trailers, Interviews, Making of) or by size (a video under 15% of the largest);
+a Sample folder is never queued; episodic packs and audio are all main. The main file is queued first and, when it
+is the only one, takes the clean name (`Spinal Tap II: The End Continues (2025)`). The episode picker shows sizes and
+puts extras under a collapsed, unticked "Extras" group; "Send home" sends the main files only; a result says "At home"
+only when its main file is done. A torrent with no picture from its site gets one by title and year from Cinemeta
+(every caller of `queueItems`; a pack's title is shortened until the catalogue knows it), and existing items with
+none are repaired. Prowlarr's HTTP 400 "all selected indexers being unavailable" (an indexer it has paused) leaves that
+indexer out quietly for ten minutes. A 🏠 row plays through its torrent's group.

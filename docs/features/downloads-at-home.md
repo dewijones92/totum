@@ -68,3 +68,17 @@ the phone deleted the copy at home. Not yet proven live: playing from the Pi's c
 First real use (report 20261031T193811-51dfc9b5, v0.1.811): Toy Story 5 (1080p 10-bit x265, 1.96 GB) sent home from
 the phone, done on the Pi in 7 minutes, copied to the phone over Wi-Fi in ~70 s. The phone's copy showed as a plain
 "⬇️ Downloading 70%", which read as the Pi lagging; it now says "📥 Copying from home".
+
+## Retries, Move to Phone and the event tail (2026-11-13, [ADR 166](../adr/0166-home-torrents-hold-together-retries-shown-main-file-first-and-a-fixed-remux.md))
+
+- **A job the Pi is retrying is not "failed".** `HomeJob.retry` carries attempt, of and the planned time; the strip and the
+  row say "Retrying 2 of 4 in 1 minute: reason", polling stays at the busy pace, "Try again now" is offered, and only a job
+  out of retries ends as failed. Torrent reads wait 10 minutes (TorrServer holds a request open for pieces) and a failed
+  torrent job makes TorrServer drop and re-add the torrent before the retry.
+- **The Pi keeps the phone's own address** in a job's item; the rewrite to `gluetun:8090` happens only when fetching.
+- **📥 Move to 📱 Phone** (row button and sheet, any finished file at home): copy first, then the copy at home is deleted
+  only once the phone's copy has landed, is the same kind and the same size (`PhoneMoves`, `totum_moving_to_phone`).
+- **Filing**: a late-Tracks MKV is remuxed with `ffmpeg -c copy`; an unwritable target folder is skipped for a fresh
+  clean-named one; either failure is a home problem on the health banner.
+- **Pi posters**: stored jobs with no picture get one by title and year at start and when a job starts.
+- **The last 300 events** are written every 10 seconds and restored at the next start marked "[before restart]".
