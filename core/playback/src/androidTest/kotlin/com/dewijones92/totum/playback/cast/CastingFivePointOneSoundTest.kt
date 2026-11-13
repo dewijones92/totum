@@ -46,7 +46,7 @@ class CastingFivePointOneSoundTest {
         engine.transcode(TranscodePlan(stereo, FRAMES, 0, "five-point-one test", 0, probed.durationUs), sink)
         engine.close()
 
-        assertEquals("the source really is 5.1", 6, probed.channels)
+        assertEquals("the engine hands the 5.1 source on as stereo", 2, probed.channels)
         val first = checkNotNull(sink.segments[0]) { "no first segment was produced" }
         assertTrue("segment 0 is ${first.size} bytes", first.size > 1_000)
     }

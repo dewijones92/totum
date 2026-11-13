@@ -608,6 +608,15 @@ differently from an anonymous one — which cannot be tested on a signed-out dev
   settled the TVs' formats in seconds), a debug broadcast instead of screen taps (`DEBUG_CAST`, `DEBUG_QUEUE_PLAY_ALL`;
   `tools/cast-bench/bench.sh`), a JVM test instead of a device run, the full gate left to CI.
   When a cycle is slow, fix the tooling in the same session rather than paying it again.
+- **Opus orchestrates; Sonnet builds; Haiku investigates** (Dewi, 2026-11-13: *"I don't want Opus to build
+  anything … Opus to be the orchestrator … Sonnet agents to build everything and then possibly Haikus to
+  investigate"*). The main session (Opus) refines, plans, briefs, merges, deploys, tests on the real devices and
+  reports; every code, test and doc change for a feature or a fix is made by a Sonnet `builder` agent in a worktree,
+  and every broad read (scouts, sweeps, reuse searches) by a Haiku `scout`. The end-of-batch `reviewer` stays Opus.
+  The orchestrator's own edits are limited to merge fixes (a renumbered ADR, a conflict), the task file and this
+  file. Every builder brief names CLAUDE.md's full gate, not an `:app`-only shortcut: `detekt cpdCheck
+  :cli:installDist lint compileDebugAndroidTestKotlin testDebugUnitTest test koverVerify` (unprefixed tasks run in
+  every module, as CI does).
 - Commit as you go — small, coherent commits at each green state.
 - **How a batch runs** (Dewi, 2026-10-14, 2026-10-15, 2026-10-23 and 2026-11-06):
   1. **Refine the whole batch before building any of it** (Dewi, 2026-11-06: *"before we start a big batch of work, we
