@@ -27,7 +27,6 @@
     </plurals>
     <string name="report_github_earlier_line">%1$s · %2$s</string>
     <string name="report_github_trace_cut">⚠️ The stack trace is too long for the link, so the link carries the top of it. The whole trace is copied: paste it over the shortened one on the GitHub page.</string>
-    <string name="report_github_crash_what">crash report</string>
     <string name="crash_title">❌ Totum crashed</string>
     <string name="crash_summary">Totum stopped unexpectedly and has started again. This is what happened.</string>
     <string name="crash_when">🕐 %1$s, on the %2$s thread</string>
