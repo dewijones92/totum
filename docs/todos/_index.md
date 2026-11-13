@@ -18,6 +18,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [Queued tracks keep their artist](queued-tracks-keep-their-artist.md) | music/queue | medium | built 2026-11-06, Batch A (tests owed) |
 | [A live stream that hasn't started says so](live-starts-soon.md) | playback | medium | built 2026-11-06, Batch A (tests owed) |
 | [📡 The Pi plays to any TV, browser or speaker](pi-plays-everywhere.md) | casting/pi | high | built 2026-11-07, Batch A (tests written 2026-11-07; device checks owed) |
+| [📺 Cast to Apple TV (AirPlay) and DLNA players too](cast-to-airplay-and-dlna.md) | casting/pi | medium | backlog (to discuss), 2026-11-13 |
 | [🔊 Home Assistant's sounds play through Totum](home-assistant-sounds-through-totum.md) | casting/pi | high | Totum side built 2026-11-07 (live waits for the casting-brain move), adapter not deployed |
 | [A daily 🤖 For you feed](for-you-feed.md) | ai | medium | built 2026-11-07, Batch A (tests written 2026-11-07; device checks owed) |
 | [TL;DR and chapters for long items](tldr-and-chapters.md) | ai | medium | built 2026-11-07, Batch A (tests written 2026-11-07; device checks owed) |
