@@ -8,6 +8,7 @@ import com.dewijones92.totum.data.queue.appendingAll
 import com.dewijones92.totum.data.queue.insertingAllNext
 import com.dewijones92.totum.data.queue.removingAll
 import com.dewijones92.totum.data.queue.removingAt
+import com.dewijones92.totum.data.targets.KeepAwake
 import com.dewijones92.totum.data.targets.QueueMode
 import com.dewijones92.totum.data.targets.Requester
 import com.dewijones92.totum.data.targets.SoundSettings
@@ -51,10 +52,14 @@ internal class TargetDeck(
     private val reporter: ProgressReporter = ProgressReporter.NONE,
     private val ownerId: () -> String? = { null },
     private val clock: () -> Long = System::currentTimeMillis,
+    private val volumeControl: TargetVolume? = null,
+    private val keeper: TargetKeeper? = null,
 ) {
     private val store = DeckStore(file)
     private val lock = Mutex()
     private var queue = QueueSnapshot()
+
+    @Volatile
     private var playing = false
     private var destination: String? = null
     private var problem: Problem? = null
@@ -84,7 +89,9 @@ internal class TargetDeck(
         positionMs = (if (queue.current != null) player.positionMs else null) ?: placeMs,
         durationMs = queue.current?.takeUnless { isLive() }
             ?.let { player.durationMs ?: it.item.item.duration?.inWholeMilliseconds },
-        volume = player.volumePercent,
+        volume = volumeNow(),
+        volumeMode = volumeControl?.mode,
+        keepAwake = keeper?.state,
         linked = destination != null,
         problem = problem?.text ?: player.notice,
         sound = sound,
@@ -94,6 +101,8 @@ internal class TargetDeck(
         starting = starting,
         trouble = problem?.trouble,
     )
+
+    private fun volumeNow(): Int? = volumeControl?.percent ?: player.volumePercent
 
     private fun isLive(): Boolean = queue.current?.item?.item?.contentKind == MediaContentKind.LIVE || player.live
 
@@ -207,7 +216,7 @@ internal class TargetDeck(
             TargetAction.VOLUME -> control.volume?.let {
                 val wanted = it.coerceIn(0, MAX_VOLUME)
                 Diag.log("targets", "${target.id}: volume set to $wanted from the phone")
-                player.volume(wanted)
+                volumeControl?.set(wanted) ?: player.volume(wanted)
             }
             TargetAction.STOP -> {
                 problem = null
@@ -324,6 +333,7 @@ internal class TargetDeck(
             if (!linked && needsLink) {
                 linkMs = connectedFor
                 sinkWaitMs = link.sinkWaitMs
+                if (ahead != null) volumeControl?.refresh()
             }
             try {
                 block()
@@ -333,8 +343,14 @@ internal class TargetDeck(
         }
     }
 
+    suspend fun keepAwake() {
+        val checked = keeper?.beat(playing) ?: return
+        if (checked && keeper.state == KeepAwake.KEPT) volumeControl?.refresh()
+    }
+
     suspend fun tick() = lock.withLock {
         if (playing) {
+            volumeControl?.refresh()
             reportProgress(finished = false)
             captureThePlace()
             save()
@@ -496,7 +512,8 @@ internal class TargetDeck(
                 "targets",
                 "${target.id}: playing $at/${queue.entries.size} ${item.item.title} on $reached " +
                     "picture=$picture sound=$itemSound (asked for $sound, kind ${item.item.contentKind}) " +
-                    "from=${startAtMs}ms volume=${player.volumePercent ?: "unknown"} (a play never sets it)",
+                    "from=${startAtMs}ms volume=${volumeNow() ?: "unknown"} mode=${volumeControl?.mode ?: "n/a"} " +
+                    "(a play never sets it)",
             )
             save()
             queue.entries.getOrNull(at + 1)?.let { lookAhead(it.item) }
@@ -555,6 +572,8 @@ internal class TargetDeck(
             playing = false,
             problem = null,
             volume = null,
+            volumeMode = null,
+            keepAwake = null,
             live = false,
             power = TargetPower.ON,
             starting = false,

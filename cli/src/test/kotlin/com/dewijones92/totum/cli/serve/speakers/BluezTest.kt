@@ -89,4 +89,44 @@ class BluezTest {
         assertNull(link.unreachable)
         assertTrue("waited ${link.sinkWaitMs}ms", link.sinkWaitMs >= 250)
     }
+
+    @Test
+    fun `a speaker that is kept awake stays linked when Totum is done, even if Totum linked it`() = runBlocking {
+        val shell = FakeShell()
+        val link = BluezLink("54:15:89:76:CD:A4", shell, pollMs = 0, keepAwake = true)
+        link.connect()
+
+        link.release()
+
+        assertFalse(shell.ran.any { it.startsWith("bluetoothctl disconnect") })
+    }
+
+    @Test
+    fun `keeping awake relinks a dropped speaker, and says when it will not come back`() = runBlocking {
+        val shell = FakeShell()
+        val link = BluezLink("54:15:89:76:CD:A4", shell, pollMs = 0, keepAwake = true)
+        assertFalse(link.linked())
+
+        assertTrue(link.reconnect())
+
+        assertTrue(link.linked())
+        assertTrue(shell.ran.contains("bluetoothctl connect 54:15:89:76:CD:A4"))
+        val off = FakeShell().apply { linksOnConnect = false }
+        assertFalse(BluezLink("54:15:89:76:CD:A4", off, pollMs = 0).reconnect())
+        assertNull("a keep-awake retry must not change what a play is told", link.unreachable)
+    }
+
+    @Test
+    fun `the keep-awake signal is two seconds of the chosen source on the speaker's own sink`() = runBlocking {
+        val shell = FakeShell(sinks = "7\tbluez_sink.54_15_89_76_CD_A4.a2dp_sink\tx\n")
+        val link = BluezLink("54:15:89:76:CD:A4", shell, pollMs = 0, keepAwake = true, mpv = "mpv")
+
+        assertTrue(link.sendSignal(KeepAwakeSignal.SILENCE))
+
+        val sent = shell.ran.last()
+        assertTrue(sent, sent.startsWith("mpv "))
+        assertTrue(sent, "--audio-device=pulse/bluez_sink.54_15_89_76_CD_A4.a2dp_sink" in sent)
+        assertTrue(sent, "--length=2" in sent)
+        assertTrue(sent, sent.endsWith("av://lavfi:anullsrc=channel_layout=stereo:sample_rate=44100"))
+    }
 }

@@ -1,5 +1,6 @@
 package com.dewijones92.totum.cli.serve.targets
 
+import com.dewijones92.totum.data.targets.KeepAwake
 import com.dewijones92.totum.data.targets.QueueMode
 import com.dewijones92.totum.data.targets.Target
 import com.dewijones92.totum.data.targets.TargetKind
@@ -149,5 +150,43 @@ class TargetDecksTest {
             if (bar.requests.size < 2) Thread.sleep(20)
         }
         assertEquals(listOf("https://sound/a", "https://sound/b"), bar.requests.map { it.url })
+    }
+    private class CountingKeeper : TargetKeeper {
+        @Volatile var beats = 0
+        override val state: KeepAwake? = KeepAwake.KEPT
+        override suspend fun beat(busy: Boolean): Boolean {
+            beats++
+            return false
+        }
+    }
+
+    @Test
+    fun `with keep awake on, decks exist without anyone asking, and each is given its beats`() = runBlocking {
+        val keeper = CountingKeeper()
+        val keptSource =
+            TargetSource {
+                listOf(
+                    FoundTarget(speaker("mic")) { TargetKit(RecordingPlayer(), ConnectingLink(), keeper = keeper) }
+                )
+            }
+        TargetDecks(dir, scope, sounds, listOf(keptSource), warmDecks = true, keepAwakeEveryMs = 20)
+
+        val deadline = System.currentTimeMillis() + WAIT_MS
+        while (keeper.beats < 2 && System.currentTimeMillis() < deadline) kotlinx.coroutines.delay(20)
+
+        assertTrue("beats=${keeper.beats}", keeper.beats >= 2)
+    }
+
+    @Test
+    fun `without keep awake nobody scans for targets on a timer`() = runBlocking {
+        TargetDecks(dir, scope, sounds, listOf(speakers), keepAwakeEveryMs = 20)
+
+        kotlinx.coroutines.delay(300)
+
+        assertEquals(0, scans)
+    }
+
+    private companion object {
+        const val WAIT_MS = 5_000L
     }
 }

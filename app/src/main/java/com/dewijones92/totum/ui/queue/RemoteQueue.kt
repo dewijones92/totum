@@ -45,6 +45,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.backup.titleOf
+import com.dewijones92.totum.data.targets.KeepAwake
 import com.dewijones92.totum.data.targets.SoundSettings
 import com.dewijones92.totum.data.targets.TargetAction
 import com.dewijones92.totum.data.targets.TargetColours
@@ -52,6 +53,7 @@ import com.dewijones92.totum.data.targets.TargetControl
 import com.dewijones92.totum.data.targets.TargetEntry
 import com.dewijones92.totum.data.targets.TargetPower
 import com.dewijones92.totum.data.targets.TargetState
+import com.dewijones92.totum.data.targets.VolumeMode
 import com.dewijones92.totum.data.targets.isLive
 import com.dewijones92.totum.data.targets.onATarget
 import com.dewijones92.totum.data.targets.shownLengthMs
@@ -123,6 +125,7 @@ private fun RemoteHeader(targets: TargetsRepository, state: TargetState, colour:
             state.shownLengthMs?.let { duration -> RemoteSeek(targets, state, duration, colour) }
         }
         RemotePower(targets, state)
+        RemoteKeepAwake(state)
         RemoteTrouble(targets, state)
         RemoteControls(targets, state)
         RemoteRepeat(targets, state)
@@ -191,6 +194,17 @@ private fun RemotePower(targets: TargetsRepository, state: TargetState) {
 }
 
 @Composable
+private fun RemoteKeepAwake(state: TargetState) {
+    val line = when (state.keepAwake) {
+        KeepAwake.KEPT -> R.string.target_keep_awake_kept
+        KeepAwake.RECONNECTING -> R.string.target_keep_awake_reconnecting
+        KeepAwake.OUTSIDE_WINDOW -> R.string.target_keep_awake_outside
+        null -> null
+    }
+    if (line != null) Text(stringResource(line, state.target.label), style = MaterialTheme.typography.bodySmall)
+}
+
+@Composable
 private fun RemoteControls(targets: TargetsRepository, state: TargetState) {
     val id = state.target.id
     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -211,8 +225,13 @@ private fun RemoteControls(targets: TargetsRepository, state: TargetState) {
         ) { Text("⏹️ " + stringResource(R.string.target_stop)) }
     }
     var volume by remember(state.volume) { mutableStateOf(state.volume?.toFloat()) }
+    val volumeLine = when (state.volumeMode) {
+        VolumeMode.HARDWARE -> R.string.target_volume_speaker
+        VolumeMode.SOFTWARE -> R.string.target_volume_software
+        null -> R.string.target_volume
+    }
     Text(
-        volume?.let { stringResource(R.string.target_volume, it.toInt()) }
+        volume?.let { stringResource(volumeLine, it.toInt()) }
             ?: stringResource(R.string.target_volume_unknown),
         style = MaterialTheme.typography.bodySmall,
     )

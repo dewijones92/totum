@@ -20,6 +20,8 @@ internal class TargetDecks(
     private val reporter: ProgressReporter = ProgressReporter.NONE,
     private val ownerId: () -> String? = { null },
     private val clock: () -> Long = System::currentTimeMillis,
+    private val warmDecks: Boolean = false,
+    private val keepAwakeEveryMs: Long = KEEP_AWAKE_EVERY_MS,
 ) {
     private val decks = ConcurrentHashMap<String, TargetDeck>()
     private val lock = Mutex()
@@ -39,6 +41,31 @@ internal class TargetDecks(
                     }
                 }
                 if (sinceReport >= REPORT_EVERY_MS) sinceReport = 0
+            }
+        }
+    }
+
+    init {
+        scope.launch {
+            while (true) {
+                delay(keepAwakeEveryMs)
+                if (warmDecks) {
+                    runCatching { all() }.onFailure { e ->
+                        Diag.warn(
+                            "targets",
+                            "warming the decks failed",
+                            e
+                        )
+                    }
+                }
+                decks.values.forEach { deck ->
+                    launch {
+                        runCatching { deck.keepAwake() }.onFailure { e ->
+                            if (e is CancellationException) throw e
+                            Diag.warn("targets", "keeping a target awake failed", e)
+                        }
+                    }
+                }
             }
         }
     }
@@ -91,6 +118,8 @@ internal class TargetDecks(
             },
             reporter = reporter,
             ownerId = ownerId,
+            volumeControl = kit.volume,
+            keeper = kit.keeper,
         ).also { deck ->
             kit.player.onEnded = { failed -> scope.launch { deck.ended(failed) } }
             kit.player.onLost = { reason -> scope.launch { deck.lost(reason) } }
@@ -101,5 +130,6 @@ internal class TargetDecks(
         const val LOOK_EVERY_MS = 60_000L
         const val REPORT_EVERY_MS = 30_000L
         const val WATCH_EVERY_MS = 5_000L
+        const val KEEP_AWAKE_EVERY_MS = 10_000L
     }
 }

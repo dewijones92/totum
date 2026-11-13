@@ -41,7 +41,7 @@ CMD ["/opt/totum/bin/totum", "ai-serve", "--port=8780"]
 FROM cli AS fetch
 
 RUN apt-get update \
- && apt-get install -y --no-install-recommends ffmpeg python3 python3-venv mpv bluez pulseaudio-utils \
+ && apt-get install -y --no-install-recommends ffmpeg python3 python3-venv mpv bluez pulseaudio-utils systemd \
  && rm -rf /var/lib/apt/lists/* \
  && python3 -m venv /opt/venv \
  && /opt/venv/bin/pip install --no-cache-dir "yt-dlp[default]" "pychromecast>=14" \

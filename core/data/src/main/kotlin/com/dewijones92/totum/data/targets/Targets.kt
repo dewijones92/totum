@@ -45,6 +45,12 @@ public data class TargetEntry(
 public enum class TargetPower { ON, ASLEEP, WAKING }
 
 @Serializable
+public enum class VolumeMode { HARDWARE, SOFTWARE }
+
+@Serializable
+public enum class KeepAwake { KEPT, RECONNECTING, OUTSIDE_WINDOW }
+
+@Serializable
 public enum class TroubleKind {
     NOT_CONNECTED,
     SWITCH_ON,
@@ -72,6 +78,8 @@ public data class TargetState(
     val positionMs: Long = 0,
     val durationMs: Long? = null,
     val volume: Int? = null,
+    val volumeMode: VolumeMode? = null,
+    val keepAwake: KeepAwake? = null,
     val linked: Boolean = false,
     val problem: String? = null,
     val sound: SoundSettings = SoundSettings(),

@@ -1,11 +1,13 @@
 package com.dewijones92.totum.cli.serve.targets
 
+import com.dewijones92.totum.data.targets.KeepAwake
 import com.dewijones92.totum.data.targets.SoundSettings
 import com.dewijones92.totum.data.targets.Target
 import com.dewijones92.totum.data.targets.TargetEntry
 import com.dewijones92.totum.data.targets.TargetPower
 import com.dewijones92.totum.data.targets.TargetTrouble
 import com.dewijones92.totum.data.targets.TroubleKind
+import com.dewijones92.totum.data.targets.VolumeMode
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.playback.cast.CastItem
 
@@ -66,7 +68,27 @@ internal fun interface ProgressReporter {
     }
 }
 
-internal class TargetKit(val player: TargetPlayer, val link: TargetLink)
+internal interface TargetVolume {
+    val percent: Int?
+    val mode: VolumeMode?
+
+    suspend fun set(percent: Int)
+
+    suspend fun refresh()
+}
+
+internal interface TargetKeeper {
+    val state: KeepAwake?
+
+    suspend fun beat(busy: Boolean): Boolean
+}
+
+internal class TargetKit(
+    val player: TargetPlayer,
+    val link: TargetLink,
+    val volume: TargetVolume? = null,
+    val keeper: TargetKeeper? = null,
+)
 
 internal class FoundTarget(val target: Target, val kit: () -> TargetKit)
 

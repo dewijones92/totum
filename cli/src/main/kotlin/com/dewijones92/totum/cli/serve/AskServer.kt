@@ -21,6 +21,7 @@ import com.dewijones92.totum.cli.serve.jellyfin.JellyfinBrowse
 import com.dewijones92.totum.cli.serve.jellyfin.JellyfinNotSetUp
 import com.dewijones92.totum.cli.serve.jellyfin.JellyfinRoutes
 import com.dewijones92.totum.cli.serve.sound.ProcessedSound
+import com.dewijones92.totum.cli.serve.speakers.KeepAwakeSettings
 import com.dewijones92.totum.cli.serve.speakers.SpeakerSource
 import com.dewijones92.totum.cli.serve.speakers.SystemShell
 import com.dewijones92.totum.cli.serve.targets.SoundFiles
@@ -221,6 +222,11 @@ private inline fun HttpExchange.use(block: (HttpExchange) -> Unit) {
 private fun switchedOnByHandFromEnv(): Set<String> = System.getenv("TOTUM_SPEAKERS_SWITCHED_ON_BY_HAND").orEmpty()
     .split(',').map { it.trim().lowercase() }.filter { it.isNotEmpty() }.toSet()
 
+private fun keepAwakeFromEnv(): KeepAwakeSettings = KeepAwakeSettings.parse(
+    System.getenv("TOTUM_SPEAKERS_KEEP_AWAKE"),
+    System.getenv("TOTUM_SPEAKERS_KEEP_AWAKE_SIGNAL"),
+)
+
 private const val DEFAULT_CAST_PORT = 8771
 private const val DEFAULT_LOOPBACK_PORT = 8772
 
@@ -259,6 +265,7 @@ internal suspend fun serveAsk(port: Int, out: (String) -> Unit, polite: Politene
             polite.botBackOff,
         ),
     )
+    val keepAwake = keepAwakeFromEnv()
     val targets = TargetDecks(
         targetsDir,
         this,
@@ -270,7 +277,7 @@ internal suspend fun serveAsk(port: Int, out: (String) -> Unit, polite: Politene
             castFromHome = home::castOf,
         ),
         listOf(
-            SpeakerSource(shell, targetsDir, streams::locally, switchedOnByHandFromEnv()),
+            SpeakerSource(shell, targetsDir, streams::locally, switchedOnByHandFromEnv(), keepAwake),
             ChromecastSource(
                 knownCastsFrom(System.getenv("TOTUM_CAST_TARGETS")),
                 streams,
@@ -280,6 +287,7 @@ internal suspend fun serveAsk(port: Int, out: (String) -> Unit, polite: Politene
         ),
         YouTubeProgress(home.watchHistory, home::signedInToYouTube),
         ownerId = home::youTubeOwnerId,
+        warmDecks = keepAwake.any,
     )
     val states = AskStates()
     launch {

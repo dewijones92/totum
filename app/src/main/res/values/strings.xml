@@ -1445,6 +1445,11 @@
     <string name="target_boost">🔊 Boost</string>
     <string name="target_sound_picture_note">🎬 Skip silences and boost only work on sound for now; %1$s is showing a picture, so it plays as it comes.</string>
     <string name="target_volume">🔈 Volume %1$d%%</string>
+    <string name="target_volume_speaker">🔈 Volume %1$d%% · the speaker\'s own</string>
+    <string name="target_volume_software">🔉 Volume %1$d%% · Totum\'s, the speaker\'s own is not available</string>
+    <string name="target_keep_awake_kept">🟢 Kept awake, %1$s stays connected</string>
+    <string name="target_keep_awake_reconnecting">⏳ Keeping %1$s awake, reconnecting…</string>
+    <string name="target_keep_awake_outside">💤 %1$s is not being kept awake just now (outside its hours)</string>
     <string name="target_volume_unknown">🔈 Volume not known, move the slider to set it</string>
     <string name="target_colour">🎨 Colour</string>
     <string name="target_previous">Previous</string>

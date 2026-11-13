@@ -54,7 +54,9 @@ internal class BluezLink(
     private val tries: Int = TRIES,
     private val switchedOnByHand: Boolean = false,
     private val clock: () -> Long = System::currentTimeMillis,
-) : TargetLink {
+    private val keepAwake: Boolean = false,
+    private val mpv: String = System.getenv("TOTUM_MPV") ?: "mpv",
+) : TargetLink, KeepAwakeTransport {
     private val sink = "bluez_sink.${mac.replace(':', '_')}.a2dp_sink"
     private var connectedHere = false
 
@@ -96,6 +98,10 @@ internal class BluezLink(
     }
 
     override suspend fun release() {
+        if (keepAwake) {
+            Diag.log("speakers", "$mac is kept awake, so it stays linked when Totum is done")
+            return
+        }
         if (!connectedHere) {
             Diag.log("speakers", "$mac was linked before Totum asked, left linked")
             return
@@ -114,12 +120,38 @@ internal class BluezLink(
         )
     }
 
+    override suspend fun linked(): Boolean = sinkIndex() != null
+
+    override suspend fun reconnect(): Boolean {
+        if (sinkIndex() != null) return true
+        Diag.log(
+            "speakers",
+            "keeping $mac awake: relinking: ${shell.run(
+                listOf("bluetoothctl", "connect", mac)
+            )?.trim()?.lines()?.lastOrNull()}"
+        )
+        repeat(KEEP_TRIES) {
+            if (sinkIndex() != null) return true
+            delay(pollMs)
+        }
+        return false
+    }
+
+    override suspend fun sendSignal(signal: KeepAwakeSignal): Boolean = shell.run(
+        listOf(
+            mpv, "--no-video", "--no-input-terminal", "--msg-level=all=warn", "--term-status-msg=", "--idle=no",
+            "--audio-device=pulse/$sink", "--length=$SIGNAL_S", "av://lavfi:${signal.lavfi}",
+        ),
+    ) != null
+
     private suspend fun sinkIndex(): String? = shell.run(listOf("pactl", "list", "short", "sinks")).orEmpty().lines()
         .map { it.split('\t') }.firstOrNull { it.getOrNull(1) == sink }?.firstOrNull()
 
     private companion object {
         const val POLL_MS = 1_000L
         const val TRIES = 15
+        const val KEEP_TRIES = 5
+        const val SIGNAL_S = 2
         const val MS_PER_S = 1_000
     }
 }
@@ -129,15 +161,21 @@ internal class SpeakerSource(
     private val dir: java.io.File,
     private val locally: (label: String, url: String) -> String = { _, url -> url },
     private val switchedOnByHand: Set<String> = emptySet(),
+    private val keepAwake: KeepAwakeSettings = KeepAwakeSettings.NONE,
 ) : TargetSource {
     private val discovery = BluezSpeakers(shell)
 
     override suspend fun find(fresh: Boolean): List<FoundTarget> = discovery.find().map { found ->
         FoundTarget(found.speaker) {
             val byHand = found.speaker.id in switchedOnByHand || found.speaker.label.lowercase() in switchedOnByHand
+            val window = keepAwake.windowFor(found.speaker.id, found.speaker.label)
+            val player = MpvPlayer(found.speaker.id, dir, locally = locally)
+            val link = BluezLink(found.mac, shell, switchedOnByHand = byHand, keepAwake = window != null)
             TargetKit(
-                MpvPlayer(found.speaker.id, dir, locally = locally),
-                BluezLink(found.mac, shell, switchedOnByHand = byHand),
+                player,
+                link,
+                SpeakerVolume(found.speaker.id, BluezTransport(found.mac, shell), player),
+                window?.let { KeepAwakeKeeper(found.speaker.id, it, link, keepAwake.signal) },
             )
         }
     }
