@@ -2,7 +2,7 @@
 title: The sponsor link is one build value, and the button is hidden while it is empty
 kind: adr
 status: accepted
-updated: 2026-11-07
+updated: 2026-11-13
 ---
 
 # 147. The sponsor link is one build value, and the button is hidden while it is empty
@@ -28,8 +28,14 @@ or to somebody else's page, would be worse than none.
   configured (never the value of anything secret: the link is public).
 - The row is not in the Settings search registry, as the registry's own rule allows for a row that is not always on
   screen ([settings-search](../features/settings-search.md)).
-- `.github/FUNDING.yml` is not created yet. It needs Dewi's account names and Sponsors rejects a file naming an
-  account that is not enrolled; the page lists what to add.
+- `.github/FUNDING.yml` was not created at first: it needs account names and Sponsors rejects a file naming an
+  account that is not enrolled.
+
+## Update, 2026-11-13: live
+
+The link is set: `totum.sponsorUrl=https://ko-fi.com/totum` in `gradle.properties`, so the Settings row is drawn in
+every build, and `.github/FUNDING.yml` carries `ko_fi: totum` (no `github:` line until Sponsors is approved). Changing
+the link is still the one line in `gradle.properties`.
 
 The choice of GitHub Sponsors with Ko-fi meanwhile is Dewi's; the build value, the validation, the placement and the
 hidden-while-empty rule are the builder's calls.

@@ -1,10 +1,10 @@
 ---
 title: A ❤️ Sponsor button
 kind: todo
-status: built 2026-11-07, Batch A (tests written 2026-11-07; device checks owed)
+status: live 2026-11-13, Batch B (device checks owed)
 batch: A (2026-11)
 priority: low
-updated: 2026-11-07
+updated: 2026-11-13
 ---
 
 # A ❤️ Sponsor button
@@ -14,8 +14,8 @@ Dewi 2026-11-05: "sponsor up to you" -> GitHub Sponsors (FUNDING.yml and an in-a
 ## Built 2026-11-07 ([ADR 147](../adr/0147-the-sponsor-link-is-one-build-value-and-hidden-when-empty.md))
 
 A Settings row, drawn only when `BuildConfig.SPONSOR_URL` (`totum.sponsorUrl` in `gradle.properties`) is a usable
-https link; no URL is invented. Needs Dewi: the Ko-fi or GitHub Sponsors page address, and `.github/FUNDING.yml` once
-the account exists. See [sponsor-button](../features/sponsor-button.md).
+https link; no URL is invented. **Live 2026-11-13:** `totum.sponsorUrl=https://ko-fi.com/totum` and `.github/FUNDING.yml`
+(`ko_fi: totum`). Still to do later: a `github:` line once GitHub Sponsors is approved. See [sponsor-button](../features/sponsor-button.md).
 
 ## Tests
 
