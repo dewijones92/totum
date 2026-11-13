@@ -1,5 +1,7 @@
 package com.dewijones92.totum.ui
 
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onNodeWithText
@@ -49,8 +51,8 @@ class UpNextMenuOffersPlayNowTest {
         composeTestRule.setContent {
             TotumTheme {
                 ProvidePlayStates(container, onOpenSource = {}) {
-                    val upNext = container.playbackQueue.state.value.upNext
-                    UpNextSection(upNextControls(container.playbackQueue, upNext))
+                    val queue by container.playbackQueue.state.collectAsState()
+                    UpNextSection(upNextControls(container.playbackQueue, queue.upNext))
                 }
             }
         }
