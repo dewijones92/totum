@@ -34,7 +34,8 @@ class TracksAtTheEndOfAnMkvTest {
 
     private fun element(id: Long, payload: ByteArray) = id(id) + size(payload.size) + payload
 
-    private fun uint(id: Long, value: Long) = element(id, id(value).ifEmpty { byteArrayOf(0) })
+    private fun uint(id: Long, value: Long) =
+        element(id, id(value).let { if (it.isEmpty()) byteArrayOf(0) else it })
 
     private fun text(id: Long, value: String) = element(id, value.toByteArray())
 
@@ -67,11 +68,15 @@ class TracksAtTheEndOfAnMkvTest {
         element(0x4DBB, element(0x53AB, id(TRACKS)) + element(0x53AC, ByteBuffer.allocate(4).putInt(position).array())),
     )
 
-    private fun mkv(tracksFirst: Boolean): File {
+    private fun mkv(tracksFirst: Boolean, seekHead: Boolean = true): File {
         val head = ByteArrayOutputStream()
         val body = ByteArrayOutputStream()
         val seekHeadLength = seekHeadTo(0).size
-        if (tracksFirst) {
+        if (!seekHead) {
+            body.write(info())
+            body.write(cluster())
+            body.write(tracks())
+        } else if (tracksFirst) {
             body.write(seekHeadTo(seekHeadLength + info().size))
             body.write(info())
             body.write(tracks())
@@ -84,7 +89,8 @@ class TracksAtTheEndOfAnMkvTest {
         }
         head.write(ebmlHeader())
         head.write(element(SEGMENT, body.toByteArray()))
-        return File(context.cacheDir, if (tracksFirst) "tracks-first.mkv" else "tracks-last.mkv").also {
+        val name = "tracks-${if (tracksFirst) "first" else "last"}-${if (seekHead) "seekhead" else "bare"}.mkv"
+        return File(context.cacheDir, name).also {
             it.writeBytes(head.toByteArray())
         }
     }
@@ -124,11 +130,19 @@ class TracksAtTheEndOfAnMkvTest {
     }
 
     @Test
-    fun aTrackListAfterTheFirstClusterIsWhatMedia3Reports() {
-        val seen = tracksSeenBy(mkv(tracksFirst = false))
+    fun aTrackListAtTheEndThatTheSeekHeadPointsToIsFoundOnALocalFile() {
+        val seen = tracksSeenBy(mkv(tracksFirst = false, seekHead = true))
 
-        android.util.Log.i("dewidebug", "Media3 on an MKV whose Tracks come after its Cluster: $seen")
-        assertEquals(EXPECTED_WHEN_THE_TRACK_LIST_IS_AT_THE_END, seen)
+        android.util.Log.i("dewidebug", "Media3, Tracks after the Cluster, SeekHead present: $seen")
+        assertEquals("1 track(s): audio/raw; seekability unknown", seen)
+    }
+
+    @Test
+    fun aTrackListAtTheEndWithNoSeekHeadEntryIsFoundOnlyByReadingOnToIt() {
+        val seen = tracksSeenBy(mkv(tracksFirst = false, seekHead = false))
+
+        android.util.Log.i("dewidebug", "Media3, Tracks after the Cluster, no SeekHead: $seen")
+        assertEquals("1 track(s): audio/raw; seekability unknown", seen)
     }
 
     private companion object {
@@ -139,6 +153,5 @@ class TracksAtTheEndOfAnMkvTest {
         const val CLUSTER = 0x1F43B675L
         const val TRACKS = 0x1654AE6BL
         const val TIMEOUT_S = 20L
-        const val EXPECTED_WHEN_THE_TRACK_LIST_IS_AT_THE_END = "to be filled in from the first run"
     }
 }

@@ -48,8 +48,11 @@ before it was fixed; what could not be fixed here is said below.
     first three, then every slow one (under 8 Mbit/s, or a first byte after 1.5 s) or abort, then one summary line every
     30 s (`RelayLog`).
 - **Zero-track containers.** A torrent MKV with its Tracks element after its Clusters (a 5.5 GB file whose SeekHead points
-  at the end) gives Media3's extractors no tracks: the phone's player was silent and could not seek, and the cast
-  manifest failed with "no audio track". Now `NoTracksWatch` reports a player that is ready, still has no tracks 1.5 s
+  at the end) left Media3 with no tracks: the phone's player was silent and could not seek, and the cast
+  manifest failed with "no audio track". `TracksAtTheEndOfAnMkvTest` (instrumented, run on the emulator 2026-11-13)
+  shows what Media3 does on a small local MKV built that way: it finds the track list, with or without a SeekHead entry
+  for it, because it reads on until it reaches it. So the fault needs the size of the real file over a stream, where
+  "reading on" means reading most of 5.5 GB before any track is known; that case was not reproduced here. Now `NoTracksWatch` reports a player that is ready, still has no tracks 1.5 s
   later and is not on a receiver, as `PlaybackProblem.NoTrackList`: the usual refusal toast says "this file's track list is
   at its end, so this phone can't read it. The Pi will repair it when it is filed" ([ADR 157](0157-a-player-error-with-no-recovery-tells-the-user-and-offers-listen.md)'s path).
   The error logs carry the track list (`TrackSummary`: count, type of each, seekable). The cast engine throws
@@ -78,3 +81,6 @@ before it was fixed; what could not be fixed here is said below.
   seek steps on the Cast player, the seek bar on a PC screen in Edge, and the SubRip captions on the LG. See the feature doc.
 - Memory: the relay may hold up to 8 MB per open request and 32 MB of read-ahead per cast session.
 - What Media3 does with a track list at the end is recorded by `TracksAtTheEndOfAnMkvTest` (instrumented).
+- `NoTracksWatch` speaks only once the player is ready and has no tracks. A player that never becomes ready while it
+  reads on towards a track list at the end of a huge stream is still only "buffering"; naming that as a track-list
+  fault would also blame every slow start, so it is left as it is. The cast side does name it (`NoReadableTracks`).
