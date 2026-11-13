@@ -1,6 +1,7 @@
 package com.dewijones92.totum.data.download
 
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.common.PoliteGate
 import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.DownloadedMedia
 import com.dewijones92.totum.domain.MediaItem
@@ -14,6 +15,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -71,7 +73,7 @@ public class DefaultDownloadManager(
     ) {
         var lastProgressAt = Long.MIN_VALUE
         var heldBack = 0
-        strategy.download(item, target, audioOnly, maxHeight).collect { state ->
+        strategy.download(item, target, audioOnly, maxHeight).flowOn(PoliteGate.background()).collect { state ->
             if (state is DownloadState.Downloading) {
                 val now = nowMs()
                 if (lastProgressAt != Long.MIN_VALUE && now - lastProgressAt < PROGRESS_WRITE_EVERY_MS) {
