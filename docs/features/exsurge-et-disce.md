@@ -3,7 +3,7 @@ title: Exsurge et Disce — stand up and study
 kind: feature
 area: side-quest
 status: built — awaiting a real day on Dewi's phone (the emulator has no step counter)
-updated: 2026-11-06
+updated: 2026-11-13
 ---
 
 # Exsurge et Disce ("rise up and learn")
@@ -85,6 +85,17 @@ everything configurable. The backlog item, with the agreed design and the open i
   is the usual length again. The banner, the countdown and the takeover's "Sitting: N min" use the
   chosen length ([ADR 117](../adr/0117-a-restarted-clock-can-run-for-its-own-length.md)). Dewi: *"I
   want a slider … to quickly change how much time in that particular instance"*.
+  Since 2026-11-13 the **summons page has it too** (Dewi: *"when the Loquax triggers after 40 minutes … give me an
+  option on that page to restart clock … the same as restart clock in the app"*): a "Restart clock" button under the
+  snooze row opens the same `RestartClockDialog` (slider set to the usual length, 40 min on his phone) and calls the
+  same `restartClock(...)`, which dispatches `RestartClock(minutes)` with the source `takeover`; the takeover then closes
+  because the summons is over.
+- **Settings history** (finding 160, [ADR 162](../adr/0162-exsurge-keeps-a-durable-history-of-its-settings-changes.md)):
+  the last 20 settings changes are kept on the phone with their time, source and field diff, the loaded settings are
+  logged at start-up, and a start-up that finds the stored settings different from the last write records that as a
+  change from `start-up: found changed since the last write`. The history is in the diagnostics state block as
+  `exsurge.settingsHistory`; this is what will say whether the 5 November overnight change ("Tuesday 06:00" to "no days,
+  08:00") was an `updateSettings` caller or something else.
 - **Summon now** outside active hours is a one-off too, so its snooze comes back rather than being
   dropped as "outside hours".
 - **Steps arrive promptly while it matters.** The step counter is batched at 60 s while sitting, to

@@ -5,7 +5,7 @@ status: accepted
 updated: 2026-11-13
 ---
 
-# 161. Exsurge keeps a durable history of its settings changes
+# 162. Exsurge keeps a durable history of its settings changes
 
 - Status: Accepted
 - Date: 2026-11-13

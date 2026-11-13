@@ -5,7 +5,7 @@ status: accepted
 updated: 2026-11-13
 ---
 
-# 160. The screen stays on for a video playing, and for a paused full-screen video only while charging
+# 161. The screen stays on for a video playing, and for a paused full-screen video only while charging
 
 - Status: Accepted
 - Date: 2026-11-13

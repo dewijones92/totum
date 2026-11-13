@@ -175,7 +175,7 @@ pure Kotlin and tested on the JVM. Two details matter:
   the boost's 5ms look-ahead tipped the race every time: 10.8s with it on, 8.6s off. The skip-silence speed-up path (`SilenceDetectingAudioProcessor`,
 `SilenceStrategy`, `SilenceRacer`) is gone: there is one mechanism for both pillars again.
 
-## A long cut on video is paid out in short jumps (2026-11-13, ADR 162)
+## A long cut on video is paid out in short jumps (2026-11-13, ADR 163)
 
 Finding 129: on a video a long cut could stall the picture, 7.5 s of buffering at one position. The clock jumps by the
 whole cut the moment it is heard, so the picture has to skip a pause's worth of video at once. While a video track is

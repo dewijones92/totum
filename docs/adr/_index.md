@@ -172,3 +172,6 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 158 | [Targets, end-of-batch fixes: loops, ids, a loopback listener, slow answers, a TV that is switched off, resume, structured problems](0158-targets-end-of-batch-fixes.md) | Accepted |
 | 159 | [A crash screen for everyone, reports to the Pi as a setting, and a state dump with every report](0159-a-crash-screen-and-a-state-dump-for-every-report.md) | Accepted |
 | 160 | [Phone use is read from Android's own history, and the unlock nudge only asks](0160-phone-use-is-read-from-androids-own-history-and-the-nudge-only-asks.md) | Accepted |
+| 161 | [The screen stays on for a video playing, and for a paused full-screen video only while charging](0161-the-screen-stays-on-for-a-video-and-for-a-paused-one-on-the-charger.md) | Accepted |
+| 162 | [Exsurge keeps a durable history of its settings changes](0162-exsurge-keeps-a-durable-history-of-its-settings-changes.md) | Accepted |
+| 163 | [A long silence cut on a video is paid out in short clock jumps](0163-a-long-silence-cut-on-a-video-is-paid-out-in-short-clock-jumps.md) | Accepted |

@@ -5,7 +5,7 @@ status: accepted
 updated: 2026-11-13
 ---
 
-# 162. A long silence cut on a video is paid out in short clock jumps
+# 163. A long silence cut on a video is paid out in short clock jumps
 
 - Status: Accepted
 - Date: 2026-11-13
