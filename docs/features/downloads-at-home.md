@@ -69,7 +69,7 @@ First real use (report 20261031T193811-51dfc9b5, v0.1.811): Toy Story 5 (1080p 1
 the phone, done on the Pi in 7 minutes, copied to the phone over Wi-Fi in ~70 s. The phone's copy showed as a plain
 "⬇️ Downloading 70%", which read as the Pi lagging; it now says "📥 Copying from home".
 
-## Retries, Move to Phone and the event tail (2026-11-13, [ADR 166](../adr/0166-home-torrents-hold-together-retries-shown-main-file-first-and-a-fixed-remux.md))
+## Retries, Move to Phone and the event tail (2026-11-13, [ADR 168](../adr/0168-home-torrents-hold-together-retries-shown-main-file-first-and-a-fixed-remux.md))
 
 - **A job the Pi is retrying is not "failed".** `HomeJob.retry` carries attempt, of and the planned time; the strip and the
   row say "Retrying 2 of 4 in 1 minute: reason", polling stays at the busy pace, "Try again now" is offered, and only a job

@@ -88,4 +88,4 @@ release folders. Jellyfin has online metadata off, so the names are all it has.
 - The container can now write anywhere on the media disk; the filer refuses any target outside the two library
   roots.
 
-Amended 2026-11-13 ([ADR 166](0166-home-torrents-hold-together-retries-shown-main-file-first-and-a-fixed-remux.md)): a late-Tracks MKV is remuxed before filing, a folder it cannot write to is replaced by a fresh clean-named one, and a failure is a home problem rather than only a log line.
+Amended 2026-11-13 ([ADR 168](0168-home-torrents-hold-together-retries-shown-main-file-first-and-a-fixed-remux.md)): a late-Tracks MKV is remuxed before filing, a folder it cannot write to is replaced by a fresh clean-named one, and a failure is a home problem rather than only a log line.

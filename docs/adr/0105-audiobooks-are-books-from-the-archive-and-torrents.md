@@ -89,4 +89,4 @@ Prowlarr's own User-Agent.
 
 - Amended 2026-10-31: when no indexer lists category 3030, the audiobook search asks every indexer with the category filter rather than none; the log says so.
 
-Amended 2026-11-13 ([ADR 166](0166-home-torrents-hold-together-retries-shown-main-file-first-and-a-fixed-remux.md)): the HTTP 400 on every AudioBook Bay search was Prowlarr holding the indexer in back-off ("all selected indexers being unavailable"); the phone now leaves a paused indexer out quietly for ten minutes. The definition itself was fine.
+Amended 2026-11-13 ([ADR 168](0168-home-torrents-hold-together-retries-shown-main-file-first-and-a-fixed-remux.md)): the HTTP 400 on every AudioBook Bay search was Prowlarr holding the indexer in back-off ("all selected indexers being unavailable"); the phone now leaves a paused indexer out quietly for ten minutes. The definition itself was fine.

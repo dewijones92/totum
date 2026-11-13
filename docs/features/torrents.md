@@ -168,7 +168,7 @@ of an audio file offers neither. Listen plays the home server's audio-only remux
 its pillar ([ADR 70](../adr/0070-listen-and-watch-follow-the-picture-not-the-pillar.md)); before it, torrents had no
 switch at all because they ride the podcast handle.
 
-## A film is its main file (2026-11-13, [ADR 166](../adr/0166-home-torrents-hold-together-retries-shown-main-file-first-and-a-fixed-remux.md))
+## A film is its main file (2026-11-13, [ADR 168](../adr/0168-home-torrents-hold-together-retries-shown-main-file-first-and-a-fixed-remux.md))
 
 A torrent's playable files are MAIN, EXTRA or SAMPLE (`TorrentRoles`): extras by folder (Extras, Featurettes, Bonus,
 Behind the Scenes, Deleted Scenes, Trailers, Interviews, Making of) or by size (a video under 15% of the largest);

@@ -41,4 +41,4 @@ Knaben nothing. Torrentio results come from a Cinemeta match, so the IMDb id is 
   never a wrong file.
 - Torrents queued before this change keep no picture until queued again.
 
-Amended 2026-11-13 ([ADR 166](0166-home-torrents-hold-together-retries-shown-main-file-first-and-a-fixed-remux.md)): the Cinemeta title lookup that was "not done" now runs once in `TorrentPlayables.queueItems` for any torrent with no picture, and existing items with none are repaired.
+Amended 2026-11-13 ([ADR 168](0168-home-torrents-hold-together-retries-shown-main-file-first-and-a-fixed-remux.md)): the Cinemeta title lookup that was "not done" now runs once in `TorrentPlayables.queueItems` for any torrent with no picture, and existing items with none are repaired.
