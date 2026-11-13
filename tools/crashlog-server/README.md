@@ -19,6 +19,9 @@ container on the Pi, reached through the existing nginx at
 | Route | Purpose |
 |---|---|
 | `POST /ingest` | What the app posts to. **Unauthenticated** (see below). Returns `202` with an id |
+| `POST /ingest/state` | A whole-app **state dump** (gzipped JSON) from a signed-in phone. Stored apart from reports; only the newest 5 are kept (see below). `202` with its file name, `400` when it is not a dump |
+| `GET /api/states` | The held state dumps, newest first (name, bytes, when, install, app version) |
+| `GET /state/latest` | The newest state dump, gzipped, as a download |
 | `GET /screen` | The Google-gated bookmark for the PC screen (see below): redirects to the phone, or shows a chooser |
 | `GET /` | Browsable list, filterable by commit and exception |
 | `GET /report/{id}` | One report: message, stack trace, and the **event trail** rendered as a timeline |
@@ -32,6 +35,28 @@ container on the Pi, reached through the existing nginx at
 | `GET /api/report/{id}/findings` | A report's findings and whether it counts as **considered** |
 | `GET /api/considered?since=YYYY-MM-DD` | Every report since a date, considered or not, with its findings |
 | `GET /healthz` | Liveness |
+
+## State dumps: the app's whole state, newest five only
+
+Since 2026-11-13 the phone sends one gzipped state dump after every crash or diagnostics report it sends, and on its own
+from Settings → Diagnostics → "📤 Send my state to Claude" ([ADR 158](../../docs/adr/0158-a-crash-screen-and-a-state-dump-for-every-report.md)).
+The dump is `{format, kind: "totum-state-dump", takenAtMs, appVersion, installId, backup, state, preferences}`: `backup` is
+the app's own backup format with the live queue, so it restores; `state` is the Ask snapshot (queue, history, downloads,
+stats, trail, event log); `preferences` is every SharedPreferences file except the credential ones. Sign-in tokens, the
+YouTube account, the home-server token, cookies and keys never leave the phone: the phone removes them with the one
+shared redactor before it gzips the dump, and a test seeds fake ones and asserts none survive.
+
+The server (`app/states.py`, no web framework, tested on its own) refuses anything that is not gzip, that is over
+`CRASHLOG_MAX_STATE_MB` (32) packed or 8 times that unpacked, or that is not JSON with `kind` `totum-state-dump`. An accepted
+dump is written atomically as `/data/states/<UTC time>-<install id>-<app version>.json.gz`, then everything but the newest
+`CRASHLOG_KEEP_STATES` (5) is deleted. Reports are not touched: they stay until considered, as before.
+
+**`/ingest/state` is as open as `/ingest`** (the server does not check the device token; nginx must). A state dump is far more
+personal than a crash report, so give `/ingest/state` the same `auth_request` the `totum.` host uses (ADR 90) when you next
+touch the nginx config in `dot-files`; until then the app sends the token and the server ignores it.
+
+Load the newest dump into the emulator with `tools/emulator/load-state.sh` (ADR 158); read one by hand with
+`ssh "$PI" 'zcat "$(ls -t /home/pi/crashlog-data/states/*.json.gz | head -1)"' | jq 'keys'` (`PI` is the same address `triage.sh` uses).
 
 ## The PC screen bookmark: one entry per phone
 
@@ -179,7 +204,8 @@ tools/crashlog-server/triage.sh add <report> fixed "no summons after a 2nd Resta
 tools/crashlog-server/triage.sh set <finding-id> noise
 ```
 
-Tests: `tests/test_findings.py` (unittest). There is no Python toolchain for the server on the
+Tests: `tests/test_findings.py`, `tests/test_states.py` and `tests/test_state_endpoint.py` (unittest; the endpoint one needs
+`fastapi` and `httpx`, so it skips on a laptop without them). There is no Python toolchain for the server on the
 laptop, so run them in the server's own image on the Pi:
 `docker run --rm -e PYTHONDONTWRITEBYTECODE=1 -v <dir>:/src -w /src totum-crashlog:local python -m unittest discover -s tests`.
 

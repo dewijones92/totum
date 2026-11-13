@@ -31,8 +31,11 @@ from fastapi import FastAPI, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 
+import states
+
 DATA_DIR = Path(os.environ.get("CRASHLOG_DATA", "/data"))
 REPORTS_DIR = DATA_DIR / "reports"
+STATES_DIR = DATA_DIR / "states"
 DB_PATH = DATA_DIR / "index.db"
 
 # Generous: a verbose report with a few hundred events is still tens of KB, and the
@@ -390,6 +393,36 @@ async def ingest(request: Request) -> JSONResponse:
     _prune()
     # The app must never block or retry on our response body; a bare id is plenty.
     return JSONResponse({"id": report_id}, status_code=202)
+
+
+@app.post("/ingest/state")
+async def ingest_state(request: Request) -> JSONResponse:
+    """Accept a whole-app state dump. Kept apart from reports; only the newest few survive."""
+    body = await request.body()
+    try:
+        saved = states.save(STATES_DIR, body, datetime.now(timezone.utc))
+    except states.Refused as refusal:
+        print(f"dewidebug state: refused {len(body)} bytes: {refusal}", flush=True)
+        return JSONResponse({"refused": str(refusal)}, status_code=400)
+    print(f"dewidebug state: kept {saved.name} ({len(body)} bytes); {len(states.listing(STATES_DIR))} held", flush=True)
+    return JSONResponse({"state": saved.name}, status_code=202)
+
+
+@app.get("/api/states")
+def api_states() -> JSONResponse:
+    return JSONResponse(states.listing(STATES_DIR))
+
+
+@app.get("/state/latest", response_model=None)
+def state_latest() -> Response:
+    newest = states.latest(STATES_DIR)
+    if newest is None:
+        return PlainTextResponse("No state dump yet.", status_code=404)
+    return Response(
+        newest.read_bytes(),
+        media_type="application/gzip",
+        headers={"Content-Disposition": f'attachment; filename="{newest.name}"'},
+    )
 
 
 #: What a report can be judged as.
