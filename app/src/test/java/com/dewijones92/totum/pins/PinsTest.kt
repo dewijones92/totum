@@ -63,6 +63,7 @@ class PinsTest {
         Pin.Radio("BNMKGYiJpvg", "RDAMVMBNMKGYiJpvg", "Feeling Good", null),
         Pin.Radio("xUNqsfFUwhY", "RDAODwfWqCd9jXCuVO7pjkJHTw", "A shuffle station", null, params = "wAEB8gECGAE%3D"),
         Pin.ArtistSongs("VLOLAK5uy_all", "ggMCCAI%3D", "Erik Satie", null),
+        Pin.Discover("UCabc", "Erik Satie", "Gymnopédie", "https://art/d"),
         Pin.Show("feed-1", "https://feed.test/rss", "A show", null),
         Pin.Album("MPREb_x", "Guitar Recital", "https://art/x", shuffled = true),
         Pin.ShuffleAllOf(

@@ -55,6 +55,7 @@ import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.pillar
 import com.dewijones92.totum.domain.toPlayableOrNull
+import com.dewijones92.totum.music.discoverSeed
 
 @Stable
 class Selection internal constructor(val place: String, private val state: MutableState<Set<String>>) {
@@ -282,6 +283,7 @@ fun mediaBulkActions(
     val downloadStates = LocalDownloadStates.current
     val homeJobs = LocalHomeJobs.current
     val mix = LocalStartRadioMix.current
+    val discover = LocalStartDiscoverFrom.current
     val resources = LocalResources.current
     return { chosen ->
         val downloads = downloadStates.value
@@ -302,6 +304,8 @@ fun mediaBulkActions(
                 BulkAction(R.string.playlist_add_to) { a.addToPlaylist(chosen) },
                 mix?.let { start -> BulkAction(R.string.radio_from_these) { start(chosen) } }
                     ?.takeIf { chosen.count { it.radioVideoId() != null } >= 2 },
+                discover?.let { start -> BulkAction(R.string.discover_from_these) { start(chosen) } }
+                    ?.takeIf { chosen.any { it.discoverSeed() != null } },
                 BulkAction(R.string.download_bulk_choose) {
                     Diag.log(
                         "select",

@@ -26,6 +26,7 @@ import com.dewijones92.totum.domain.shareLink
 import com.dewijones92.totum.domain.titleOf
 import com.dewijones92.totum.domain.toPlayableOrNull
 import com.dewijones92.totum.innertube.music.RadioSeed
+import com.dewijones92.totum.music.discoverSeed
 import com.dewijones92.totum.music.ArtistCredits
 import com.dewijones92.totum.notforme.NotForMeRejecter
 import com.dewijones92.totum.settings.DownloadChoice
@@ -99,6 +100,10 @@ internal fun ProvideItemActions(
         },
         LocalOpenSource provides openSource,
         LocalStartRadio provides remember(container) { { item: MediaItem -> startRadio(container, item) } },
+        LocalStartDiscover provides remember(container) { { item: MediaItem -> startDiscover(container, item) } },
+        LocalStartDiscoverFrom provides remember(container) {
+            { items: List<MediaItem> -> startDiscoverFrom(container, items) }
+        },
         LocalStartRadioMix provides remember(container) {
             {
                     items: List<MediaItem> ->
@@ -291,6 +296,22 @@ private fun startRadioMix(container: AppContainer, items: List<MediaItem>) {
 }
 
 internal fun MediaItem.radioVideoId(): String? = mediaUrl?.youTubeVideoId() ?: HttpUrl.parse(id.value)?.youTubeVideoId()
+
+private fun startDiscover(container: AppContainer, item: MediaItem) {
+    val seed = item.discoverSeed()
+    if (seed == null) {
+        Diag.warn("discover", "\"${item.title}\" has no YouTube id to discover from")
+        return
+    }
+    container.applicationScope.launch { container.musicRadio.startDiscover(seed) }
+}
+
+private fun startDiscoverFrom(container: AppContainer, items: List<MediaItem>) {
+    val seeds = items.mapNotNull { it.discoverSeed() }
+    Diag.log("discover", "discover from ${items.size} selected item(s): ${seeds.size} usable, starting from the first")
+    val seed = seeds.firstOrNull() ?: return
+    container.applicationScope.launch { container.musicRadio.startDiscover(seed) }
+}
 
 private fun startRadio(container: AppContainer, item: MediaItem) {
     val videoId = item.radioVideoId()

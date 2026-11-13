@@ -28,6 +28,7 @@ import androidx.compose.material.icons.outlined.Headphones
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.PushPin
+import androidx.compose.material.icons.outlined.Explore
 import androidx.compose.material.icons.outlined.Radio
 import androidx.compose.material.icons.outlined.RadioButtonUnchecked
 import androidx.compose.material.icons.outlined.Share
@@ -129,6 +130,7 @@ internal fun ActionSheet(
             SheetAction(onRemoveFromQueue, Icons.Filled.Delete, R.string.queue_remove, onDismiss)
             SheetAction(onPeek, Icons.Outlined.Visibility, R.string.queue_peek, onDismiss)
             SheetAction(extras.onStartRadio, Icons.Outlined.Radio, R.string.music_start_radio, onDismiss)
+            SheetAction(extras.onStartDiscover, Icons.Outlined.Explore, R.string.music_start_discover, onDismiss)
             StarAction(extras.item, onDismiss)
             SpoilerShieldActions(extras.item, sourcePillar, onDismiss)
             StarListAction(extras.starList, title, onDismiss)

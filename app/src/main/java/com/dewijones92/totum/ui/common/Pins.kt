@@ -48,6 +48,7 @@ internal val LocalPins = compositionLocalOf<PinActions?> { null }
 
 data class SheetExtras(
     val onStartRadio: (() -> Unit)? = null,
+    val onStartDiscover: (() -> Unit)? = null,
     val pin: Pin? = null,
     val onGoToAlbum: (() -> Unit)? = null,
     val music: Boolean = false,
@@ -58,8 +59,13 @@ data class SheetExtras(
 )
 
 @Composable
-internal fun sheetExtrasFor(item: MediaItem, onStartRadio: (() -> Unit)?): SheetExtras = SheetExtras(
+internal fun sheetExtrasFor(
+    item: MediaItem,
+    onStartRadio: (() -> Unit)?,
+    onStartDiscover: (() -> Unit)? = null,
+): SheetExtras = SheetExtras(
     onStartRadio = onStartRadio,
+    onStartDiscover = onStartDiscover,
     pin = item.toPlayableOrNull()?.let(Pin::of),
     onGoToAlbum = LocalItemActions.current?.albumLink(item),
     music = item.contentKind == MediaContentKind.MUSIC,

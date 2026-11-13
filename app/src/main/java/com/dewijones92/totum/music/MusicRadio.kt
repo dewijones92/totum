@@ -1,15 +1,23 @@
 package com.dewijones92.totum.music
 
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.common.PoliteGate
+import com.dewijones92.totum.data.discover.DiscoverArtist
+import com.dewijones92.totum.data.discover.DiscoverWalk
 import com.dewijones92.totum.data.notforme.NotForMe
 import com.dewijones92.totum.data.queue.QueueGroup
 import com.dewijones92.totum.data.queue.QueueSnapshot
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayReason
+import com.dewijones92.totum.domain.youTubeChannelId
 import com.dewijones92.totum.innertube.music.MusicResult
 import com.dewijones92.totum.innertube.music.MusicSong
 import com.dewijones92.totum.innertube.music.RadioSeed
 import com.dewijones92.totum.innertube.music.YouTubeMusicCatalogue
+import com.dewijones92.totum.operations.OperationEnd
+import com.dewijones92.totum.operations.OperationKind
+import com.dewijones92.totum.operations.Operations
+import com.dewijones92.totum.operations.tracking
 import com.dewijones92.totum.pins.Pin
 import com.dewijones92.totum.pins.RecentActions
 import com.dewijones92.totum.queue.PlaybackQueue
@@ -18,6 +26,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -28,6 +37,8 @@ class MusicRadio(
     private val recent: RecentActions? = null,
     private val file: java.io.File? = null,
     private val notForMe: NotForMe = NotForMe(),
+    private val discover: Discover? = null,
+    private val operations: Operations? = null,
 ) {
     private fun List<MusicSong>.wanted(why: String): List<MusicSong> =
         notForMe.without(this, "radio $why") { MediaItemId(it.videoId) }
@@ -39,6 +50,7 @@ class MusicRadio(
         val offered: Set<String>,
         val reachedPlayhead: Boolean = false,
         val exhaustedLogged: Boolean = false,
+        val walk: DiscoverWalk? = null,
     )
 
     @Volatile
@@ -154,6 +166,60 @@ class MusicRadio(
         return true
     }
 
+    suspend fun startDiscover(seed: DiscoverSeed): Boolean {
+        val engine = discover ?: return false.also {
+            Diag.warn("discover", "no discover engine here; \"${seed.title}\" not started")
+        }
+        val key = "discover:${seed.key}"
+        if (operations?.isRunning(key) == true) {
+            Diag.log("discover", "\"${seed.title}\" is already being found; ignoring a second tap")
+            return false
+        }
+        var found = 0
+        operations.tracking(key, OperationKind.DISCOVER, seed.title) { progress ->
+            found = beginDiscover(engine, seed, progress)
+            if (found > 0) OperationEnd.Done(found) else OperationEnd.Nothing
+        }
+        return found > 0
+    }
+
+    private suspend fun beginDiscover(engine: Discover, seed: DiscoverSeed, progress: Operations.Progress?): Int {
+        val artist = engine.resolve(seed) ?: return 0
+        val group = QueueGroup(
+            id = "$DISCOVER_GROUP_PREFIX${artist.id}",
+            title = "$DISCOVER_MARK from ${seed.title}",
+        )
+        val walk = engine.walkFrom(artist, seed.title)
+        var found = 0
+        val step = engine.step(walk, DiscoverWalk.PAGES_PER_TOP_UP) { progress?.report(found = ++found) }
+        if (step.picks.isEmpty()) {
+            Diag.warn("discover", "\"${group.title}\": nothing found near ${artist.name} (dry=${step.dry}); nothing queued")
+            return 0
+        }
+        val songs = step.picks.map { it.song }
+        fetching?.cancel()
+        station = Station(
+            seed = RadioSeed(null, "discover:${artist.id}"),
+            group = group,
+            continuation = null,
+            offered = songs.mapTo(mutableSetOf()) { it.videoId },
+            walk = walk,
+        )
+        save()
+        Diag.log("discover", "\"${group.title}\" started with ${songs.size} song(s) near ${artist.name} (${artist.id})")
+        queue.playAll(
+            songs.map { it.toPlayable(MusicSources.discover(artist.id)) },
+            group,
+            reason = PlayReason.Radio(group.title),
+        )
+        progress?.report(playing = true)
+        recent?.record(
+            Pin.Discover(artist.id, artist.name, seed.title, songs.firstOrNull()?.thumbnailUrl?.value),
+            from = "discover",
+        )
+        return songs.size
+    }
+
     private fun onQueueChanged(snapshot: QueueSnapshot) {
         val now = station ?: return
         val currentGroup = snapshot.current?.group?.id
@@ -179,6 +245,7 @@ class MusicRadio(
             .count { it.group?.id == live.group.id }
         if (ahead > TOP_UP_WHEN_LEFT) return
         if (fetching?.isActive == true) return
+        if (live.walk != null) return considerDiscoverTopUp(live, ahead)
         val reseedFrom = snapshot.entries.lastOrNull { it.group?.id == live.group.id }?.item?.item?.id?.value
         if (live.continuation == null && (live.exhaustedLogged || reseedFrom == null)) return
         fetching = scope.launch {
@@ -191,6 +258,44 @@ class MusicRadio(
             } else {
                 topUp(live, ahead, attempt = 1)
             }
+        }
+    }
+
+    private fun considerDiscoverTopUp(live: Station, ahead: Int) {
+        if (live.exhaustedLogged) return
+        fetching = scope.launch(PoliteGate.background()) { discoverTopUp(live, ahead, attempt = 1) }
+    }
+
+    private suspend fun discoverTopUp(from: Station, ahead: Int, attempt: Int) {
+        val walk = from.walk ?: return
+        val engine = discover ?: return
+        Diag.log(
+            "discover",
+            "\"${from.group.title}\": only $ahead left ahead, finding more (attempt $attempt of $MAX_DISCOVER_ATTEMPTS)",
+        )
+        val step = engine.step(walk, DiscoverWalk.PAGES_PER_TOP_UP)
+        val now = station
+        if (now?.group?.id != from.group.id) {
+            Diag.log("discover", "\"${from.group.title}\": stopped while finding; dropping ${step.picks.size} song(s)")
+            return
+        }
+        val songs = step.picks.map { it.song }
+        val added = queue.addToGroup(
+            from.group,
+            songs.map { it.toPlayable(MusicSources.discover(walk.seed.id)) },
+            byYou = false,
+        )
+        station = now.copy(offered = now.offered + songs.map { it.videoId }, exhaustedLogged = step.dry)
+        save()
+        Diag.log(
+            "discover",
+            "\"${from.group.title}\": +$added of ${songs.size} from ${step.pagesAsked} page(s) asked" +
+                if (step.dry) "; nothing more in range, so no more top-ups until it is restarted" else "",
+        )
+        val stillShort = ahead + added <= TOP_UP_WHEN_LEFT
+        if (stillShort && !step.dry && attempt < MAX_DISCOVER_ATTEMPTS) {
+            delay(DISCOVER_PACE_MS)
+            discoverTopUp(from, ahead + added, attempt + 1)
         }
     }
 
@@ -256,6 +361,9 @@ class MusicRadio(
                         now.group.title,
                         now.continuation.orEmpty(),
                         now.offered.joinToString(","),
+                        if (now.walk != null) DISCOVER_KIND else "",
+                        now.walk?.seed?.id.orEmpty(),
+                        now.walk?.seed?.name.orEmpty(),
                     ).joinToString("\n"),
                 )
             }
@@ -264,7 +372,7 @@ class MusicRadio(
 
     private fun restore() {
         val lines = file?.takeIf { it.exists() }?.let { runCatching { it.readLines() }.getOrNull() } ?: return
-        if (lines.size < Saved.entries.size) {
+        if (lines.size < Saved.KIND.ordinal) {
             return Diag.warn(
                 "radio",
                 "saved radio unreadable (${lines.size} lines); ignoring it"
@@ -277,6 +385,13 @@ class MusicRadio(
             file?.delete()
             return
         }
+        val offered = line(Saved.OFFERED).split(',').filter { it.isNotEmpty() }.toSet()
+        val walk = restoredWalk(lines, group, offered)
+        if (lines.getOrNull(Saved.KIND.ordinal) == DISCOVER_KIND && walk == null) {
+            Diag.log("discover", "saved discover \"${group.title}\" cannot be rebuilt here; not restoring it")
+            file?.delete()
+            return
+        }
         station = Station(
             seed = RadioSeed(
                 line(Saved.VIDEO).ifEmpty { null },
@@ -285,19 +400,48 @@ class MusicRadio(
             ),
             group = group,
             continuation = line(Saved.CONTINUATION).ifEmpty { null },
-            offered = line(Saved.OFFERED).split(',').filter { it.isNotEmpty() }.toSet(),
+            offered = offered,
             reachedPlayhead = true,
+            walk = walk,
         )
         Diag.log("radio", "restored \"${group.title}\" after a restart: ${describe()}")
+    }
+
+    private fun restoredWalk(lines: List<String>, group: QueueGroup, offered: Set<String>): DiscoverWalk? {
+        if (lines.getOrNull(Saved.KIND.ordinal) != DISCOVER_KIND) return null
+        val engine = discover ?: return null
+        val id = lines.getOrNull(Saved.ARTIST_ID.ordinal)?.takeIf { it.isNotEmpty() } ?: return null
+        val name = lines.getOrNull(Saved.ARTIST_NAME.ordinal).orEmpty().ifEmpty { id }
+        val played = queue.state.value.entries.filter { it.group?.id == group.id }.mapNotNull { entry ->
+            entry.item.item.sourceUrl?.youTubeChannelId?.let { DiscoverArtist(it, entry.item.item.author ?: it) }
+        }
+        val title = group.title.removePrefix("$DISCOVER_MARK from ")
+        return engine.walkFrom(DiscoverArtist(id, name), title, offered, played)
     }
 
     private companion object {
         const val TOP_UP_WHEN_LEFT = 3
         const val MAX_EMPTY_ATTEMPTS = 3
+        const val MAX_DISCOVER_ATTEMPTS = 3
+        const val DISCOVER_PACE_MS = 1_500L
+        const val DISCOVER_KIND = "discover"
     }
 }
 
 const val RADIO_GROUP_PREFIX: String = "radio:"
+const val DISCOVER_GROUP_PREFIX: String = "radio:discover:"
+const val DISCOVER_MARK: String = "🧭 Discover"
 private const val MIX_SEEDS = 10
 
-private enum class Saved { VIDEO, PLAYLIST, PARAMS, GROUP_ID, GROUP_TITLE, CONTINUATION, OFFERED }
+private enum class Saved {
+    VIDEO,
+    PLAYLIST,
+    PARAMS,
+    GROUP_ID,
+    GROUP_TITLE,
+    CONTINUATION,
+    OFFERED,
+    KIND,
+    ARTIST_ID,
+    ARTIST_NAME,
+}

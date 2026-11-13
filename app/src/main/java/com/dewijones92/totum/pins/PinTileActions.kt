@@ -18,6 +18,7 @@ import com.dewijones92.totum.innertube.playlists.Playlist
 import com.dewijones92.totum.innertube.playlists.YouTubePlaylists
 import com.dewijones92.totum.music.ArtistShuffle
 import com.dewijones92.totum.music.ArtistSongs
+import com.dewijones92.totum.music.DiscoverSeed
 import com.dewijones92.totum.music.MusicFavourites
 import com.dewijones92.totum.music.MusicRadio
 import com.dewijones92.totum.queue.PlaybackQueue
@@ -45,12 +46,14 @@ class PinTileActions(
     private val handlers: Map<PinAction, suspend (Pin) -> PinOutcome?> = mapOf(
         PinAction.PLAY to ::played,
         PinAction.RESTART_RADIO to ::played,
+        PinAction.RESTART_DISCOVER to ::played,
         PinAction.SHUFFLE_AGAIN to ::played,
         PinAction.ARTIST_RADIO to ::played,
         PinAction.SHUFFLE to ::shuffled,
         PinAction.PLAY_NEXT to { pin -> queued(pin, next = true) },
         PinAction.ADD_TO_QUEUE to { pin -> queued(pin, next = false) },
         PinAction.START_RADIO to ::albumRadio,
+        PinAction.START_DISCOVER to ::discoverFrom,
         PinAction.GO_TO_ALBUM to { pin -> albumPage(pin) },
         PinAction.GO_TO_ARTIST to { pin -> artistPage(catalogue, pin) },
         PinAction.GO_TO_PLAYLIST to { pin -> playlistPage(pin) },
@@ -112,6 +115,15 @@ class PinTileActions(
         return if (radio.start(seed, album.title)) PinOutcome.Done("radio started") else PinOutcome.Failed("no radio")
     }
 
+    private suspend fun discoverFrom(pin: Pin): PinOutcome? {
+        val seed = discoverSeedOf(pin) ?: return null
+        return if (radio.startDiscover(seed)) {
+            PinOutcome.Done("discover started")
+        } else {
+            PinOutcome.Failed("nothing new found near ${seed.title}")
+        }
+    }
+
     private suspend fun saveAlbum(pin: Pin): PinOutcome? {
         val album = pin as? Pin.Album ?: return null
         val shelf = favourites ?: return PinOutcome.Failed("favourites are not available here")
@@ -142,6 +154,14 @@ class PinTileActions(
     }
 }
 
+private fun discoverSeedOf(pin: Pin): DiscoverSeed? = when (pin) {
+    is Pin.Album -> DiscoverSeed(pin.title, albumId = pin.browseId)
+    is Pin.Artist -> DiscoverSeed(pin.name, artistId = pin.browseId, artistName = pin.name)
+    is Pin.ArtistSongs -> pin.artistId?.let { DiscoverSeed(pin.artist, artistId = it, artistName = pin.artist) }
+    is Pin.Radio -> pin.videoId?.let { DiscoverSeed(pin.title, songId = it) }
+    else -> null
+}
+
 private fun albumPage(pin: Pin): PinOutcome? =
     (pin as? Pin.Album)?.let { PinOutcome.Open(MusicPage.Album(it.browseId, title = it.title)) }
 
@@ -152,6 +172,7 @@ private fun playlistPage(pin: Pin): PinOutcome? = (pin as? Pin.Playlist)?.let {
 private suspend fun artistPage(catalogue: YouTubeMusicCatalogue, pin: Pin): PinOutcome? = when (pin) {
     is Pin.Artist -> PinOutcome.Open(MusicPage.Artist(pin.browseId, pin.name))
     is Pin.ArtistSongs -> PinOutcome.Open(MusicPage.Artist(pin.artistId, pin.artist))
+    is Pin.Discover -> PinOutcome.Open(MusicPage.Artist(pin.artistId, pin.artistName))
     is Pin.Album -> (catalogue.album(pin.browseId) as? MusicResult.Success)?.value
         ?.let { album ->
             artistsPage(album.artists, album.title, album.artist?.let { MusicPage.Artist(album.artistBrowseId, it) })

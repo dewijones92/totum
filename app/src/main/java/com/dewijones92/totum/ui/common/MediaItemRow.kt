@@ -54,6 +54,7 @@ import com.dewijones92.totum.domain.PlayState
 import com.dewijones92.totum.domain.offersDownloadChoice
 import com.dewijones92.totum.domain.offersListenAndWatch
 import com.dewijones92.totum.domain.withArtworkFrom
+import com.dewijones92.totum.music.discoverSeed
 
 /**
  * 16:9, and bigger than it was. Square podcast art centre-crops into it cleanly.
@@ -161,6 +162,8 @@ fun MediaItemRow(
                 )
             }
         },
+    onStartDiscover: (() -> Unit)? =
+        LocalStartDiscover.current?.takeIf { item.discoverSeed() != null }?.let { start -> { start(item) } },
 ) {
     var showSheet by remember { mutableStateOf(false) }
     val downloadVideo = onDownloadVideo.onlyWhenAudioOnly(downloadState)
@@ -168,7 +171,7 @@ fun MediaItemRow(
     val sheetDeleteDownload = onDeleteDownload.onlyWhenDownloaded(downloadState)
     val hasMenu = listOfNotNull(
         onPlayInsteadOfCurrent, onPlayNext, onAddToQueue, onAddToPlaylist, onRemoveFromPlaylist, onRemoveFromQueue,
-        onPeek, onStartRadio,
+        onPeek, onStartRadio, onStartDiscover,
         downloadVideo, sheetDownload, sheetDeleteDownload, onGoToSource, onSetPlayed, onMoveToTop, onMoveToBottom,
     ).isNotEmpty()
     val id = item.id.value
@@ -220,7 +223,7 @@ fun MediaItemRow(
             onSetPlayed = onSetPlayed,
             played = playState.isPlayed,
             onDismiss = { showSheet = false },
-            extras = sheetExtrasFor(item, onStartRadio),
+            extras = sheetExtrasFor(item, onStartRadio, onStartDiscover),
         )
     }
 }

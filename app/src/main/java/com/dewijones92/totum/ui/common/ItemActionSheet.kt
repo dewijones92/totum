@@ -9,6 +9,7 @@ import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.offersDownloadChoice
 import com.dewijones92.totum.domain.offersListenAndWatch
 import com.dewijones92.totum.domain.pillar
+import com.dewijones92.totum.music.discoverSeed
 
 /**
  * The long-press menu for an item, built entirely from the app-wide capabilities —
@@ -60,6 +61,8 @@ internal fun ItemActionSheet(
         extras = sheetExtrasFor(
             item,
             onStartRadio = LocalStartRadio.current?.takeIf { item.contentKind == MediaContentKind.MUSIC }
+                ?.let { start -> { start(item) } },
+            onStartDiscover = LocalStartDiscover.current?.takeIf { item.discoverSeed() != null }
                 ?.let { start -> { start(item) } },
         ),
     )

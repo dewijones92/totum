@@ -11,6 +11,7 @@ fun Pin.kindWords(): Int = when (this) {
     is Pin.Playlist -> R.string.pin_kind_playlist
     is Pin.Artist -> R.string.pin_kind_artist
     is Pin.Radio -> R.string.pin_kind_radio
+    is Pin.Discover -> R.string.pin_kind_discover
     is Pin.Show -> R.string.pin_kind_show
     is Pin.ShuffleAllOf -> R.string.pin_kind_shuffle_all
     is Pin.ArtistSongs -> R.string.pin_kind_artist_songs

@@ -27,7 +27,7 @@ class PinMenuTest {
         assertEquals(
             listOf(
                 PinAction.PLAY, PinAction.SHUFFLE, PinAction.PLAY_NEXT, PinAction.ADD_TO_QUEUE,
-                PinAction.START_RADIO, PinAction.GO_TO_ALBUM, PinAction.GO_TO_ARTIST, PinAction.SAVE_ALBUM,
+                PinAction.START_RADIO, PinAction.START_DISCOVER, PinAction.GO_TO_ALBUM, PinAction.GO_TO_ARTIST, PinAction.SAVE_ALBUM,
                 PinAction.TOGGLE_PIN, PinAction.ADD_TO_HOME,
             ),
             pinMenuFor(album, inRecent = false),
@@ -46,6 +46,26 @@ class PinMenuTest {
         assertEquals(
             listOf(PinAction.ARTIST_RADIO, PinAction.GO_TO_ARTIST, PinAction.TOGGLE_PIN, PinAction.ADD_TO_HOME),
             pinMenuFor(byName, inRecent = false),
+        )
+    }
+
+    @Test
+    fun `a Discover button sits beside every Radio one, wherever the seed can be walked from`() {
+        assertTrue(PinAction.START_DISCOVER in pinMenuFor(album, inRecent = false))
+        assertTrue(PinAction.START_DISCOVER in pinMenuFor(artist, inRecent = false))
+        assertFalse(PinAction.START_DISCOVER in pinMenuFor(artist.copy(browseId = null), inRecent = false))
+        assertTrue(PinAction.START_DISCOVER in pinMenuFor(radio, inRecent = false))
+        assertFalse(PinAction.START_DISCOVER in pinMenuFor(radio.copy(videoId = null), inRecent = false))
+        val songs = Pin.ArtistSongs("MPAD", null, "Miss Rachel", null, artistId = "UCartist")
+        assertTrue(PinAction.START_DISCOVER in pinMenuFor(songs, inRecent = false))
+    }
+
+    @Test
+    fun `a Discover tile restarts and goes to its artist`() {
+        val discover = Pin.Discover("UCartist", "Miss Rachel", "Seed song", null)
+        assertEquals(
+            listOf(PinAction.RESTART_DISCOVER, PinAction.GO_TO_ARTIST, PinAction.TOGGLE_PIN, PinAction.ADD_TO_HOME),
+            pinMenuFor(discover, inRecent = false),
         )
     }
 

@@ -19,6 +19,7 @@ import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.Explore
 import androidx.compose.material.icons.outlined.Radio
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -188,6 +189,7 @@ private fun albumButtons(
                 toast(context, context.getString(R.string.music_radio_started, album.title))
             }
         },
+        MusicButton(R.string.music_discover, Icons.Outlined.Explore) { viewModel.startDiscover() },
     )
 
 @Composable
