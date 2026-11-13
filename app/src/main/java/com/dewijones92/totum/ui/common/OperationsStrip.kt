@@ -195,6 +195,17 @@ private fun titleOf(operation: Operation): String = when (operation.kind) {
 private fun detailOf(operation: Operation): List<String> = buildList {
     if (operation.playing) add(stringResource(R.string.ops_playing))
     if (operation.starting) add(stringResource(R.string.ops_starting, operation.subject))
+    operation.retry?.let { retry ->
+        add(
+            stringResource(
+                R.string.ops_retrying,
+                retry.attempt,
+                retry.of,
+                retryWait(((retry.atMs - System.currentTimeMillis()) / MS_PER_S).coerceAtLeast(0)),
+                retry.reason,
+            ),
+        )
+    }
     if (operation.found > 0) add(pluralStringResource(R.plurals.ops_found, operation.found, operation.found))
     val step = operation.step
     val steps = operation.steps
@@ -245,6 +256,7 @@ private fun doneText(kind: OperationKind, partial: Boolean): Int = when (kind) {
 }
 
 private const val SHOW_AFTER_MS = 1_000L
+private const val MS_PER_S = 1_000L
 private const val GROUP_FROM = 2
 private const val PERCENT = 100
 private const val SHOW_TICK_MS = 500L

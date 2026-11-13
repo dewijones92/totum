@@ -42,7 +42,10 @@ data class Operation(
     val playing: Boolean = false,
     val startedAtMs: Long = 0,
     val starting: Boolean = false,
+    val retry: Retrying? = null,
 )
+
+data class Retrying(val attempt: Int, val of: Int, val atMs: Long, val reason: String)
 
 sealed interface OperationEnd {
     data class Done(val count: Int, val partial: Boolean = false, val note: String? = null) : OperationEnd
@@ -130,6 +133,10 @@ class Operations(private val clock: () -> Long = System::currentTimeMillis) {
                     }
                 }
             }
+        }
+
+        fun retrying(retry: Retrying?) {
+            live.update { list -> list.map { op -> if (op.id == id) op.copy(retry = retry) else op } }
         }
 
         fun playing(): Boolean = live.value.firstOrNull { it.id == id }?.playing == true

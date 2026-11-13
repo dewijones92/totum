@@ -6,12 +6,14 @@ import com.dewijones92.totum.data.backup.toPlayable
 import com.dewijones92.totum.data.download.DownloadManager
 import com.dewijones92.totum.data.home.HomeJob
 import com.dewijones92.totum.data.home.HomeJobState
+import com.dewijones92.totum.data.home.busy
 import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.ItemShields
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.operations.OperationEnd
 import com.dewijones92.totum.operations.OperationKind
 import com.dewijones92.totum.operations.Operations
+import com.dewijones92.totum.operations.Retrying
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
@@ -40,7 +42,7 @@ internal class HomeFollower(
 
     suspend fun followAll(jobs: Collection<HomeJob>) {
         jobs.forEach { job ->
-            if (job.state.busy()) {
+            if (job.busy) {
                 seenBusy.add(job.id)
                 if (tracked.add(job.id)) strip(job)
             }
@@ -60,7 +62,10 @@ internal class HomeFollower(
                 ItemShields.titleOf(job.item),
             ) { progress ->
                 val end = known.map { it[MediaItemId(job.id)] }
-                    .onEach { progress.report(step = it?.percent() ?: 0, steps = PERCENT) }
+                    .onEach {
+                        progress.report(step = it?.percent() ?: 0, steps = PERCENT)
+                        progress.retrying(it?.retry?.let { r -> Retrying(r.attempt, r.of, r.atEpochMs, it.error.orEmpty()) })
+                    }
                     .mapNotNull { endOf(it) }
                     .first()
                 finished = true
@@ -78,7 +83,7 @@ internal class HomeFollower(
     private fun endOf(now: HomeJob?): OperationEnd? = when (now?.state) {
         null -> OperationEnd.Nothing
         HomeJobState.DONE -> OperationEnd.Done(1)
-        HomeJobState.FAILED -> OperationEnd.Failed(now.error ?: "failed on the Pi")
+        HomeJobState.FAILED -> if (now.retry != null) null else OperationEnd.Failed(now.error ?: "failed on the Pi")
         else -> null
     }
 

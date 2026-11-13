@@ -10,6 +10,7 @@ import com.dewijones92.totum.data.home.HomeJobRequest
 import com.dewijones92.totum.data.home.HomeJobState
 import com.dewijones92.totum.data.home.HomeJobsApi
 import com.dewijones92.totum.data.home.HomeProblem
+import com.dewijones92.totum.data.home.busy
 import com.dewijones92.totum.data.home.PhoneDecoder
 import com.dewijones92.totum.data.targets.Requester
 import com.dewijones92.totum.domain.HomeCopy
@@ -111,7 +112,7 @@ class HomeDownloads(
             var why = "tick"
             while (true) {
                 refresh(why)
-                val pause = if (known.value.values.any { it.state.busy() }) pacing.pollMs else pacing.idleMs
+                val pause = if (known.value.values.any { it.busy }) pacing.pollMs else pacing.idleMs
                 why = withTimeoutOrNull(pause) { wake.receive() } ?: "tick"
             }
         }
@@ -237,6 +238,5 @@ internal const val PERCENT = 100
 internal fun HomeJob.percent(): Int = totalBytes?.takeIf { it > 0 }?.let { (bytes * PERCENT / it).toInt() } ?: 0
 
 internal fun HomeJob.describe(): String =
-    "${item.title}=${state.name.lowercase()}${if (state.busy()) " ${percent()}%" else ""}"
-
-internal fun HomeJobState.busy(): Boolean = this == HomeJobState.WAITING || this == HomeJobState.DOWNLOADING
+    "${item.title}=${state.name.lowercase()}${if (busy) " ${percent()}%" else ""}" +
+        (retry?.let { " retry ${it.attempt} of ${it.of} at ${it.atEpochMs}" } ?: "")

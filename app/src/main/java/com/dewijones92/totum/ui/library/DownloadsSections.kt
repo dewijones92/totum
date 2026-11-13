@@ -18,7 +18,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
@@ -27,6 +26,7 @@ import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.downloads.DownloadsSection
 import com.dewijones92.totum.ui.common.MediaThumbnail
 import com.dewijones92.totum.ui.common.face
+import com.dewijones92.totum.ui.common.retryWait
 import com.dewijones92.totum.ui.common.rowCard
 
 class Sections(
@@ -182,7 +182,7 @@ internal fun LazyListScope.retryingSection(
                     R.string.downloads_retrying_row,
                     plan.attempt,
                     plan.of,
-                    waitText(inSeconds),
+                    retryWait(inSeconds),
                     entry.reason
                 ),
                 style = MaterialTheme.typography.bodySmall,
@@ -231,19 +231,10 @@ private fun SectionTitle(text: String) {
     )
 }
 
-@Composable
-private fun waitText(seconds: Long): String = if (seconds < SECONDS_A_MINUTE) {
-    pluralStringResource(R.plurals.downloads_wait_seconds, seconds.toInt(), seconds)
-} else {
-    val minutes = (seconds + SECONDS_A_MINUTE - 1) / SECONDS_A_MINUTE
-    pluralStringResource(R.plurals.downloads_wait_minutes, minutes.toInt(), minutes)
-}
-
 internal const val DOWNLOADS_SECTIONS_TAG = "downloads-sections"
 internal const val DOWNLOADS_RETRY_ALL_TAG = "downloads-retry-all"
 internal const val DOWNLOADS_CLEAR_FAILED_TAG = "downloads-clear-failed"
 private const val MS_PER_S = 1_000L
-private const val SECONDS_A_MINUTE = 60L
 
 @Composable
 internal fun DownloadCardHeader(item: MediaItem, trailing: @Composable RowScope.() -> Unit = {}) {

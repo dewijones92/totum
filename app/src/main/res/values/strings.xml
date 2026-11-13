@@ -798,6 +798,7 @@
     <string name="transfer_starting">%1$s · starting…</string>
     <string name="transfer_waiting">⏳ %1$s · waiting</string>
     <string name="transfer_failed">❌ %1$s · failed: %2$s</string>
+    <string name="transfer_retrying">⏳ %1$s · retrying %2$d of %3$d in %4$s: %5$s</string>
     <string name="status_online_only">☁️ Online only</string>
     <plurals name="filter_hint_count">
         <item quantity="one">Filter %1$d item</item>
@@ -1314,6 +1315,7 @@
     <string name="home_notice_ready">✅ On 🏠 Pi · %1$s</string>
     <string name="home_notice_refused">❌ Not sent to 🏠 Pi · %1$s · %2$s</string>
     <string name="ops_home_percent">⏳ %1$d%%</string>
+    <string name="ops_retrying">⏳ Retrying %1$d of %2$d in %3$s: %4$s</string>
     <plurals name="ops_home_done">
         <item quantity="one">✅ On 🏠 Pi · %2$s</item>
         <item quantity="other">✅ On 🏠 Pi · %2$s</item>
