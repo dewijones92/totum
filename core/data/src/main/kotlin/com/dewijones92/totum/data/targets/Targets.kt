@@ -139,7 +139,21 @@ public data class TargetQueueRequest(
 }
 
 @Serializable
-public enum class TargetAction { PLAY, PAUSE, NEXT, PREVIOUS, JUMP, SEEK, VOLUME, STOP, REMOVE, SOUND, REPEAT, WAKE, SLEEP }
+public enum class TargetAction {
+    PLAY,
+    PAUSE,
+    NEXT,
+    PREVIOUS,
+    JUMP,
+    SEEK,
+    VOLUME,
+    STOP,
+    REMOVE,
+    SOUND,
+    REPEAT,
+    WAKE,
+    SLEEP,
+}
 
 @Serializable
 public data class TargetControl(

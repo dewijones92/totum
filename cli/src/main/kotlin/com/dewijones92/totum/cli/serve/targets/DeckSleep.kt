@@ -23,6 +23,7 @@ internal class SleepPlayback(
     val live: Boolean,
 )
 
+@Suppress("TooManyFunctions", "LongParameterList")
 internal class DeckSleep(
     private val label: String,
     private val scope: CoroutineScope,
