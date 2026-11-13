@@ -66,6 +66,7 @@ import com.dewijones92.totum.pins.Pin
  * available for the row (what apps like YouTube use). Only non-null actions show.
  */
 @OptIn(ExperimentalMaterial3Api::class)
+@Suppress("CyclomaticComplexMethod")
 @Composable
 internal fun ActionSheet(
     title: String,

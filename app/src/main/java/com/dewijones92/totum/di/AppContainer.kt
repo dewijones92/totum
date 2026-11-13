@@ -85,7 +85,6 @@ import com.dewijones92.totum.data.source.SourceLocator
 import com.dewijones92.totum.data.sponsorblock.SkipSegmentSource
 import com.dewijones92.totum.data.sponsorblock.SponsorBlockSegmentSource
 import com.dewijones92.totum.data.torrent.Apibay
-import com.dewijones92.totum.data.torrent.sendingTheHomeToken
 import com.dewijones92.totum.data.torrent.HomeTorrentServer
 import com.dewijones92.totum.data.torrent.HttpHomeTorrentServer
 import com.dewijones92.totum.data.torrent.TorrentCategory
@@ -94,6 +93,7 @@ import com.dewijones92.totum.data.torrent.TorrentSidecarSubtitles
 import com.dewijones92.totum.data.torrent.Torrentio
 import com.dewijones92.totum.data.torrent.TorrentsSeen
 import com.dewijones92.totum.data.torrent.hasAudioOnlyFetch
+import com.dewijones92.totum.data.torrent.sendingTheHomeToken
 import com.dewijones92.totum.data.transcript.TranscriptLoader
 import com.dewijones92.totum.data.update.AppUpdateCheck
 import com.dewijones92.totum.data.update.GitHubLatestRelease

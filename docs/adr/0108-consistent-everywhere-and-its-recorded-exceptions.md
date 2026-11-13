@@ -2,7 +2,7 @@
 title: Consistent everywhere, with its exceptions recorded
 kind: adr
 status: accepted
-updated: 2026-11-07
+updated: 2026-11-13
 ---
 
 # 108. Consistent everywhere, with its exceptions recorded
@@ -146,3 +146,26 @@ through the refused-tap message, for every source ([ADR 157](0157-a-player-error
 ## Consequences
 
 - New work is reviewed against this list; an exception added later is recorded here.
+
+Lists, 2026-11-13 (Dewi: *"make it more consistent … they should all be fuzzy find lists with appropriate sorts"*):
+every list now has the shared fuzzy filter and a sort that makes sense for what it holds. The group page, an artist's
+songs, a Jellyfin page, an artist's releases, an album's tracks, the Downloads sections (In progress, Failed, On the Pi,
+beside On the phone, all through one `DownloadsListHeader`), the clean-up review, the episode picker (All and None act on
+what is shown), the Not for me list, the Inbox sources sheet and the player's Up next carry the filter; the group edit
+sheet, the transcript search and the Up next filter use `FuzzyMatch`, not substring matching. Lists of items sort by
+`MediaSort`; lists of folders, releases and settings use `NameSort` (as listed, title, newest, oldest by whatever date
+they have).
+
+Recorded exceptions from that pass:
+
+- **A Jellyfin download is the whole file, with no 🎧 Sound or 🎬 Video choice.** The Pi serves Jellyfin's original file
+  (`static=true`) and there is no separate audio rendition to offer, so the sheet has nothing to ask; the download label
+  says "Download".
+- **Up next has a filter and no sort.** Its order is the play order; the Queue tab's sort rewrites that order (with Undo),
+  and a view-only sort in the player would show an order the player will not follow.
+- **The back and forward list is in play order, newest first, with a filter and no sort**, for the same reason: it is a
+  history, and its order is what back and forward walk.
+- **The Pi target's remote queue is not covered here** (the targets builder owns it).
+- **An album's tracks sort like any list, and keep their album number** (`3.`) whatever the order shown.
+- **The group edit sheet only offers channels you are subscribed to on the account.** A channel you do not follow joins a
+  group from its own page or from "Add channel to group" in any item's menu.

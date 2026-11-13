@@ -2,7 +2,7 @@
 title: Jellyfin is browsed and streamed through the Pi, with the key kept there
 kind: adr
 status: accepted
-updated: 2026-11-07
+updated: 2026-11-13
 ---
 
 # 154. Jellyfin is browsed and streamed through the Pi, with the key kept there
@@ -93,3 +93,20 @@ Jellyfin special case in the screen:
   a series opened over the top level keeps the top level's place, and going back does not read the listing again.
 - A decode failure of the original file now says why and offers Listen: [ADR 157](0157-a-player-error-with-no-recovery-tells-the-user-and-offers-listen.md).
 - The Pi route needs a deploy of `totum serve`; the phone without it shows the placeholder (the route answers 404).
+
+## Amended 2026-11-13: Explore, Videos filter, the picture, and the lists
+
+- **Explore.** An episode explores the next episodes of its series: `JellyfinApi.episodesAfter` reads the series from
+  the existing browse route (the top level, paged, for the series by name; then its seasons in order; then each season
+  until one holds an episode later than the one that ended) and Explore skips what is already played. It needs no new
+  Pi route. A **film** has no series, so Explore says "📭 Nothing to explore after a film: your queue carries on"
+  once, through the queue's notice toast, and the queue carries on. The same notice, worded "after this", now says so
+  for any other item Explore finds nothing for (it used to be silent).
+- **The Videos filter** asks `MediaItem.picture` (the rule Listen and Watch use), and a Jellyfin item always has a
+  picture, so a Jellyfin film and a video torrent are "📺 Videos" like a YouTube video.
+- **A downloaded film plays as a video file.** `routeNow` made every podcast-handle copy an `AudioFile`; a full copy of
+  something with a picture is now a `VideoFile` (`audioOnly` was already false, so the picture played; the route and its
+  log line now say what it is). Listen mode and audio-only copies still give `AudioFile`.
+- **A Jellyfin download is the whole file**, with no sound-or-video choice: [ADR 108](0108-consistent-everywhere-and-its-recorded-exceptions.md).
+- **The browse page has the shared sort and fuzzy filter** (As listed, Title, Newest, Oldest by year; the field filters
+  title, series and year).

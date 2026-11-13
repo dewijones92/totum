@@ -37,12 +37,12 @@ import com.dewijones92.totum.ui.cast.ScreenButton
 import com.dewijones92.totum.ui.common.LiveBadge
 import com.dewijones92.totum.ui.common.LocalNow
 import com.dewijones92.totum.ui.common.PillarBadge
-import com.dewijones92.totum.ui.common.wrappingAs
 import com.dewijones92.totum.ui.common.WHY_PLAYING_TITLE_TAG
 import com.dewijones92.totum.ui.common.WhyIsThisPlayingDialog
 import com.dewijones92.totum.ui.common.mediaDateText
 import com.dewijones92.totum.ui.common.mediaFacts
 import com.dewijones92.totum.ui.common.shownAs
+import com.dewijones92.totum.ui.common.wrappingAs
 import kotlin.time.Duration
 
 /**

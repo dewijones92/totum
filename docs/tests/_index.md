@@ -1046,3 +1046,9 @@ Deliberately not covered, with the reason: `MediaRouterTvConnector` (real `Media
 `Plan` (a private class inside the service), `TapCircles`/`SystemTaps`/`OrphanedRecordings` (device or `adb` grants),
 `SnoozedKeys.keepOnly` (would forget the device's real snoozed notifications), and the real `MatroskaExtractor` on a
 WebM (its `SparseArray` needs a device).
+
+2026-11-13 additions: JVM `JellyfinNextTest`, `JellyfinIdsTest`, `ItemFiltersTest` (Videos means a picture), `PlayRouteTest`
+(a downloaded film is a video file), `DownloadsUseTheBackgroundLaneTest`, `GroupEditMatchesTest`, `TranscriptMatchesTest`,
+`NameSortTest`, `PlayTrailTest` (`goTo`), `SoftBreaksTest` (every surface), `ExploreModeTest` (says when nothing follows);
+instrumented `UpNextMenuOffersPlayNowTest`, `LiveShowsLiveNotALengthTest`, `AddToGroupFromTheItemMenuTest`, `TrailListTest`,
+plus the Pi downloads section and the group page in `ListFilterTest`.

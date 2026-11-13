@@ -60,7 +60,7 @@ class FrameRateFromSampleTimesTest {
     }
 
     @Test
-    fun `sixty is not read as fifty nine point nine four in whole milliseconds, nor twenty four as twenty three point nine seven six`() {
+    fun `sixty stays sixty and twenty four stays twenty four in whole milliseconds`() {
         assertEquals(60f, frameRateFrom(matroskaTimes(60.0))!!, TIGHT)
         assertEquals(24f, frameRateFrom(matroskaTimes(24.0))!!, TIGHT)
         assertEquals(60_000f / 1001, frameRateFrom(matroskaTimes(60_000.0 / 1001))!!, TIGHT)

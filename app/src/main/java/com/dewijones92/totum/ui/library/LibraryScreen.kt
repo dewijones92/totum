@@ -67,11 +67,9 @@ import com.dewijones92.totum.theme.TotumTheme
 import com.dewijones92.totum.ui.account.AccountScreen
 import com.dewijones92.totum.ui.common.BackHeader
 import com.dewijones92.totum.ui.common.FactEmoji
-import com.dewijones92.totum.ui.common.FilterToggle
 import com.dewijones92.totum.ui.common.ListThenDetail
 import com.dewijones92.totum.ui.common.LocalPlayStates
 import com.dewijones92.totum.ui.common.MediaItemRow
-import com.dewijones92.totum.ui.common.SectionHeaderWithSortOptions
 import com.dewijones92.totum.ui.common.SelectableMediaList
 import com.dewijones92.totum.ui.common.TrackPlace
 import com.dewijones92.totum.ui.common.filter
@@ -361,8 +359,9 @@ internal fun DownloadsContent(
     sections: Sections = Sections(),
     home: HomeSection = HomeSection(),
 ) {
-    val retrying = failed.count { it.retry != null }
-    val stopped = failed.size - retrying
+    val (retryingAll, stoppedAll) = failed.partition { it.retry != null }
+    val retrying = retryingAll.size
+    val stopped = stoppedAll.size
     var chosen by rememberSaveable(sections.current) { mutableStateOf(sections.current?.name) }
     val current = chosen?.let { name -> DownloadsSection.entries.firstOrNull { it.name == name } }
         ?: defaultSection(inProgress.size + retrying, stopped, downloaded.size)
@@ -370,6 +369,7 @@ internal fun DownloadsContent(
     val listFilter = rememberListFilter("downloads")
     val itemFilters = rememberItemFilters("downloads")
     val shown = listFilter.filter(downloaded.filteredByItems(itemFilters.value) { it.item }, { it.item.searchableText })
+    val lists = activeLists(inProgress, retryingAll, stoppedAll, home)
     Column(modifier = modifier.fillMaxSize()) {
         SelectableMediaList("downloads", downloaded, shown, { it.item }, Modifier.weight(1f)) {
             LazyColumn(modifier = Modifier.fillMaxSize()) {
@@ -381,27 +381,20 @@ internal fun DownloadsContent(
                         sections.onSection(it)
                     }
                 }
-                activeBody(
-                    current,
-                    inProgress,
-                    failed,
-                    sections,
-                    Handlers(onCancel, onCancelAll, onRetry, onDismiss),
-                    home
-                )
+                activeBody(current, lists, sections, Handlers(onCancel, onCancelAll, onRetry, onDismiss))
                 if (current != DownloadsSection.ON_THE_PHONE) {
                     Unit
                 } else if (downloaded.isEmpty()) {
                     item { DownloadsEmpty() }
                 } else {
                     item {
-                        SectionHeaderWithSortOptions(
+                        DownloadsListHeader(
                             title = stringResource(R.string.downloads_on_the_phone),
-                            options = DownloadSort.ALL,
+                            filter = listFilter,
+                            total = downloaded.size,
+                            sorts = DownloadSort.ALL,
                             current = sort,
-                            label = { it.labelRes },
                             onSelect = onSetSort,
-                            extraActions = { FilterToggle(listFilter, downloaded.size) },
                             filters = itemFilters.value,
                             onFilters = { itemFilters.value = it },
                         )

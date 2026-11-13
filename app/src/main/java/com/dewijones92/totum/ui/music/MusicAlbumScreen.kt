@@ -12,7 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
@@ -42,6 +42,7 @@ import com.dewijones92.totum.ui.common.BackHeader
 import com.dewijones92.totum.ui.common.FactEmoji
 import com.dewijones92.totum.ui.common.HoldToConfirmAsk
 import com.dewijones92.totum.ui.common.HoldToConfirmTexts
+import com.dewijones92.totum.ui.common.ListToolsActions
 import com.dewijones92.totum.ui.common.LocalItemActions
 import com.dewijones92.totum.ui.common.LocalOpenMusicPage
 import com.dewijones92.totum.ui.common.MediaItemRow
@@ -49,8 +50,11 @@ import com.dewijones92.totum.ui.common.MediaThumbnail
 import com.dewijones92.totum.ui.common.MusicPage
 import com.dewijones92.totum.ui.common.ShuffleAsk
 import com.dewijones92.totum.ui.common.TrackLikeHeart
+import com.dewijones92.totum.ui.common.applyTo
 import com.dewijones92.totum.ui.common.artistsPage
+import com.dewijones92.totum.ui.common.listToolsField
 import com.dewijones92.totum.ui.common.rememberHoldToConfirmAsk
+import com.dewijones92.totum.ui.common.rememberListTools
 import com.dewijones92.totum.ui.common.rememberShuffleAsk
 
 @Composable
@@ -61,10 +65,15 @@ fun MusicAlbumScreen(container: AppContainer, page: MusicPage.Album, onBack: () 
     val offline by viewModel.offline.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val actions = LocalItemActions.current
+    val tools = rememberListTools("album tracks ${page.title}")
+    val everyTrack = (state as? MusicAlbumViewModel.State.Loaded)?.tracks.orEmpty()
+    val tracks = tools.applyTo(everyTrack) { it }
     LazyColumn(Modifier.fillMaxSize()) {
         item {
             val kind = (state as? MusicAlbumViewModel.State.Loaded)?.album?.kind
-            BackHeader(title = kind?.let { stringResource(it.labelRes) } ?: page.title, onBack = onBack)
+            BackHeader(title = kind?.let { stringResource(it.labelRes) } ?: page.title, onBack = onBack) {
+                ListToolsActions(tools, everyTrack.size)
+            }
         }
         when (val current = state) {
             MusicAlbumViewModel.State.Loading -> item { MusicLoading() }
@@ -83,7 +92,9 @@ fun MusicAlbumScreen(container: AppContainer, page: MusicPage.Album, onBack: () 
                 }
                 item { OfflineLine(offline) }
                 item { AboutText(current.album.description) }
-                itemsIndexed(current.tracks, key = { _, item -> item.id.value }) { index, item ->
+                listToolsField(tools, tracks.size, everyTrack.size)
+                items(tracks, key = { item -> item.id.value }) { item ->
+                    val index = current.tracks.indexOf(item)
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         MediaItemRow(
                             item = item,

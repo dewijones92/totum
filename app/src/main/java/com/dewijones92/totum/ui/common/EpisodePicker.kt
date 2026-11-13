@@ -2,6 +2,7 @@ package com.dewijones92.totum.ui.common
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -30,6 +31,7 @@ import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.PlayState
 import com.dewijones92.totum.domain.QualityLabel
+import com.dewijones92.totum.domain.searchableText
 import com.dewijones92.totum.domain.titleOf
 import com.dewijones92.totum.downloads.EpisodeDownloads
 import com.dewijones92.totum.downloads.startsTicked
@@ -72,24 +74,41 @@ internal fun EpisodePicker(
                 Text(stringResource(R.string.episodes_on_phone, onPhone, current.items.size))
                 if (suggestedPlace != null && episodes.homeAvailable) PlaceChips(place) { place = it }
                 if (current.offersAChoice) ChoiceChips(choice, qualities) { choice = it }
+                val shape = rememberListShape("episode picker")
+                val ordered = current.items.shapedBy(shape) { it.item }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(onClick = { ticked = current.items.mapTo(mutableSetOf()) { it.item.id } }) {
-                        Text(stringResource(R.string.episodes_all))
-                    }
-                    TextButton(onClick = { ticked = emptySet() }) { Text(stringResource(R.string.episodes_none)) }
+                    Spacer(Modifier.weight(1f))
+                    ShapeControl(shape)
                 }
-                LazyColumn(Modifier.heightIn(max = LIST_MAX_HEIGHT)) {
-                    items(current.items, key = { it.item.id.value }) { item ->
-                        val id = item.item.id
-                        val shown = shield.titleOf(item.item)
-                        val played by remember(plays, id) { derivedStateOf { plays.value[id] } }
-                        val note = listOfNotNull(stateNote(known[id]), playNote(played))
-                            .joinToString(" · ").ifEmpty { null }
-                        LabelledCheckbox(
-                            id in ticked,
-                            if (note == null) shown else "$shown · $note"
-                        ) { on ->
-                            ticked = if (on) ticked + id else ticked - id
+                FilterableList(
+                    "episode picker",
+                    ordered,
+                    { it.item.searchableText },
+                    inset = 0.dp,
+                    fillsScreen = false,
+                ) { shown, _ ->
+                    val shownIds = shown.mapTo(mutableSetOf()) { it.item.id }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        TextButton(onClick = { ticked = ticked + shownIds }) {
+                            Text(stringResource(R.string.episodes_all))
+                        }
+                        TextButton(onClick = { ticked = ticked - shownIds }) {
+                            Text(stringResource(R.string.episodes_none))
+                        }
+                    }
+                    LazyColumn(Modifier.heightIn(max = LIST_MAX_HEIGHT)) {
+                        items(shown, key = { it.item.id.value }) { item ->
+                            val id = item.item.id
+                            val title = shield.titleOf(item.item)
+                            val played by remember(plays, id) { derivedStateOf { plays.value[id] } }
+                            val note = listOfNotNull(stateNote(known[id]), playNote(played))
+                                .joinToString(" · ").ifEmpty { null }
+                            LabelledCheckbox(
+                                id in ticked,
+                                if (note == null) title else "$title · $note"
+                            ) { on ->
+                                ticked = if (on) ticked + id else ticked - id
+                            }
                         }
                     }
                 }

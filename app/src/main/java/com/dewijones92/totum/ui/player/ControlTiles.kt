@@ -38,6 +38,7 @@ import com.dewijones92.totum.ui.common.CheckedOptionsMenu
 internal val LocalCompactTiles = staticCompositionLocalOf { false }
 
 @OptIn(ExperimentalFoundationApi::class)
+@Suppress("CyclomaticComplexMethod")
 @Composable
 internal fun ControlTile(
     icon: ImageVector,

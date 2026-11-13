@@ -42,11 +42,13 @@ import com.dewijones92.totum.domain.SourceGroup
 import com.dewijones92.totum.domain.asPlayable
 import com.dewijones92.totum.operations.showing
 import com.dewijones92.totum.ui.common.BackHeader
+import com.dewijones92.totum.ui.common.ListTools
+import com.dewijones92.totum.ui.common.ListToolsActions
 import com.dewijones92.totum.ui.common.MediaItemRow
-import com.dewijones92.totum.ui.common.ShapeControl
-import com.dewijones92.totum.ui.common.rememberListShape
+import com.dewijones92.totum.ui.common.applyTo
+import com.dewijones92.totum.ui.common.listToolsField
+import com.dewijones92.totum.ui.common.rememberListTools
 import com.dewijones92.totum.ui.common.rowFacts
-import com.dewijones92.totum.ui.common.shapedBy
 import java.time.Instant
 
 @Composable
@@ -79,11 +81,11 @@ internal fun GroupScreen(container: AppContainer, groupId: String, onBack: () ->
         )
     }
     RefreshGroup(container, group, loads) { refreshing = it }
-    val shape = rememberListShape("group ${group.id.value}")
+    val tools = rememberListTools("group ${group.id.value}")
     Surface(modifier = modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
             BackHeader(group.name, onBack) {
-                ShapeControl(shape)
+                ListToolsActions(tools, items?.size ?: 0)
                 GroupBell(container, group)
                 IconButton(onClick = { loads++ }, modifier = Modifier.testTag("group-refresh")) {
                     Icon(Icons.Outlined.Refresh, contentDescription = stringResource(R.string.group_refresh))
@@ -99,12 +101,7 @@ internal fun GroupScreen(container: AppContainer, groupId: String, onBack: () ->
                     stringResource(R.string.group_loading, group.name),
                     modifier = Modifier.padding(16.dp),
                 )
-                else -> GroupList(
-                    container,
-                    shown.shapedBy(shape) { it },
-                    sinceMs?.let(Instant::ofEpochMilli),
-                    refreshing,
-                )
+                else -> GroupList(container, tools, shown, sinceMs?.let(Instant::ofEpochMilli), refreshing)
             }
         }
     }
@@ -145,11 +142,19 @@ private fun NoMembers(onEdit: () -> Unit) {
 }
 
 @Composable
-private fun GroupList(container: AppContainer, items: List<MediaItem>, since: Instant?, refreshing: Boolean) {
+private fun GroupList(
+    container: AppContainer,
+    tools: ListTools,
+    all: List<MediaItem>,
+    since: Instant?,
+    refreshing: Boolean,
+) {
+    val items = tools.applyTo(all) { it }
     val fresh = since?.let { s -> items.filter { it.publishedAt?.isAfter(s) == true } }.orEmpty()
     val older = items - fresh.toSet()
     LazyColumn(Modifier.fillMaxSize().testTag("group-list")) {
         if (refreshing) item { Divider(stringResource(R.string.group_refreshing), "group-refreshing-divider") }
+        listToolsField(tools, items.size, all.size)
         if (fresh.isNotEmpty()) {
             item { Divider(stringResource(R.string.group_new_since, fresh.size), "group-new-divider") }
             items(fresh, key = { "new:" + it.id.value }) { GroupRow(container, it, isNew = true) }

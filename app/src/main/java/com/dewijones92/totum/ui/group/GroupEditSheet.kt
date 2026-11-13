@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
@@ -97,25 +98,7 @@ internal fun GroupEditSheet(container: AppContainer, group: SourceGroup, onDismi
                 }
                 item { Text(stringResource(R.string.group_channels), style = MaterialTheme.typography.titleMedium) }
                 items(group.members, key = { "member:${it.id.value}" }) { MemberRow(it, member = true, toggle) }
-                item {
-                    OutlinedTextField(
-                        value = query,
-                        onValueChange = { query = it },
-                        singleLine = true,
-                        label = { Text(stringResource(R.string.group_find_channel)) },
-                        modifier = Modifier.fillMaxWidth().testTag("group-find-channel"),
-                    )
-                }
-                if (query.isNotBlank()) {
-                    item {
-                        Text(
-                            text = pluralStringResource(R.plurals.group_find_count, found.size, found.size, query.trim()),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-                items(found, key = { "match:${it.id.value}" }) { MemberRow(it, member = false, toggle) }
+                findChannel(query, { query = it }, found, toggle)
                 item {
                     OutlinedButton(
                         onClick = { confirmingDelete = true },
@@ -136,6 +119,33 @@ internal fun GroupEditSheet(container: AppContainer, group: SourceGroup, onDismi
             onDeleted()
         }
     }
+}
+
+private fun LazyListScope.findChannel(
+    query: String,
+    onQuery: (String) -> Unit,
+    found: List<MediaSource>,
+    toggle: (MediaSource) -> Unit,
+) {
+    item {
+        OutlinedTextField(
+            value = query,
+            onValueChange = onQuery,
+            singleLine = true,
+            label = { Text(stringResource(R.string.group_find_channel)) },
+            modifier = Modifier.fillMaxWidth().testTag("group-find-channel"),
+        )
+    }
+    if (query.isNotBlank()) {
+        item {
+            Text(
+                text = pluralStringResource(R.plurals.group_find_count, found.size, found.size, query.trim()),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+    items(found, key = { "match:${it.id.value}" }) { MemberRow(it, member = false, toggle) }
 }
 
 @Composable

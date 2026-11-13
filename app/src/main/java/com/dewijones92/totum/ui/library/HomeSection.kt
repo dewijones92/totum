@@ -44,7 +44,6 @@ internal fun LazyListScope.homeBody(home: HomeSection) {
     home.storage?.let { storage ->
         item(key = "home-storage") { StorageSummary(storage, R.string.home_storage, R.string.home_storage_with_free) }
     }
-    if (home.jobs.isEmpty()) sectionEmpty { stringResource(R.string.downloads_none_at_home) }
     items(home.jobs, key = { "home-${it.id}" }) { job ->
         val id = MediaItemId(job.id)
         val playable = job.item.toPlayable()

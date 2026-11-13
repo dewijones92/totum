@@ -1,52 +1,54 @@
 package com.dewijones92.totum.ui.common
 
 import com.dewijones92.totum.common.HomeServerAuth
-import okhttp3.Interceptor
-import okhttp3.Protocol
+import mockwebserver3.MockResponse
+import mockwebserver3.MockWebServer
 import okhttp3.Request
-import okhttp3.Response
-import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Before
 import org.junit.Test
 
 class HomeServerImagesTest {
 
-    private val seen = mutableListOf<Request>()
+    private val server = MockWebServer()
+    private val client = homeServerImageClient()
 
-    private val client = homeServerImageClient().newBuilder()
-        .addInterceptor(
-            Interceptor { chain ->
-                seen += chain.request()
-                Response.Builder().request(chain.request()).protocol(Protocol.HTTP_1_1).code(200).message("ok")
-                    .body("".toResponseBody()).build()
-            },
-        )
-        .build()
+    @Before
+    fun start() {
+        server.start()
+    }
 
     @After
     fun forget() {
         HomeServerAuth.use(host = { null }, token = { "" })
+        server.close()
+    }
+
+    private fun fetch(host: String) {
+        server.enqueue(MockResponse.Builder().code(200).build())
+        val url = server.url("/jellyfin/image/abc").newBuilder().host(host).build()
+        client.newCall(Request.Builder().url(url).build()).execute().close()
     }
 
     @Test
     fun `a picture from the home server carries this device's token, a picture from anywhere else does not`() {
-        HomeServerAuth.use(host = { "totum.example" }, token = { "device-token" })
+        HomeServerAuth.use(host = { "localhost" }, token = { "device-token" })
 
-        client.newCall(Request.Builder().url("https://totum.example/jellyfin/image/abc").build()).execute().close()
-        client.newCall(Request.Builder().url("https://i.ytimg.com/vi/x/hq.jpg").build()).execute().close()
+        fetch("localhost")
+        fetch("127.0.0.1")
 
-        assertEquals("device-token", seen[0].header(HomeServerAuth.HEADER))
-        assertNull(seen[1].header(HomeServerAuth.HEADER))
+        assertEquals("device-token", server.takeRequest().headers[HomeServerAuth.HEADER])
+        assertNull(server.takeRequest().headers[HomeServerAuth.HEADER])
     }
 
     @Test
     fun `signed out, nothing is sent even to the home server`() {
-        HomeServerAuth.use(host = { "totum.example" }, token = { "" })
+        HomeServerAuth.use(host = { "localhost" }, token = { "" })
 
-        client.newCall(Request.Builder().url("https://totum.example/jellyfin/image/abc").build()).execute().close()
+        fetch("localhost")
 
-        assertNull(seen.single().header(HomeServerAuth.HEADER))
+        assertNull(server.takeRequest().headers[HomeServerAuth.HEADER])
     }
 }

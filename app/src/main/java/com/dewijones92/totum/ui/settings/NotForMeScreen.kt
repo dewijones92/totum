@@ -26,6 +26,11 @@ import com.dewijones92.totum.data.notforme.NotForMe
 import com.dewijones92.totum.data.notforme.SuppressedItem
 import com.dewijones92.totum.ui.common.BackHeader
 import com.dewijones92.totum.ui.common.LocalSnackbarOffers
+import com.dewijones92.totum.ui.common.NameSort
+import com.dewijones92.totum.ui.common.NamedListToolsActions
+import com.dewijones92.totum.ui.common.applyTo
+import com.dewijones92.totum.ui.common.namedListToolsField
+import com.dewijones92.totum.ui.common.rememberNamedListTools
 import com.dewijones92.totum.ui.common.rememberRemoveWithUndo
 
 @Composable
@@ -41,9 +46,13 @@ fun NotForMeScreen(notForMe: NotForMe, onBack: () -> Unit, modifier: Modifier = 
         remove = { id: String -> items.firstOrNull { it.id == id }?.also { notForMe.allow(id, "the settings list") } },
         restore = { notForMe.mergeMissing(listOf(it)) },
     )
+    val tools = rememberNamedListTools("not for me")
+    val shown = tools.applyTo(items, title = { it.title }, date = { it.atMs }, fields = { listOf(it.title, it.by) })
     Surface(modifier = modifier.fillMaxSize()) {
         Column {
-            BackHeader(stringResource(R.string.not_for_me_settings_row), onBack)
+            BackHeader(stringResource(R.string.not_for_me_settings_row), onBack) {
+                NamedListToolsActions(tools, items.size, NOT_FOR_ME_SORTS)
+            }
             Text(
                 stringResource(R.string.not_for_me_intro),
                 style = MaterialTheme.typography.bodyMedium,
@@ -57,7 +66,8 @@ fun NotForMeScreen(notForMe: NotForMe, onBack: () -> Unit, modifier: Modifier = 
                 )
             } else {
                 LazyColumn(Modifier.fillMaxSize()) {
-                    items(items, key = { it.id }) { gone -> NotForMeRow(gone) { allow(gone.id) } }
+                    namedListToolsField(tools, shown.size, items.size)
+                    items(shown, key = { it.id }) { gone -> NotForMeRow(gone) { allow(gone.id) } }
                 }
             }
         }
@@ -78,3 +88,5 @@ private fun NotForMeRow(gone: SuppressedItem, onAllow: () -> Unit) {
         TextButton(onClick = onAllow) { Text(stringResource(R.string.not_for_me_allow)) }
     }
 }
+
+private val NOT_FOR_ME_SORTS = listOf(NameSort.AS_LISTED, NameSort.NEWEST, NameSort.OLDEST, NameSort.TITLE)

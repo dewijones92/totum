@@ -3,7 +3,7 @@ title: Fuzzy filter on every list
 kind: feature
 status: shipped
 area: ui
-updated: 2026-09-25
+updated: 2026-11-13
 ---
 
 # Fuzzy filter on every list
@@ -128,3 +128,12 @@ page** (red without the gate), **a filtered queue removes and moves the right en
 positions). Verified by hand on `totum-api35`: "tenis" → 59 of 1,601 subscriptions, "brigton" → 2 of 274
 episodes, "ai" → 8 of 66 (20, mostly noise, before the short-token rule), queue move-to-top checked in
 `queue_items`.
+
+## 2026-11-13: the rest of the lists
+
+The group page, an artist's songs and releases, an album's tracks, the Jellyfin page, the Downloads sections (all four),
+the clean-up review, the episode picker, the Not for me list, the Inbox sources sheet and the player's Up next now carry
+the same field. One helper per kind of list (`ListTools` for items, `NamedListTools` for folders, releases and settings,
+`DownloadsTools` for downloads) so a screen does not rebuild the filter and sort itself. The group edit sheet and the
+transcript search match with `FuzzyMatch`. See [ADR 108](../adr/0108-consistent-everywhere-and-its-recorded-exceptions.md)
+for the lists that keep their own order.

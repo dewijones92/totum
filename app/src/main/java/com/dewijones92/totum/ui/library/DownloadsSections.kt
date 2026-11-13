@@ -64,18 +64,17 @@ internal fun LazyListScope.inProgressBody(
     runningSection(running, onCancel, onCancelAll)
     waitingSection(waiting, onCancel)
     retryingSection(retrying, System.currentTimeMillis()) { onRetry(it.id) }
-    if (inProgress.isEmpty() && retrying.isEmpty()) sectionEmpty { stringResource(R.string.downloads_none_running) }
 }
 
 internal fun LazyListScope.failedBody(
     stopped: List<LibraryViewModel.Failed>,
+    total: Int,
     sections: Sections,
     onRetry: (MediaItemId) -> Unit,
     onDismiss: (MediaItemId) -> Unit,
 ) {
-    failedActions(stopped.size, sections.onRetryAll, sections.onClearFailed)
+    failedActions(total, sections.onRetryAll, sections.onClearFailed)
     failedSection(stopped, onRetry, onDismiss)
-    if (stopped.isEmpty()) sectionEmpty { stringResource(R.string.downloads_none_failed) }
 }
 
 class Handlers(
@@ -85,21 +84,40 @@ class Handlers(
     val onDismiss: (MediaItemId) -> Unit,
 )
 
+@Suppress("LongParameterList")
+internal class ActiveLists(
+    val running: List<LibraryViewModel.InProgress>,
+    val retrying: List<LibraryViewModel.Failed>,
+    val stopped: List<LibraryViewModel.Failed>,
+    val home: HomeSection,
+    val progress: SectionView,
+    val failed: SectionView,
+    val atHome: SectionView,
+)
+
 internal fun LazyListScope.activeBody(
     current: DownloadsSection,
-    inProgress: List<LibraryViewModel.InProgress>,
-    failed: List<LibraryViewModel.Failed>,
+    lists: ActiveLists,
     sections: Sections,
     handlers: Handlers,
-    home: HomeSection = HomeSection(),
 ) {
-    val (retrying, stopped) = failed.partition { it.retry != null }
     when (current) {
-        DownloadsSection.IN_PROGRESS ->
-            inProgressBody(inProgress, retrying, handlers.onCancel, handlers.onCancelAll, handlers.onRetry)
-        DownloadsSection.FAILED -> failedBody(stopped, sections, handlers.onRetry, handlers.onDismiss)
+        DownloadsSection.IN_PROGRESS -> {
+            sectionTools(lists.progress)
+            inProgressBody(lists.running, lists.retrying, handlers.onCancel, handlers.onCancelAll, handlers.onRetry)
+            if (lists.progress.total == 0) sectionEmpty { stringResource(R.string.downloads_none_running) }
+        }
+        DownloadsSection.FAILED -> {
+            sectionTools(lists.failed)
+            failedBody(lists.stopped, lists.failed.total, sections, handlers.onRetry, handlers.onDismiss)
+            if (lists.failed.total == 0) sectionEmpty { stringResource(R.string.downloads_none_failed) }
+        }
         DownloadsSection.ON_THE_PHONE -> Unit
-        DownloadsSection.AT_HOME -> homeBody(home)
+        DownloadsSection.AT_HOME -> {
+            sectionTools(lists.atHome)
+            homeBody(lists.home)
+            if (lists.atHome.total == 0) sectionEmpty { stringResource(R.string.downloads_none_at_home) }
+        }
     }
 }
 

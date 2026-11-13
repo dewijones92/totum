@@ -49,6 +49,7 @@ import com.dewijones92.totum.data.transcript.TranscriptAvailability
 import com.dewijones92.totum.data.transcript.TranscriptLoader
 import com.dewijones92.totum.data.transcript.TranscriptResult
 import com.dewijones92.totum.data.transcript.indexAt
+import com.dewijones92.totum.domain.FuzzyMatch
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.ui.common.KeepWhenSettled
@@ -187,17 +188,11 @@ private fun TranscriptLines(transcript: TranscriptResult.Loaded, positionMs: Lon
     }
 }
 
-private fun matchesOf(cues: List<Cue>, query: String): List<Int> =
-    if (query.isBlank()) {
-        emptyList()
-    } else {
-        cues.indices.filter {
-            cues[it].text.contains(
-                query.trim(),
-                ignoreCase = true
-            )
-        }
-    }
+internal fun matchesOf(cues: List<Cue>, query: String): List<Int> {
+    val parsed = FuzzyMatch.query(query)
+    if (!parsed.hasTerms) return emptyList()
+    return cues.indices.filter { FuzzyMatch.matches(parsed, FuzzyMatch.text(listOf(cues[it].text))) }
+}
 
 @Composable
 private fun KeepInView(list: LazyListState, current: Int?, matched: Int?) {

@@ -82,9 +82,9 @@ fun <T> List<T>.shapedBy(shape: ListShape, item: (T) -> MediaItem): List<T> {
 }
 
 @Composable
-fun ShapeControl(shape: ListShape, addedKnown: Boolean = false) {
+fun ShapeControl(shape: ListShape, addedKnown: Boolean = false, sorts: List<MediaSort>? = null) {
     SortControl(
-        options = MediaSort.offered(addedKnown),
+        options = sorts ?: MediaSort.offered(addedKnown),
         current = shape.sort.value,
         label = { it.labelRes },
         onSelect = { shape.sort.value = it },

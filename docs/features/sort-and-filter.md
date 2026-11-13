@@ -3,7 +3,7 @@ title: Sort and filter
 kind: feature
 area: ui
 status: shipped
-updated: 2026-11-06
+updated: 2026-11-13
 ---
 
 # Sort and filter
@@ -40,3 +40,9 @@ is separate and combines with these.
 
 `sort` lines: the order chosen and the one it replaced, the filters set. `queue` lines: which group was sorted by what
 with the queue's size and playing item, "sort undone", or "kept: its undo was not taken".
+
+## 2026-11-13: more lists
+
+Group page, an artist's songs, an album's tracks, the episode picker: `MediaSort` and the filters. Downloads In progress,
+Failed and On the Pi: the downloads orders (Failed: item orders only). Jellyfin, an artist's releases, the Not for me list
+and the Inbox sources: `NameSort` (as listed, title, newest, oldest). Up next and the back and forward list: filter only.

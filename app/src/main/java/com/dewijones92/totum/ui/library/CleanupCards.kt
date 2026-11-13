@@ -38,7 +38,10 @@ import com.dewijones92.totum.domain.CleanupSuggestion
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.formatBytes
 import com.dewijones92.totum.domain.titleOf
+import com.dewijones92.totum.ui.common.FilterToggle
 import com.dewijones92.totum.ui.common.LocalItemShield
+import com.dewijones92.totum.ui.common.SortControl
+import com.dewijones92.totum.ui.common.filterField
 
 const val CLEANUP_CARD_TAG = "cleanup-card"
 const val CLEANUP_DELETE_TAG = "cleanup-delete"
@@ -117,10 +120,21 @@ fun CleanupReview(
         onDismissRequest = onDismiss,
         title = { Text(groupLabel(suggestion, rules)) },
         text = {
+            val tools = rememberDownloadsTools("cleanup review ${suggestion.group}")
+            val shown = tools.applyTo(listed, { it.item }, { it.sizeBytes })
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(stringResource(R.string.cleanup_review_hint), style = MaterialTheme.typography.bodySmall)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        stringResource(R.string.cleanup_review_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.weight(1f),
+                    )
+                    FilterToggle(tools.filter, listed.size)
+                    SortControl(tools.sorts, tools.current, { it.labelRes }, tools::select)
+                }
                 LazyColumn(modifier = Modifier.heightIn(max = 420.dp)) {
-                    items(listed, key = { it.item.id.value }) { entry ->
+                    filterField(tools.filter, shown.size, listed.size, hosted = true)
+                    items(shown, key = { it.item.id.value }) { entry ->
                         val id = entry.item.id
                         val toggle = { ticked = if (id in ticked) ticked - id else ticked + id }
                         Row(

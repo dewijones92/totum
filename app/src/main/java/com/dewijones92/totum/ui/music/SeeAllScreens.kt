@@ -21,15 +21,20 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.ui.common.BackHeader
+import com.dewijones92.totum.ui.common.ListToolsActions
 import com.dewijones92.totum.ui.common.LocalItemActions
 import com.dewijones92.totum.ui.common.LocalOpenMusicPage
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.MusicPage
-import com.dewijones92.totum.ui.common.ShapeControl
-import com.dewijones92.totum.ui.common.rememberListShape
+import com.dewijones92.totum.ui.common.NameSort
+import com.dewijones92.totum.ui.common.NamedListToolsActions
+import com.dewijones92.totum.ui.common.applyTo
+import com.dewijones92.totum.ui.common.listToolsField
+import com.dewijones92.totum.ui.common.namedListToolsField
+import com.dewijones92.totum.ui.common.rememberListTools
+import com.dewijones92.totum.ui.common.rememberNamedListTools
 import com.dewijones92.totum.ui.common.rememberShuffleAsk
 import com.dewijones92.totum.ui.common.rowFacts
-import com.dewijones92.totum.ui.common.shapedBy
 
 @Composable
 fun ArtistSongsScreen(container: AppContainer, page: MusicPage.ArtistSongs, onBack: () -> Unit) {
@@ -37,12 +42,13 @@ fun ArtistSongsScreen(container: AppContainer, page: MusicPage.ArtistSongs, onBa
         viewModel(key = page.label, factory = ArtistSongsViewModel.factory(container, page))
     val state by viewModel.state.collectAsStateWithLifecycle()
     val actions = LocalItemActions.current
-    val shape = rememberListShape("artist songs ${page.label}")
-    val songs = (state as? ArtistSongsViewModel.State.Loaded)?.songs.orEmpty().shapedBy(shape) { it }
+    val tools = rememberListTools("artist songs ${page.label}")
+    val everySong = (state as? ArtistSongsViewModel.State.Loaded)?.songs.orEmpty()
+    val songs = tools.applyTo(everySong) { it }
     LazyColumn(Modifier.fillMaxSize()) {
         item {
             BackHeader(title = stringResource(R.string.music_all_songs_of, page.artist), onBack = onBack) {
-                ShapeControl(shape)
+                ListToolsActions(tools, everySong.size)
             }
         }
         when (val current = state) {
@@ -64,6 +70,7 @@ fun ArtistSongsScreen(container: AppContainer, page: MusicPage.ArtistSongs, onBa
                         ),
                     )
                 }
+                listToolsField(tools, songs.size, everySong.size)
                 items(songs, key = { item -> "all:" + item.id.value }) { item ->
                     MediaItemRow(
                         item = item,
@@ -94,17 +101,34 @@ fun ArtistReleasesScreen(container: AppContainer, page: MusicPage.ArtistReleases
     val state by viewModel.state.collectAsStateWithLifecycle()
     val open = LocalOpenMusicPage.current
     val title = stringResource(if (page.singles) R.string.section_singles else R.string.section_albums)
+    val tools = rememberNamedListTools("artist releases ${page.label}")
+    val everyRelease = (state as? ArtistReleasesViewModel.State.Loaded)?.releases.orEmpty()
+    val releases = tools.applyTo(
+        everyRelease,
+        title = { it.title },
+        date = { it.year?.toLongOrNull() },
+        fields = { listOf(it.title, it.artist, it.year) },
+    )
     LazyColumn(Modifier.fillMaxSize()) {
-        item { BackHeader(title = "$title · ${page.artist}", onBack = onBack) }
+        item {
+            BackHeader(title = "$title · ${page.artist}", onBack = onBack) {
+                NamedListToolsActions(tools, everyRelease.size, RELEASE_SORTS)
+            }
+        }
         when (val current = state) {
             ArtistReleasesViewModel.State.Loading -> item { MusicLoading() }
             is ArtistReleasesViewModel.State.Failed -> item { MusicFailed(viewModel::load) }
-            is ArtistReleasesViewModel.State.Loaded -> items(current.releases, key = { it.browseId }) { album ->
-                AlbumRow(album, onOpen = {
-                    Diag.log("music", "${page.label} -> album ${album.browseId} \"${album.title}\"")
-                    open?.invoke(MusicPage.Album(album.browseId, title = album.title))
-                })
+            is ArtistReleasesViewModel.State.Loaded -> {
+                namedListToolsField(tools, releases.size, current.releases.size)
+                items(releases, key = { it.browseId }) { album ->
+                    AlbumRow(album, onOpen = {
+                        Diag.log("music", "${page.label} -> album ${album.browseId} \"${album.title}\"")
+                        open?.invoke(MusicPage.Album(album.browseId, title = album.title))
+                    })
+                }
             }
         }
     }
 }
+
+private val RELEASE_SORTS = listOf(NameSort.AS_LISTED, NameSort.TITLE, NameSort.NEWEST, NameSort.OLDEST)

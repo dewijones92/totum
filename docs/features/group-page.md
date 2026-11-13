@@ -37,3 +37,13 @@ that a cold start shows the list at once.
 ## Tests owed (2026-11-06 consistency sweep)
 
 Unticking a channel in the edit sheet offers Undo on the sheet's own snackbar and ticks it again (instrumented).
+
+## 2026-11-13: the page filters, and the edit sheet finds every match
+
+- The group page has the shared sort and fuzzy filter (the funnel toggle next to the sort icon) over the merged list;
+  "New since you last looked" and "Earlier" are filtered together.
+- The edit sheet's channel search is fuzzy and shows **every** match under a count line. Root cause of "I couldn't find
+  Tennis TV": the search was a substring match over the account's subscriptions in subscription order, cut silently to the
+  first 30, and "tennis" matches 62 of Dewi's channels with Tennis TV the 43rd. Test: `GroupEditMatchesTest`.
+- "Add channel to group" (and "Add show to group" for a podcast) is in every item's menu next to Go to channel; it
+  resolves the item's channel or show and opens the group picker.

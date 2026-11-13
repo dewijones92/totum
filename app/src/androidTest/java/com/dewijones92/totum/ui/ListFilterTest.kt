@@ -37,13 +37,24 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.dewijones92.totum.R
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.common.PageToken
+import com.dewijones92.totum.data.backup.toBackup
+import com.dewijones92.totum.data.group.FakeSourceGroupStore
+import com.dewijones92.totum.data.group.GroupFeed
+import com.dewijones92.totum.data.home.HomeJob
+import com.dewijones92.totum.data.home.HomeJobState
 import com.dewijones92.totum.di.fake.FakeAppContainer
 import com.dewijones92.totum.domain.MediaFilter
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
+import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
+import com.dewijones92.totum.domain.SourceGroup
+import com.dewijones92.totum.domain.SourceGroupId
 import com.dewijones92.totum.domain.SourceId
+import com.dewijones92.totum.domain.StorageUsage
+import com.dewijones92.totum.domain.asPlayable
+import com.dewijones92.totum.downloads.DownloadsSection
 import com.dewijones92.totum.theme.TotumTheme
 import com.dewijones92.totum.ui.channel.ChannelContent
 import com.dewijones92.totum.ui.channel.ChannelViewModel
@@ -55,6 +66,11 @@ import com.dewijones92.totum.ui.common.ProvidePlayStates
 import com.dewijones92.totum.ui.common.filterField
 import com.dewijones92.totum.ui.common.rememberListFilter
 import com.dewijones92.totum.ui.common.rememberMediaItemActions
+import com.dewijones92.totum.ui.group.GroupScreen
+import com.dewijones92.totum.ui.library.DownloadSort
+import com.dewijones92.totum.ui.library.DownloadsContent
+import com.dewijones92.totum.ui.library.HomeSection
+import com.dewijones92.totum.ui.library.Sections
 import com.dewijones92.totum.ui.queue.QueueScreen
 import com.dewijones92.totum.ui.videos.VideosContent
 import com.dewijones92.totum.ui.videos.VideosViewModel
@@ -459,6 +475,72 @@ class ListFilterTest {
         composeTestRule.waitUntil(TIMEOUT_MS) { container.playbackQueue.state.value.currentIndex == 2 }
 
         assertEquals(2, container.playbackQueue.state.value.currentIndex)
+    }
+
+    @Test
+    fun `the Pi section of Downloads filters like every other list`() {
+        val jobs = listOf("Brighton sensational", "Chelsea collapse", "Brentford and Brighton").mapIndexed { i, title ->
+            HomeJob("job$i", item("job$i", title).asPlayable().toBackup(), HomeJobState.DONE, audioOnly = false)
+        }
+        composeTestRule.setContent {
+            TotumTheme {
+                DownloadsContent(
+                    downloaded = emptyList(),
+                    inProgress = emptyList(),
+                    failed = emptyList(),
+                    storage = StorageUsage(itemCount = 0, usedBytes = 0, freeBytes = null),
+                    sort = DownloadSort.DEFAULT,
+                    onBack = {},
+                    onPlay = {},
+                    onDelete = {},
+                    onCancel = {},
+                    onCancelAll = {},
+                    onRetry = {},
+                    onDismiss = {},
+                    onAddToPlaylist = {},
+                    onSetSort = {},
+                    sections = Sections(current = DownloadsSection.AT_HOME),
+                    home = HomeSection(available = true, jobs = jobs),
+                )
+            }
+        }
+
+        type("brigton")
+
+        composeTestRule.onNodeWithText("Brighton sensational").assertExists()
+        composeTestRule.onNodeWithText("Brentford and Brighton").assertExists()
+        composeTestRule.onAllNodesWithText("Chelsea collapse").assertCountEquals(0)
+        composeTestRule.onNodeWithText(context.getString(R.string.filter_count, 2, 3)).assertExists()
+    }
+
+    @Test
+    fun `a group page filters its merged list`() {
+        val feed = MediaSource.VideoChannel(
+            id = SourceId("https://www.youtube.com/channel/UC1"),
+            title = "A channel",
+            channelUrl = HttpUrl.of("https://www.youtube.com/channel/UC1"),
+            artworkUrl = null,
+        )
+        val group = SourceGroup(SourceGroupId("g"), "Football", listOf(feed))
+        val container = FakeAppContainer(
+            sourceGroupStore = FakeSourceGroupStore(listOf(group)),
+            groupFeed = GroupFeed {
+                listOf("Brighton sensational", "Chelsea collapse", "Brentford and Brighton").mapIndexed { i, title ->
+                    item("g$i", title)
+                }
+            },
+        )
+        composeTestRule.setContent {
+            TotumTheme { ProvidePlayStates(container, onOpenSource = {}) { GroupScreen(container, "g", onBack = {}) } }
+        }
+        composeTestRule.waitUntil(TIMEOUT_MS) {
+            composeTestRule.onAllNodesWithText("Chelsea collapse").fetchSemanticsNodes().isNotEmpty()
+        }
+
+        type("brigton")
+
+        composeTestRule.onNodeWithText("Brighton sensational").assertExists()
+        composeTestRule.onAllNodesWithText("Chelsea collapse").assertCountEquals(0)
     }
 
     private companion object {

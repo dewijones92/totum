@@ -503,6 +503,9 @@
     </plurals>
     <string name="library_downloads">Downloads</string>
     <string name="downloads_on_the_phone">On the phone</string>
+    <string name="downloads_in_progress_title">In progress</string>
+    <string name="downloads_failed_title">Failed</string>
+    <string name="downloads_at_home_title">On the Pi</string>
 
     <string name="search_hint">Search podcasts and videos</string>
     <string name="search_action">Search</string>

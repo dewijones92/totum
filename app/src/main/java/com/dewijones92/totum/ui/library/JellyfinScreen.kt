@@ -36,6 +36,12 @@ import com.dewijones92.totum.operations.OperationKind
 import com.dewijones92.totum.ui.common.BackHeader
 import com.dewijones92.totum.ui.common.ListThenDetail
 import com.dewijones92.totum.ui.common.MediaItemRow
+import com.dewijones92.totum.ui.common.NameSort
+import com.dewijones92.totum.ui.common.NamedListTools
+import com.dewijones92.totum.ui.common.NamedListToolsActions
+import com.dewijones92.totum.ui.common.applyTo
+import com.dewijones92.totum.ui.common.namedListToolsField
+import com.dewijones92.totum.ui.common.rememberNamedListTools
 import com.dewijones92.totum.ui.common.rowFacts
 import kotlinx.coroutines.launch
 
@@ -69,6 +75,7 @@ private fun Listing(
         mutableStateOf<HomeAnswer<JellyfinListing>?>(read[parent]?.takeIf { attempt == 0 }?.let { HomeAnswer.Ok(it) })
     }
     var loadingMore by remember(parent, attempt) { mutableStateOf(false) }
+    val tools = rememberNamedListTools("jellyfin ${parent ?: "top"}")
     val scope = rememberCoroutineScope()
     LaunchedEffect(parent, attempt) {
         if (answer == null) answer = readPage(container, api, parent, 0, subject)
@@ -76,11 +83,13 @@ private fun Listing(
     LaunchedEffect(answer) { (answer as? HomeAnswer.Ok)?.let { read[parent] = it.value } }
     Column(modifier.fillMaxSize()) {
         val shown = answer
-        BackHeader((shown as? HomeAnswer.Ok)?.value?.title ?: subject, back)
+        BackHeader((shown as? HomeAnswer.Ok)?.value?.title ?: subject, back) {
+            (shown as? HomeAnswer.Ok)?.let { NamedListToolsActions(tools, it.value.items.size, JELLYFIN_SORTS) }
+        }
         when (shown) {
             null -> Unit
             is HomeAnswer.No -> Failed(shown.reason) { attempt++ }
-            is HomeAnswer.Ok -> Items(container, api, shown.value, loadingMore, onMore = {
+            is HomeAnswer.Ok -> Items(container, api, shown.value, tools, loadingMore, onMore = {
                 val next = shown.value.next ?: return@Items
                 loadingMore = true
                 scope.launch {
@@ -113,10 +122,17 @@ private fun Items(
     container: AppContainer,
     api: JellyfinApi,
     listing: JellyfinListing,
+    tools: NamedListTools,
     loadingMore: Boolean,
     onMore: () -> Unit,
     open: (String) -> Unit,
 ) {
+    val visible = tools.applyTo(
+        listing.items,
+        title = { it.title },
+        date = { it.year?.toLong() },
+        fields = { listOf(it.title, it.seriesName, it.year?.toString()) },
+    )
     if (listing.items.isEmpty()) {
         Text(stringResource(R.string.jellyfin_empty), Modifier.padding(20.dp))
         return
@@ -125,7 +141,8 @@ private fun Items(
     val playables = byId.values.toList()
     val group = QueueGroup("jellyfin:${listing.parent ?: "top"}", listing.title)
     LazyColumn(Modifier.fillMaxWidth()) {
-        items(listing.items, key = { it.id }) { item ->
+        namedListToolsField(tools, visible.size, listing.items.size)
+        items(visible, key = { it.id }) { item ->
             val playable = byId[item.id]
             if (playable != null) {
                 MediaItemRow(
@@ -179,3 +196,5 @@ private fun Folder(item: JellyfinItem, open: () -> Unit) {
         if (item.facts.isNotEmpty()) Text(item.facts.joinToString(" · "), style = MaterialTheme.typography.bodySmall)
     }
 }
+
+private val JELLYFIN_SORTS = listOf(NameSort.AS_LISTED, NameSort.TITLE, NameSort.NEWEST, NameSort.OLDEST)

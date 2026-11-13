@@ -72,6 +72,7 @@ import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.data.queue.QueueEntry
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaKind
+import com.dewijones92.totum.domain.searchableText
 import com.dewijones92.totum.domain.withArtworkFrom
 import com.dewijones92.totum.innertube.actions.VideoRating
 import com.dewijones92.totum.innertube.comments.Comment
@@ -79,16 +80,21 @@ import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.playback.SleepTimerState
 import com.dewijones92.totum.playback.isLoading
 import com.dewijones92.totum.ui.cast.CastStrip
+import com.dewijones92.totum.ui.common.FilterField
+import com.dewijones92.totum.ui.common.FilterToggle
 import com.dewijones92.totum.ui.common.ItemActionSheet
 import com.dewijones92.totum.ui.common.LiveBadge
 import com.dewijones92.totum.ui.common.LocalSourceArtwork
 import com.dewijones92.totum.ui.common.MediaThumbnail
+import com.dewijones92.totum.ui.common.NoFilterMatches
 import com.dewijones92.totum.ui.common.QueuedRowActions
 import com.dewijones92.totum.ui.common.SkipNextButton
 import com.dewijones92.totum.ui.common.SkipPreviousButton
 import com.dewijones92.totum.ui.common.SwitchListeningButton
 import com.dewijones92.totum.ui.common.face
+import com.dewijones92.totum.ui.common.filter
 import com.dewijones92.totum.ui.common.rememberLinkOpener
+import com.dewijones92.totum.ui.common.rememberListFilter
 import com.dewijones92.totum.ui.common.withLinks
 import com.dewijones92.totum.ui.player.WatchViewModel.CommentsState
 import com.dewijones92.totum.ui.player.WatchViewModel.PostState
@@ -438,6 +444,10 @@ const val PLAYER_METADATA_TAG: String = "player-views-and-date"
 @Composable
 internal fun UpNextSection(queue: QueueControls) {
     var menuFor by remember { mutableStateOf<Int?>(null) }
+    val listFilter = rememberListFilter("up next")
+    val indexed = remember(queue.upNext) { queue.upNext.mapIndexed { index, entry -> index to entry } }
+    val matching = listFilter.filter(indexed, fields = { (_, entry) -> entry.item.item.searchableText })
+    val rows = if (listFilter.filtering) matching else matching.take(UP_NEXT_SHOWN)
     menuFor?.let { index ->
         queue.upNext.getOrNull(index)?.let { entry ->
             ItemActionSheet(
@@ -461,9 +471,12 @@ internal fun UpNextSection(queue: QueueControls) {
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.weight(1f),
             )
+            FilterToggle(listFilter, queue.upNext.size)
             SwitchListeningButton("full player")
         }
-        queue.upNext.take(UP_NEXT_SHOWN).forEachIndexed { index, queued ->
+        FilterField(listFilter, matching.size, queue.upNext.size, inset = 0.dp, hosted = true)
+        if (listFilter.filtering && matching.isEmpty()) NoFilterMatches(listFilter.query)
+        rows.forEach { (index, queued) ->
             val item = queued.item.item
             val face = item.face()
             Row(
@@ -495,7 +508,7 @@ internal fun UpNextSection(queue: QueueControls) {
                 }
             }
         }
-        if (queue.upNext.size > UP_NEXT_SHOWN) {
+        if (!listFilter.filtering && queue.upNext.size > UP_NEXT_SHOWN) {
             Text(
                 text = pluralStringResource(
                     R.plurals.player_up_next_more,
