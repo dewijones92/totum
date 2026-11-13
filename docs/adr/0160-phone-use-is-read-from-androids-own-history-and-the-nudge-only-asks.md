@@ -45,8 +45,10 @@ tracker that has to run all day is one more thing for Android to kill.
   (drill-down, as the rest of Stats). Without Usage access it shows "⚠️ Usage access is off" with the explanation and a
   button to the system screen, and whatever the log already holds. Reached from Library → Stats; Settings → 📱 Phone use
   holds the access card and the nudge.
-- **The nudge is off by default** and **only asks**. While it is on, Totum registers `ACTION_USER_PRESENT` at run time (the
-  manifest cannot receive it; the pinned alarm board keeps the process alive). After a 1.5 s settle, a pure decision
+- **The nudge is off by default** and **only asks**. While it is on, Totum registers `ACTION_USER_PRESENT` at run time with `RECEIVER_EXPORTED` (the
+  manifest cannot receive it; the process has to be alive: the always-pinned alarm board, playback or a download hold it; a `RECEIVER_NOT_EXPORTED` receiver was never
+  delivered the broadcast on `totum-api35`, and only the system can send this protected action). Two broadcasts within 3 s
+  are one unlock. After a 1.5 s settle, a pure decision
   (`UnlockNudgeSettings.decide`) compares the unlock with the previous one from the usage history: inside the window
   (2 to 30 minutes, default 10) it shows a full-screen "⏳ You unlocked 3 min ago (14 today). Still want in?" in the
   side-quest look ([ADR 34](0034-the-side-quests-look-roman-and-bold.md)). **Continue** is held for five seconds;
@@ -72,5 +74,8 @@ tracker that has to run all day is one more thing for Android to kill.
   app with an unusual camera or navigation intent is not recognised.
 - The Ask pack carries unlocks and nudge outcomes but leaves out the raw screen on/off events, which are the bulk of
   the log. Screen-time questions to Ask therefore cannot be answered from it.
+- With nothing holding the process, Android can stop it and no nudge comes until Totum is next opened (seen on `totum-api35`,
+  which has no alarms; Dewi's phone has the pinned board, so it should be held there, not confirmed). Usage tracking is
+  unaffected, since it reads Android's history.
 - Not measured: battery cost of the run-time receiver, how long Android keeps events on Dewi's phone, and the nudge on a
   phone with a PIN (the emulator has a swipe lock).

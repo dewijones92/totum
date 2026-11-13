@@ -61,7 +61,18 @@ answer`, and the camera and navigation apps found. Reports carry `phoneUse.usage
 
 ## Verified
 
-See the Verified section at the end of this file's update (emulator run, 2026-11-13).
+On `totum-api35` (2026-11-13, lock screen switched on for the test and off again): unlocks, first apps (Settings, Totum) and
+screen time appeared in Stats after real lock/unlock cycles; the Settings page, the Usage access card and the slider render;
+with the nudge on, a second unlock inside ten minutes showed the full-screen nudge ("You unlocked 8 min ago (9 today)")
+with Continue held by the countdown then enabled, **Continue** recorded `CONTINUED`, **Not now** went to the launcher and
+recorded `LEFT`, power-off closed the screen so it did not come back, and without "Display over other apps" the same nudge
+was a heads-up notification. A `RECEIVER_NOT_EXPORTED` receiver never got `USER_PRESENT`, so it is exported (the action is
+protected). Two broadcasts a second apart showed two nudges until the 3 s de-duplication was added (hub test seen red
+without it). Screens: `~/claude-tasks/2026-11-13-phone-use-screens/`.
+
+Not seen: a PIN lock screen, a call/camera/navigation block on a real app (covered by `PhoneUseHubTest` with fakes), the
+section on Dewi's phone, and the nudge surviving with nothing holding Totum's process (another session's reinstall killed it
+on the emulator and no nudge came until it was reopened).
 
 ## Tests
 

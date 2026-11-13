@@ -90,7 +90,7 @@ class AndroidPhoneUsePorts(private val context: Context) : PhoneUsePorts {
                 onUnlock()
             }
         }
-        context.registerReceiver(receiver, IntentFilter(Intent.ACTION_USER_PRESENT), Context.RECEIVER_NOT_EXPORTED)
+        context.registerReceiver(receiver, IntentFilter(Intent.ACTION_USER_PRESENT), Context.RECEIVER_EXPORTED)
         return AutoCloseable { context.unregisterReceiver(receiver) }
     }
 

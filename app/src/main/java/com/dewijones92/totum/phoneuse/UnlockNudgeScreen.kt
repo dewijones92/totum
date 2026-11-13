@@ -149,7 +149,7 @@ private fun Medallion() {
             .background(laurel.container, CircleShape)
             .border(MEDALLION_STROKE, laurel.accent, CircleShape),
     ) {
-        Text("⏳", fontSize = 72.sp)
+        Text("📱", fontSize = 72.sp)
     }
 }
 

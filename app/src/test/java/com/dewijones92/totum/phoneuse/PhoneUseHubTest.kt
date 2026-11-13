@@ -189,6 +189,22 @@ class PhoneUseHubTest {
     }
 
     @Test
+    fun `two unlock broadcasts a second apart are one unlock and show one nudge`() = runTest {
+        val rig = rig()
+        advanceTimeBy(60 * minute)
+        rig.ports.unlockAt(57)
+        rig.ports.unlockAt(60)
+        rig.ports.unlock()
+        advanceTimeBy(1_000)
+        rig.ports.unlock()
+        advanceTimeBy(3_000)
+        runCurrent()
+
+        assertEquals(1, rig.ports.shown.size)
+        assertTrue(rig.hub.diagnostics.getValue("phoneUse.lastDecision").contains("nudging"))
+    }
+
+    @Test
     fun `an unlock after a long gap shows nothing`() = runTest {
         val rig = rig()
         advanceTimeBy(60 * minute)

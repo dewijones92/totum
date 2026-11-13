@@ -96,6 +96,9 @@ class PhoneUse(
     @Volatile
     private var listening = false
 
+    @Volatile
+    private var lastTrigger: Long? = null
+
     init {
         Diag.log(TAG, "dewidebug phoneuse loaded: ${_settings.value}; usage access=${ports.accessGranted()}")
     }
@@ -154,6 +157,15 @@ class PhoneUse(
 
     private fun onUnlock() {
         val triggeredAt = clock().toEpochMilli()
+        val previous = lastTrigger
+        lastTrigger = triggeredAt
+        if (previous != null && triggeredAt - previous < DUPLICATE_BROADCAST_MS) {
+            Diag.log(
+                TAG,
+                "dewidebug phoneuse unlock broadcast ${triggeredAt - previous} ms after the last: the same unlock"
+            )
+            return
+        }
         scope.launch {
             delay(settleDelayMs)
             runCatching { evaluate(triggeredAt) }
@@ -227,6 +239,7 @@ class PhoneUse(
     companion object {
         const val TAG = "phoneuse"
         private const val SETTLE_MS = 1_500L
+        private const val DUPLICATE_BROADCAST_MS = 3_000L
         private const val BACKFILL_MS = 7 * 24 * 60 * 60_000L
         private const val LOOKBACK_MS = 24 * 60 * 60_000L
         private const val MS_PER_MINUTE = 60_000L
