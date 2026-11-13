@@ -110,13 +110,13 @@ class MediaItemRowKeepsActionsTest {
         assertEquals(listOf(MediaItemId("abc") to false), downloadsAsked)
     }
 
-    private fun show(downloadState: DownloadState = DownloadState.NotDownloaded) {
+    private fun show(downloadState: DownloadState = DownloadState.NotDownloaded, shown: MediaItem = item) {
         composeTestRule.setContent {
             TotumTheme {
                 LazyColumn(modifier = Modifier.testTag("list")) {
                     item {
                         MediaItemRow(
-                            item = item,
+                            item = shown,
                             subtitleLines = listOf("📺 Novara Media", "👁️ 1.2M views", "📅 2 days ago"),
                             pillar = MediaKind.VIDEO,
                             onPlay = { played += "play" },
@@ -160,7 +160,7 @@ class MediaItemRowKeepsActionsTest {
     /** The duration rides on the thumbnail, where an ellipsis cannot reach it. */
     @Test
     fun `the duration is still shown`() {
-        show()
+        show(shown = item.copy(contentKind = MediaContentKind.STANDARD))
 
         composeTestRule.onNodeWithText("42:00", substring = true).assertIsDisplayed()
     }

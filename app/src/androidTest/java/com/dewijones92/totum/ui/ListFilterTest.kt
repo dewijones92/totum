@@ -526,7 +526,7 @@ class ListFilterTest {
             sourceGroupStore = FakeSourceGroupStore(listOf(group)),
             groupFeed = GroupFeed {
                 listOf("Brighton sensational", "Chelsea collapse", "Brentford and Brighton").mapIndexed { i, title ->
-                    item("g$i", title)
+                    item("g$i", title).copy(sourceId = feed.id)
                 }
             },
         )
