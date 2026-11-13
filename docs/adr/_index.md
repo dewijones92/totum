@@ -178,6 +178,7 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 164 | [Casting fixes from the diagnostics of 7 to 11 November](0164-casting-fixes-from-the-diagnostics-of-7-to-11-november.md) | Accepted |
 | 165 | [A speaker can be kept awake by the Pi, and its volume slider is the speaker's own](0165-a-speaker-is-kept-awake-and-has-one-volume-its-own.md) | Accepted |
 | 166 | [The sleep timer fades by how loud it sounds, on the phone and on a Pi target](0166-the-sleep-timer-fades-by-how-loud-it-sounds-on-the-phone-and-on-a-target.md) | Accepted |
+| 167 | [Discover, a bolder radio that walks YouTube Music's related-artist graph](0167-discover-a-bolder-radio-that-walks-the-related-artist-graph.md) | Accepted |
 | 168 | [Home torrents hold together: retries are shown, the phone's address is kept, a film is its main file, a late-Tracks MKV is remuxed](0168-home-torrents-hold-together-retries-shown-main-file-first-and-a-fixed-remux.md) | Accepted |
 | 169 | [Play on… is one choice that remembers the last device, offered everywhere, with home devices always listed](0169-play-on-is-a-choice-that-remembers-the-last-device.md) | Accepted |
 | 170 | [A browser is a target the Pi plays to, found by opening the Pi's address; Play on… says how a device comes on](0170-a-browser-is-a-target-the-pi-plays-to-found-by-opening-its-address.md) | Accepted |

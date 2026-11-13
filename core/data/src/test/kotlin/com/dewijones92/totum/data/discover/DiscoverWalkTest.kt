@@ -322,9 +322,12 @@ class DiscoverWalkTest {
 
             val pick = lines.single { "picked" in it }
             assertTrue(pick, "Artist " in pick && "hop 1" in pick && "song " in pick)
-            assertTrue("the skipped artist and its reason are named: $lines", lines.any {
-                "Artist A" in it && "played recently" in it
-            })
+            assertTrue(
+                "the skipped artist and its reason are named: $lines",
+                lines.any {
+                    "Artist A" in it && "played recently" in it
+                }
+            )
         } finally {
             Diag.sink = before
         }

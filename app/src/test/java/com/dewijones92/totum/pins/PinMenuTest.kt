@@ -27,7 +27,8 @@ class PinMenuTest {
         assertEquals(
             listOf(
                 PinAction.PLAY, PinAction.SHUFFLE, PinAction.PLAY_NEXT, PinAction.ADD_TO_QUEUE,
-                PinAction.START_RADIO, PinAction.START_DISCOVER, PinAction.GO_TO_ALBUM, PinAction.GO_TO_ARTIST, PinAction.SAVE_ALBUM,
+                PinAction.START_RADIO, PinAction.START_DISCOVER, PinAction.GO_TO_ALBUM, PinAction.GO_TO_ARTIST,
+                PinAction.SAVE_ALBUM,
                 PinAction.TOGGLE_PIN, PinAction.ADD_TO_HOME,
             ),
             pinMenuFor(album, inRecent = false),

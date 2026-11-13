@@ -30,6 +30,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
+@Suppress("TooManyFunctions")
 class MusicRadio(
     private val catalogue: YouTubeMusicCatalogue,
     private val queue: PlaybackQueue,
@@ -193,7 +194,10 @@ class MusicRadio(
         var found = 0
         val step = engine.step(walk, DiscoverWalk.PAGES_PER_TOP_UP) { progress?.report(found = ++found) }
         if (step.picks.isEmpty()) {
-            Diag.warn("discover", "\"${group.title}\": nothing found near ${artist.name} (dry=${step.dry}); nothing queued")
+            Diag.warn(
+                "discover",
+                "\"${group.title}\": nothing found near ${artist.name} (dry=${step.dry}); nothing queued"
+            )
             return 0
         }
         val songs = step.picks.map { it.song }
@@ -271,7 +275,8 @@ class MusicRadio(
         val engine = discover ?: return
         Diag.log(
             "discover",
-            "\"${from.group.title}\": only $ahead left ahead, finding more (attempt $attempt of $MAX_DISCOVER_ATTEMPTS)",
+            "\"${from.group.title}\": only $ahead left ahead, finding more " +
+                "(attempt $attempt of $MAX_DISCOVER_ATTEMPTS)",
         )
         val step = engine.step(walk, DiscoverWalk.PAGES_PER_TOP_UP)
         val now = station

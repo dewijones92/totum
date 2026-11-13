@@ -274,6 +274,7 @@ private fun ConfirmBulk(action: BulkAction, selected: Int, onDismiss: () -> Unit
     )
 }
 
+@Suppress("CyclomaticComplexMethod")
 @Composable
 fun mediaBulkActions(
     queueing: Boolean = true,

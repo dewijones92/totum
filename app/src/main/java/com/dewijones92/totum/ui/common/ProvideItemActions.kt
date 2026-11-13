@@ -26,8 +26,8 @@ import com.dewijones92.totum.domain.shareLink
 import com.dewijones92.totum.domain.titleOf
 import com.dewijones92.totum.domain.toPlayableOrNull
 import com.dewijones92.totum.innertube.music.RadioSeed
-import com.dewijones92.totum.music.discoverSeed
 import com.dewijones92.totum.music.ArtistCredits
+import com.dewijones92.totum.music.discoverSeed
 import com.dewijones92.totum.notforme.NotForMeRejecter
 import com.dewijones92.totum.settings.DownloadChoice
 import com.dewijones92.totum.targets.TargetsRepository
@@ -102,7 +102,10 @@ internal fun ProvideItemActions(
         LocalStartRadio provides remember(container) { { item: MediaItem -> startRadio(container, item) } },
         LocalStartDiscover provides remember(container) { { item: MediaItem -> startDiscover(container, item) } },
         LocalStartDiscoverFrom provides remember(container) {
-            { items: List<MediaItem> -> startDiscoverFrom(container, items) }
+            {
+                    items: List<MediaItem> ->
+                startDiscoverFrom(container, items)
+            }
         },
         LocalStartRadioMix provides remember(container) {
             {

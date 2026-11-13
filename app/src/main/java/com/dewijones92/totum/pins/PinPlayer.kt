@@ -22,8 +22,8 @@ import com.dewijones92.totum.innertube.music.YouTubeMusicCatalogue
 import com.dewijones92.totum.innertube.playlists.PlaylistVideosResult
 import com.dewijones92.totum.innertube.playlists.YouTubePlaylists
 import com.dewijones92.totum.music.ArtistShuffle
-import com.dewijones92.totum.music.DiscoverSeed
 import com.dewijones92.totum.music.ArtistSongs
+import com.dewijones92.totum.music.DiscoverSeed
 import com.dewijones92.totum.music.MusicRadio
 import com.dewijones92.totum.music.MusicSources
 import com.dewijones92.totum.music.toPlayable

@@ -120,6 +120,7 @@ alone until they need more.
 | Settings that stay put across the next video (speed, boost, captions, quality, track) | playback | shipped | [settings-that-stay-put.md](settings-that-stay-put.md) |
 | Command line: `totum "jazz live stream"` on Linux/macOS, same libraries as the app | cli | shipped | [command-line.md](command-line.md) |
 | YouTube Music: a Music tab (songs, albums, artists), album and artist pages, endless radio, your YouTube Music library, shared album links; music plays as sound | music | shipped | [youtube-music.md](youtube-music.md) |
+| 🧭 Discover: a bolder radio beside Radio and Mix (song menu, album, artist, pins, Recently, multi-select) that walks the similar-artists graph, skipping what you played or liked lately | music | built 2026-11-13 | [youtube-music.md](youtube-music.md), [ADR 167](../adr/0167-discover-a-bolder-radio-that-walks-the-related-artist-graph.md) |
 | Search is a 🔍 in every tab header, opening over the tab | search | shipped | [ADR 24](../adr/0024-music-tab-and-search-in-every-header.md) |
 | Shortcuts: pin anything (both pillars), a Pinned row on Music and Library, home-screen icons; a pin plays at once | library | shipped | [shortcuts.md](shortcuts.md) |
 | Repeat (off / queue / this one) and shuffle up next, for both pillars | queue | shipped | [ADR 27](../adr/0027-radio-repeat-and-shuffle-are-queue-features.md) |

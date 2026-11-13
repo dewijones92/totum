@@ -3,7 +3,7 @@ title: YouTube Music
 kind: feature
 status: shipped
 area: music
-updated: 2026-11-06
+updated: 2026-11-13
 ---
 
 # YouTube Music: a Music tab, albums, artists, radio and your library
@@ -162,3 +162,24 @@ page as before. A queued or playing song stores one artist, so its credits are a
 (the song's radio, whose first entry is the song with its full byline), shown on the strip as "Finding the artists
 of …" and logged `nav artists of <id> …`. Tests: `MusicPageParserTest` (two-artist byline, derived from the real radio
 fixture).
+
+## 🧭 Discover (2026-11-13)
+
+Dewi: Radio and Mix play the same sort of thing, so make "another mode that is a bit more varied and daring" and
+put it beside them. [ADR 167](../adr/0167-discover-a-bolder-radio-that-walks-the-related-artist-graph.md).
+
+- **Where**: "🧭 Discover from this" in the song menu (and so the player's), 🧭 Discover on the album page and
+  beside Mix on the artist page, in the tile menus of album, artist, all-songs and radio pins (a Discover tile
+  restarts it), and "🧭 Discover from these" in the multi-select bar.
+- **What it does**: a station inside `MusicRadio` ("🧭 Discover from <seed>" queue group, endless, songs marked
+  "🧭 Discover"). Each song comes from an artist one hop, then one or two, from the seed on YouTube Music's
+  similar-artists lists; a random one of that artist's top five. It skips artists played or liked recently (play
+  history, music listens in 14 days, stars, Recently), never plays an artist twice in a row, prefers artists you do
+  not follow, and re-centres on the last artist when the range runs dry.
+- **Gentle on YouTube**: two artist pages a top-up, one seed page, none twice, cached, in the gate's background lane.
+- **Seen**: the progress strip ("🧭 Finding music near …") and "📭 Couldn't find anything new near …".
+- **Code**: `DiscoverWalk`, `DiscoverTaste` (`:core:data` `data/discover`), `Discover`, `ArtistPages`,
+  `DiscoverTasteSource`, and `MusicRadio.startDiscover` (`:app` `music/`); `Pin.Discover`.
+- **Tests**: `DiscoverWalkTest` (15, the walk on a fake related-artist graph), `MusicDiscoverTest`,
+  `DiscoverTasteSourceTest`, `PinMenuTest`, `PinsTest`; `DiscoverButtonTest` (instrumented: the button beside
+  Radio on the song menu, the artist page and the album page).

@@ -189,7 +189,9 @@ private fun GroupTitle(model: GroupHeaderModel, modifier: Modifier) {
         }
         if (model.endless) {
             Text(
-                text = stringResource(if (model.discover) R.string.queue_group_discover else R.string.queue_group_endless),
+                text = stringResource(
+                    if (model.discover) R.string.queue_group_discover else R.string.queue_group_endless
+                ),
                 style = MaterialTheme.typography.bodySmall,
                 color = groupInk(model, muted = true),
                 modifier = Modifier.testTag(QUEUE_GROUP_ENDLESS_TAG),

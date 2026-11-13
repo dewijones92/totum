@@ -17,8 +17,8 @@ import com.dewijones92.totum.music.ArtistShuffle
 import com.dewijones92.totum.music.ArtistSongs
 import com.dewijones92.totum.music.DiscoverSeed
 import com.dewijones92.totum.music.MusicRadio
-import com.dewijones92.totum.music.artistIdNamed
 import com.dewijones92.totum.music.MusicSources
+import com.dewijones92.totum.music.artistIdNamed
 import com.dewijones92.totum.music.artistShuffle
 import com.dewijones92.totum.music.toMediaItem
 import com.dewijones92.totum.music.toPlayable

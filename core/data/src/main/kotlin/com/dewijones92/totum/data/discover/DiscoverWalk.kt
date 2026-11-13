@@ -29,6 +29,7 @@ public class DiscoverWalk(
     private var seeded = false
     private var productiveSteps = 0
     private var recentres = 0
+    private var recentredThisStep = false
 
     public val steps: Int get() = productiveSteps
 
@@ -54,32 +55,36 @@ public class DiscoverWalk(
         val picks = mutableListOf<DiscoverPick>()
         var fetched = 0
         var ranOut = false
-        var recentred = false
-        while (fetched < pages) {
-            var choice = choose(limit, taste)
-            if (choice == null && !recentred) {
-                recentred = recentre()
-                if (recentred) choice = choose(limit, taste)
-            }
+        recentredThisStep = false
+        while (fetched < pages && !ranOut) {
+            val choice = chooseOrRecentre(limit, taste)
             if (choice == null) {
                 ranOut = true
-                break
+            } else {
+                fetched++
+                asked++
+                visit(choice, page, songWanted)?.let { pick ->
+                    picks += pick
+                    onPick(pick)
+                }
             }
-            fetched++
-            asked++
-            val pick = visit(choice, page, songWanted) ?: continue
-            picks += pick
-            onPick(pick)
         }
         if (picks.isNotEmpty()) productiveSteps++
         val dry = picks.isEmpty() && ranOut
         Diag.log(
             TAG,
             "\"$label\" step: ${picks.size} song(s) from $asked page(s) asked (at most $pages, plus the seed's " +
-                "the first time), hop limit $limit, ${productiveSteps} productive step(s), " +
+                "the first time), hop limit $limit, $productiveSteps productive step(s), " +
                 "${frontier.size} artist(s) known, dry=$dry",
         )
         return DiscoverStep(picks, asked, dry)
+    }
+
+    private fun chooseOrRecentre(limit: Int, taste: DiscoverTaste): Candidate? {
+        choose(limit, taste)?.let { return it }
+        if (recentredThisStep) return null
+        recentredThisStep = true
+        return if (recentre()) choose(limit, taste) else null
     }
 
     private suspend fun readSeed(page: suspend (String) -> MusicResult<MusicArtist>): Boolean {
@@ -110,7 +115,10 @@ public class DiscoverWalk(
         val result = when (val answer = page(artist.id)) {
             is MusicResult.Failure -> {
                 spent[artist.id] = "its page failed (${answer.detail})"
-                Diag.warn(TAG, "\"$label\": ${artist.name} (${artist.id}) page failed: ${answer.detail}; skipped for good")
+                Diag.warn(
+                    TAG,
+                    "\"$label\": ${artist.name} (${artist.id}) page failed: ${answer.detail}; skipped for good"
+                )
                 return null
             }
             is MusicResult.Success -> answer.value
@@ -205,11 +213,13 @@ public class DiscoverWalk(
         else -> taste.recentWhy(artist)
     }
 
-    private fun isLast(artist: DiscoverArtist): Boolean =
-        picked.lastOrNull()?.let { it.id == artist.id || it.name.artistNameKey() == artist.name.artistNameKey() } == true
+    private fun isLast(artist: DiscoverArtist): Boolean = picked.lastOrNull()?.sameAs(artist) == true
+
+    private fun DiscoverArtist.sameAs(other: DiscoverArtist): Boolean =
+        id == other.id || name.artistNameKey() == other.name.artistNameKey()
 
     private fun recentlyOffered(artist: DiscoverArtist): Boolean =
-        memory > 0 && picked.any { it.id == artist.id || it.name.artistNameKey() == artist.name.artistNameKey() }
+        memory > 0 && picked.any { it.sameAs(artist) }
 
     public companion object {
         public const val PAGES_PER_TOP_UP: Int = 2
