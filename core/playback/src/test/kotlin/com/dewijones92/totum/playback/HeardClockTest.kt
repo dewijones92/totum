@@ -86,6 +86,70 @@ class HeardClockTest {
     }
 
     @Test
+    fun `with a cap a heard cut is paid out over several reads, never backwards, and the whole cut arrives`() {
+        val removed = 7_000_000L
+        val skips = cutAt(outputUs = 1_000_000, removedUs = removed)
+        clock.maxJumpUs = 400_000L
+        var last = clock.position(START + 900_000 + removed, removed, skips)
+        val jumps = mutableListOf<Long>()
+        var heard = 900_000L
+        repeat(40) {
+            heard += 10_000
+            val position = clock.position(START + heard + removed, removed, skips)
+            jumps += position - last - 10_000
+            assertTrue("went back at $heard", position >= last)
+            assertEquals("released says what moved", jumps.last(), clock.releasedUs)
+            last = position
+        }
+
+        assertEquals(removed, jumps.sum())
+        assertTrue("no jump over the cap: $jumps", jumps.max() <= 400_000L)
+        assertEquals(0L, clock.owingUs)
+    }
+
+    @Test
+    fun `the cut itself is reported once, when it is heard, whatever the cap pays out`() {
+        val removed = 2_000_000L
+        val skips = cutAt(outputUs = 1_000_000, removedUs = removed)
+        clock.maxJumpUs = 400_000L
+        clock.position(START + 900_000 + removed, removed, skips)
+
+        clock.position(START + 1_000_000 + removed, removed, skips)
+        assertEquals(removed, clock.cutHeardUs)
+        assertEquals(400_000L, clock.releasedUs)
+        assertEquals(removed - 400_000L, clock.owingUs)
+
+        clock.position(START + 1_010_000 + removed, removed, skips)
+        assertEquals("the cut is not heard again", 0L, clock.cutHeardUs)
+        assertEquals(400_000L, clock.releasedUs)
+    }
+
+    @Test
+    fun `a seek forgets what was still owed`() {
+        val removed = 2_000_000L
+        val skips = cutAt(outputUs = 1_000_000, removedUs = removed)
+        clock.maxJumpUs = 400_000L
+        clock.position(START + 1_000_000 + removed, removed, skips)
+        clock.seeked()
+        clock.streamStarts(START)
+
+        assertEquals(0L, clock.owingUs)
+        assertEquals(START + 10_000, clock.position(START + 10_000, 0L) { 0L })
+    }
+
+    @Test
+    fun `at the end the cap no longer holds anything back`() {
+        val removed = 2_000_000L
+        val skips = cutAt(outputUs = 1_000_000, removedUs = removed)
+        clock.maxJumpUs = 400_000L
+        clock.position(START + 1_000_000 + removed, removed, skips)
+        clock.inputEnded()
+
+        clock.position(START + 1_010_000 + removed, removed, skips)
+        assertEquals(0L, clock.owingUs)
+    }
+
+    @Test
     fun `at the end a cut further ahead than the last moments is still held back`() {
         val removed = 1_960_000L
         val skips = cutAt(outputUs = 8_300_000, removedUs = removed)

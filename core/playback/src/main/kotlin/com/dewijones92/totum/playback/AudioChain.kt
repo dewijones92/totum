@@ -16,6 +16,7 @@ internal fun silenceAwareRenderers(
     context: Context,
     cutter: SilenceCuttingAudioProcessor,
     booster: BoostingAudioProcessor,
+    video: SilenceVideoPresence = SilenceVideoPresence(),
     skipSilence: () -> Boolean,
 ): DefaultRenderersFactory = object : DefaultRenderersFactory(context) {
     override fun buildAudioSink(
@@ -29,7 +30,7 @@ internal fun silenceAwareRenderers(
             .setAudioProcessorChain(SilenceCuttingAudioProcessorChain(cutter, after = arrayOf(booster)))
             .setAudioTrackBufferSizeProvider(SkipSilenceOutputBuffer(skipSilence))
             .build()
-        return HeardSilenceAudioSink(sink, cutter)
+        return HeardSilenceAudioSink(sink, cutter, { video.selected }, { video.droppedFrames })
     }
 }
 

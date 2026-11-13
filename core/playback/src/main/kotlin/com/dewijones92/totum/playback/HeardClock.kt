@@ -6,9 +6,17 @@ internal class HeardClock {
     private var baselineUs: Long? = null
     private var heldBackUs = 0L
     private var inputEnded = false
+    private var owedUs = 0L
+
+    var maxJumpUs: Long = Long.MAX_VALUE
 
     var releasedUs: Long = 0L
         private set
+
+    var cutHeardUs: Long = 0L
+        private set
+
+    val owingUs: Long get() = owedUs
 
     var heardUs: Long = 0L
         private set
@@ -42,25 +50,34 @@ internal class HeardClock {
 
     fun position(countedUs: Long, allSkippedUs: Long, skippedHeardBy: (Long) -> Long): Long {
         releasedUs = 0L
+        cutHeardUs = 0L
         heardUs = countedUs - allSkippedUs
         while (checkpoints.firstOrNull()?.baselineUs?.let { heardUs >= it } == true) checkpoints.removeFirst()
         checkpoints.firstOrNull()?.let { checkpoint ->
             val position = checkpoint.positionBefore(heardUs)
-            releasedUs = checkpoint.newlyCarriedUs
+            releasedUs = checkpoint.newlyCarriedUs + owedUs
+            cutHeardUs = releasedUs
+            owedUs = 0L
             return position
         }
         val baseline = baselineUs ?: return countedUs
         val skippedHeardUs = skippedHeardBy(heardUs - baseline + if (inputEnded) END_SLACK_US else 0L)
         val holdingUs = allSkippedUs - skippedHeardUs
-        if (holdingUs < heldBackUs) releasedUs = heldBackUs - holdingUs
+        if (holdingUs < heldBackUs) {
+            cutHeardUs = heldBackUs - holdingUs
+            owedUs += cutHeardUs
+        }
         heldBackUs = holdingUs
-        return heardUs + skippedHeardUs
+        releasedUs = minOf(owedUs, if (inputEnded) Long.MAX_VALUE else maxJumpUs)
+        owedUs -= releasedUs
+        return heardUs + skippedHeardUs - owedUs
     }
 
     private fun restart() {
         heardUs = 0L
         baselineUs = null
         heldBackUs = 0L
+        owedUs = 0L
         inputEnded = false
     }
 

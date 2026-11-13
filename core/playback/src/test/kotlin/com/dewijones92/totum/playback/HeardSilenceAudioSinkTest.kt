@@ -25,6 +25,8 @@ class HeardSilenceAudioSinkTest {
     private var onBuffer: () -> Unit = {}
     private var innerListener: AudioSink.Listener? = null
     private var announced = 0
+    private var videoPlaying = false
+    private var lateFrames = 0L
 
     private val inner = Proxy.newProxyInstance(
         AudioSink::class.java.classLoader,
@@ -48,7 +50,7 @@ class HeardSilenceAudioSinkTest {
         }
     } as AudioSink
 
-    private val sink = HeardSilenceAudioSink(inner, cutter).apply {
+    private val sink = HeardSilenceAudioSink(inner, cutter, { videoPlaying }, { lateFrames }).apply {
         setListener(object : AudioSink.Listener {
             override fun onPositionDiscontinuity() = Unit
             override fun onUnderrun(bufferSize: Int, bufferSizeMs: Long, elapsedSinceLastFeedMs: Long) = Unit
@@ -127,6 +129,51 @@ class HeardSilenceAudioSinkTest {
         assertEquals("a seek or a new item starts again", SilenceCutter.FLOOR, afterASeek)
     }
 
+    @Test
+    fun `on a video a long pause is released as jumps no longer than the cap`() {
+        videoPlaying = true
+        val jumps = jumpsWhilePlayingPast(sevenSecondPause)
+
+        assertTrue("the pause was cut and heard: $jumps", jumps.sum() > MOST_OF_THE_PAUSE_US)
+        assertTrue("no jump over the cap: $jumps", jumps.max() <= VIDEO_JUMP_CAP_US)
+        assertTrue("it took several jumps: $jumps", jumps.count { it > 0 } > 10)
+    }
+
+    @Test
+    fun `with no video the same pause is still released as one jump`() {
+        videoPlaying = false
+        val jumps = jumpsWhilePlayingPast(sevenSecondPause)
+
+        assertEquals("one jump: $jumps", 1, jumps.count { it > 0 })
+        assertTrue("and it is the whole pause: $jumps", jumps.max() > MOST_OF_THE_PAUSE_US)
+    }
+
+    @Test
+    fun `a video pause released in several jumps is announced to the player each time`() {
+        videoPlaying = true
+        val jumps = jumpsWhilePlayingPast(sevenSecondPause)
+
+        assertEquals(jumps.count { it > 0 }, announced)
+    }
+
+    private fun jumpsWhilePlayingPast(input: ShortArray): List<Long> {
+        play(input)
+        val skippedUs = cutter.framesToUs(cutter.skippedFrames)
+        sinkPositionUs = FIRST_CUT_US - 50_000 + skippedUs
+        var last = sink.getCurrentPositionUs(false)
+        val jumps = mutableListOf<Long>()
+        repeat(STEPS) {
+            sinkPositionUs += STEP_US
+            val position = sink.getCurrentPositionUs(false)
+            jumps += position - last - STEP_US
+            last = position
+        }
+        return jumps
+    }
+
+    private val sevenSecondPause: ShortArray
+        get() = tone(SPEECH_MS) + ShortArray(RATE * 7) + tone(SPEECH_MS)
+
     private fun positionAfterFlushes(flushes: Int): Long {
         play(bursts(5))
         val skippedUs = cutter.framesToUs(cutter.skippedFrames)
@@ -200,6 +247,10 @@ class HeardSilenceAudioSinkTest {
         const val SPEECH_US = 500_000L
         const val PAUSE_US = 1_000_000L
         const val FIRST_CUT_US = SPEECH_US + SilenceCutter.PAD_MS * 1_000L
+        const val STEP_US = 10_000L
+        const val STEPS = 100
+        const val MOST_OF_THE_PAUSE_US = 6_500_000L
+        const val VIDEO_JUMP_CAP_US = 400_000L
         const val PEAK = 8_000.0
         const val HISS = 100
         const val VOICE_HZ = 180.0

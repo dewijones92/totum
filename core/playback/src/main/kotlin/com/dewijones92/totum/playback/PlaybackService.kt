@@ -105,6 +105,9 @@ public class PlaybackService : MediaSessionService() {
     private val castStatus = CastStatus { mediaSession }
     private var currentPlayer: Player? = null
 
+    @UnstableApi
+    private val videoPresence = SilenceVideoPresence()
+
     // Last item/position handed across a local↔cast switch, so a cast disconnect
     // (which nulls the CastPlayer's queue) can still resume locally.
     private val handoff = CastHandoff<MediaItem> { it.mediaId }
@@ -124,7 +127,7 @@ public class PlaybackService : MediaSessionService() {
         // (Sonic stays for speed/pitch); skipping is off until the user turns it on.
         silenceCutter.speechWeights = { BundledSpeechModel.get() }
         BundledSpeechModel.get()
-        val renderersFactory = silenceAwareRenderers(this, silenceCutter, booster) { skipSilenceEnabled }
+        val renderersFactory = silenceAwareRenderers(this, silenceCutter, booster, videoPresence) { skipSilenceEnabled }
         // Held so stalls can be reported with the throughput at the time. Without it a
         // stall is just "it stopped": a stream delivering 60 kbps and a 1080p stream that
         // needs more than the connection has look identical, and the fixes are opposite.
@@ -135,6 +138,7 @@ public class PlaybackService : MediaSessionService() {
         // Where the detail behind a stall comes from: chosen format, per-chunk
         // throughput, load failures, dropped frames. Media3 exposes it only here.
         player.addAnalyticsListener(PlaybackAnalytics { player.videoDecoderCounters })
+        player.addAnalyticsListener(videoPresence)
         player.addAnalyticsListener(SubtitleTrail())
         player.addAnalyticsListener(SeekLoadTrail())
         player.addListener(UnaskedRewindGuard { player })

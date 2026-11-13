@@ -3,7 +3,7 @@ title: Skip-silence that actually skips
 kind: feature
 area: playback
 status: shipped
-updated: 2026-10-31
+updated: 2026-11-13
 ---
 
 # Skip-silence that actually skips
@@ -175,6 +175,16 @@ pure Kotlin and tested on the JVM. Two details matter:
   the boost's 5ms look-ahead tipped the race every time: 10.8s with it on, 8.6s off. The skip-silence speed-up path (`SilenceDetectingAudioProcessor`,
 `SilenceStrategy`, `SilenceRacer`) is gone: there is one mechanism for both pillars again.
 
+## A long cut on video is paid out in short jumps (2026-11-13, ADR 162)
+
+Finding 129: on a video a long cut could stall the picture, 7.5 s of buffering at one position. The clock jumps by the
+whole cut the moment it is heard, so the picture has to skip a pause's worth of video at once. While a video track is
+selected, the heard clock now releases at most 400 ms per position read (`HeardClock.maxJumpUs`), the rest owed and paid
+on the next reads, never backwards; the player is told each time. Audio-only is uncapped, and so is the end of a stream.
+It is not yet proved on a phone that this stops the stall, so the first thing it adds is evidence: one `silence` line per
+50 jumps or 30 s (and the first) with the cuts heard, their lengths, the jumps, how many left more to pay, and the video
+frames dropped since the last line (`SilenceCutStats`, `SilenceVideoPresence`).
+
 ## A cut must not starve the speaker
 
 Removing a two-second pause means the decoder has to produce two seconds of audio to replace it,
@@ -210,8 +220,9 @@ item gets the bigger buffer from the next item.
 | Level | Test | Claim |
 |---|---|---|
 | JVM | `ItemEndWatchTest` (8) | the item-end line: real-time play reports no jump, a trailing cut shows as media passing faster than it was heard, speed is not mistaken for a jump, paused time is not counted, an item left early says so, SponsorBlock seeks near the end are counted, an unknown duration never starts the tail, and five ends are kept |
-| JVM | `HeardSilenceAudioSinkTest` (4) | a seek or a new item learns the cut level again, a speed change keeps it; the wrapper's wiring through a scripted inner sink and the real cutter: the sink's early skip report is swallowed and the player told once when the cut is heard; one, two or three flushes in a row give the same position; after `playToEndOfStream` the last cut counts. Each fails when its piece of wiring is removed |
-| JVM | `HeardClockTest` (16) | a flush straight after a seek back does not count cuts from where playback used to be; a cut already announced is not announced again after a flush; a flush noticed before the stream restarts is not stranded; a cut carried across a flush is announced when heard; two flushes before either is heard count each stretch's cuts separately; at the end a cut in the last moments is released and one further ahead is not; a cut made but not heard does not move the clock; it moves and is announced once when heard; never backwards; a mid-item flush carries the cut silence until the new stream is heard, never past its start; a seek carries nothing. Mutation-checked: dropping the carry fails two tests, the stock early clock fails one |
+| JVM | `HeardSilenceAudioSinkTest` (7) | on a video a 7 s pause is released as jumps of at most 400 ms (seen red first at one 6,960 ms jump), with no video it is still one jump, and each capped jump is announced; and  a seek or a new item learns the cut level again, a speed change keeps it; the wrapper's wiring through a scripted inner sink and the real cutter: the sink's early skip report is swallowed and the player told once when the cut is heard; one, two or three flushes in a row give the same position; after `playToEndOfStream` the last cut counts. Each fails when its piece of wiring is removed |
+| JVM | `HeardClockTest` (20) | the cap pays a heard cut out over several reads, never backwards, the whole cut arrives, the cut is reported once, a seek forgets what was owed, and the end of the stream pays the rest; and also:  a flush straight after a seek back does not count cuts from where playback used to be; a cut already announced is not announced again after a flush; a flush noticed before the stream restarts is not stranded; a cut carried across a flush is announced when heard; two flushes before either is heard count each stretch's cuts separately; at the end a cut in the last moments is released and one further ahead is not; a cut made but not heard does not move the clock; it moves and is announced once when heard; never backwards; a mid-item flush carries the cut silence until the new stream is heard, never past its start; a seek carries nothing. Mutation-checked: dropping the carry fails two tests, the stock early clock fails one |
+| JVM | `SilenceCutStatsTest` (5) | the first release is reported, then every few or after a time, a line carries cut and jump lengths, the remainder count and the dropped frames since the last line, a window starts again |
 | JVM | `BoostAndSkipSilenceTogetherTest` | Media3's real processors in the chain's order, boost on, speech peaking at 3000 with hiss at 300 in its pauses: they are all cut. With the boost first (the committed-before wiring), 119ms of 6000ms |
 | JVM | `SilenceCutterTest` (23) | a matrix of quiet recordings (600-3000 peak, Gaussian hiss) after nothing, a click, a cough or 5s of music keeps at least 99% of its speech energy, and has at least 70% of its pause time removed wherever the hiss is 26 dB or more under the speech (fails with the round-3 latch); a quiet recording is cut the way PipePipe would cut it turned up to full volume, and hiss that would sit over 1024 is kept; a music bed well under the speech is cut; a quiet recording that talks straight away keeps its opening; a long cut is not reported as nothing to cut; quiet speech that follows 5s of loud music or one loud click at the start of a stream loses at most its opening word (the mid-stream case is the trade-off above); quiet speech (peaking at 197) is never cut away; a quiet recording with hiss (1000/120) still has its pauses cut; a normally mastered one (20000/800) is cut as PipePipe cuts it; pauses louder than 1024 are kept as PipePipe keeps them; pauses under 150ms untouched; every longer pause becomes 40ms; the sound either side is bit-exact; the join fades to near zero; the skipped count equals exactly what was removed; the same output in any chunk size; stereo is a pause only when both channels are quiet; 1025 is never a pause; a cut counts only once playback reaches it, and keeps counting while a long pause is still being cut; trailing pauses. Mutation-checked: removing the fade fails one test, miscounting skipped frames fails another |
 | JVM | `SpeechModelTest` (6, incl. the filter bank being the windowed DFT the FFT replaces) | the Kotlin network gives ONNX Runtime's answers within 0.0001 over 64 chunks (synthetic tones, noise, silence, real speech); speech is told from silence; reset forgets; a wrong-sized chunk and a foreign file are refused. Mutation-checked: swapped LSTM gates, zero padding, and dropped context each fail it |

@@ -12,11 +12,13 @@ import java.nio.ByteBuffer
 internal class HeardSilenceAudioSink(
     sink: AudioSink,
     private val cutter: SilenceCuttingAudioProcessor,
+    private val videoPlaying: () -> Boolean = { false },
+    private val lateVideoFrames: () -> Long = { 0L },
 ) : ForwardingAudioSink(sink) {
 
     private val clock = HeardClock()
     private var seenFlushes = -1L
-    private var released = 0L
+    private val stats = SilenceCutStats()
     private var listener: AudioSink.Listener? = null
 
     override fun setListener(listener: AudioSink.Listener) {
@@ -35,6 +37,7 @@ internal class HeardSilenceAudioSink(
     override fun getCurrentPositionUs(sourceEnded: Boolean): Long {
         val counted = super.getCurrentPositionUs(sourceEnded)
         if (counted == AudioSink.CURRENT_POSITION_NOT_SET || cutter.flushes != seenFlushes) return counted
+        clock.maxJumpUs = if (videoPlaying()) VIDEO_JUMP_CAP_US else Long.MAX_VALUE
         val position = clock.position(counted, cutter.framesToUs(cutter.skippedFrames)) { heardUs ->
             cutter.framesToUs(cutter.heard?.skippedBy(cutter.usToFrames(heardUs)) ?: 0L)
         }
@@ -70,15 +73,16 @@ internal class HeardSilenceAudioSink(
     }
 
     private fun cutHeard() {
-        released++
         listener?.onSilenceSkipped()
-        if (released == 1L || released % RELEASE_LOG_EVERY == 0L) {
-            Diag.log(
-                "silence",
-                "cut #$released heard ${clock.sinceStartUs / MICROS_PER_MS}ms into the stream: clock moved on " +
-                    "${clock.releasedUs / MICROS_PER_MS}ms when it was heard, not when it was cut",
-            )
-        }
+        val line = stats.released(
+            cutUs = clock.cutHeardUs,
+            jumpUs = clock.releasedUs,
+            owedUs = clock.owingUs,
+            video = videoPlaying(),
+            droppedFrames = lateVideoFrames(),
+            nowMs = System.nanoTime() / NANOS_PER_MS,
+        )
+        if (line != null) Diag.log("silence", "${clock.sinceStartUs / MICROS_PER_MS}ms into the stream: $line")
     }
 
     @Suppress("TooManyFunctions")
@@ -104,7 +108,8 @@ internal class HeardSilenceAudioSink(
     }
 
     private companion object {
-        const val RELEASE_LOG_EVERY = 100L
         const val MICROS_PER_MS = 1_000L
+        const val NANOS_PER_MS = 1_000_000L
+        const val VIDEO_JUMP_CAP_US = 400_000L
     }
 }
