@@ -52,15 +52,13 @@ import com.dewijones92.totum.data.targets.TargetEntry
 import com.dewijones92.totum.data.targets.TargetPower
 import com.dewijones92.totum.data.targets.TargetState
 import com.dewijones92.totum.data.targets.isLive
+import com.dewijones92.totum.data.targets.onATarget
 import com.dewijones92.totum.data.targets.shownLengthMs
 import com.dewijones92.totum.data.targets.showsPicture
-import com.dewijones92.totum.data.targets.onATarget
 import com.dewijones92.totum.data.targets.toQueueEntry
 import com.dewijones92.totum.domain.RepeatMode
 import com.dewijones92.totum.playback.VolumeBoost
 import com.dewijones92.totum.targets.TargetsRepository
-import com.dewijones92.totum.ui.player.LocalCompactTiles
-import com.dewijones92.totum.ui.player.RepeatTile
 import com.dewijones92.totum.ui.common.EmptyState
 import com.dewijones92.totum.ui.common.LocalItemShield
 import com.dewijones92.totum.ui.common.MediaItemRow
@@ -69,6 +67,8 @@ import com.dewijones92.totum.ui.common.formatClock
 import com.dewijones92.totum.ui.common.liveTagColor
 import com.dewijones92.totum.ui.common.liveTagLabel
 import com.dewijones92.totum.ui.common.rowFacts
+import com.dewijones92.totum.ui.player.LocalCompactTiles
+import com.dewijones92.totum.ui.player.RepeatTile
 import com.dewijones92.totum.video.LiveTag
 import kotlin.time.Duration.Companion.milliseconds
 

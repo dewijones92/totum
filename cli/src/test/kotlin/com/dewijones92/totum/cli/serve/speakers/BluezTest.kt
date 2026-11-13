@@ -65,7 +65,7 @@ class BluezTest {
     }
 
     @Test
-    fun `a speaker that never links is not connected, and one switched on by hand says to switch it on`() = runBlocking {
+    fun `a speaker that never links is not connected, and one switched on by hand says so`() = runBlocking {
         val off = FakeShell().apply { linksOnConnect = false }
         val link = BluezLink("54:15:89:76:CD:A4", off, pollMs = 0, tries = 2)
         assertNull(link.unreachable)

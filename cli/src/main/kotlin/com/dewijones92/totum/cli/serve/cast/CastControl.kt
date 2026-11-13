@@ -21,6 +21,7 @@ internal interface CastControl {
     val model: String? get() = null
 }
 
+@Suppress("TooManyFunctions")
 internal class PyCastControl(
     private val host: String,
     private val label: String,

@@ -51,6 +51,7 @@ internal object CastWire {
 
     fun release(): String = line("release")
 
+    @Suppress("CyclomaticComplexMethod")
     fun parse(text: String): CastEvent? {
         val obj = runCatching { Json.parseToJsonElement(text).jsonObject }.getOrNull() ?: return null
         return when (obj.text("event")) {

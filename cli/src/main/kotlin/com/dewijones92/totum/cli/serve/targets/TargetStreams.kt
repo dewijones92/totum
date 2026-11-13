@@ -33,7 +33,10 @@ internal class TargetStreams(
 
     override suspend fun urlFor(item: PlayableItem, picture: Boolean): String? {
         refusedUntil(item, picture)?.let {
-            Diag.warn("targets", "${item.item.id.value}: a live stream for a speaker, and YouTube is refusing the Pi until $it")
+            Diag.warn(
+                "targets",
+                "${item.item.id.value}: a live stream for a speaker, and YouTube is refusing the Pi until $it"
+            )
             return null
         }
         when (val file = files.resolve(item)) {
@@ -54,7 +57,9 @@ internal class TargetStreams(
     override fun refusedUntil(item: PlayableItem): Long? = refusedUntil(item, picture = false)
 
     private fun refusedUntil(item: PlayableItem, picture: Boolean): Long? =
-        liveRefusedUntil().takeIf { !picture && item.item.contentKind == MediaContentKind.LIVE && item.handle is PlayHandle.Video }
+        liveRefusedUntil().takeIf {
+            !picture && item.item.contentKind == MediaContentKind.LIVE && item.handle is PlayHandle.Video
+        }
 
     override fun whyNone(item: PlayableItem): String {
         val file = files.resolve(item)

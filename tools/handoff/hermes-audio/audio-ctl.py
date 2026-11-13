@@ -21,6 +21,8 @@ SOUNDS = {"brown-noise": "brown-noise.opus"}
 STATIONS = {"jazz": "https://www.youtube.com/watch?v=Dx5qFachd3A"}
 STATUS_TTL = 4
 TOTUM_TIMEOUT = 90
+START_POLL = 1
+START_WAIT = 150
 POLL_LOG_PERIOD = 900
 
 
@@ -165,8 +167,8 @@ def resolve_show(channel, mode, vid_id=None):
 
 
 class Adapter:
-    def __init__(self, totum=None, resolve=resolve_show, clock=time.time):
-        self.totum, self.resolve, self.clock = totum or Totum(), resolve, clock
+    def __init__(self, totum=None, resolve=resolve_show, clock=time.time, sleep=time.sleep):
+        self.totum, self.resolve, self.clock, self.sleep = totum or Totum(), resolve, clock, sleep
         self.lock = threading.Lock()
         self.pending = threading.Event()
         self.selected = DEFAULT_SPEAKER
@@ -314,10 +316,25 @@ class Adapter:
             log(f"{item['itemId']} is already playing on {speaker}")
             return
         log(f"play {item['itemId']} on {speaker} ({target_id}) loop={loop}")
-        answered = self.totum.queue(target_id, queue_request(item, loop))
+        answered = self._started(target_id, self.totum.queue(target_id, queue_request(item, loop)))
         if answered.get("problem") and not answered.get("playing"):
             raise TotumError(answered["problem"])
         self._prune(target_id, answered, keep=answered.get("at"))
+
+    def _started(self, target_id, answered):
+        waited = 0
+        while answered.get("starting") and waited < START_WAIT:
+            self.sleep(START_POLL)
+            waited += START_POLL
+            listed = next((s for s in self.totum.targets().get("targets", []) if s["target"]["id"] == target_id), None)
+            if listed is not None:
+                answered = listed
+        if answered.get("starting"):
+            log(f"{target_id} was still starting after {waited}s; going on with what it said")
+        else:
+            log(f"{target_id} finished starting after {waited}s: playing={answered.get('playing')} "
+                f"trouble={(answered.get('trouble') or {}).get('kind')}")
+        return answered
 
     def _release(self, name, state):
         stopped = holds(state) and bool(state.get("playing"))

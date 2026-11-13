@@ -4,7 +4,7 @@ kind: todo
 status: built 2026-11-07, Batch A (tests written 2026-11-07; device checks owed)
 batch: A (2026-11), phase 7
 priority: high
-updated: 2026-11-07
+updated: 2026-11-13
 ---
 
 # 📡 The Pi plays to any TV, browser or speaker; the phone is a remote
@@ -125,6 +125,15 @@ TV volume strip and Cast arming on a target; the Pi measuring two A2DP streams a
 - The container's bridge network lets it open the Chromecast's port 8009 on the LAN.
 - A Chromecast plays an unseekable ADTS AAC stream sent without a length (processed audio).
 - Pi's PulseAudio and Bluetooth stay as ADR 116 set them up; mpv accepts raw PCM on stdin with `--demuxer=rawaudio`.
+
+### End-of-batch fixes, 2026-11-13 ([ADR 158](../adr/0158-targets-end-of-batch-fixes.md))
+
+Done: accept-then-start with the phone watching, reach before resolve, resume, a lost connection and a stall, edits by
+id, a structured problem and its words, the back-off wording, the seek slider, the small fixes. **Owed (device):** the
+real LG switched off mid-item and woken by Play; the real Soundmic with `TOTUM_SPEAKERS_SWITCHED_ON_BY_HAND`; a live item
+on a speaker during a real back-off; the 1.5 s grace on a real slow start; the hand-back file surviving a real restart.
+**Not built:** failing fast when `bluetoothctl connect` says it failed (the Pi still waits up to 15 s for the sink); a TV
+that hangs while still reporting `PLAYING` is not detected.
 
 ### Review fixes, 2026-11-07
 

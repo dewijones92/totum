@@ -301,10 +301,10 @@ import com.dewijones92.totum.shuffle.ShuffleAll
 import com.dewijones92.totum.stars.STARRED_PLAYLIST_NAME
 import com.dewijones92.totum.stars.Stars
 import com.dewijones92.totum.stats.StatsLog
+import com.dewijones92.totum.targets.ContextTargetWords
 import com.dewijones92.totum.targets.PrefsTargetColours
 import com.dewijones92.totum.targets.RequesterIdentity
 import com.dewijones92.totum.targets.SendToTarget
-import com.dewijones92.totum.targets.ContextTargetWords
 import com.dewijones92.totum.targets.TargetsRepository
 import com.dewijones92.totum.trip.TripMode
 import com.dewijones92.totum.trip.tripModeFor

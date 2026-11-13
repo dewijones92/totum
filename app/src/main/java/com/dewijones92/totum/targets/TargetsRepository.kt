@@ -1,6 +1,7 @@
 package com.dewijones92.totum.targets
 
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.data.backup.titleOf
 import com.dewijones92.totum.data.backup.toBackup
 import com.dewijones92.totum.data.home.HomeAnswer
 import com.dewijones92.totum.data.home.TargetsApi
@@ -17,7 +18,6 @@ import com.dewijones92.totum.data.targets.TargetQueueRequest
 import com.dewijones92.totum.data.targets.TargetState
 import com.dewijones92.totum.domain.ItemShields
 import com.dewijones92.totum.domain.MediaItemId
-import com.dewijones92.totum.data.backup.titleOf
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.operations.OperationEnd
 import com.dewijones92.totum.operations.OperationKind
@@ -174,7 +174,10 @@ class TargetsRepository(
                 "$id answered $what: playing=${answer.value.playing} starting=${answer.value.starting} " +
                     "at=${answer.value.at} of ${answer.value.entries.size} trouble=${answer.value.trouble?.kind}",
             )
-            is HomeAnswer.No -> Diag.warn("targets", "$id answered $what with no: HTTP ${answer.httpCode} ${answer.reason}")
+            is HomeAnswer.No -> Diag.warn(
+                "targets",
+                "$id answered $what with no: HTTP ${answer.httpCode} ${answer.reason}"
+            )
         }
     }
 
@@ -220,7 +223,11 @@ class TargetsRepository(
         }
     }
 
-    private suspend fun answeredNo(play: Redirected, answer: HomeAnswer.No, progress: Operations.Progress?): OperationEnd {
+    private suspend fun answeredNo(
+        play: Redirected,
+        answer: HomeAnswer.No,
+        progress: Operations.Progress?,
+    ): OperationEnd {
         val code = answer.httpCode
         if (code != null && code < SERVER_ERROR) return fallBack(play, describe(answer), removeFromPi = false)
         Diag.warn(
@@ -232,8 +239,11 @@ class TargetsRepository(
         val seen = (read as? HomeAnswer.Ok)?.value?.targets?.firstOrNull { it.target.id == play.id }
         val asked = play.items.mapTo(HashSet()) { it.item.id.value }
         val holds = seen?.entries?.any { it.item.itemId in asked } == true
-        if (seen != null && holds && (seen.starting || seen.playing)) {
-            Diag.log("targets", "${play.label} had taken them after all (starting=${seen.starting} playing=${seen.playing})")
+        if (seen != null && holds && seen.isWorkingOnIt()) {
+            Diag.log(
+                "targets",
+                "${play.label} had taken them after all (starting=${seen.starting} playing=${seen.playing})"
+            )
             replace(seen)
             return settle(play, seen, progress)
         }
@@ -288,8 +298,8 @@ class TargetsRepository(
     private suspend fun fallBack(play: Redirected, why: String, removeFromPi: Boolean): OperationEnd {
         Diag.warn(
             "targets",
-            "${play.label} did not take ${play.mode} of ${play.items.size} ($why); playing them on this phone instead " +
-                "(taking them off ${play.label}: $removeFromPi)",
+            "${play.label} did not take ${play.mode} of ${play.items.size} ($why); " +
+                "playing them on this phone instead (taking them off ${play.label}: $removeFromPi)",
         )
         playHere(play.items, play.mode, play.group, play.startAt)
         if (removeFromPi) removeSent(play)
@@ -301,7 +311,10 @@ class TargetsRepository(
         val ids = play.items.map { it.item.id.value }
         val answer = control(play.id, TargetControl(TargetAction.REMOVE, itemIds = ids))
         if (answer is HomeAnswer.No) {
-            Diag.warn("targets", "${play.label}: could not take the ${ids.size} sent item(s) off it again: ${answer.reason}")
+            Diag.warn(
+                "targets",
+                "${play.label}: could not take the ${ids.size} sent item(s) off it again: ${answer.reason}"
+            )
         }
     }
 
@@ -396,6 +409,8 @@ class TargetsRepository(
         const val HEX = 16
     }
 }
+
+private fun TargetState.isWorkingOnIt(): Boolean = starting || playing
 
 internal data class Redirected(
     val id: String,

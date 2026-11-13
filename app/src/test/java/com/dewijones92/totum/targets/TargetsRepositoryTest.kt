@@ -9,6 +9,7 @@ import com.dewijones92.totum.data.queue.QueueGroup
 import com.dewijones92.totum.data.targets.QueueMode
 import com.dewijones92.totum.data.targets.Requester
 import com.dewijones92.totum.data.targets.Target
+import com.dewijones92.totum.data.targets.TargetAction
 import com.dewijones92.totum.data.targets.TargetColours
 import com.dewijones92.totum.data.targets.TargetControl
 import com.dewijones92.totum.data.targets.TargetEntry
@@ -18,7 +19,6 @@ import com.dewijones92.totum.data.targets.TargetQueueRequest
 import com.dewijones92.totum.data.targets.TargetState
 import com.dewijones92.totum.data.targets.TargetTrouble
 import com.dewijones92.totum.data.targets.TargetsAnswer
-import com.dewijones92.totum.data.targets.TargetAction
 import com.dewijones92.totum.data.targets.TroubleKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
@@ -428,7 +428,7 @@ class TargetsRepositoryTest {
     }
 
     @Test
-    fun `an answer that never came, with the Pi unreadable too, is played here and taken off if it was there`() = runTest {
+    fun `an answer that never came and a Pi that cannot be read is played here and taken off`() = runTest {
         api.queueAnswer = HomeAnswer.No("❌ The home server didn't answer")
         api.answer = HomeAnswer.No("❌ The home server didn't answer")
 
@@ -507,7 +507,10 @@ class TargetsRepositoryTest {
             Diag.sink = before
         }
 
-        assertTrue(lines.toString(), lines.any { it.startsWith("sending to lg-tv: SEEK") && it.contains("positionMs=42000") })
+        assertTrue(
+            lines.toString(),
+            lines.any { it.startsWith("sending to lg-tv: SEEK") && it.contains("positionMs=42000") }
+        )
         assertTrue(lines.toString(), lines.any { it.startsWith("sending to lg-tv: REMOVE index=3 itemId=x") })
         assertTrue(lines.toString(), lines.any { it.startsWith("lg-tv answered SEEK") })
     }

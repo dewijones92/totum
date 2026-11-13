@@ -3,7 +3,7 @@ title: 📡 The Pi plays to any TV, speaker or browser; the phone is a remote
 kind: feature
 area: casting/pi
 status: built 2026-11-07, Batch A (tests written 2026-11-07; volume rule and the YouTube relay fixed after the first run on the LG; the relay not yet seen on a real TV)
-updated: 2026-11-07
+updated: 2026-11-13
 ---
 
 # 📡 The Pi plays to any TV, speaker or browser
@@ -56,6 +56,18 @@ sound processing on the Pi). Brief: [pi-plays-everywhere.md](../todos/pi-plays-e
   ADR 152).
 - **Live on a speaker** plays YouTube's HLS manifest for the video (via yt-dlp on the Pi), from the live edge; TVs get
   the DASH manifest as before ([ADR 156](../adr/0156-one-casting-brain-the-pi-casts-with-the-phones-own-code.md)).
+- **A slow start is watched, not guessed at** ([ADR 158](../adr/0158-targets-end-of-batch-fixes.md)). A queue request is
+  accepted at once; a speaker that takes 15 s to link, a TV that is waking or a slow lookup show as "⏳ Starting on …" on
+  the strip (the state says `starting`) and the phone watches until the Pi has played it or said why not. Only then, if it
+  did not, does the phone play the items itself, taking them off the Pi by id. A target that cannot be reached is not asked
+  for a stream first, and its problem is shown in the phone's own words ("📶 Couldn't reach … it isn't connected (off or out
+  of range)", "📶 Switch … on, then try again", "🔑 Sign in to the home server again", "⏳ YouTube is refusing the Pi for
+  now; try again around 14:30").
+- **A TV switched off mid-item stops the deck and keeps its place.** The deck shows it asleep with "📺 LG TV was switched
+  off"; Play wakes it and resumes at the saved second (a live item at the edge). STOP then Play, and a Pi restart then Play,
+  also resume. A playing item whose position has not moved for 20 s is a "stopped moving" problem.
+- **The remote panel seeks.** A slider (sent on release) with 10 s back and 30 s forward; tapping the playing row does not
+  restart it.
 - **A reason stays visible.** When an item fails and the queue moves on, the target's problem stays on screen until the
   next item ends or you act ([ADR 155](../adr/0155-a-target-repeats-plays-files-on-the-pi-and-says-why-it-could-not-play.md)).
 - **STOP clears the TV.** If Totum opened the receiver app (the TV was idle or on its backdrop), STOP, or a queue that
@@ -74,12 +86,18 @@ sound processing on the Pi). Brief: [pi-plays-everywhere.md](../todos/pi-plays-e
 | Pi sound pipelines | `cli/…/serve/sound/ProcessedSound.kt` |
 | Speakers | `cli/…/serve/speakers/` (`Bluez.kt`, `MpvPlayer.kt` — now a `TargetPlayer`, `SpeakerSource`) |
 | TVs | `cli/…/serve/cast/` (`ChromecastPlayer`, `PiStreams` (owns the `CastStreamServer`), `PiCastTvs`, `FfmpegAudioEngine`, `CastControl`, `CastWire`, `StreamRelay`), `server/totum-cli/chromecast_helper.py`; the brain in `core/cast` (`CastStreamServer`, `ProcessedAudio`, `AudioEngine`, `LiveRelay`, `DashManifest`, `CastRungs`, `ChunkedUpstream`, `LocalRanges`), `HomeDownloads.castOf` for a YouTube ladder |
-| Phone | `app/…/targets/` (`TargetsRepository`, `SendToTarget`, `TargetColourStore`, `RequesterIdentity`), `ui/queue/` (`QueueWithTargets`, `TargetChips`, `RemoteQueue`, `SendToButton`), `queue/QueueDestination.kt` |
+| Phone | `app/…/targets/` (`TargetsRepository`, `TargetWords`, `SendToTarget`, `TargetColourStore`, `RequesterIdentity`), `ui/queue/` (`QueueWithTargets`, `TargetChips`, `RemoteQueue`, `SendToButton`), `queue/QueueDestination.kt` |
 
 - **Repeat, files and problems (2026-11-07, [ADR 155](../adr/0155-a-target-repeats-plays-files-on-the-pi-and-says-why-it-could-not-play.md)).** A
   target repeats off / this one / the queue (set by a queue request or a `REPEAT` control, saved, shown in `GET /targets`);
   an item can be a sound file on the Pi (`file:///sounds/<name>`, nothing outside that folder); a passed-over item or a
   failed player shows as the target's `problem`; `127.0.0.1:8772` on the Pi serves only `/targets*` and `/health`, for Home Assistant ([ADR 158](../adr/0158-targets-end-of-batch-fixes.md)).
+
+- **End-of-batch fixes (2026-11-13, [ADR 158](../adr/0158-targets-end-of-batch-fixes.md)).** Accept-then-start, reach before
+  resolve, resume from the saved place, a lost connection, a stall, edits and removals by item id, a structured problem
+  (`TargetState.trouble`), the YouTube back-off wording, the seek slider, audio extensions only in `/sounds`, one kit per
+  target, the cut-end race, the hand-back remembered across a restart (`handback-<id>.json`),
+  `TOTUM_SPEAKERS_SWITCHED_ON_BY_HAND` for speakers that must be switched on by hand.
 
 ## Not built (see the todo)
 
@@ -89,6 +107,10 @@ not either); playback speed on a target; the phone's silence mode and speech gat
 Not seen on a real TV or speaker yet: the manifest, the relayed picture, the Pi's segments, live on a TV and on mpv.
 
 ## Tests
+
+ADR 158 (2026-11-13): `TargetDeckStartTest`, `TargetRoutesSlowStartTest`, `TargetDecksTest`, `SoundFilesTest`,
+`TargetStreamsTest`, `BluezTest`, `CastBrainTest`, `CastControlTest`, `CastWireTest`, `WakeThenPlayTest` (cli),
+`TargetsRepositoryTest` (app), `chromecast_helper_test.py`, `test_audio_ctl.py`; `TargetWordsTest` (instrumented, not run).
 
 Unit (wake, hand back, live, ADR 152 amendments of 2026-11-07): `WakeOnLanTest`, `TvWakeTest`, `WakeThenPlayTest`, `YtDlpLiveHlsTest`, `LiveForSpeakersTest`, `CastWireTest`, `CastControlTest`, `ChromecastPlayerTest`, `TargetDeckTest`, `MpvPlayerTest` (cli), `TargetRulesTest` (core), `TargetsRepositoryTest`, `TargetChipLabelTest` (app), `server/totum-cli/chromecast_helper_test.py`.
 

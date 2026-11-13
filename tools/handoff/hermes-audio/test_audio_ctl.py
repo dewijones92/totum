@@ -36,6 +36,7 @@ class FakeTotum:
         self.state = targets(*states)
         self.calls = []
         self.queue_answer = None
+        self.after_queue = None
         self.unreachable = False
 
     def targets(self):
@@ -45,6 +46,8 @@ class FakeTotum:
 
     def queue(self, target_id, body):
         self.calls.append(("queue", target_id, body))
+        if self.after_queue is not None:
+            self.state = self.after_queue
         if self.queue_answer is not None:
             return self.queue_answer
         return target(target_id, [{"item": body["items"][0], "addedBy": HA}], at=0, playing=True, linked=True)
@@ -213,6 +216,38 @@ class UrlsTest(unittest.TestCase):
         self.assertNotIn("repeat", request)
         self.assertEqual("Episode 4", request["items"][0]["title"])
         self.assertEqual("https://www.youtube.com/watch?v=abc123abc12", request["items"][0]["handle"])
+
+    def test_a_start_the_pi_says_is_slow_is_waited_for_and_pruned_by_where_it_ended_up(self):
+        waited = []
+        totum = FakeTotum(target(SOUNDBAR, [PHONE], 0, True), target(SOUNDMIC))
+        adapter = audio_ctl.Adapter(totum, resolve=lambda c, m, i=None: {}, sleep=waited.append)
+        slow = target(SOUNDBAR, [PHONE, {"item": JAZZ["item"], "addedBy": HA}], 0, True)
+        slow["starting"] = True
+        totum.queue_answer = slow
+        totum.after_queue = targets(target(SOUNDBAR, [PHONE, {"item": JAZZ["item"], "addedBy": HA}], 1, True, True),
+                                    target(SOUNDMIC))
+
+        adapter.handle("/play/jazz", {})
+        adapter.run_pending()
+
+        self.assertEqual([audio_ctl.START_POLL], waited)
+        self.assertEqual(None, adapter.last_error)
+        self.assertEqual([("queue", SOUNDBAR)], [c[:2] for c in totum.calls])
+
+    def test_a_start_that_ends_in_a_problem_is_the_adapters_last_error(self):
+        totum = FakeTotum(target(SOUNDBAR), target(SOUNDMIC))
+        adapter = audio_ctl.Adapter(totum, resolve=lambda c, m, i=None: {}, sleep=lambda s: None)
+        slow = target(SOUNDBAR, [{"item": JAZZ["item"], "addedBy": HA}], 0, False)
+        slow["starting"] = True
+        totum.queue_answer = slow
+        failed = target(SOUNDBAR, [{"item": JAZZ["item"], "addedBy": HA}], 0, False,
+                        problem="📶 Couldn't reach soundbar: it isn't connected (off or out of range)")
+        totum.after_queue = targets(failed, target(SOUNDMIC))
+
+        adapter.handle("/play/jazz", {})
+        adapter.run_pending()
+
+        self.assertIn("isn't connected", adapter.last_error)
 
     def test_a_second_show_tap_while_starting_is_ignored(self):
         adapter, totum = self.adapter(target(SOUNDBAR))

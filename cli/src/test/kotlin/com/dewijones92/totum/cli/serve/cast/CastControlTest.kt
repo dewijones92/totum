@@ -187,7 +187,10 @@ class CastControlTest {
         val control = control(
             recordingHelper(
                 log,
-                """echo '{"event":"connection","state":"CONNECTING"}'; echo '{"event":"connection","state":"CONNECTED"}'"""
+                """
+                echo '{"event":"connection","state":"CONNECTING"}'
+                echo '{"event":"connection","state":"CONNECTED"}'
+                """.trimIndent()
             )
         )
         val lost = CopyOnWriteArrayList<String>()

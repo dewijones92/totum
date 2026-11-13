@@ -29,7 +29,10 @@ class TargetWordsTest {
 
     @Test
     fun aTvSwitchedOffMidItemSaysSo() {
-        assertEquals("📺 LG TV was switched off", words.trouble("LG TV", TargetTrouble(TroubleKind.SWITCHED_OFF), "Bluey"))
+        assertEquals(
+            "📺 LG TV was switched off",
+            words.trouble("LG TV", TargetTrouble(TroubleKind.SWITCHED_OFF), "Bluey")
+        )
     }
 
     @Test
@@ -42,7 +45,11 @@ class TargetWordsTest {
 
     @Test
     fun aBackOffSaysWhenToTryAgain() {
-        val line = words.trouble("Soundbar", TargetTrouble(TroubleKind.YOUTUBE_BACKOFF, untilMs = 1_700_000_000_000), null)
+        val line = words.trouble(
+            "Soundbar",
+            TargetTrouble(TroubleKind.YOUTUBE_BACKOFF, untilMs = 1_700_000_000_000),
+            null
+        )
 
         assertTrue(line, line.startsWith("⏳ YouTube is refusing the Pi for now; try again around "))
     }

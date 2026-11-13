@@ -98,7 +98,10 @@ internal class ChromecastPlayer(
         if (!reading.playing || reading.positionAt(clock()) * MICROS_PER_MS < endTvUs - SLACK_US) return false
         synchronized(itemLock) {
             if (mediaId != id || watching == null) {
-                Diag.log("cast-target", "$label: the cut audio of $id ended, but another item is loaded now; left alone")
+                Diag.log(
+                    "cast-target",
+                    "$label: the cut audio of $id ended, but another item is loaded now; left alone"
+                )
                 return true
             }
             Diag.log(

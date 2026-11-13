@@ -121,7 +121,8 @@ to send a queue to. ADR 116 had built that for speakers only, with its own wire 
     not reach the LAN; the subnet broadcast is used for that reason. Not tested from the container (nor on the real TV
     from here): the coordinator tests it. If it does not reach, put `TOTUM_WAKE_BROADCAST` right or give the container
     host networking for the packet. Linked decks (already playing) skip the wake: a TV switched off mid-queue is not
-    woken until the deck is stopped. Speakers need nothing: Bluetooth already links on demand.
+    woken until the deck is stopped. (Amended by [ADR 158](0158-targets-end-of-batch-fixes.md): a lost connection now
+    stops the deck, and Play wakes the TV and resumes at the saved place.) Speakers need nothing: Bluetooth already links on demand.
 - **Every phone sees the same queues.** Any phone signed in to the home server reads and edits the targets' queues
   through the same operations; edits are small operations, never a whole-queue replace.
 

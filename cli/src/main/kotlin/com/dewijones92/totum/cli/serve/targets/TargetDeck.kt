@@ -146,6 +146,7 @@ internal class TargetDeck(
         reachingFirst(needsLink = true) { startPendingLocked() }
     }
 
+    @Suppress("TooGenericExceptionCaught")
     private suspend fun startPendingLocked() {
         val start = pending ?: return
         pending = null
@@ -157,10 +158,11 @@ internal class TargetDeck(
             throw e
         } catch (e: Exception) {
             Diag.warn("targets", "${target.id}: starting item ${start.index} failed", e)
+            val entry = queue.entries.getOrNull(start.index)
             problem = TroubleWords.problem(
                 target.label,
-                TargetTrouble(TroubleKind.COULD_NOT_PLAY, queue.entries.getOrNull(start.index)?.itemId(), "${e.message}"),
-                queue.entries.getOrNull(start.index)?.item?.item?.title,
+                TargetTrouble(TroubleKind.COULD_NOT_PLAY, entry?.itemId(), "${e.message}"),
+                entry?.item?.item?.title,
             )
             playing = false
         } finally {

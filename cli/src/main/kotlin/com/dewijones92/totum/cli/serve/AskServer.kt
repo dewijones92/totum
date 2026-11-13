@@ -218,6 +218,9 @@ private inline fun HttpExchange.use(block: (HttpExchange) -> Unit) {
     }
 }
 
+private fun switchedOnByHandFromEnv(): Set<String> = System.getenv("TOTUM_SPEAKERS_SWITCHED_ON_BY_HAND").orEmpty()
+    .split(',').map { it.trim().lowercase() }.filter { it.isNotEmpty() }.toSet()
+
 private const val DEFAULT_CAST_PORT = 8771
 private const val DEFAULT_LOOPBACK_PORT = 8772
 
@@ -267,13 +270,7 @@ internal suspend fun serveAsk(port: Int, out: (String) -> Unit, polite: Politene
             castFromHome = home::castOf,
         ),
         listOf(
-            SpeakerSource(
-                shell,
-                targetsDir,
-                streams::locally,
-                System.getenv("TOTUM_SPEAKERS_SWITCHED_ON_BY_HAND").orEmpty().split(',')
-                    .map { it.trim().lowercase() }.filter { it.isNotEmpty() }.toSet(),
-            ),
+            SpeakerSource(shell, targetsDir, streams::locally, switchedOnByHandFromEnv()),
             ChromecastSource(
                 knownCastsFrom(System.getenv("TOTUM_CAST_TARGETS")),
                 streams,

@@ -115,7 +115,9 @@ class TargetStreamsTest {
     private fun withHome(cast: CastItem?) =
         TargetStreams({ _, picture -> "https://home/audio:$picture" }, null, SoundFiles(sounds)) { _, _ -> cast }
 
-    private val live = youtube.copy(item = youtube.item.copy(contentKind = com.dewijones92.totum.domain.MediaContentKind.LIVE))
+    private val live = youtube.copy(
+        item = youtube.item.copy(contentKind = com.dewijones92.totum.domain.MediaContentKind.LIVE)
+    )
 
     @Test
     fun `live on a speaker while YouTube is refusing the Pi has no stream, and says until when`() = runBlocking {

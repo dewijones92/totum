@@ -89,7 +89,8 @@ internal class BluezLink(
         unreachable = TargetTrouble(if (switchedOnByHand) TroubleKind.SWITCH_ON else TroubleKind.NOT_CONNECTED)
         Diag.warn(
             "speakers",
-            "$mac: no sink $sink after ${tries * pollMs / MS_PER_S}s (${unreachable?.kind}, switchedOnByHand=$switchedOnByHand)"
+            "$mac: no sink $sink after ${tries * pollMs / MS_PER_S}s " +
+                "(${unreachable?.kind}, switchedOnByHand=$switchedOnByHand)"
         )
         return null
     }
