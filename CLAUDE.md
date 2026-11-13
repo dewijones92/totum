@@ -371,7 +371,8 @@ emulator down mid-test.
 **One emulator, owned by the orchestrator** (2026-11-13: two builders each booted `totum-api35` at once, both
 copies died, and RAM allows only one). The orchestrator boots it; a builder never does. A builder takes
 `flock /tmp/totum-emulator.lock` for each short session and checks `adb -s emulator-5554 emu avd name` says
-`totum-api35` (another session's SmartTube emulator has used 5554). Boot with the isolated **36.6.11** binary,
+`totum-api35` (another session's SmartTube emulator has used 5554). Install the app and test APKs AND run the tests inside one lock hold: another
+builder's install between them swaps the app under the test and fails it falsely (seen 2026-11-13). Boot with the isolated **36.6.11** binary,
 because the SDK's 37.2 hangs and crashes on a cold start here: `systemd-run --user --scope
 /home/dewi/claude-tasks/totum-playback-fixes-20261012/emulator-36/emulator/emulator -avd totum-api35 -no-window -gpu
 swiftshader_indirect -no-boot-anim -no-audio -no-snapshot -cores 2 -memory 2048` (its own scope, so an OOM kill takes
