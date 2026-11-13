@@ -39,11 +39,13 @@ target is selected had no way to reach the Pi: the phone's timer watched the pho
   "After this item" and "at the end of the group" send the items' ids, the way `SleepTimer.stopAtEndOf` takes them; the
   deck refuses (409, the phone refreshes) when what plays is not among them. Moving off those items pauses, the phone's
   rule.
-- **Never above where it began.** The base is the volume when the fade starts (`TargetPlayer.fadeBasePercent`, the
-  volume the phone last set, or mpv's own 100 when none was chosen). A volume the person sets during a fade follows the
+- **Never above where it began.** The fade drives volume through the same seam as the slider: a speaker's own volume
+  (`TargetVolume`, [ADR 165](0165-a-speaker-is-kept-awake-and-has-one-volume-its-own.md), read again as the fade begins),
+  else the player's (`TargetPlayer.fadeBasePercent`: the volume the phone last set, or mpv's own 100 when none was chosen).
+  The base is that volume when the fade starts. A volume the person sets during a fade follows the
   fade down and becomes the new base only if it is lower; it never lifts the fade above the level it started at.
   Cancelling, stopping, losing the connection, replacing the timer and moving off all restore to that base. A target
-  whose volume is not known (a Chromecast not yet read) is not faded, the line says so once, and it still pauses.
+  whose volume is not known (a Chromecast not yet read, a speaker whose own volume has not been read) is never faded from a guess, the line says so once, and it still pauses.
 - **The setting is the existing one.** "Fade out" is the fade length on the Bedtime page, default 20 s, 0 turns it off;
   every place a timer is set (the quick strip, end of album, Bedtime's own arming, a target's timer) reads it. The
   phone sends it with each timer sent to a target.
