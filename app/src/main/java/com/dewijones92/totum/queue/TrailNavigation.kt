@@ -24,6 +24,8 @@ class TrailNavigation(
 ) {
     val around: StateFlow<PlayTrail.Place> get() = trail.around
 
+    val listing: StateFlow<PlayTrail.Listing> get() = trail.listing
+
     fun start() {
         scope.launch {
             queue.nowPlaying.filterNotNull().distinctUntilChangedBy { it.item.id }.collect(trail::noted)
@@ -35,6 +37,8 @@ class TrailNavigation(
     fun back() = go("back", trail.back())
 
     fun forward() = go("forward", trail.forward())
+
+    fun goTo(index: Int) = go("jump", trail.goTo(index))
 
     private fun go(way: String, item: PlayableItem?) {
         item ?: return Diag.log("trail", "$way: nothing there")

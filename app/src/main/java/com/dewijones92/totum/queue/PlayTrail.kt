@@ -21,11 +21,15 @@ class PlayTrail(private val store: TrailStore = NoTrailStore, private val limit:
 
     data class Place(val back: PlayableItem?, val forward: PlayableItem?)
 
+    data class Listing(val items: List<PlayableItem>, val cursor: Int)
+
     private var items: List<PlayableItem>
     private var cursor: Int
     private var arriving: MediaItemId? = null
     private val place = MutableStateFlow(Place(null, null))
     val around: StateFlow<Place> = place.asStateFlow()
+    private val everything = MutableStateFlow(Listing(emptyList(), -1))
+    val listing: StateFlow<Listing> = everything.asStateFlow()
 
     init {
         val (saved, at) = store.load()
@@ -61,6 +65,18 @@ class PlayTrail(private val store: TrailStore = NoTrailStore, private val limit:
     @Synchronized
     fun forward(): PlayableItem? = step(1)
 
+    @Synchronized
+    fun goTo(index: Int): PlayableItem? {
+        val target = items.getOrNull(index)
+        if (target == null || index == cursor) {
+            Diag.log("trail", "go to place ${index + 1} of ${items.size}: nothing to go to (at ${cursor + 1})")
+            return null
+        }
+        arriving = target.item.id
+        Diag.log("trail", "jump from place ${cursor + 1} to ${index + 1} of ${items.size}: ${target.item.id.value}")
+        return target
+    }
+
     private fun step(by: Int): PlayableItem? {
         val target = items.getOrNull(cursor + by) ?: return null
         arriving = target.item.id
@@ -70,6 +86,7 @@ class PlayTrail(private val store: TrailStore = NoTrailStore, private val limit:
 
     private fun publish() {
         place.value = Place(items.getOrNull(cursor - 1), items.getOrNull(cursor + 1))
+        everything.value = Listing(items, cursor)
     }
 
     private companion object {

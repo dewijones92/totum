@@ -70,4 +70,29 @@ class PlayTrailTest {
         assertEquals(listOf("i3", "i4", "i5"), saved.items.map { it.item.id.value })
         assertEquals(item("i4"), PlayTrail(saved, limit = 3).back())
     }
+
+    @Test
+    fun `going to a place keeps everything ahead and appends nothing`() {
+        val trail = PlayTrail()
+        listOf(song, podcast, film).forEach(trail::noted)
+
+        assertEquals(song, trail.goTo(0))
+        trail.noted(song)
+
+        assertEquals(listOf(song, podcast, film), trail.snapshot().first)
+        assertEquals(0, trail.snapshot().second)
+        assertEquals(PlayTrail.Place(null, podcast), trail.around.value)
+        assertEquals(PlayTrail.Listing(listOf(song, podcast, film), 0), trail.listing.value)
+        assertEquals(podcast, trail.forward())
+    }
+
+    @Test
+    fun `going to the place you are at, or one that is not there, goes nowhere`() {
+        val trail = PlayTrail()
+        listOf(song, podcast).forEach(trail::noted)
+
+        assertNull(trail.goTo(1))
+        assertNull(trail.goTo(7))
+        assertNull(trail.goTo(-1))
+    }
 }

@@ -2,7 +2,7 @@
 title: Back and forward through what played
 kind: adr
 status: accepted
-updated: 2026-11-01
+updated: 2026-11-13
 ---
 
 # 114. Back and forward through what played
@@ -31,3 +31,11 @@ have to search within the queue."* The queue's ⏮ steps through queue order, no
 
 - Checked on totum-api35: two plays, Back returned to the first (row 12, unmoved) and offered Forward to the second.
 - Not yet on the mini player or the notification; the player's strip is the one place for now.
+
+## Amended 2026-11-13: hold the tile to see the whole trail
+
+Press and hold "⬅️ Back" or "➡️ Forward" (the tiles say so in their accessibility label: "Back. Hold to see everything that
+played") and a sheet lists the whole trail, up to 50 items, newest first, as ordinary item rows with the shared fuzzy
+filter. The current place is tinted and says "📍 You are here". A tap goes there through `PlayTrail.goTo(index)` /
+`TrailNavigation.goTo(index)`: like Back it plays that item, keeps every item ahead of it and appends nothing. Test:
+`PlayTrailTest` (going to a place keeps what is ahead), `TrailListTest` (instrumented).

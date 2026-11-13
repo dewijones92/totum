@@ -5,6 +5,9 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -22,6 +25,9 @@ internal fun TrailTiles() {
     val trail = LocalTrail.current ?: return
     val around by trail.around.collectAsStateWithLifecycle()
     val shield = LocalItemShield.current
+    var listing by remember { mutableStateOf(false) }
+    if (listing) TrailSheet(trail) { listing = false }
+    val holdLabel = stringResource(R.string.trail_hold_label)
     around.back?.let { back ->
         ControlTile(
             icon = Icons.AutoMirrored.Outlined.ArrowBack,
@@ -29,6 +35,9 @@ internal fun TrailTiles() {
             value = shield.titleOf(back.item),
             active = false,
             onClick = trail::back,
+            onLongClick = { listing = true },
+            longClickLabel = holdLabel,
+            description = stringResource(R.string.trail_back_description),
             modifier = Modifier.testTag(TRAIL_BACK_TAG),
         )
     }
@@ -39,6 +48,9 @@ internal fun TrailTiles() {
             value = shield.titleOf(forward.item),
             active = false,
             onClick = trail::forward,
+            onLongClick = { listing = true },
+            longClickLabel = holdLabel,
+            description = stringResource(R.string.trail_forward_description),
             modifier = Modifier.testTag(TRAIL_FORWARD_TAG),
         )
     }

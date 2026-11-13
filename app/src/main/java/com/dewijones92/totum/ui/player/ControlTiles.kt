@@ -1,7 +1,9 @@
 package com.dewijones92.totum.ui.player
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -35,6 +37,7 @@ import com.dewijones92.totum.ui.common.CheckedOptionsMenu
 
 internal val LocalCompactTiles = staticCompositionLocalOf { false }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun ControlTile(
     icon: ImageVector,
@@ -46,6 +49,9 @@ internal fun ControlTile(
     onToggle: ((Boolean) -> Unit)? = null,
     iconDescription: String? = null,
     shortLabel: String? = null,
+    onLongClick: (() -> Unit)? = null,
+    longClickLabel: String? = null,
+    description: String? = null,
 ) {
     val scheme = MaterialTheme.colorScheme
     val container by animateColorAsState(
@@ -55,6 +61,12 @@ internal fun ControlTile(
     val content = if (active) scheme.onPrimaryContainer else scheme.onSurface
     val interaction = when {
         onToggle != null -> Modifier.toggleable(value = active, role = Role.Switch, onValueChange = onToggle)
+        onClick != null && onLongClick != null -> Modifier.combinedClickable(
+            role = Role.Button,
+            onClick = onClick,
+            onLongClick = onLongClick,
+            onLongClickLabel = longClickLabel,
+        )
         onClick != null -> Modifier.clickable(role = Role.Button, onClick = onClick)
         else -> Modifier
     }
@@ -65,7 +77,7 @@ internal fun ControlTile(
             value?.let { "$name · $it" } ?: name,
             active,
             modifier = modifier,
-            interaction = interaction.semantics { contentDescription = label }
+            interaction = interaction.semantics { contentDescription = description ?: label }
         )
         return
     }
@@ -77,7 +89,9 @@ internal fun ControlTile(
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = interaction.padding(horizontal = 12.dp, vertical = 10.dp),
+            modifier = interaction
+                .let { described -> description?.let { described.semantics { contentDescription = it } } ?: described }
+                .padding(horizontal = 12.dp, vertical = 10.dp),
         ) {
             Surface(
                 shape = CircleShape,

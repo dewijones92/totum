@@ -415,6 +415,12 @@
     <string name="home_problems_title">🏠 Home server</string>
     <string name="trail_back">Back</string>
     <string name="trail_forward">Forward</string>
+    <string name="trail_back_description">Back. Hold to see everything that played</string>
+    <string name="trail_forward_description">Forward. Hold to see everything that played</string>
+    <string name="trail_hold_label">See everything that played</string>
+    <string name="trail_title">🕘 What played</string>
+    <string name="trail_hint">Tap one to go back to it. Everything after it stays ahead.</string>
+    <string name="trail_here">📍 You are here</string>
     <string name="home_storage">🏠 Using %1$s on the Pi</string>
     <string name="home_storage_with_free">🏠 Using %1$s on the Pi · %2$s free</string>
     <string name="settings_skip_section">Skip in videos</string>
