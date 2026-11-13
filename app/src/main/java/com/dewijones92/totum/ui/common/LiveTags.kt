@@ -32,14 +32,14 @@ internal val LocalLiveStates =
 internal val LocalLiveRefresher = staticCompositionLocalOf<LiveRefresher?> { null }
 
 @Composable
-internal fun liveTagFor(id: MediaItemId, kind: MediaContentKind): LiveTag? {
+internal fun liveTagFor(id: MediaItemId, kind: MediaContentKind, keepFresh: Boolean = true): LiveTag? {
     val held = LocalLiveStates.current
     val videoId = remember(id) { videoIdOf(id) }
     val tag = remember(held, videoId, kind) {
         derivedStateOf { liveTagOf(kind, videoId?.let { held.value[it] }) }
     }.value
     val refresher = LocalLiveRefresher.current
-    val keepsFresh = videoId != null && (tag is LiveTag.Live || tag is LiveTag.StartsSoon)
+    val keepsFresh = keepFresh && videoId != null && (tag is LiveTag.Live || tag is LiveTag.StartsSoon)
     if (keepsFresh && refresher != null) {
         DisposableEffect(videoId, refresher) {
             refresher.shown(videoId.orEmpty())
@@ -48,6 +48,10 @@ internal fun liveTagFor(id: MediaItemId, kind: MediaContentKind): LiveTag? {
     }
     return tag
 }
+
+@Composable
+internal fun liveNow(id: MediaItemId, kind: MediaContentKind): Boolean =
+    liveTagFor(id, kind, keepFresh = false) == LiveTag.Live
 
 @Composable
 internal fun liveTagLabel(tag: LiveTag): String = LocalContext.current.liveTagText(tag)

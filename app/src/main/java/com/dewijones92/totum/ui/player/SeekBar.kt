@@ -38,6 +38,7 @@ import com.dewijones92.totum.playback.BufferAhead
 import com.dewijones92.totum.playback.BufferGauge
 import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.ui.common.live
+import com.dewijones92.totum.ui.common.liveNow
 import kotlinx.coroutines.delay
 
 /**
@@ -58,7 +59,13 @@ internal fun SeekBar(
     val position = dragValue?.toLong() ?: live.positionMs
 
     Column(modifier = modifier.fillMaxWidth()) {
-        if (duration != null) {
+        if (liveNow(state.itemId, state.contentKind)) {
+            Text(
+                text = stringResource(R.string.tag_live),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.error,
+            )
+        } else if (duration != null) {
             DisposableEffect(Unit) { onDispose { dragValue = null } }
             Slider(
                 value = position.coerceIn(0, duration).toFloat(),

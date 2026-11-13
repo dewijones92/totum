@@ -110,18 +110,20 @@ fun MiniPlayerBar(
             ActiveModesRow("mini player", onExpand, Modifier.padding(start = 12.dp, end = 12.dp, bottom = 6.dp))
             // Hairline rather than the default indicator, which is thick enough to read as a
             // control you could drag. This is a status line, so it should whisper.
-            LinearProgressIndicator(
-                progress = { state.progressAt(live?.value) ?: 0f },
-                modifier = Modifier
-                    .padding(horizontal = 16.dp)
-                    .padding(bottom = 8.dp)
-                    .fillMaxWidth()
-                    .height(PROGRESS_HEIGHT)
-                    .clip(CircleShape),
-                trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                gapSize = 0.dp,
-                drawStopIndicator = {},
-            )
+            if (!liveNow(state.itemId, state.contentKind)) {
+                LinearProgressIndicator(
+                    progress = { state.progressAt(live?.value) ?: 0f },
+                    modifier = Modifier
+                        .padding(horizontal = 16.dp)
+                        .padding(bottom = 8.dp)
+                        .fillMaxWidth()
+                        .height(PROGRESS_HEIGHT)
+                        .clip(CircleShape),
+                    trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    gapSize = 0.dp,
+                    drawStopIndicator = {},
+                )
+            }
         }
     }
 }

@@ -44,6 +44,7 @@ import com.dewijones92.totum.ui.common.PlayProgressSliver
 import com.dewijones92.totum.ui.common.TrackedViewModel
 import com.dewijones92.totum.ui.common.durationLabel
 import com.dewijones92.totum.ui.common.face
+import com.dewijones92.totum.ui.common.liveNow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -110,6 +111,7 @@ private fun CarryOnCard(entry: CarryOnItem, onPlay: () -> Unit) {
     var menu by remember { mutableStateOf(false) }
     val item = entry.playable.item
     val face = item.face()
+    val live = liveNow(item.id, item.contentKind)
     Column(
         modifier = Modifier
             .width(CARD_WIDTH)
@@ -124,10 +126,10 @@ private fun CarryOnCard(entry: CarryOnItem, onPlay: () -> Unit) {
             url = item.withArtworkFrom(LocalSourceArtwork.current).thumbnailUrl,
             contentDescription = face.title,
             modifier = Modifier.size(width = CARD_WIDTH, height = CARD_HEIGHT),
-            durationLabel = durationLabel(face),
+            durationLabel = durationLabel(face).takeUnless { live },
             blurred = face.blurThumbnail,
         )
-        PlayProgressSliver(entry.progress, Modifier.width(CARD_WIDTH))
+        if (!live) PlayProgressSliver(entry.progress, Modifier.width(CARD_WIDTH))
         Text(text = face.title, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 4.dp))
         Text(
             text = progressWords(entry.progress),

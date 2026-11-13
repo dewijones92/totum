@@ -269,18 +269,19 @@ private fun (() -> Unit)?.onlyWhenDownloaded(state: DownloadState): (() -> Unit)
 /** The artwork with a progress sliver beneath it, so "you are here" needs no words. */
 @Composable
 private fun ThumbnailWithProgress(item: MediaItem, face: ItemFace, playState: PlayState) {
+    val live = liveNow(item.id, item.contentKind)
     Column {
         Box {
             MediaThumbnail(
                 url = item.withArtworkFrom(LocalSourceArtwork.current).thumbnailUrl,
                 contentDescription = face.title,
                 modifier = Modifier.size(width = THUMBNAIL_WIDTH, height = THUMBNAIL_HEIGHT),
-                durationLabel = durationLabel(face),
+                durationLabel = durationLabel(face).takeUnless { live },
                 blurred = face.blurThumbnail,
             )
             if (playState == PlayState.Unplayed) UnplayedDot(Modifier.align(Alignment.TopStart).padding(6.dp))
         }
-        PlayProgressSliver(playState, Modifier.width(THUMBNAIL_WIDTH))
+        if (!live) PlayProgressSliver(playState, Modifier.width(THUMBNAIL_WIDTH))
     }
 }
 
