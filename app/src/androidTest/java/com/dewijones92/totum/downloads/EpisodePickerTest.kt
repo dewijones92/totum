@@ -1,11 +1,16 @@
 package com.dewijones92.totum.downloads
 
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToNode
 import androidx.test.platform.app.InstrumentationRegistry
 import com.dewijones92.totum.R
 import com.dewijones92.totum.common.HttpUrl
@@ -20,6 +25,7 @@ import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.settings.DownloadChoice
 import com.dewijones92.totum.theme.TotumTheme
 import com.dewijones92.totum.ui.common.EPISODE_EXTRAS_TAG
+import com.dewijones92.totum.ui.common.EPISODE_LIST_TAG
 import com.dewijones92.totum.ui.common.EpisodePicker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -47,6 +53,10 @@ class EpisodePickerTest {
         PlayHandle.Video(HttpUrl.of("https://www.youtube.com/watch?v=$id")),
     )
 
+    private fun reveal(row: SemanticsMatcher) {
+        rule.onNodeWithTag(EPISODE_LIST_TAG).performScrollToNode(row)
+    }
+
     @Test
     fun everyEpisodeStartsTickedAndOnlyTheTickedOnesDownload() {
         val downloads = FakeDownloadManager()
@@ -63,8 +73,9 @@ class EpisodePickerTest {
             )
         }
 
-        rule.onNodeWithText("Mr Dinosaur", substring = true).performScrollTo().performClick()
-        rule.onNodeWithText(context.getString(R.string.episodes_download, 2)).performScrollTo().performClick()
+        reveal(hasText("Mr Dinosaur", substring = true))
+        rule.onNodeWithText("Mr Dinosaur", substring = true).performClick()
+        rule.onNodeWithText(context.getString(R.string.episodes_download, 2)).performClick()
 
         rule.waitUntil(TIMEOUT_MS) { downloads.requested.size == 2 }
         assertEquals(listOf("aaaaaaaaaaa", "ccccccccccc"), downloads.requested.map { it.first.value })
@@ -80,7 +91,7 @@ class EpisodePickerTest {
         rule.setContent { TotumTheme { EpisodePicker(episodes, downloads, DownloadChoice.Video(null)) } }
         rule.runOnIdle { episodes.ask("Peppa", listOf(kept, video("bbbbbbbbbbb", "Mr Dinosaur"))) }
 
-        rule.onNodeWithText(context.getString(R.string.episodes_download, 1)).performScrollTo().performClick()
+        rule.onNodeWithText(context.getString(R.string.episodes_download, 1)).performClick()
 
         rule.waitUntil(TIMEOUT_MS) { downloads.requested.size == 2 }
         assertEquals("bbbbbbbbbbb", downloads.requested.last().first.value)
@@ -104,11 +115,14 @@ class EpisodePickerTest {
             )
         }
 
-        rule.onNodeWithText("Spinal Tap II", substring = true).assertExists()
+        reveal(hasText("Spinal Tap II", substring = true))
+        rule.onAllNodesWithText("Spinal Tap II", substring = true).assertCountEquals(2)
+        reveal(hasTestTag(EPISODE_EXTRAS_TAG))
         rule.onNodeWithText("History of the Group", substring = true).assertDoesNotExist()
-        rule.onNodeWithTag(EPISODE_EXTRAS_TAG).performScrollTo().performClick()
-        rule.onNodeWithText("History of the Group", substring = true).performScrollTo().assertIsDisplayed()
-        rule.onNodeWithText(context.getString(R.string.episodes_download, 1)).performScrollTo().performClick()
+        rule.onNodeWithTag(EPISODE_EXTRAS_TAG).performClick()
+        reveal(hasText("History of the Group", substring = true))
+        rule.onNodeWithText("History of the Group", substring = true).assertIsDisplayed()
+        rule.onNodeWithText(context.getString(R.string.episodes_download, 1)).performClick()
 
         rule.waitUntil(TIMEOUT_MS) { downloads.requested.size == 1 }
         assertEquals("aaaaaaaaaaa", downloads.requested.single().first.value)

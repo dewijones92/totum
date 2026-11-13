@@ -4,12 +4,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Text
@@ -48,6 +46,7 @@ import com.dewijones92.totum.settings.DownloadPlace
 
 const val EPISODE_PICKER_TAG = "episode-picker"
 const val EPISODE_EXTRAS_TAG = "episode-extras"
+const val EPISODE_LIST_TAG = "episode-list"
 
 @Composable
 internal fun EpisodePicker(
@@ -74,52 +73,25 @@ internal fun EpisodePicker(
                 .map { it.item.id }.toSet(),
         )
     }
-    val onPhone = current.items.count { known[it.item.id] is DownloadState.Downloaded }
     var extrasOpen by rememberSaveable(current.title) { mutableStateOf(false) }
     AlertDialog(
         onDismissRequest = episodes::dismiss,
         modifier = Modifier.testTag(EPISODE_PICKER_TAG),
         title = { Text(stringResource(R.string.episodes_title, current.title)) },
         text = {
-            Column(Modifier.verticalScroll(rememberScrollState())) {
-                Text(stringResource(R.string.episodes_on_phone, onPhone, current.items.size))
-                if (suggestedPlace != null && episodes.homeAvailable) PlaceChips(place) { place = it }
-                if (current.offersAChoice) ChoiceChips(choice, qualities) { choice = it }
-                val shape = rememberListShape("episode picker")
-                val ordered = current.items.shapedBy(shape) { it.item }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Spacer(Modifier.weight(1f))
-                    ShapeControl(shape)
-                }
-                FilterableList(
-                    "episode picker",
-                    ordered,
-                    { it.item.searchableText },
-                    inset = 0.dp,
-                    fillsScreen = false,
-                ) { shown, _ ->
-                    val (extraRows, mainRows) = shown.partition { it.item.id in current.extras }
-                    val visible = if (extrasOpen) shown else mainRows
-                    val shownIds = visible.mapTo(mutableSetOf()) { it.item.id }
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        TextButton(onClick = { ticked = ticked + shownIds }) {
-                            Text(stringResource(R.string.episodes_all))
-                        }
-                        TextButton(onClick = { ticked = ticked - shownIds }) {
-                            Text(stringResource(R.string.episodes_none))
-                        }
-                    }
-                    PickerList(
-                        mainRows,
-                        extraRows,
-                        current,
-                        known,
-                        ticked,
-                        extrasOpen,
-                        onToggleExtras = { extrasOpen = !extrasOpen },
-                    ) { id, on -> ticked = if (on) ticked + id else ticked - id }
-                }
-            }
+            PickerBody(
+                ask = current,
+                known = known,
+                qualities = qualities,
+                choice = choice,
+                onChoice = { choice = it },
+                place = place.takeIf { suggestedPlace != null && episodes.homeAvailable },
+                onPlace = { place = it },
+                ticked = ticked,
+                onTicked = { ticked = it },
+                extrasOpen = extrasOpen,
+                onExtrasOpen = { extrasOpen = it },
+            )
         },
         confirmButton = {
             TextButton(
@@ -132,27 +104,54 @@ internal fun EpisodePicker(
 }
 
 @Composable
-private fun PickerList(
-    mainRows: List<PlayableItem>,
-    extraRows: List<PlayableItem>,
+private fun PickerBody(
     ask: EpisodeDownloads.Ask,
     known: Map<MediaItemId, DownloadState>,
+    qualities: Map<Int?, QualityLabel?>,
+    choice: DownloadChoice,
+    onChoice: (DownloadChoice) -> Unit,
+    place: DownloadPlace?,
+    onPlace: (DownloadPlace) -> Unit,
     ticked: Set<MediaItemId>,
+    onTicked: (Set<MediaItemId>) -> Unit,
     extrasOpen: Boolean,
-    onToggleExtras: () -> Unit,
-    onTick: (MediaItemId, Boolean) -> Unit,
+    onExtrasOpen: (Boolean) -> Unit,
 ) {
-    val plays = LocalPlayStates.current
-    val shield = LocalItemShield.current
-    LazyColumn(Modifier.heightIn(max = LIST_MAX_HEIGHT)) {
-        items(mainRows, key = { it.item.id.value }) { item ->
-            PickerRow(item, ask, known, plays, shield, checked = item.item.id in ticked) { on ->
-                onTick(item.item.id, on)
+    val filter = rememberListFilter("episode picker")
+    val shape = rememberListShape("episode picker")
+    val ordered = ask.items.shapedBy(shape) { it.item }
+    val shown = filter.filter(ordered, { it.item.searchableText })
+    val (extraRows, mainRows) = shown.partition { it.item.id in ask.extras }
+    val shownIds = (if (extrasOpen) shown else mainRows).mapTo(mutableSetOf()) { it.item.id }
+    LazyColumn(Modifier.fillMaxWidth().testTag(EPISODE_LIST_TAG)) {
+        item(key = "on-phone") {
+            val onPhone = ask.items.count { known[it.item.id] is DownloadState.Downloaded }
+            Text(stringResource(R.string.episodes_on_phone, onPhone, ask.items.size))
+        }
+        if (place != null) item(key = "place") { PlaceChips(place, onPlace) }
+        if (ask.offersAChoice) item(key = "choice") { ChoiceChips(choice, qualities, onChoice) }
+        item(key = "shape") {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Spacer(Modifier.weight(1f))
+                ShapeControl(shape)
             }
         }
+        item(key = "filter") { FilterField(filter, shown.size, ordered.size, inset = 0.dp) }
+        if (filter.filtering && shown.isEmpty()) {
+            item(key = "no-matches") { NoFilterMatches(filter.query) }
+            return@LazyColumn
+        }
+        item(key = "all-none") {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                TextButton(onClick = { onTicked(ticked + shownIds) }) { Text(stringResource(R.string.episodes_all)) }
+                TextButton(onClick = { onTicked(ticked - shownIds) }) { Text(stringResource(R.string.episodes_none)) }
+            }
+        }
+        val onTick = { id: MediaItemId, on: Boolean -> onTicked(if (on) ticked + id else ticked - id) }
+        pickerRows(mainRows, ask, known, ticked, onTick)
         if (extraRows.isNotEmpty()) {
             item(key = "extras-toggle") {
-                TextButton(onClick = onToggleExtras, modifier = Modifier.testTag(EPISODE_EXTRAS_TAG)) {
+                TextButton(onClick = { onExtrasOpen(!extrasOpen) }, modifier = Modifier.testTag(EPISODE_EXTRAS_TAG)) {
                     Text(
                         stringResource(
                             if (extrasOpen) R.string.episodes_extras_open else R.string.episodes_extras,
@@ -162,13 +161,23 @@ private fun PickerList(
                     )
                 }
             }
-            if (extrasOpen) {
-                items(extraRows, key = { it.item.id.value }) { item ->
-                    PickerRow(item, ask, known, plays, shield, checked = item.item.id in ticked) { on ->
-                        onTick(item.item.id, on)
-                    }
-                }
-            }
+            if (extrasOpen) pickerRows(extraRows, ask, known, ticked, onTick)
+        }
+    }
+}
+
+private fun LazyListScope.pickerRows(
+    rows: List<PlayableItem>,
+    ask: EpisodeDownloads.Ask,
+    known: Map<MediaItemId, DownloadState>,
+    ticked: Set<MediaItemId>,
+    onTick: (MediaItemId, Boolean) -> Unit,
+) {
+    items(rows, key = { it.item.id.value }) { item ->
+        val plays = LocalPlayStates.current
+        val shield = LocalItemShield.current
+        PickerRow(item, ask, known, plays, shield, checked = item.item.id in ticked) { on ->
+            onTick(item.item.id, on)
         }
     }
 }
@@ -244,4 +253,3 @@ private fun playNote(state: PlayState?): String? = when (state) {
 
 private const val MS_PER_MINUTE = 60_000L
 private const val QUALITY_PROBE = 5
-private val LIST_MAX_HEIGHT = 320.dp
