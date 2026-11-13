@@ -34,6 +34,7 @@ class ExploreModeTest {
     private val peeked = mutableListOf<String>()
     private var nowPlaying: PlayableItem? = null
     private var turnedOn = 0
+    private val saidNothing = mutableListOf<String>()
     private var whileLookingUp: () -> Unit = {}
 
     private var cap = 0
@@ -58,6 +59,7 @@ class ExploreModeTest {
         },
         nowPlaying = { nowPlaying },
         onTurnedOn = { turnedOn++ },
+        nothingAfter = { saidNothing += it.id.value },
     )
 
     @Test
@@ -68,6 +70,26 @@ class ExploreModeTest {
 
         assertTrue(explore.afterEnded(MediaItemId("a")))
         assertEquals(listOf("x"), peeked)
+    }
+
+    @Test
+    fun `when nothing follows, it says so once and the queue carries on`() = runTest {
+        val explore = explore()
+        nowPlaying = video("film")
+        related["film"] = null
+
+        assertFalse(explore.afterEnded(MediaItemId("film")))
+        assertEquals(listOf("film"), saidNothing)
+    }
+
+    @Test
+    fun `when a related item follows, it says nothing`() = runTest {
+        val explore = explore()
+        nowPlaying = video("a")
+        related["a"] = listOf("x")
+
+        assertTrue(explore.afterEnded(MediaItemId("a")))
+        assertTrue(saidNothing.isEmpty())
     }
 
     @Test

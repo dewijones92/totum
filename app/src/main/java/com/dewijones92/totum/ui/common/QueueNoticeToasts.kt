@@ -48,6 +48,8 @@ internal fun Context.noticeMessage(notice: QueueNotice): String = when (notice) 
         ItemShields.titleOf(notice.item.item),
         notice.position,
     )
+    is QueueNotice.NothingToExplore ->
+        getString(if (notice.afterAFilm) R.string.notice_nothing_to_explore_film else R.string.notice_nothing_to_explore)
     is QueueNotice.SomeAlreadyQueued ->
         resources.getQuantityString(R.plurals.notice_some_already_queued, notice.count, notice.count)
 }

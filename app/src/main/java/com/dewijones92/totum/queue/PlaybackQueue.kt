@@ -151,6 +151,10 @@ class PlaybackQueue(
     private val _notices = MutableSharedFlow<QueueNotice>(extraBufferCapacity = NOTICE_BUFFER)
     val notices: SharedFlow<QueueNotice> = _notices.asSharedFlow()
 
+    fun announce(notice: QueueNotice) {
+        _notices.tryEmit(notice)
+    }
+
     /** The queue and where playback is within it. */
     val state: StateFlow<QueueSnapshot> = _state.asStateFlow()
 

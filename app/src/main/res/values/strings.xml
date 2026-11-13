@@ -842,6 +842,8 @@
         <item quantity="one">📌 %1$d item was already queued</item>
         <item quantity="other">📌 %1$d items were already queued</item>
     </plurals>
+    <string name="notice_nothing_to_explore_film">📭 Nothing to explore after a film: your queue carries on</string>
+    <string name="notice_nothing_to_explore">📭 Nothing to explore after this: your queue carries on</string>
     <string name="notice_repeat_one_off">🔁 Repeat one is off for “%1$s”, so it can play on</string>
     <string name="refused_offline">it is not downloaded and there is no network</string>
     <string name="refused_stream">its stream will not play and there is no copy on disk</string>

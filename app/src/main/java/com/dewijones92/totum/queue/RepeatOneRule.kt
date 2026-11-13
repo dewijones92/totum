@@ -16,6 +16,7 @@ sealed interface QueueNotice {
         val canMoveUp: Boolean get() = !playing && !next
     }
     data class SomeAlreadyQueued(val count: Int) : QueueNotice
+    data class NothingToExplore(val afterAFilm: Boolean) : QueueNotice
 }
 
 class RepeatOneRule(
