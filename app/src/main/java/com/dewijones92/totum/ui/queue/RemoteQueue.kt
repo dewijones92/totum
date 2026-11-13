@@ -59,9 +59,11 @@ import com.dewijones92.totum.data.targets.onATarget
 import com.dewijones92.totum.data.targets.shownLengthMs
 import com.dewijones92.totum.data.targets.showsPicture
 import com.dewijones92.totum.data.targets.toQueueEntry
+import com.dewijones92.totum.data.targets.toSnapshot
 import com.dewijones92.totum.domain.RepeatMode
 import com.dewijones92.totum.playback.VolumeBoost
 import com.dewijones92.totum.targets.TargetsRepository
+import com.dewijones92.totum.targets.asTimerState
 import com.dewijones92.totum.ui.common.EmptyState
 import com.dewijones92.totum.ui.common.LocalItemShield
 import com.dewijones92.totum.ui.common.MediaItemRow
@@ -71,7 +73,11 @@ import com.dewijones92.totum.ui.common.liveTagColor
 import com.dewijones92.totum.ui.common.liveTagLabel
 import com.dewijones92.totum.ui.common.rowFacts
 import com.dewijones92.totum.ui.player.LocalCompactTiles
+import com.dewijones92.totum.ui.player.LocalPlayerLinks
+import com.dewijones92.totum.ui.player.PlayerLinks
 import com.dewijones92.totum.ui.player.RepeatTile
+import com.dewijones92.totum.ui.player.SleepTimerControl
+import com.dewijones92.totum.ui.player.endOfGroupSleep
 import com.dewijones92.totum.video.LiveTag
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -129,6 +135,7 @@ private fun RemoteHeader(targets: TargetsRepository, state: TargetState, colour:
         RemoteTrouble(targets, state)
         RemoteControls(targets, state)
         RemoteRepeat(targets, state)
+        RemoteSleep(targets, state)
         RemoteSound(targets, state)
         RemoteColours(targets, id)
     }
@@ -253,6 +260,33 @@ private fun RemoteRepeat(targets: TargetsRepository, state: TargetState) {
             onSetMode = { targets.act(state.target.id, TargetControl(TargetAction.REPEAT, repeat = it)) },
             modifier = Modifier.padding(vertical = 4.dp),
             options = RepeatMode.entries.filter { it.onATarget },
+        )
+    }
+}
+
+@Composable
+private fun RemoteSleep(targets: TargetsRepository, state: TargetState) {
+    val id = state.target.id
+    val snapshot = remember(state.entries, state.at) { state.entries.toSnapshot(state.at) }
+    val endOfGroup = remember(snapshot) {
+        endOfGroupSleep(snapshot.entries, snapshot.currentIndex) { ids, title ->
+            targets.sleepAfterItems(id, ids.map { it.value }, title)
+        }
+    }
+    CompositionLocalProvider(
+        LocalCompactTiles provides true,
+        LocalPlayerLinks provides PlayerLinks(endOfGroup = endOfGroup),
+    ) {
+        SleepTimerControl(
+            state = state.sleep.asTimerState(),
+            onStart = { targets.startSleep(id, it) },
+            onStopAfterItem = {
+                state.current?.item?.itemId?.let { current ->
+                    targets.sleepAfterItems(id, listOf(current), null)
+                }
+            },
+            onCancel = { targets.cancelSleep(id) },
+            modifier = Modifier.padding(vertical = 4.dp),
         )
     }
 }

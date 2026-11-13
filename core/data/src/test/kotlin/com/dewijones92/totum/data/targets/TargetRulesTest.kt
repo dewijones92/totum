@@ -261,6 +261,31 @@ class TargetRulesTest {
     }
 
     @Test
+    fun `a sleep control and the sleep a target reports survive the wire, and an older Pi reports none`() {
+        val ask = TargetSleepAsk(SleepKind.AFTER_ITEMS, fadeSeconds = 20, itemIds = listOf("a", "b"), title = "Album")
+        val text = TargetsJson.encodeToString(
+            TargetControl.serializer(),
+            TargetControl(TargetAction.SLEEP, sleep = ask),
+        )
+        val control = TargetsJson.decodeFromString(TargetControl.serializer(), text)
+        assertEquals(TargetAction.SLEEP, control.action)
+        assertEquals(ask, control.sleep)
+        assertEquals(20, TargetSleepAsk(SleepKind.AFTER_TIME, 60).fadeSeconds)
+
+        val old = """{"target":{"id":"tv","label":"LG TV","kind":"TV"}}"""
+        assertNull(TargetsJson.decodeFromString(TargetState.serializer(), old).sleep)
+        val reporting = TargetState(
+            Target("tv", "LG TV", TargetKind.TV),
+            sleep = TargetSleep(SleepKind.AFTER_TIME, remainingMs = 5_000, fadeSeconds = 20, fading = true),
+        )
+        val back = TargetsJson.decodeFromString(
+            TargetState.serializer(),
+            TargetsJson.encodeToString(TargetState.serializer(), reporting),
+        )
+        assertEquals(reporting.sleep, back.sleep)
+    }
+
+    @Test
     fun `the wake control survives the wire`() {
         val text = TargetsJson.encodeToString(TargetControl.serializer(), TargetControl(TargetAction.WAKE))
 

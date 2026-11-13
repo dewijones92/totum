@@ -8,6 +8,7 @@ import com.dewijones92.totum.data.home.TargetsApi
 import com.dewijones92.totum.data.queue.QueueGroup
 import com.dewijones92.totum.data.targets.QueueMode
 import com.dewijones92.totum.data.targets.Requester
+import com.dewijones92.totum.data.targets.SleepKind
 import com.dewijones92.totum.data.targets.Target
 import com.dewijones92.totum.data.targets.TargetAction
 import com.dewijones92.totum.data.targets.TargetColours
@@ -15,6 +16,7 @@ import com.dewijones92.totum.data.targets.TargetControl
 import com.dewijones92.totum.data.targets.TargetEntry
 import com.dewijones92.totum.data.targets.TargetPower
 import com.dewijones92.totum.data.targets.TargetQueueRequest
+import com.dewijones92.totum.data.targets.TargetSleepAsk
 import com.dewijones92.totum.data.targets.TargetState
 import com.dewijones92.totum.domain.ItemShields
 import com.dewijones92.totum.domain.MediaItemId
@@ -22,6 +24,7 @@ import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.operations.OperationEnd
 import com.dewijones92.totum.operations.OperationKind
 import com.dewijones92.totum.operations.Operations
+import com.dewijones92.totum.playback.SleepFade
 import com.dewijones92.totum.queue.QueueDestination
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
@@ -31,6 +34,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.time.Duration
 
 @Suppress("TooManyFunctions")
 class TargetsRepository(
@@ -41,6 +45,7 @@ class TargetsRepository(
     private val operations: Operations? = null,
     private val playHere: (List<PlayableItem>, QueueMode, QueueGroup?, MediaItemId?) -> Unit = { _, _, _, _ -> },
     private val words: TargetWords? = null,
+    private val sleepFade: () -> Duration = { SleepFade.DEFAULT_LENGTH },
 ) : QueueDestination {
 
     val available: Boolean get() = client != null
@@ -319,6 +324,29 @@ class TargetsRepository(
     }
 
     fun command(id: String, action: TargetAction) = act(id, TargetControl(action))
+
+    fun startSleep(id: String, duration: Duration) = sleep(
+        id,
+        TargetSleepAsk(SleepKind.AFTER_TIME, duration.inWholeSeconds.toInt(), fadeSeconds()),
+    )
+
+    fun sleepAfterItems(id: String, itemIds: List<String>, title: String?) = sleep(
+        id,
+        TargetSleepAsk(SleepKind.AFTER_ITEMS, fadeSeconds = fadeSeconds(), itemIds = itemIds, title = title),
+    )
+
+    fun cancelSleep(id: String) = sleep(id, TargetSleepAsk(SleepKind.OFF))
+
+    private fun fadeSeconds(): Int = sleepFade().inWholeSeconds.toInt()
+
+    private fun sleep(id: String, ask: TargetSleepAsk) {
+        Diag.log(
+            "targets",
+            "$id: sleep timer ${ask.kind} seconds=${ask.seconds} fade=${ask.fadeSeconds}s items=${ask.itemIds.size} " +
+                "chosen on the phone, sent to the Pi",
+        )
+        act(id, TargetControl(TargetAction.SLEEP, sleep = ask))
+    }
 
     fun playNextOn(id: String, entry: TargetEntry) {
         scope.launch {

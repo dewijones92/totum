@@ -177,3 +177,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 163 | [A long silence cut on a video is paid out in short clock jumps](0163-a-long-silence-cut-on-a-video-is-paid-out-in-short-clock-jumps.md) | Accepted |
 | 164 | [Casting fixes from the diagnostics of 7 to 11 November](0164-casting-fixes-from-the-diagnostics-of-7-to-11-november.md) | Accepted |
 | 165 | [A speaker can be kept awake by the Pi, and its volume slider is the speaker's own](0165-a-speaker-is-kept-awake-and-has-one-volume-its-own.md) | Accepted |
+| 166 | [The sleep timer fades by how loud it sounds, on the phone and on a Pi target](0166-the-sleep-timer-fades-by-how-loud-it-sounds-on-the-phone-and-on-a-target.md) | Accepted |

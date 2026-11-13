@@ -11,6 +11,7 @@ import com.dewijones92.totum.data.queue.removingAt
 import com.dewijones92.totum.data.targets.KeepAwake
 import com.dewijones92.totum.data.targets.QueueMode
 import com.dewijones92.totum.data.targets.Requester
+import com.dewijones92.totum.data.targets.SleepKind
 import com.dewijones92.totum.data.targets.SoundSettings
 import com.dewijones92.totum.data.targets.Target
 import com.dewijones92.totum.data.targets.TargetAction
@@ -18,6 +19,7 @@ import com.dewijones92.totum.data.targets.TargetControl
 import com.dewijones92.totum.data.targets.TargetEntry
 import com.dewijones92.totum.data.targets.TargetPower
 import com.dewijones92.totum.data.targets.TargetQueueRequest
+import com.dewijones92.totum.data.targets.TargetSleepAsk
 import com.dewijones92.totum.data.targets.TargetReporting
 import com.dewijones92.totum.data.targets.TargetState
 import com.dewijones92.totum.data.targets.TargetTrouble
@@ -34,6 +36,9 @@ import com.dewijones92.totum.domain.RepeatMode
 import com.dewijones92.totum.domain.picture
 import com.dewijones92.totum.domain.skipsSilence
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.io.File
@@ -54,6 +59,7 @@ internal class TargetDeck(
     private val clock: () -> Long = System::currentTimeMillis,
     private val volumeControl: TargetVolume? = null,
     private val keeper: TargetKeeper? = null,
+    private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
 ) {
     private val store = DeckStore(file)
     private val lock = Mutex()
@@ -76,6 +82,22 @@ internal class TargetDeck(
     private var startedAtMs = 0L
     private val provenance = Provenances()
     private var reachedAhead: String? = null
+    private val sleep = DeckSleep(
+        label = target.label,
+        scope = scope,
+        clock = clock,
+        player = player,
+        volume = volumeControl,
+        playback = {
+            SleepPlayback(
+                queue.current?.itemId(),
+                player.positionMs,
+                player.durationMs ?: queue.current?.item?.item?.duration?.inWholeMilliseconds,
+                isLive(),
+            )
+        },
+        pause = { lock.withLock { pausePlaying().also { save() } } },
+    )
 
     init {
         restore()
@@ -100,6 +122,7 @@ internal class TargetDeck(
         power = player.power,
         starting = starting,
         trouble = problem?.trouble,
+        sleep = sleep.state(),
     )
 
     private fun volumeNow(): Int? = volumeControl?.percent ?: player.volumePercent
@@ -199,12 +222,7 @@ internal class TargetDeck(
                 problem = null
                 resume()
             }
-            TargetAction.PAUSE -> if (playing) {
-                reportProgress(finished = false)
-                captureThePlace()
-                player.pause(true)
-                playing = false
-            }
+            TargetAction.PAUSE -> pausePlaying()
             TargetAction.NEXT -> moveTo(queue.place + 1)
             TargetAction.PREVIOUS -> moveTo((queue.place - 1).coerceAtLeast(0))
             TargetAction.JUMP -> index?.let { moveTo(it) }
@@ -215,8 +233,9 @@ internal class TargetDeck(
             }
             TargetAction.VOLUME -> control.volume?.let {
                 val wanted = it.coerceIn(0, MAX_VOLUME)
-                Diag.log("targets", "${target.id}: volume set to $wanted from the phone")
-                volumeControl?.set(wanted) ?: player.volume(wanted)
+                val followed = sleep.personSetVolume(wanted)
+                Diag.log("targets", "${target.id}: volume set to $wanted from the phone, followed by a fade=$followed")
+                if (!followed) volumeControl?.set(wanted) ?: player.volume(wanted)
             }
             TargetAction.STOP -> {
                 problem = null
@@ -226,9 +245,41 @@ internal class TargetDeck(
             TargetAction.SOUND -> control.sound?.let { changeSound(it) }
             TargetAction.REPEAT -> control.repeat?.let(::setRepeat)
             TargetAction.WAKE -> woken()
+            TargetAction.SLEEP -> control.sleep?.let { armSleep(it) }
         }
         save()
         return state()
+    }
+
+    private suspend fun pausePlaying() {
+        if (!playing) return
+        reportProgress(finished = false)
+        captureThePlace()
+        player.pause(true)
+        playing = false
+    }
+
+    private suspend fun armSleep(ask: TargetSleepAsk) {
+        when (ask.kind) {
+            SleepKind.OFF -> sleep.release("cancelled from the phone")
+            SleepKind.AFTER_TIME -> if (ask.seconds > 0) {
+                sleep.arm(ask)
+            } else {
+                Diag.warn("targets", "${target.id}: a sleep timer of ${ask.seconds}s is not a timer, ignored")
+            }
+            SleepKind.AFTER_ITEMS -> {
+                val current = queue.current?.itemId()
+                if (current == null || current !in ask.itemIds) {
+                    Diag.warn(
+                        "targets",
+                        "${target.id}: sleep after ${ask.itemIds.size} item(s) refused, ${current ?: "nothing"} " +
+                            "is playing and it is not among them; the phone's list is out of date",
+                    )
+                    throw StaleEdit(state())
+                }
+                sleep.arm(ask)
+            }
+        }
     }
 
     private fun indexOf(control: TargetControl): Int? {
@@ -291,6 +342,11 @@ internal class TargetDeck(
         } else {
             problem = null
             reportProgress(finished = true)
+        }
+        if (queue.current?.itemId()?.let(sleep::endsWith) == true) {
+            if (next in queue.entries.indices) queue = queue.copy(currentIndex = next)
+            finish("the sleep timer stopped it after $title", report = false, keepPlace = false)
+            return
         }
         startAt(next)
     }
@@ -415,6 +471,7 @@ internal class TargetDeck(
         )
         player.stop()
         destination = null
+        sleep.release("connection lost: $reason")
         save()
     }
 
@@ -517,6 +574,12 @@ internal class TargetDeck(
             )
             save()
             queue.entries.getOrNull(at + 1)?.let { lookAhead(it.item) }
+            if (sleep.leftItems(item.item.id.value)) {
+                Diag.log("targets", "${target.id}: moved off the items the sleep timer waited on, pausing")
+                pausePlaying()
+                sleep.release("playback moved off the items the timer waited on")
+                save()
+            }
             return
         }
         finish("reached the end", report = false, keepPlace = false)
@@ -564,6 +627,7 @@ internal class TargetDeck(
         if (wasLinked) link.release()
         destination = null
         Diag.log("targets", "${target.id}: $why; target handed back=$wasLinked")
+        sleep.release("playback stopped: $why")
         save()
     }
 
@@ -578,6 +642,7 @@ internal class TargetDeck(
             power = TargetPower.ON,
             starting = false,
             trouble = null,
+            sleep = null,
         ),
         target.id
     )

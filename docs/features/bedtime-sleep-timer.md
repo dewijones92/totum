@@ -18,7 +18,7 @@ configurable. Decision: [ADR 133](../adr/0133-bedtime-arms-the-sleep-timer-and-e
   while something plays), Totum sets the player's "after this item" sleep timer, so the moon button shows it, the
   quiet-modes chip shows it, and the queue stops at the item's end as it already does for a timer you set by hand.
   Nothing arms it when a sleep timer is already set, when the kid lock is on, or for a live stream (it never ends).
-- **It fades out.** Over the last stretch of the last item, or of a countdown, the player's volume ramps to silence, then
+- **It fades out** (the curve and the Pi targets since [ADR 166](../adr/0166-the-sleep-timer-fades-by-how-loud-it-sounds-on-the-phone-and-on-a-target.md): the ramp is steady in how loud it sounds, shared by the phone and the Pi, and a sleep timer set on a target's page fades that target; see [Pi plays everywhere](pi-plays-everywhere.md)). Over the last stretch of the last item, or of a countdown, the player's volume ramps to silence, then
   playback stops; the volume is back to full the moment the timer ends or is cancelled, so the next play is not silent.
   The fade applies to **every** sleep timer, not only the bedtime one (the coordinator's call; Dewi delegated it,
   2026-11-06), over its last 20 s by default, and is switched off by setting its length to 0.

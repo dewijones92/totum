@@ -97,6 +97,16 @@ class MpvPlayerTest {
     }
 
     @Test
+    fun `a fade starts from mpv's own volume when none was chosen, and from the chosen one after`() {
+        val p = mpv("sleep 5")
+
+        assertNull(p.volumePercent)
+        assertEquals(100, p.fadeBasePercent)
+        p.volume(30)
+        assertEquals(30, p.fadeBasePercent)
+    }
+
+    @Test
     fun `mpv is given the address the Pi relays a stream at, and the item's own address is not used`() {
         val p = mpv(
             """printf '%s\n' "${'$'}@" > "${dir.path}/argv.txt"""",

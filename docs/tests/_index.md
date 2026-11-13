@@ -1042,6 +1042,7 @@ briefly broken, then the code put back. Instrumented classes were compiled (`:ap
 | Time left per group | JVM + instrumented | `TimeLeftTest`, `PlaysAtSpeedTest`, `GroupTimesLeftTest`; `BatchAScreensTest`, `BatchAStoresTest` (the speed store's `chosen`) |
 | 🔴 LIVE registry, live check, refresher, all-subscriptions line | JVM + instrumented | `LiveKindsTest`, `LiveTagTest`, `TheLiveCheckSaysWhatIsHappeningTest`, `TheResolverTellsTheLiveRegistryTest`, `LiveRefresherTest`, `MusicPlaysPlainTest`; `BatchAScreensTest` (the badge), `AllSubscriptionsListTest` |
 | Bedtime sleep timer and fade | JVM | `BedtimeSettingsTest`, `BedtimeHubTest`, `SleepTimerFadeTest` |
+| Sleep fade policy, and a target's sleep timer on the Pi (ADR 166) | JVM | `SleepFadeTest` (`:core:sound`), `SleepTimerFadeTest` (the perceived curve, steady steps, logged once each end), `TargetDeckSleepTest`, `MpvPlayerTest` (fade base) (cli), `TargetRulesTest` (the control on the wire), `TargetsRepositoryTest`, `TargetSleepStateTest` (app). Not covered: the audible fade on a real speaker, TV or Chromecast, and the sleep tile on a target's page on a screen |
 | Work-app quiet hours, groups, change notices | JVM + instrumented | `WorkAppsSettingsTest`, `WorkAppsQuietHubTest`; `BatchAStoresTest` (`SnoozedKeys`) |
 | 🎥 Recorder pure pieces | JVM + instrumented | `RecorderPureRulesTest`; `BatchAStoresTest` (`RecorderChoiceStore`) |
 | Kid TV | JVM + instrumented | `KidTvTest`, `KidModeTest`; `KidTvWordsTest` |

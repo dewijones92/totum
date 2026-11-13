@@ -62,6 +62,12 @@ you. The weekly-window maths was extracted for the work-apps feature (ADR 124) s
 - Unverified until a phone run: that a `MediaController.volume` change reaches the service's player (the command is
   `COMMAND_SET_VOLUME`) and is audible as a fade.
 
+## Amendment 2026-11-13
+
+The fade is no longer "a linear volume ramp": [ADR 166](0166-the-sleep-timer-fades-by-how-loud-it-sounds-on-the-phone-and-on-a-target.md)
+moves it to a shared policy that is steady in how loud it sounds, adds a sleep timer on Pi targets, and logs the start
+and end of each fade once.
+
 ## Amendment 2026-11-06: findings from the use-case sweep
 
 - **Only a cancel of the timer Bedtime armed declines the night.** Bedtime tags its timer (`SleepTimer.stopAfterCurrentItem(owner)`,

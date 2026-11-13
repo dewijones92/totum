@@ -8,6 +8,7 @@ import com.dewijones92.totum.data.home.TargetsApi
 import com.dewijones92.totum.data.queue.QueueGroup
 import com.dewijones92.totum.data.targets.QueueMode
 import com.dewijones92.totum.data.targets.Requester
+import com.dewijones92.totum.data.targets.SleepKind
 import com.dewijones92.totum.data.targets.Target
 import com.dewijones92.totum.data.targets.TargetAction
 import com.dewijones92.totum.data.targets.TargetColours
@@ -41,6 +42,8 @@ import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class TargetsRepositoryTest {
@@ -93,7 +96,9 @@ class TargetsRepositoryTest {
         operations,
         playHere = { items, mode, _, _ -> playedHere += Replayed(items.map { it.item.id.value }, mode) },
         words = FakeWords,
+        sleepFade = { fade },
     )
+    private var fade = 20.seconds
 
     private object FakeWords : TargetWords {
         override fun trouble(label: String, trouble: TargetTrouble, title: String?) =
@@ -522,5 +527,32 @@ class TargetsRepositoryTest {
         repository.refresh("test")
 
         assertTrue(operations.running.value.isEmpty())
+    }
+
+    @Test
+    fun `a sleep timer for a target goes to the Pi with the fade from the setting`() = runTest {
+        repository.startSleep("lg-tv", 30.minutes)
+        fade = 0.seconds
+        repository.startSleep("lg-tv", 5.minutes)
+
+        val (id, first) = api.controlled.first()
+        assertEquals("lg-tv", id)
+        assertEquals(TargetAction.SLEEP, first.action)
+        assertEquals(SleepKind.AFTER_TIME, first.sleep!!.kind)
+        assertEquals(1_800, first.sleep!!.seconds)
+        assertEquals(20, first.sleep!!.fadeSeconds)
+        assertEquals("a fade of none is sent as none, not defaulted", 0, api.controlled.last().second.sleep!!.fadeSeconds)
+    }
+
+    @Test
+    fun `stopping after items names them and the title, and cancelling sends the off kind`() = runTest {
+        repository.sleepAfterItems("bar", listOf("t1", "t2"), "Guitar Recital")
+        repository.cancelSleep("bar")
+
+        val ask = api.controlled.first().second.sleep!!
+        assertEquals(SleepKind.AFTER_ITEMS, ask.kind)
+        assertEquals(listOf("t1", "t2"), ask.itemIds)
+        assertEquals("Guitar Recital", ask.title)
+        assertEquals(SleepKind.OFF, api.controlled.last().second.sleep!!.kind)
     }
 }

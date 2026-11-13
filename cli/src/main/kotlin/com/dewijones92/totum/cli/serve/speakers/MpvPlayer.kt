@@ -135,6 +135,8 @@ internal class MpvPlayer(
 
     override val volumePercent: Int? get() = chosenVolume
 
+    override val fadeBasePercent: Int? get() = chosenVolume ?: MPV_OWN_VOLUME
+
     override fun volume(percent: Int) {
         chosenVolume = percent
         ipc(JsonPrimitive("set_property"), JsonPrimitive("volume"), JsonPrimitive(percent))
@@ -201,6 +203,7 @@ internal class MpvPlayer(
 
     private companion object {
         const val MS_PER_S = 1_000
+        const val MPV_OWN_VOLUME = 100
         val PIPED_SOURCE = listOf(
             "--demuxer=rawaudio",
             "--demuxer-rawaudio-format=s16le",

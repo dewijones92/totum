@@ -56,6 +56,13 @@ sound processing on the Pi). Brief: [pi-plays-everywhere.md](../todos/pi-plays-e
   inaudible sound to its sink about once a minute while nothing plays (`TOTUM_SPEAKERS_KEEP_AWAKE_SIGNAL=silence|noise`).
   The remote panel says "🟢 Kept awake", "⏳ … reconnecting…" or "💤 … outside its hours". Unnamed speakers, the soundbar
   included, are untouched. Built and unit-tested 2026-11-13; **not yet seen on the real Soundmic**.
+- **A sleep timer on a target** ([ADR 166](../adr/0166-the-sleep-timer-fades-by-how-loud-it-sounds-on-the-phone-and-on-a-target.md)).
+  On a selected target's page, beside Repeat, the same sleep tile as the player's: after this item, the end of the group,
+  or 5 to 60 minutes; tapping it while armed cancels. The timer runs on the Pi (it survives the phone going to sleep): it
+  ramps the target's volume down over the fade length (Bedtime page, default 20 s, steady in how loud it sounds, never
+  above the level it began at), pauses (or stops, when the last item ends), then puts the volume back after a second.
+  A volume you set during the fade is followed down, never up. A target whose volume is not known is not faded and
+  still stops. Not saved with the queue: a Pi restart forgets it.
 - **TV sound switches** are greyed, with a note, while the TV is showing a picture.
 - **A TV that is off is listed and wakes on a play.** `TOTUM_CAST_TARGETS` accepts `name=address@aa:bb:cc:dd:ee:ff`; such a
   TV shows 💤 on its chip and "💤 Off · tap to wake" in its header while it is off. Playing to it (or tapping that) sends

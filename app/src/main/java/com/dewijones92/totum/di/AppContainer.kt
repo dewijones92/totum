@@ -928,6 +928,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             operations,
             playHere = { items, mode, group, startAt -> playbackQueue.playHere(items, mode, group, startAt) },
             words = ContextTargetWords(context),
+            sleepFade = { bedtime.fade },
         )
     }
 

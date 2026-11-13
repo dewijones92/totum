@@ -120,6 +120,7 @@ internal class TargetDecks(
             ownerId = ownerId,
             volumeControl = kit.volume,
             keeper = kit.keeper,
+            scope = scope,
         ).also { deck ->
             kit.player.onEnded = { failed -> scope.launch { deck.ended(failed) } }
             kit.player.onLost = { reason -> scope.launch { deck.lost(reason) } }

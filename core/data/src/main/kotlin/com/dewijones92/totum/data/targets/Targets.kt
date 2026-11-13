@@ -7,6 +7,7 @@ import com.dewijones92.totum.data.queue.QueueEntry
 import com.dewijones92.totum.data.queue.QueueGroup
 import com.dewijones92.totum.data.queue.QueueSnapshot
 import com.dewijones92.totum.domain.RepeatMode
+import com.dewijones92.totum.playback.SleepFade
 import com.dewijones92.totum.playback.VolumeBoost
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -39,6 +40,28 @@ public data class TargetEntry(
     val addedBy: String? = null,
     val reportsToYouTube: Boolean = false,
     val loop: Boolean = false,
+)
+
+@Serializable
+public enum class SleepKind { OFF, AFTER_TIME, AFTER_ITEMS }
+
+@Serializable
+public data class TargetSleepAsk(
+    val kind: SleepKind,
+    val seconds: Int = 0,
+    val fadeSeconds: Int = SleepFade.DEFAULT_LENGTH.inWholeSeconds.toInt(),
+    val itemIds: List<String> = emptyList(),
+    val title: String? = null,
+)
+
+@Serializable
+public data class TargetSleep(
+    val kind: SleepKind,
+    val remainingMs: Long? = null,
+    val itemsLeft: Int = 0,
+    val title: String? = null,
+    val fadeSeconds: Int = 0,
+    val fading: Boolean = false,
 )
 
 @Serializable
@@ -88,6 +111,7 @@ public data class TargetState(
     val power: TargetPower = TargetPower.ON,
     val starting: Boolean = false,
     val trouble: TargetTrouble? = null,
+    val sleep: TargetSleep? = null,
 ) {
     val current: TargetEntry? get() = entries.getOrNull(at)
 }
@@ -115,7 +139,7 @@ public data class TargetQueueRequest(
 }
 
 @Serializable
-public enum class TargetAction { PLAY, PAUSE, NEXT, PREVIOUS, JUMP, SEEK, VOLUME, STOP, REMOVE, SOUND, REPEAT, WAKE }
+public enum class TargetAction { PLAY, PAUSE, NEXT, PREVIOUS, JUMP, SEEK, VOLUME, STOP, REMOVE, SOUND, REPEAT, WAKE, SLEEP }
 
 @Serializable
 public data class TargetControl(
@@ -127,6 +151,7 @@ public data class TargetControl(
     val repeat: RepeatMode? = null,
     val itemId: String? = null,
     val itemIds: List<String>? = null,
+    val sleep: TargetSleepAsk? = null,
 )
 
 public fun QueueEntry.toTargetEntry(from: Requester? = null, ownerId: String? = null): TargetEntry = TargetEntry(

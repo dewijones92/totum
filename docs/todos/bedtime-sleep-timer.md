@@ -40,3 +40,9 @@ volume ramped from where it was and put back, a TV with no volume, who armed a c
 failing with the volume restore removed and the decline no longer saved.
 
 Still owed: the audible fade on a phone, the Bedtime page, the page's status line moving at a boundary while open.
+
+## 2026-11-13: P6, the gradual fade on a target
+
+Dewi's nap-story ask (Peppa on a bedroom speaker) is built as [ADR 166](../adr/0166-the-sleep-timer-fades-by-how-loud-it-sounds-on-the-phone-and-on-a-target.md):
+one fade policy shared by the phone and the Pi, steady in how loud it sounds, and a sleep timer on a Pi target. Owed:
+the fade heard on a real speaker, TV and Chromecast, and the target's sleep tile seen on a screen.
