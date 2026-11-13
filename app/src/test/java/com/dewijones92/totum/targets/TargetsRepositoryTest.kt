@@ -1,5 +1,6 @@
 package com.dewijones92.totum.targets
 
+import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.data.backup.toBackup
 import com.dewijones92.totum.data.home.HomeAnswer
@@ -15,7 +16,10 @@ import com.dewijones92.totum.data.targets.TargetKind
 import com.dewijones92.totum.data.targets.TargetPower
 import com.dewijones92.totum.data.targets.TargetQueueRequest
 import com.dewijones92.totum.data.targets.TargetState
+import com.dewijones92.totum.data.targets.TargetTrouble
 import com.dewijones92.totum.data.targets.TargetsAnswer
+import com.dewijones92.totum.data.targets.TargetAction
+import com.dewijones92.totum.data.targets.TroubleKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayHandle
@@ -48,10 +52,11 @@ class TargetsRepositoryTest {
         var queueAnswer: HomeAnswer<TargetState>? = null
         var controlAnswer: HomeAnswer<TargetState>? = null
         var reads = 0
+        val readAnswers = ArrayDeque<HomeAnswer<TargetsAnswer>>()
 
         override suspend fun targets(): HomeAnswer<TargetsAnswer> {
             reads++
-            return answer
+            return readAnswers.removeFirstOrNull() ?: answer
         }
 
         override suspend fun queue(id: String, request: TargetQueueRequest): HomeAnswer<TargetState> {
@@ -87,7 +92,15 @@ class TargetsRepositoryTest {
         scope,
         operations,
         playHere = { items, mode, _, _ -> playedHere += Replayed(items.map { it.item.id.value }, mode) },
+        words = FakeWords,
     )
+
+    private object FakeWords : TargetWords {
+        override fun trouble(label: String, trouble: TargetTrouble, title: String?) =
+            "${trouble.kind} on $label for ${title ?: "nothing"}: ${trouble.reason}"
+
+        override fun signInAgain() = "SIGN IN AGAIN"
+    }
 
     init {
         scope.launch { operations.ended.collect { ended += it } }
@@ -323,6 +336,180 @@ class TargetsRepositoryTest {
 
         assertTrue(operations.running.value.isEmpty())
         assertTrue(ended.single { it.kind == OperationKind.WAKE_TARGET }.end is OperationEnd.Failed)
+    }
+
+    private fun accepted(vararg ids: String) = TargetState(
+        tv.target,
+        entries = ids.map { TargetEntry(item(it).toBackup()) },
+        at = 0,
+        starting = true,
+    )
+
+    private fun started(playing: Boolean, trouble: TargetTrouble? = null, vararg ids: String) = HomeAnswer.Ok(
+        TargetsAnswer(
+            listOf(
+                tv.copy(
+                    entries = ids.map { TargetEntry(item(it).toBackup()) },
+                    at = 0,
+                    playing = playing,
+                    trouble = trouble,
+                    problem = trouble?.kind?.name,
+                ),
+            ),
+        ),
+    )
+
+    private fun playOn(vararg ids: String) =
+        Redirected("lg-tv", "LG TV", ids.map { item(it) }, QueueMode.PLAY, null, null)
+
+    @Test
+    fun `a Pi that says it is starting is watched, and when it plays nothing is played here`() = runTest {
+        api.queueAnswer = HomeAnswer.Ok(accepted("a", "b"))
+        api.readAnswers += HomeAnswer.Ok(TargetsAnswer(listOf(accepted("a", "b"))))
+        api.readAnswers += started(true, null, "a", "b")
+
+        val end = repository.redirect(playOn("a", "b"))
+
+        assertEquals(OperationEnd.Done(2), end)
+        assertTrue(playedHere.isEmpty())
+        assertTrue("nothing was taken off the Pi", api.controlled.isEmpty())
+        assertEquals(2, api.reads)
+    }
+
+    @Test
+    fun `a Pi that finishes starting without playing gets the items played here, and taken off it`() = runTest {
+        api.queueAnswer = HomeAnswer.Ok(accepted("a", "b"))
+        api.readAnswers += started(false, TargetTrouble(TroubleKind.NOT_CONNECTED), "a", "b")
+
+        val end = repository.redirect(playOn("a", "b"))
+
+        assertEquals(listOf(Replayed(listOf("a", "b"), QueueMode.PLAY)), playedHere)
+        val why = (end as OperationEnd.Failed).why
+        assertTrue(why, why.contains("NOT_CONNECTED on LG TV"))
+        val (id, control) = api.controlled.single()
+        assertEquals("lg-tv", id)
+        assertEquals(TargetAction.REMOVE, control.action)
+        assertEquals(listOf("a", "b"), control.itemIds)
+    }
+
+    @Test
+    fun `a Pi whose start the phone loses track of is not left starting for ever`() = runTest {
+        api.queueAnswer = HomeAnswer.Ok(accepted("a"))
+        api.answer = HomeAnswer.No("❌ The home server didn't answer")
+
+        val end = repository.redirect(playOn("a"))
+
+        assertEquals(listOf(Replayed(listOf("a"), QueueMode.PLAY)), playedHere)
+        assertTrue(end is OperationEnd.Failed)
+        assertEquals(TargetAction.REMOVE, api.controlled.single().second.action)
+    }
+
+    @Test
+    fun `an answer that never came is checked against the Pi before the phone plays it as well`() = runTest {
+        api.queueAnswer = HomeAnswer.No("❌ The home server didn't answer")
+        api.answer = started(true, null, "a")
+
+        val end = repository.redirect(playOn("a"))
+
+        assertEquals(OperationEnd.Done(1), end)
+        assertTrue("the Pi had it, so the phone did not", playedHere.isEmpty())
+        assertTrue(api.controlled.isEmpty())
+    }
+
+    @Test
+    fun `an answer that never came, with the items not on the Pi, is played here and nothing is taken off`() = runTest {
+        api.queueAnswer = HomeAnswer.No("❌ The home server didn't answer")
+        api.answer = HomeAnswer.Ok(TargetsAnswer(listOf(tv)))
+
+        repository.redirect(playOn("a"))
+
+        assertEquals(listOf(Replayed(listOf("a"), QueueMode.PLAY)), playedHere)
+        assertTrue(api.controlled.isEmpty())
+    }
+
+    @Test
+    fun `an answer that never came, with the Pi unreadable too, is played here and taken off if it was there`() = runTest {
+        api.queueAnswer = HomeAnswer.No("❌ The home server didn't answer")
+        api.answer = HomeAnswer.No("❌ The home server didn't answer")
+
+        repository.redirect(playOn("a"))
+
+        assertEquals(listOf(Replayed(listOf("a"), QueueMode.PLAY)), playedHere)
+        assertEquals(TargetAction.REMOVE, api.controlled.single().second.action)
+    }
+
+    @Test
+    fun `a clear refusal is played here with nothing to take off`() = runTest {
+        api.queueAnswer = HomeAnswer.No("❌ Nothing in that was playable on LG TV", 422)
+
+        repository.redirect(playOn("a"))
+
+        assertEquals(listOf(Replayed(listOf("a"), QueueMode.PLAY)), playedHere)
+        assertTrue(api.controlled.isEmpty())
+        assertEquals(0, api.reads)
+    }
+
+    @Test
+    fun `the Pi's problem is composed from its kind, its item and its reason, with the phone's own words`() = runTest {
+        val state = tv.copy(
+            entries = listOf(TargetEntry(item("a").toBackup())),
+            trouble = TargetTrouble(TroubleKind.COULD_NOT_PLAY, "a", "it is not on this Pi"),
+            problem = "❌ plain Pi text",
+        )
+
+        assertEquals("COULD_NOT_PLAY on LG TV for Episode a: it is not on this Pi", repository.troubleLine(state))
+        assertEquals("plain", repository.troubleLine(tv.copy(problem = "plain")))
+        assertNull(repository.troubleLine(tv))
+    }
+
+    @Test
+    fun `a 401 says to sign in again, wherever it came from`() = runTest {
+        api.controlAnswer = HomeAnswer.No("❌ The home server said no (HTTP 401)", 401)
+
+        repository.act("lg-tv", TargetControl(TargetAction.NEXT))
+        scope.advanceUntilIdle()
+
+        assertEquals("SIGN IN AGAIN", repository.problem.value)
+
+        api.answer = HomeAnswer.No("❌ The home server said no (HTTP 401)", 401)
+        repository.refresh("test")
+        assertEquals("SIGN IN AGAIN", repository.problem.value)
+    }
+
+    @Test
+    fun `an action that failed stays on screen through the next successful read`() = runTest {
+        api.controlAnswer = HomeAnswer.No("❌ The home server didn't answer")
+        repository.act("lg-tv", TargetControl(TargetAction.NEXT))
+        scope.advanceUntilIdle()
+        assertEquals("❌ The home server didn't answer", repository.problem.value)
+
+        api.answer = HomeAnswer.Ok(TargetsAnswer(listOf(tv)))
+        repository.refresh("a read that worked")
+
+        assertEquals("❌ The home server didn't answer", repository.problem.value)
+
+        api.controlAnswer = null
+        repository.act("lg-tv", TargetControl(TargetAction.NEXT))
+        scope.advanceUntilIdle()
+        assertNull(repository.problem.value)
+    }
+
+    @Test
+    fun `every control the phone sends is logged with what it was`() = runTest {
+        val lines = mutableListOf<String>()
+        val before = Diag.sink
+        Diag.sink = Diag.Sink { _, tag, message, _ -> if (tag == "targets") lines += message }
+        try {
+            repository.act("lg-tv", TargetControl(TargetAction.SEEK, positionMs = 42_000))
+            repository.act("lg-tv", TargetControl(TargetAction.REMOVE, index = 3, itemId = "x"))
+            scope.advanceUntilIdle()
+        } finally {
+            Diag.sink = before
+        }
+
+        assertTrue(lines.toString(), lines.any { it.startsWith("sending to lg-tv: SEEK") && it.contains("positionMs=42000") })
+        assertTrue(lines.toString(), lines.any { it.startsWith("sending to lg-tv: REMOVE index=3 itemId=x") })
+        assertTrue(lines.toString(), lines.any { it.startsWith("lg-tv answered SEEK") })
     }
 
     @Test

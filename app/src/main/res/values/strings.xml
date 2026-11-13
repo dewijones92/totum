@@ -1401,6 +1401,7 @@
         <item quantity="one">✅ Sent %1$d item to %2$s</item>
         <item quantity="other">✅ Sent %1$d items to %2$s</item>
     </plurals>
+    <string name="ops_starting">⏳ Starting on %1$s…</string>
     <string name="ops_wake_target">⏰ Waking %1$s…</string>
     <plurals name="ops_wake_done">
         <item quantity="one">✅ %2$s is awake</item>
@@ -1417,7 +1418,7 @@
     <string name="target_empty_hint">Play, queue or shuffle something while looking at it and it plays there.</string>
     <string name="target_now_playing">▶️ Playing on %1$s</string>
     <string name="target_paused">⏸️ Paused on %1$s</string>
-    <string name="target_idle">💤 Nothing playing on %1$s</string>
+    <string name="target_idle">📭 Nothing playing on %1$s</string>
     <string name="target_row_playing">▶️ Playing now</string>
     <string name="target_loops">🔂 Loops</string>
     <string name="target_added_by">➕ Added by %1$s</string>
@@ -1433,6 +1434,18 @@
     <string name="target_pause">Pause</string>
     <string name="target_stop">Stop</string>
     <string name="target_position">%1$s of %2$s</string>
+    <string name="target_seek_back">Back 10 seconds</string>
+    <string name="target_seek_forward">Forward 30 seconds</string>
+    <string name="target_sign_in_again">🔑 Sign in to the home server again</string>
+    <string name="target_trouble_not_connected">📶 Couldn\'t reach %1$s: it isn\'t connected (off or out of range)</string>
+    <string name="target_trouble_switch_on">📶 Switch %1$s on, then try again</string>
+    <string name="target_trouble_switched_off">📺 %1$s was switched off</string>
+    <string name="target_trouble_wont_wake">❌ %1$s didn\'t wake: check \'Turn on via Wi-Fi\' in its settings</string>
+    <string name="target_trouble_youtube_backoff">⏳ YouTube is refusing the Pi for now; try again around %1$s</string>
+    <string name="target_trouble_stalled">⚠️ “%1$s” has stopped moving on %2$s</string>
+    <string name="target_trouble_that_item">that item</string>
+    <string name="target_trouble_no_reason">no reason was given</string>
+    <string name="target_trouble_later">later</string>
     <string name="library_jellyfin">Jellyfin</string>
     <string name="library_jellyfin_detail">🏠 Films and shows on the home server</string>
     <string name="jellyfin_more">⬇️ Show more</string>

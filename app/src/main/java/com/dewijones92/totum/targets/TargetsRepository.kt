@@ -15,7 +15,9 @@ import com.dewijones92.totum.data.targets.TargetEntry
 import com.dewijones92.totum.data.targets.TargetPower
 import com.dewijones92.totum.data.targets.TargetQueueRequest
 import com.dewijones92.totum.data.targets.TargetState
+import com.dewijones92.totum.domain.ItemShields
 import com.dewijones92.totum.domain.MediaItemId
+import com.dewijones92.totum.data.backup.titleOf
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.operations.OperationEnd
 import com.dewijones92.totum.operations.OperationKind
@@ -38,6 +40,7 @@ class TargetsRepository(
     private val scope: CoroutineScope,
     private val operations: Operations? = null,
     private val playHere: (List<PlayableItem>, QueueMode, QueueGroup?, MediaItemId?) -> Unit = { _, _, _, _ -> },
+    private val words: TargetWords? = null,
 ) : QueueDestination {
 
     val available: Boolean get() = client != null
@@ -54,6 +57,7 @@ class TargetsRepository(
     private val waking = ConcurrentHashMap.newKeySet<String>()
 
     private val trouble = MutableStateFlow<String?>(null)
+    private var troubleFromRead = false
     private var failures = 0
     private var lastSummary: String? = null
     val problem: StateFlow<String?> = trouble.asStateFlow()
@@ -62,7 +66,20 @@ class TargetsRepository(
         if (chosen.value == id) return
         Diag.log("targets", "looking at ${id ?: "this phone"} (was ${chosen.value ?: "this phone"})")
         chosen.value = id
+        if (!troubleFromRead) trouble.value = null
     }
+
+    fun troubleLine(state: TargetState): String? {
+        val trouble = state.trouble
+        val shaped = words
+        if (trouble == null || shaped == null) return state.problem
+        val title = trouble.itemId?.let { id -> state.entries.firstOrNull { it.item.itemId == id } }
+            ?.let { ItemShields.titleOf(it.item) }
+        return shaped.trouble(state.target.label, trouble, title)
+    }
+
+    private fun describe(answer: HomeAnswer.No): String =
+        if (answer.httpCode == UNAUTHORIZED) words?.signInAgain() ?: SIGN_IN_AGAIN else answer.reason
 
     fun queueTabLeft() {
         val was = chosen.value ?: return
@@ -79,20 +96,22 @@ class TargetsRepository(
         Diag.log("targets", "$id recoloured to ${colour.toString(HEX)}")
     }
 
-    suspend fun refresh(why: String) {
-        val home = client ?: return
-        when (val answer = home.targets()) {
+    suspend fun refresh(why: String): Boolean {
+        val home = client ?: return false
+        return when (val answer = home.targets()) {
             is HomeAnswer.No -> {
-                trouble.value = answer.reason
+                trouble.value = describe(answer)
+                troubleFromRead = true
                 failures++
                 if (failures == 1 || failures % FAILURE_LOG_EVERY == 0) {
                     Diag.log("targets", "targets not read ($why), $failures in a row: ${answer.reason}")
                 }
+                false
             }
             is HomeAnswer.Ok -> {
                 if (failures > 0) Diag.log("targets", "targets read again after $failures failed read(s)")
                 failures = 0
-                trouble.value = null
+                if (troubleFromRead) trouble.value = null
                 live.value = answer.value.targets
                 showWakes(answer.value.targets)
                 paint(answer.value.targets.map { it.target })
@@ -101,6 +120,7 @@ class TargetsRepository(
                     lastSummary = summary
                     Diag.log("targets", "read ($why): $summary")
                 }
+                true
             }
         }
     }
@@ -114,23 +134,56 @@ class TargetsRepository(
 
     suspend fun queue(id: String, request: TargetQueueRequest): HomeAnswer<TargetState> {
         val home = client ?: return HomeAnswer.No("❌ No home server set")
+        Diag.log(
+            "targets",
+            "sending to $id: ${request.mode} of ${request.items.size} " +
+                "[${request.items.joinToString(limit = LOGGED_IDS) { it.itemId }}] startItem=${request.startItemId} " +
+                "startAtMs=${request.startAtMs} shuffle=${request.shuffle} loop=${request.loop} " +
+                "repeat=${request.repeat}",
+        )
         val answer = home.queue(id, request)
-        if (answer is HomeAnswer.Ok) replace(answer.value)
+        logAnswer(id, "${request.mode} of ${request.items.size}", answer)
+        if (answer is HomeAnswer.Ok) {
+            replace(answer.value)
+            if (!troubleFromRead) trouble.value = null
+        }
         return answer
     }
 
     suspend fun control(id: String, control: TargetControl): HomeAnswer<TargetState> {
         val home = client ?: return HomeAnswer.No("❌ No home server set")
+        Diag.log(
+            "targets",
+            "sending to $id: ${control.action} index=${control.index} itemId=${control.itemId} " +
+                "itemIds=${control.itemIds?.size} positionMs=${control.positionMs} volume=${control.volume} " +
+                "repeat=${control.repeat} sound=${control.sound}",
+        )
         val answer = home.control(id, control)
-        if (answer is HomeAnswer.Ok) replace(answer.value)
+        logAnswer(id, control.action.name, answer)
+        if (answer is HomeAnswer.Ok) {
+            replace(answer.value)
+            if (!troubleFromRead) trouble.value = null
+        }
         return answer
+    }
+
+    private fun logAnswer(id: String, what: String, answer: HomeAnswer<TargetState>) {
+        when (answer) {
+            is HomeAnswer.Ok -> Diag.log(
+                "targets",
+                "$id answered $what: playing=${answer.value.playing} starting=${answer.value.starting} " +
+                    "at=${answer.value.at} of ${answer.value.entries.size} trouble=${answer.value.trouble?.kind}",
+            )
+            is HomeAnswer.No -> Diag.warn("targets", "$id answered $what with no: HTTP ${answer.httpCode} ${answer.reason}")
+        }
     }
 
     fun act(id: String, control: TargetControl) {
         scope.launch {
             val answer = control(id, control)
             if (answer is HomeAnswer.No) {
-                trouble.value = answer.reason
+                trouble.value = describe(answer)
+                troubleFromRead = false
                 Diag.warn("targets", "$id ${control.action} failed: ${answer.reason}")
                 if (answer.httpCode == CONFLICT) refresh("the queue changed under ${control.action}")
             }
@@ -146,13 +199,13 @@ class TargetsRepository(
         Diag.log("targets", "redirecting $mode of ${items.size} to $label (the one being looked at)")
         scope.launch {
             val play = Redirected(id, label, items, mode, group, startAt)
-            val run: suspend (Operations.Progress?) -> OperationEnd = { redirect(play) }
+            val run: suspend (Operations.Progress?) -> OperationEnd = { redirect(play, it) }
             operations?.track("target:$id", OperationKind.SEND_TO_TARGET, label) { run(it) } ?: run(null)
         }
         return true
     }
 
-    internal suspend fun redirect(play: Redirected): OperationEnd {
+    internal suspend fun redirect(play: Redirected, progress: Operations.Progress? = null): OperationEnd {
         val request = TargetQueueRequest(
             items = play.items.map { it.toBackup() },
             mode = play.mode,
@@ -162,35 +215,94 @@ class TargetsRepository(
             startItemId = play.startAt?.value,
         )
         return when (val answer = queue(play.id, request)) {
-            is HomeAnswer.No -> fallBack(play, answer.reason)
-            is HomeAnswer.Ok -> {
-                val state = answer.value
-                val asked = play.items.mapTo(HashSet()) { it.item.id.value }
-                val queued = state.entries.count { it.item.itemId in asked }
-                val starts = play.mode == QueueMode.PLAY || play.mode == QueueMode.REPLACE
-                Diag.log(
-                    "targets",
-                    "${play.label} answered ${play.mode} of ${play.items.size}: queued=$queued " +
-                        "playing=${state.playing} problem=${state.problem}",
-                )
-                when {
-                    queued == 0 -> fallBack(play, "it queued none of them")
-                    starts && !state.playing ->
-                        fallBack(play, state.problem ?: "it did not start")
-                    else -> OperationEnd.Done(queued, note = state.problem)
-                }
-            }
+            is HomeAnswer.No -> answeredNo(play, answer, progress)
+            is HomeAnswer.Ok -> settle(play, answer.value, progress)
         }
     }
 
-    private fun fallBack(play: Redirected, why: String): OperationEnd {
+    private suspend fun answeredNo(play: Redirected, answer: HomeAnswer.No, progress: Operations.Progress?): OperationEnd {
+        val code = answer.httpCode
+        if (code != null && code < SERVER_ERROR) return fallBack(play, describe(answer), removeFromPi = false)
         Diag.warn(
             "targets",
-            "${play.label} did not take ${play.mode} of ${play.items.size} ($why); playing them on this phone instead",
+            "${play.label} gave no clear answer to ${play.mode} of ${play.items.size} (${answer.reason}); " +
+                "reading it before playing here, in case it took them",
+        )
+        val read = client?.targets()
+        val seen = (read as? HomeAnswer.Ok)?.value?.targets?.firstOrNull { it.target.id == play.id }
+        val asked = play.items.mapTo(HashSet()) { it.item.id.value }
+        val holds = seen?.entries?.any { it.item.itemId in asked } == true
+        if (seen != null && holds && (seen.starting || seen.playing)) {
+            Diag.log("targets", "${play.label} had taken them after all (starting=${seen.starting} playing=${seen.playing})")
+            replace(seen)
+            return settle(play, seen, progress)
+        }
+        return fallBack(play, describe(answer), removeFromPi = read !is HomeAnswer.Ok || holds)
+    }
+
+    private suspend fun settle(play: Redirected, accepted: TargetState, progress: Operations.Progress?): OperationEnd {
+        var state = accepted
+        if (state.starting) {
+            progress?.report(starting = true)
+            state = awaitStart(play) ?: return fallBack(play, STOPPED_ANSWERING, removeFromPi = true)
+            progress?.report(starting = false)
+        }
+        val asked = play.items.mapTo(HashSet()) { it.item.id.value }
+        val queued = state.entries.count { it.item.itemId in asked }
+        val starts = play.mode == QueueMode.PLAY || play.mode == QueueMode.REPLACE
+        val line = troubleLine(state)
+        Diag.log(
+            "targets",
+            "${play.label} answered ${play.mode} of ${play.items.size}: queued=$queued " +
+                "playing=${state.playing} problem=$line",
+        )
+        return when {
+            queued == 0 -> fallBack(play, "it queued none of them", removeFromPi = false)
+            starts && !state.playing -> fallBack(play, line ?: "it did not start", removeFromPi = true)
+            else -> OperationEnd.Done(queued, note = line)
+        }
+    }
+
+    private suspend fun awaitStart(play: Redirected): TargetState? {
+        var waited = 0L
+        var misses = 0
+        while (waited < START_WATCH_CAP_MS) {
+            delay(START_POLL_MS)
+            waited += START_POLL_MS
+            if (refresh("watching ${play.label} start")) {
+                misses = 0
+                val state = live.value.firstOrNull { it.target.id == play.id }
+                if (state != null && !state.starting) {
+                    Diag.log("targets", "${play.label} finished starting after ${waited}ms: playing=${state.playing}")
+                    return state
+                }
+            } else if (++misses >= START_WATCH_MISSES) {
+                Diag.warn("targets", "${play.label}: $misses reads in a row failed while it was starting; giving up")
+                return null
+            }
+        }
+        Diag.warn("targets", "${play.label} was still starting after ${waited}ms; giving up on it")
+        return live.value.firstOrNull { it.target.id == play.id }
+    }
+
+    private suspend fun fallBack(play: Redirected, why: String, removeFromPi: Boolean): OperationEnd {
+        Diag.warn(
+            "targets",
+            "${play.label} did not take ${play.mode} of ${play.items.size} ($why); playing them on this phone instead " +
+                "(taking them off ${play.label}: $removeFromPi)",
         )
         playHere(play.items, play.mode, play.group, play.startAt)
+        if (removeFromPi) removeSent(play)
         val plain = why.dropWhile { !it.isLetterOrDigit() }
         return OperationEnd.Failed("⚠️ ${play.label} didn't take it ($plain). Playing on this phone instead.")
+    }
+
+    private suspend fun removeSent(play: Redirected) {
+        val ids = play.items.map { it.item.id.value }
+        val answer = control(play.id, TargetControl(TargetAction.REMOVE, itemIds = ids))
+        if (answer is HomeAnswer.No) {
+            Diag.warn("targets", "${play.label}: could not take the ${ids.size} sent item(s) off it again: ${answer.reason}")
+        }
     }
 
     fun command(id: String, action: TargetAction) = act(id, TargetControl(action))
@@ -207,7 +319,8 @@ class TargetsRepository(
             Diag.log("targets", "$id: moving ${entry.item.itemId} to play next")
             val answer = queue(id, request)
             if (answer is HomeAnswer.No) {
-                trouble.value = answer.reason
+                trouble.value = describe(answer)
+                troubleFromRead = false
                 Diag.warn("targets", "$id: play next of ${entry.item.itemId} failed: ${answer.reason}")
             }
         }
@@ -272,6 +385,14 @@ class TargetsRepository(
         const val WAKE_WATCH_CAP_MS = 45_000L
         const val FAILURE_LOG_EVERY = 30
         const val CONFLICT = 409
+        const val UNAUTHORIZED = 401
+        const val SERVER_ERROR = 500
+        const val START_POLL_MS = 500L
+        const val START_WATCH_CAP_MS = 120_000L
+        const val START_WATCH_MISSES = 3
+        const val LOGGED_IDS = 6
+        const val SIGN_IN_AGAIN = "🔑 Sign in to the home server again"
+        const val STOPPED_ANSWERING = "the home server stopped answering while it started"
         const val HEX = 16
     }
 }

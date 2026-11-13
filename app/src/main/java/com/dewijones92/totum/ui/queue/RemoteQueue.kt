@@ -14,16 +14,18 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
+import androidx.compose.material.icons.filled.Forward30
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Replay10
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -35,10 +37,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dewijones92.totum.R
+import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.backup.titleOf
 import com.dewijones92.totum.data.targets.SoundSettings
 import com.dewijones92.totum.data.targets.TargetAction
@@ -115,29 +119,63 @@ private fun RemoteHeader(targets: TargetsRepository, state: TargetState, colour:
             if (state.isLive) {
                 TagBadge(liveTagLabel(LiveTag.Live), liveTagColor(LiveTag.Live), Modifier.padding(vertical = 4.dp))
             }
-            state.shownLengthMs?.let { duration ->
-                LinearProgressIndicator(
-                    progress = { (state.positionMs.toFloat() / duration).coerceIn(0f, 1f) },
-                    color = colour,
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                )
-                Text(
-                    stringResource(
-                        R.string.target_position,
-                        formatClock(state.positionMs.milliseconds),
-                        formatClock(duration.milliseconds),
-                    ),
-                    style = MaterialTheme.typography.bodySmall,
-                )
-            }
+            state.shownLengthMs?.let { duration -> RemoteSeek(targets, state, duration, colour) }
         }
         RemotePower(targets, state)
-        state.problem?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        RemoteTrouble(targets, state)
         RemoteControls(targets, state)
         RemoteRepeat(targets, state)
         RemoteSound(targets, state)
         RemoteColours(targets, id)
     }
+}
+
+@Composable
+private fun RemoteSeek(targets: TargetsRepository, state: TargetState, duration: Long, colour: Color) {
+    val id = state.target.id
+    var dragging by remember { mutableStateOf<Float?>(null) }
+    val shown = dragging ?: state.positionMs.toFloat().coerceIn(0f, duration.toFloat())
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        IconButton(
+            onClick = {
+                val to = (state.positionMs - SEEK_BACK_MS).coerceAtLeast(0)
+                targets.act(id, TargetControl(TargetAction.SEEK, positionMs = to))
+            },
+        ) { Icon(Icons.Filled.Replay10, stringResource(R.string.target_seek_back)) }
+        Slider(
+            value = shown,
+            onValueChange = { dragging = it },
+            onValueChangeFinished = {
+                dragging?.let { targets.act(id, TargetControl(TargetAction.SEEK, positionMs = it.toLong())) }
+                dragging = null
+            },
+            valueRange = 0f..duration.toFloat(),
+            colors = SliderDefaults.colors(thumbColor = colour, activeTrackColor = colour),
+            modifier = Modifier.weight(1f),
+        )
+        IconButton(
+            onClick = {
+                val to = (state.positionMs + SEEK_FORWARD_MS).coerceAtMost(duration)
+                targets.act(id, TargetControl(TargetAction.SEEK, positionMs = to))
+            },
+        ) { Icon(Icons.Filled.Forward30, stringResource(R.string.target_seek_forward)) }
+    }
+    Text(
+        stringResource(
+            R.string.target_position,
+            formatClock(shown.toLong().milliseconds),
+            formatClock(duration.milliseconds),
+        ),
+        style = MaterialTheme.typography.bodySmall,
+    )
+}
+
+@Composable
+private fun RemoteTrouble(targets: TargetsRepository, state: TargetState) {
+    val note by targets.problem.collectAsStateWithLifecycle()
+    val line = targets.troubleLine(state)
+    if (line != null) Text(line, color = MaterialTheme.colorScheme.error)
+    note?.takeIf { it != line }?.let { Text(it, color = MaterialTheme.colorScheme.error) }
 }
 
 @Composable
@@ -265,13 +303,20 @@ private fun RemoteEntries(targets: TargetsRepository, state: TargetState, colour
                     modifier = Modifier.padding(start = 16.dp, top = 12.dp, end = 16.dp, bottom = 4.dp),
                 )
             }
-            RemoteRow(targets, id, index, entry, playing = index == state.at)
+            RemoteRow(targets, id, index, entry, playing = index == state.at, deckPlaying = state.playing)
         }
     }
 }
 
 @Composable
-private fun RemoteRow(targets: TargetsRepository, id: String, index: Int, entry: TargetEntry, playing: Boolean) {
+private fun RemoteRow(
+    targets: TargetsRepository,
+    id: String,
+    index: Int,
+    entry: TargetEntry,
+    playing: Boolean,
+    deckPlaying: Boolean,
+) {
     val playable = entry.toQueueEntry()?.item ?: return
     Column {
         if (playing) {
@@ -289,7 +334,15 @@ private fun RemoteRow(targets: TargetsRepository, id: String, index: Int, entry:
                     stringResource(R.string.target_loops).takeIf { entry.loop },
                 ),
             pillar = playable.pillar,
-            onPlay = { targets.act(id, TargetControl(TargetAction.JUMP, index = index, itemId = entry.item.itemId)) },
+            onPlay = {
+                if (!playing) {
+                    targets.act(id, TargetControl(TargetAction.JUMP, index = index, itemId = entry.item.itemId))
+                } else if (!deckPlaying) {
+                    targets.act(id, TargetControl(TargetAction.PLAY))
+                } else {
+                    Diag.log("targets", "$id: the playing row ${entry.item.itemId} was tapped; it keeps playing")
+                }
+            },
             onPlayNext = { targets.playNextOn(id, entry) },
             onAddToQueue = null,
             onPeek = null,
@@ -301,4 +354,6 @@ private fun RemoteRow(targets: TargetsRepository, id: String, index: Int, entry:
 }
 
 private const val VOLUME_MAX = 100f
+private const val SEEK_BACK_MS = 10_000L
+private const val SEEK_FORWARD_MS = 30_000L
 private val SWATCH = 28.dp

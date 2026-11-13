@@ -304,6 +304,7 @@ import com.dewijones92.totum.stats.StatsLog
 import com.dewijones92.totum.targets.PrefsTargetColours
 import com.dewijones92.totum.targets.RequesterIdentity
 import com.dewijones92.totum.targets.SendToTarget
+import com.dewijones92.totum.targets.ContextTargetWords
 import com.dewijones92.totum.targets.TargetsRepository
 import com.dewijones92.totum.trip.TripMode
 import com.dewijones92.totum.trip.tripModeFor
@@ -911,6 +912,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             applicationScope,
             operations,
             playHere = { items, mode, group, startAt -> playbackQueue.playHere(items, mode, group, startAt) },
+            words = ContextTargetWords(context),
         )
     }
 

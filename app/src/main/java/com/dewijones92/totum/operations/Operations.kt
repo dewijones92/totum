@@ -41,6 +41,7 @@ data class Operation(
     val steps: Int? = null,
     val playing: Boolean = false,
     val startedAtMs: Long = 0,
+    val starting: Boolean = false,
 )
 
 sealed interface OperationEnd {
@@ -107,7 +108,13 @@ class Operations(private val clock: () -> Long = System::currentTimeMillis) {
     }
 
     inner class Progress internal constructor(private val id: Long) {
-        fun report(found: Int? = null, step: Int? = null, steps: Int? = null, playing: Boolean? = null) {
+        fun report(
+            found: Int? = null,
+            step: Int? = null,
+            steps: Int? = null,
+            playing: Boolean? = null,
+            starting: Boolean? = null,
+        ) {
             live.update { list ->
                 list.map { op ->
                     if (op.id != id) {
@@ -118,6 +125,7 @@ class Operations(private val clock: () -> Long = System::currentTimeMillis) {
                             step = step ?: op.step,
                             steps = steps ?: op.steps,
                             playing = playing ?: op.playing,
+                            starting = starting ?: op.starting,
                         )
                     }
                 }

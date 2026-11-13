@@ -194,6 +194,7 @@ private fun titleOf(operation: Operation): String = when (operation.kind) {
 @Composable
 private fun detailOf(operation: Operation): List<String> = buildList {
     if (operation.playing) add(stringResource(R.string.ops_playing))
+    if (operation.starting) add(stringResource(R.string.ops_starting, operation.subject))
     if (operation.found > 0) add(pluralStringResource(R.plurals.ops_found, operation.found, operation.found))
     val step = operation.step
     val steps = operation.steps
