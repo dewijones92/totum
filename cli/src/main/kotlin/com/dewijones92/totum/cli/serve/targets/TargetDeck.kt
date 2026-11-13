@@ -31,6 +31,7 @@ import com.dewijones92.totum.domain.skipsSilence
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.io.File
+import kotlin.math.abs
 import kotlin.random.Random
 
 @Suppress("TooManyFunctions")
@@ -127,6 +128,7 @@ internal class TargetDeck(
             "targets",
             "${target.id}: ${control.action} index=${control.index} at=${queue.currentIndex} playing=$playing"
         )
+        val index = if (control.action in INDEXED_ACTIONS) indexOf(control) else control.index
         when (control.action) {
             TargetAction.PLAY -> {
                 problem = null
@@ -139,7 +141,7 @@ internal class TargetDeck(
             }
             TargetAction.NEXT -> moveTo(queue.place + 1)
             TargetAction.PREVIOUS -> moveTo((queue.place - 1).coerceAtLeast(0))
-            TargetAction.JUMP -> control.index?.let { moveTo(it) }
+            TargetAction.JUMP -> index?.let { moveTo(it) }
             TargetAction.SEEK -> control.positionMs?.let(player::seek)
             TargetAction.VOLUME -> control.volume?.let {
                 val wanted = it.coerceIn(0, MAX_VOLUME)
@@ -150,13 +152,38 @@ internal class TargetDeck(
                 problem = null
                 finish("stopped")
             }
-            TargetAction.REMOVE -> control.index?.let { remove(it) }
+            TargetAction.REMOVE -> index?.let { remove(it) }
             TargetAction.SOUND -> control.sound?.let { changeSound(it) }
             TargetAction.REPEAT -> control.repeat?.let(::setRepeat)
             TargetAction.WAKE -> woken()
         }
         save()
         return state()
+    }
+
+    private fun indexOf(control: TargetControl): Int? {
+        val wanted = control.itemId ?: return control.index
+        val ids = queue.entries.map { it.item.item.id.value }
+        val candidates = ids.indices.filter { ids[it] == wanted }
+        val asked = control.index
+        val chosen = asked?.takeIf { it in candidates }
+            ?: candidates.minByOrNull { abs(it - (asked ?: queue.currentIndex.coerceAtLeast(0))) }
+        if (chosen == null) {
+            Diag.warn(
+                "targets",
+                "${target.id}: ${control.action} of $wanted at ${control.index} refused: it is not in the queue " +
+                    "(${ids.size} item(s)); the phone's list is out of date",
+            )
+            throw StaleEdit(state())
+        }
+        if (chosen != asked) {
+            Diag.warn(
+                "targets",
+                "${target.id}: ${control.action} of $wanted was asked at index $asked but it is at $chosen now; " +
+                    "acting on $chosen",
+            )
+        }
+        return chosen
     }
 
     suspend fun ended(failed: Boolean) = reachingFirst(needsLink = false) { endedLocked(failed) }
@@ -360,6 +387,8 @@ private const val MAX_VOLUME = 100
 
 private const val MIN_REPEAT_PLAY_MS = 2_000L
 
+private val INDEXED_ACTIONS = setOf(TargetAction.JUMP, TargetAction.REMOVE)
+
 private val STARTING_ACTIONS =
     setOf(TargetAction.PLAY, TargetAction.NEXT, TargetAction.PREVIOUS, TargetAction.JUMP, TargetAction.WAKE)
 
@@ -370,6 +399,8 @@ private fun TargetQueueRequest.playables(random: Random, targetId: String): List
         }
     }
     .let { if (shuffle) it.shuffled(random) else it }
+
+internal class StaleEdit(val state: TargetState) : RuntimeException("the queue changed under that edit")
 
 internal sealed interface EnqueueResult {
     data class Accepted(val state: TargetState) : EnqueueResult

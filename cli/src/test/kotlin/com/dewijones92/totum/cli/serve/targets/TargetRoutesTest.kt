@@ -170,6 +170,37 @@ class TargetRoutesTest {
     }
 
     @Test
+    fun `an edit for an item that is no longer there is a 409 with the queue as it is now`() {
+        call("POST", "/targets/queue?id=bar", queue(listOf("a", "b")))
+
+        val (code, text) = call(
+            "POST",
+            "/targets/control?id=bar",
+            control(TargetControl(TargetAction.REMOVE, index = 1, itemId = "gone")),
+        )
+
+        assertEquals(409, code)
+        assertTrue(text, text.contains("The queue changed"))
+        assertTrue(text, text.contains("\"itemId\":\"a\"") && text.contains("\"itemId\":\"b\""))
+        val listed = TargetsJson.decodeFromString(TargetsAnswer.serializer(), call("GET", "/targets").second)
+        assertEquals(2, listed.targets.single().entries.size)
+    }
+
+    @Test
+    fun `a queue request can mark its items as looping and the list says so`() {
+        val body = TargetsJson.encodeToString(
+            TargetQueueRequest.serializer(),
+            TargetQueueRequest(listOf(podcastItem("a")), QueueMode.PLAY, loop = true),
+        )
+
+        val (code, text) = call("POST", "/targets/queue?id=bar", body)
+
+        assertEquals(200, code)
+        assertEquals(RepeatMode.OFF, stateOf(text).repeat)
+        assertEquals(listOf(true), stateOf(text).entries.map { it.loop })
+    }
+
+    @Test
     fun `a repeat control changes it and a pause leaves it`() {
         call("POST", "/targets/queue?id=bar", queue(listOf("a")))
 

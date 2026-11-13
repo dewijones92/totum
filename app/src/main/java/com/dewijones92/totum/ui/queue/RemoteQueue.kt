@@ -289,11 +289,13 @@ private fun RemoteRow(targets: TargetsRepository, id: String, index: Int, entry:
                     stringResource(R.string.target_loops).takeIf { entry.loop },
                 ),
             pillar = playable.pillar,
-            onPlay = { targets.act(id, TargetControl(TargetAction.JUMP, index = index)) },
+            onPlay = { targets.act(id, TargetControl(TargetAction.JUMP, index = index, itemId = entry.item.itemId)) },
             onPlayNext = { targets.playNextOn(id, entry) },
             onAddToQueue = null,
             onPeek = null,
-            onRemoveFromQueue = { targets.act(id, TargetControl(TargetAction.REMOVE, index = index)) },
+            onRemoveFromQueue = {
+                targets.act(id, TargetControl(TargetAction.REMOVE, index = index, itemId = entry.item.itemId))
+            },
         )
     }
 }

@@ -132,6 +132,7 @@ class TargetsRepository(
             if (answer is HomeAnswer.No) {
                 trouble.value = answer.reason
                 Diag.warn("targets", "$id ${control.action} failed: ${answer.reason}")
+                if (answer.httpCode == CONFLICT) refresh("the queue changed under ${control.action}")
             }
         }
     }
@@ -270,6 +271,7 @@ class TargetsRepository(
         const val WAKE_POLL_MS = 500L
         const val WAKE_WATCH_CAP_MS = 45_000L
         const val FAILURE_LOG_EVERY = 30
+        const val CONFLICT = 409
         const val HEX = 16
     }
 }

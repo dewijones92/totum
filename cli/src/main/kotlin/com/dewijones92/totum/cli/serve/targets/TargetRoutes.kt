@@ -51,6 +51,12 @@ internal class TargetRoutes(private val decks: TargetDecks) : Routes {
         val deck = decks.deck(id) ?: return exchange.reply(NOT_FOUND, """{"error":"❌ No target $id"}""")
         try {
             exchange.reply(OK, TargetsJson.encodeToString(TargetState.serializer(), act(deck, body)))
+        } catch (stale: StaleEdit) {
+            exchange.reply(
+                CONFLICT,
+                """{"error":"⚠️ The queue changed since you looked; showing it again","state":""" +
+                    TargetsJson.encodeToString(TargetState.serializer(), stale.state) + "}",
+            )
         } catch (refused: Refusal) {
             exchange.reply(
                 UNPROCESSABLE,
@@ -65,6 +71,7 @@ internal class TargetRoutes(private val decks: TargetDecks) : Routes {
         const val OK = 200
         const val BAD_REQUEST = 400
         const val NOT_FOUND = 404
+        const val CONFLICT = 409
         const val UNPROCESSABLE = 422
         const val LOGGED = 300
         val PATHS = setOf("/targets", "/targets/queue", "/targets/control")

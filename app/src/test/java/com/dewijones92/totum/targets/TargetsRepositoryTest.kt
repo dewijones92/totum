@@ -46,8 +46,13 @@ class TargetsRepositoryTest {
         val queued = mutableListOf<Pair<String, TargetQueueRequest>>()
         val controlled = mutableListOf<Pair<String, TargetControl>>()
         var queueAnswer: HomeAnswer<TargetState>? = null
+        var controlAnswer: HomeAnswer<TargetState>? = null
+        var reads = 0
 
-        override suspend fun targets() = answer
+        override suspend fun targets(): HomeAnswer<TargetsAnswer> {
+            reads++
+            return answer
+        }
 
         override suspend fun queue(id: String, request: TargetQueueRequest): HomeAnswer<TargetState> {
             queued += id to request
@@ -63,7 +68,7 @@ class TargetsRepositoryTest {
 
         override suspend fun control(id: String, control: TargetControl): HomeAnswer<TargetState> {
             controlled += id to control
-            return HomeAnswer.Ok(TargetState(Target(id, id, TargetKind.TV)))
+            return controlAnswer ?: HomeAnswer.Ok(TargetState(Target(id, id, TargetKind.TV)))
         }
     }
 
@@ -151,6 +156,17 @@ class TargetsRepositoryTest {
         assertEquals("b", request.startItemId)
         assertEquals(Requester("me", "My phone"), request.from)
         assertEquals(item("a").toBackup(), request.items.first())
+    }
+
+    @Test
+    fun `an edit the Pi refuses because the queue changed reads the queue again`() = runTest {
+        api.controlAnswer = HomeAnswer.No("⚠️ The queue changed since you looked; showing it again", 409)
+        val before = api.reads
+
+        repository.act("tv", TargetControl(com.dewijones92.totum.data.targets.TargetAction.REMOVE, 2, itemId = "x"))
+        scope.advanceUntilIdle()
+
+        assertEquals(before + 1, api.reads)
     }
 
     @Test

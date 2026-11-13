@@ -152,6 +152,44 @@ class TargetDeckTest {
     }
 
     @Test
+    fun `an edit that names the item acts on that item when the queue moved under the phone`() = runBlocking {
+        val deck = deck()
+        deck.enqueue(TargetQueueRequest(listOf(item("a"), item("b"), item("c")), QueueMode.REPLACE))
+        deck.control(TargetControl(TargetAction.REMOVE, index = 0, itemId = "a"))
+
+        deck.control(TargetControl(TargetAction.REMOVE, index = 2, itemId = "b"))
+        assertEquals(listOf("c"), deck.state().entries.map { it.item.itemId })
+
+        deck.enqueue(TargetQueueRequest(listOf(item("d"), item("e")), QueueMode.END))
+        deck.control(TargetControl(TargetAction.JUMP, index = 0, itemId = "e"))
+        assertEquals("e", deck.state().current?.item?.itemId)
+    }
+
+    @Test
+    fun `an edit whose item is gone changes nothing and says the queue changed`() = runBlocking {
+        val deck = deck()
+        deck.enqueue(TargetQueueRequest(listOf(item("a"), item("b")), QueueMode.REPLACE))
+
+        val stale = runCatching { deck.control(TargetControl(TargetAction.REMOVE, index = 1, itemId = "zzz")) }
+            .exceptionOrNull()
+
+        assertTrue(stale is StaleEdit)
+        assertEquals(listOf("a", "b"), (stale as StaleEdit).state.entries.map { it.item.itemId })
+        assertEquals(listOf("a", "b"), deck.state().entries.map { it.item.itemId })
+        assertEquals("a", deck.state().current?.item?.itemId)
+    }
+
+    @Test
+    fun `an edit with no item id acts on the index as before`() = runBlocking {
+        val deck = deck()
+        deck.enqueue(TargetQueueRequest(listOf(item("a"), item("b")), QueueMode.REPLACE))
+
+        deck.control(TargetControl(TargetAction.REMOVE, index = 1))
+
+        assertEquals(listOf("a"), deck.state().entries.map { it.item.itemId })
+    }
+
+    @Test
     fun `adding to an idle speaker starts it, and a group comes with its items`() = runBlocking {
         val deck = deck()
         deck.enqueue(
