@@ -1,5 +1,6 @@
 package com.dewijones92.totum.cli.serve.filing
 
+import com.dewijones92.totum.cli.serve.FilingProblems
 import com.dewijones92.totum.common.Diag
 import java.io.File
 import java.nio.file.Files
@@ -10,6 +11,8 @@ class LibraryFiler(
     private val decide: suspend (FileRequest) -> FilePlan,
     private val refused: suspend (String) -> Unit = {},
     private val sidecars: ((File) -> List<File>)? = null,
+    private val remux: ((File) -> MkvRemuxOutcome)? = null,
+    private val problems: FilingProblems? = null,
 ) {
     sealed interface Outcome {
         data class Moved(val file: File, val plan: FilePlan) : Outcome
@@ -23,26 +26,37 @@ class LibraryFiler(
             else -> null
         }
         if (unfit != null) return left(name, unfit)
+        remux?.invoke(source)?.let { outcome ->
+            if (outcome is MkvRemuxOutcome.Failed) {
+                problems?.add(
+                    "$name (remux)",
+                    "⚠️ \"$name\" has its Tracks after its first cluster and could not be fixed: ${outcome.why}",
+                )
+            }
+        }
         val plan = planFor(FileRequest(name, source.length(), Filing.context(name, library, from), from))
         if (plan.action == FilePlan.Action.LEAVE) return left(name, "the brain said leave it: ${plan.reason}")
-        return move(source, name, plan)
+        return move(source, name, plan, from)
     }
 
-    private fun move(source: File, name: String, plan: FilePlan): Outcome {
+    private fun move(source: File, name: String, plan: FilePlan, from: String?): Outcome {
         val shelf = Shelf.entries.first { it.folder == plan.shelf }
         val root = library.root(shelf).canonicalFile
-        val dir = File(root, plan.folder).canonicalFile
-        val inside = dir.path.startsWith(root.path + File.separator)
-        if (inside) dir.mkdirs()
-        val problem = when {
-            !inside -> "\"${plan.folder}\" is outside ${root.path}"
-            !dir.isDirectory || !dir.canWrite() -> "can't write to ${dir.path} (owner or permissions)"
-            else -> null
+        val wanted = File(root, plan.folder).canonicalFile
+        if (!wanted.path.startsWith(root.path + File.separator)) {
+            return left(name, "\"${plan.folder}\" is outside ${root.path}")
         }
-        if (problem != null) return left(name, problem)
-        val target = unused(File(dir, plan.fileName))
+        val placed = placeIn(root, plan, wanted, name, from)
+            ?: return left(
+                name,
+                "can't write to ${wanted.path} (owner or permissions), and no clean folder could be made beside it",
+            )
+        val dir = placed.dir
+        val fileName = placed.fileName
+        val target = unused(File(dir, fileName))
         return runCatching { Files.move(source.toPath(), target.toPath()).toFile() }.fold(
             onSuccess = { moved ->
+                problems?.clear(name)
                 Diag.log("filing", "filed \"$name\" -> ${moved.path} (${plan.action}: ${plan.reason})")
                 sidecars?.invoke(moved)
                 jellyfin?.created(shelf, moved.relativeTo(root).path)
@@ -50,6 +64,42 @@ class LibraryFiler(
             },
             onFailure = { left(name, "the move to ${target.path} failed: ${it.message}") },
         )
+    }
+
+    private class Placed(val dir: File, val fileName: String)
+
+    private fun placeIn(root: File, plan: FilePlan, wanted: File, name: String, from: String?): Placed? {
+        wanted.mkdirs()
+        if (wanted.isDirectory && wanted.canWrite()) return Placed(wanted, plan.fileName)
+        val clean = Filing.byRules(name, library, from)
+        val shown = wanted.relativeTo(root).path
+        val base = if (plan.action == FilePlan.Action.EPISODE) {
+            (listOf(clean.folder.substringBefore('/')) + plan.folder.split('/').drop(1)).joinToString("/")
+        } else {
+            clean.folder
+        }
+        val fileName = if (plan.action == FilePlan.Action.EPISODE) plan.fileName else clean.fileName
+        val fresh = generateSequence(1) { it + 1 }.take(FRESH_TRIES).map { n ->
+            File(root, if (n == 1) base else base.numbered(n)).canonicalFile
+        }.firstOrNull { candidate ->
+            candidate.path.startsWith(root.path + File.separator) &&
+                (candidate.mkdirs() || candidate.isDirectory) && candidate.canWrite()
+        }
+        if (fresh == null) {
+            problems?.add(name, "⚠️ \"$name\" could not be filed: $shown is not writable (owner or permissions)")
+            return null
+        }
+        Diag.log(
+            "filing",
+            "\"$name\": $shown is not writable (owner or permissions); filed into the fresh folder " +
+                "${fresh.relativeTo(root).path} instead",
+        )
+        return Placed(fresh, fileName)
+    }
+
+    private fun String.numbered(n: Int): String {
+        val top = substringBefore('/')
+        return "$top ($n)" + substringAfter(top, "")
     }
 
     private suspend fun planFor(request: FileRequest): FilePlan {
@@ -87,3 +137,4 @@ class LibraryFiler(
 }
 
 internal const val YOUTUBE_FROM = "YouTube channel:"
+private const val FRESH_TRIES = 6

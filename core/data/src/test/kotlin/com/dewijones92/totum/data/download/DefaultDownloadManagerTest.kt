@@ -325,6 +325,29 @@ class DefaultDownloadManagerTest {
 
         assertEquals(listOf(false), requested)
     }
+    @Test
+    fun `asking again for a download still running says it is being downloaded, not that it is on the phone`() =
+        runTest {
+            val said = mutableListOf<String>()
+            val before = com.dewijones92.totum.common.Diag.sink
+            com.dewijones92.totum.common.Diag.sink = com.dewijones92.totum.common.Diag.Sink { _, _, message, _ ->
+                said += message
+            }
+            try {
+                val strategy = DownloadStrategy { _, _, _ -> flow { awaitCancellation() } }
+                val under = manager(strategy, backgroundScope)
+                under.download(item)
+                store.observeAll().map { it[item.id] }.first { it is DownloadState.Downloading }
+
+                under.download(item)
+
+                val line = said.single { "not fetched again" in it }
+                assertTrue(line, "being downloaded" in line)
+                assertFalse(line, "on the phone" in line)
+            } finally {
+                com.dewijones92.totum.common.Diag.sink = before
+            }
+        }
 }
 
 /** Shared by the download tests in this package; the real one is Room, which needs a device. */
@@ -408,6 +431,7 @@ private class SlowToCommit(private val delegate: DownloadStore) : DownloadStore 
         delay(1)
         return delegate.get(id)
     }
+
 }
 
 private data class PlayableAndState(

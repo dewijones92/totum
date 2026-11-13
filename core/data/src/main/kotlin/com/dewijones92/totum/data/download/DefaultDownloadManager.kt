@@ -213,11 +213,10 @@ public class DefaultDownloadManager(
 
     override suspend fun download(item: PlayableItem, audioOnly: Boolean, maxHeight: Int?) {
         val media = item.item
-        if (store.get(media.id).satisfies(audioOnly)) {
-            Diag.log(
-                "download",
-                "\"${media.title}\": already on the phone as asked (audioOnly=$audioOnly); not fetched again"
-            )
+        val held = store.get(media.id)
+        if (held.satisfies(audioOnly)) {
+            val where = if (held is DownloadState.Downloading) "already being downloaded" else "already on the phone"
+            Diag.log("download", "\"${media.title}\": $where as asked (audioOnly=$audioOnly); not fetched again")
             return
         }
         // What is already being fetched is answered from MEMORY, under the lock, never from the

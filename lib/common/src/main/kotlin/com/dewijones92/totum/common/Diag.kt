@@ -101,6 +101,25 @@ public object Breadcrumbs {
         if (entries.pollFirst() != null) count.decrementAndGet() else count.set(0)
     }
 
+    public const val BEFORE_RESTART: String = "[before restart] "
+
+    public fun restore(restored: List<Entry>) {
+        restored.sortedByDescending { it.atEpochMs }.forEach { entry ->
+            val marked = if (entry.message.startsWith(BEFORE_RESTART)) {
+                entry.copy(seq = sequence.incrementAndGet())
+            } else {
+                entry.copy(message = BEFORE_RESTART + entry.message, seq = sequence.incrementAndGet())
+            }
+            if (marked.tag in KEPT_TAGS) {
+                kept.addFirst(marked)
+                keptCount.incrementAndGet()
+            } else {
+                entries.addFirst(marked)
+                count.incrementAndGet()
+            }
+        }
+    }
+
     /** Oldest first, so a report reads top-to-bottom as a story. */
     public fun snapshot(): List<Entry> =
         (entries.toList() + kept.toList()).sortedWith(compareBy({ it.atEpochMs }, { it.seq }))

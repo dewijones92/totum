@@ -7,6 +7,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assume.assumeTrue
 import org.junit.Test
 import java.io.File
 import java.net.InetSocketAddress
@@ -135,17 +136,28 @@ class LibraryFilerTest {
     }
 
     @Test
-    fun `a folder it cannot write to leaves the file where it is`() = runBlocking {
-        val locked = File(movies, "Locked").apply {
+    fun `a folder it cannot write to is skipped for a fresh, clean-named folder beside it`() = runBlocking {
+        val locked = File(movies, "www.UIndex.org - Zog 2018 1080p").apply {
             mkdirs()
             setWritable(false)
         }
+        assumeTrue("the test user can write to a read-only folder", !locked.canWrite())
         val source = download()
-        val outcome = filer { FilePlan(FilePlan.Action.MOVIE, "movies", "Locked", "Zog.mkv", "film") }
-            .file(source, "Zog.2018.mkv", null)
+        val outcome = filer {
+            FilePlan(
+                FilePlan.Action.MOVIE,
+                "movies",
+                "www.UIndex.org - Zog 2018 1080p",
+                "www.UIndex.org - Zog.mkv",
+                "film",
+            )
+        }.file(source, "Zog.2018.1080p.mkv", null)
         locked.setWritable(true)
-        assertTrue(outcome.toString(), outcome is LibraryFiler.Outcome.Left)
-        assertTrue(source.exists())
+
+        val moved = (outcome as LibraryFiler.Outcome.Moved).file
+        assertEquals(File(movies, "Zog (2018)/Zog (2018).mkv").canonicalPath, moved.canonicalPath)
+        assertFalse(source.exists())
+        assertTrue(File(locked, "Zog.mkv").exists().not())
     }
 
     @Test
@@ -166,4 +178,56 @@ class LibraryFilerTest {
         assertTrue(reported.single(), "refused" in reported.single())
         assertEquals(listOf("Zog (2018).mkv"), made)
     }
+
+    @Test
+    fun `a file nowhere writable stays and is a home problem until it is filed`() = runBlocking {
+        val problems = com.dewijones92.totum.cli.serve.FilingProblems()
+        val locked = File(movies, "Zog 2018 1080p").apply { mkdirs() }
+        locked.setWritable(false)
+        movies.setWritable(false)
+        assumeTrue("the test user can write to a read-only folder", !locked.canWrite() && !movies.canWrite())
+        val filer = LibraryFiler(
+            library,
+            jellyfin,
+            { FilePlan(FilePlan.Action.MOVIE, "movies", "Zog 2018 1080p", "Zog.mkv", "film") },
+            problems = problems,
+        )
+        val source = download()
+
+        val left = filer.file(source, "Zog.2018.1080p.mkv", null)
+
+        assertTrue(left.toString(), left is LibraryFiler.Outcome.Left)
+        assertTrue(source.exists())
+        assertTrue(problems.current().single().text, "not writable" in problems.current().single().text)
+
+        movies.setWritable(true)
+        locked.setWritable(true)
+        val moved = filer.file(source, "Zog.2018.1080p.mkv", null)
+
+        assertTrue(moved.toString(), moved is LibraryFiler.Outcome.Moved)
+        assertTrue(problems.current().isEmpty())
+    }
+
+    @Test
+    fun `a file is checked for late tracks before it is filed, and a failed fix is a home problem that stays`() =
+        runBlocking {
+            val problems = com.dewijones92.totum.cli.serve.FilingProblems()
+            val fixed = mutableListOf<String>()
+            val filer = LibraryFiler(
+                library,
+                jellyfin,
+                { FilePlan(FilePlan.Action.MOVIE, "movies", "Zog (2018)", "Zog (2018).mkv", "film") },
+                remux = {
+                    fixed += it.name
+                    MkvRemuxOutcome.Failed("ffmpeg exited 1")
+                },
+                problems = problems,
+            )
+
+            val outcome = filer.file(download(), "Zog.2018.mkv", null)
+
+            assertEquals(listOf("torrent-abc-1.media"), fixed)
+            assertTrue(outcome.toString(), outcome is LibraryFiler.Outcome.Moved)
+            assertTrue(problems.current().single().text, "ffmpeg exited 1" in problems.current().single().text)
+        }
 }

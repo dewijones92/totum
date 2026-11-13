@@ -109,4 +109,27 @@ class DiagTest {
         assertEquals("line 0", trail.first().message)
         assertEquals("line 599", trail.last().message)
     }
+
+    @Test
+    fun `events restored from before a restart are marked and come first, once`() {
+        Diag.log("queue", "now")
+
+        Breadcrumbs.restore(
+            listOf(
+                Breadcrumbs.Entry(1_000, "queue", "older"),
+                Breadcrumbs.Entry(2_000, "home", "newer"),
+                Breadcrumbs.Entry(1_500, "queue", "${Breadcrumbs.BEFORE_RESTART}already marked"),
+            ),
+        )
+
+        assertEquals(
+            listOf(
+                "${Breadcrumbs.BEFORE_RESTART}older",
+                "${Breadcrumbs.BEFORE_RESTART}already marked",
+                "${Breadcrumbs.BEFORE_RESTART}newer",
+                "now",
+            ),
+            Breadcrumbs.snapshot().map { it.message },
+        )
+    }
 }

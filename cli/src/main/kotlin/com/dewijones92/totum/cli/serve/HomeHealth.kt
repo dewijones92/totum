@@ -15,6 +15,7 @@ internal class HomeHealth(
     private val clock: () -> Long = System::currentTimeMillis,
     private val lowFreeBytes: Long = LOW_FREE_BYTES,
     private val stalledMs: Long = STALLED_MS,
+    private val filing: FilingProblems? = null,
 ) {
     class Probes(
         val freeBytes: () -> Long,
@@ -73,6 +74,7 @@ internal class HomeHealth(
                 )
             }
             addAll(stalled(jobs))
+            filing?.let { addAll(it.current()) }
             probes.youTube?.let { addAll(youTubeBackOffs(it, youTubeSignedIn)) }
         }
         val keys = found.map { it.key }.toSet()

@@ -60,6 +60,7 @@ import com.dewijones92.totum.ytdlp.process.ProcessYtDlpEngine
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.MapSerializer
 import kotlinx.serialization.builtins.serializer
@@ -95,7 +96,7 @@ internal interface Home {
 internal class HomeDownloads(
     val dataDir: File,
     private val downloadDir: File,
-    scope: CoroutineScope,
+    private val scope: CoroutineScope,
     private val rewrites: Rewrites = Rewrites(emptyList()),
     private val freeFloorBytes: Long = FREE_FLOOR_BYTES,
     private val filer: LibraryFiler? = null,
@@ -103,6 +104,7 @@ internal class HomeDownloads(
     private val polite: Politeness,
     rawEngine: YtDlpEngine = ProcessYtDlpEngine(),
     transport: Interceptor? = null,
+    posterFor: suspend (String) -> String? = { null },
     readTimeoutS: Long = READ_TIMEOUT_S,
     private val torrentReadTimeoutS: Long = TORRENT_READ_TIMEOUT_S,
 ) : Home {
@@ -142,8 +144,11 @@ internal class HomeDownloads(
         scope = scope,
     )
 
+    private val posters = PosterRepair(store, posterFor)
+
     init {
         HomeFiling(store, downloadDir, filer).start(scope, manager.observeRecords())
+        scope.launch { posters.repair(manager.observeRecords().first()) }
     }
 
     private fun PlayableItem.fetchedAt(): PlayableItem {
@@ -200,6 +205,7 @@ internal class HomeDownloads(
                 "maxHeight=${request.maxHeight} decoders=${request.decoders.size} free=${free() / GB}GB",
         )
         manager.download(item, request.audioOnly, request.maxHeight)
+        if (item.item.thumbnailUrl == null) scope.launch { posters.repair(manager.observeRecords().first()) }
         return Started.Accepted(item.item.id.value)
     }
 

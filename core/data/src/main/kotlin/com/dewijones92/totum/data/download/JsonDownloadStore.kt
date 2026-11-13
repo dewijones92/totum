@@ -11,6 +11,7 @@ import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SkipSegment
+import com.dewijones92.totum.domain.fillingSilenceFrom
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
@@ -41,7 +42,14 @@ public class JsonDownloadStore(private val file: File, private val now: () -> In
     private val lock = Mutex()
     private val rows = MutableStateFlow(load())
 
-    override suspend fun learnFacts(resolved: MediaItem): Unit = Unit
+    override suspend fun learnFacts(resolved: MediaItem): Unit = change { all ->
+        all.map { row ->
+            if (row.item.itemId != resolved.id.value) return@map row
+            val held = row.playable() ?: return@map row
+            val filled = held.item.fillingSilenceFrom(resolved)
+            if (filled === held.item) row else row.copy(item = held.copy(item = filled).toBackup())
+        }
+    }
 
     override fun observeAll(): Flow<Map<MediaItemId, DownloadState>> =
         rows.map { all -> all.mapNotNull { row -> row.playable()?.let { it.item.id to row.state() } }.toMap() }

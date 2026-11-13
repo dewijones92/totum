@@ -1,6 +1,7 @@
 package com.dewijones92.totum.cli.serve
 
 import com.dewijones92.totum.cli.serve.filing.LibraryFiler
+import com.dewijones92.totum.cli.serve.filing.MkvRemux
 import com.dewijones92.totum.cli.serve.filing.YOUTUBE_FROM
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.download.DownloadRecord
@@ -29,12 +30,20 @@ internal class HomeFiling(
 
     fun start(scope: CoroutineScope, records: Flow<List<DownloadRecord>>) {
         scope.launch {
+            clearHalfRemuxes()
             relocateMoved(records.first())
             if (filer == null) {
                 Diag.log("filing", "no library configured, so finished torrents and videos stay in ${downloadDir.path}")
             } else {
                 records.collect { fileFinished(filer, it, scope) }
             }
+        }
+    }
+
+    private fun clearHalfRemuxes() {
+        downloadDir.listFiles { file -> file.name.endsWith(MkvRemux.PART_SUFFIX) }?.forEach { half ->
+            Diag.warn("filing", "a remux the process stopped during left ${half.name}; cleared")
+            half.delete()
         }
     }
 
