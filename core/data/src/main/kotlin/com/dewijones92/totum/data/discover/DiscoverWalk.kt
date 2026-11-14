@@ -186,11 +186,7 @@ public class DiscoverWalk(
             if (why != null) skipped[candidate.artist.name] = why
             why == null
         }
-        if (skipped.isNotEmpty()) {
-            val shown = skipped.entries.take(LISTED).joinToString { "${it.key} (${it.value})" }
-            val more = (skipped.size - LISTED).takeIf { it > 0 }?.let { ", and $it more" }.orEmpty()
-            Diag.log(TAG, "\"$label\": skipped $shown$more")
-        }
+        logSkipped(skipped)
         if (eligible.isEmpty()) return null
         val unfollowed = eligible.filter { taste.followedWhy(it.artist) == null }
         val pool = unfollowed.ifEmpty {
@@ -206,10 +202,20 @@ public class DiscoverWalk(
         return byHop.getValue(hop).random(random)
     }
 
+    private fun logSkipped(skipped: Map<String, String>) {
+        val offered = skipped.values.count { it == ALREADY_OFFERED }
+        val named = skipped.filterValues { it != ALREADY_OFFERED }
+        if (named.isEmpty() && offered == 0) return
+        val shown = named.entries.take(LISTED).joinToString { "${it.key} (${it.value})" }
+        val more = (named.size - LISTED).takeIf { it > 0 }?.let { ", and $it more" }.orEmpty()
+        val earlier = if (offered > 0) "; $offered more already offered in this session" else ""
+        Diag.log(TAG, "\"$label\": skipped ${shown.ifEmpty { "none by name" }}$more$earlier")
+    }
+
     private fun skipReason(artist: DiscoverArtist, taste: DiscoverTaste): String? = when {
         spent.containsKey(artist.id) -> spent.getValue(artist.id)
         isLast(artist) -> "same artist as the last pick"
-        recentlyOffered(artist) -> "already offered in this session"
+        recentlyOffered(artist) -> ALREADY_OFFERED
         else -> taste.recentWhy(artist)
     }
 
@@ -228,6 +234,7 @@ public class DiscoverWalk(
         public const val SESSION_MEMORY: Int = 40
         private const val FIRST_HOP_LIMIT = 1
         private const val LISTED = 8
+        private const val ALREADY_OFFERED = "already offered in this session"
         private const val TAG = "discover"
     }
 }
