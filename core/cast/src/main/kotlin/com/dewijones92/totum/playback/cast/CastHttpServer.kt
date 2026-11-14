@@ -189,6 +189,7 @@ public object Http {
     internal const val NO_CONTENT: Int = 204
     public const val PARTIAL: Int = 206
     internal const val CLIENT_ERROR: Int = 400
+    internal const val CONFLICT: Int = 409
     public const val NOT_FOUND: Int = 404
     internal const val BAD_GATEWAY: Int = 502
     public const val KB: Long = 1024

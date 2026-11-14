@@ -65,6 +65,13 @@ class TargetsRepository(
 
     val atHome: StateFlow<Boolean> = homeNow.asStateFlow()
 
+    private val failing = MutableStateFlow(false)
+    private val listedAny = MutableStateFlow(false)
+
+    val homeUnreachable: StateFlow<Boolean> = combine(failing, listedAny, chosen) { down, listed, last ->
+        down && (listed || last != null)
+    }.stateIn(scope, SharingStarted.Eagerly, false)
+
     private val address = MutableStateFlow<String?>(null)
 
     val browserAddress: StateFlow<String?> = combine(address, homeNow) { found, atHome ->
@@ -135,7 +142,7 @@ class TargetsRepository(
         if (trouble == null || shaped == null) return state.problem
         val title = trouble.itemId?.let { id -> state.entries.firstOrNull { it.item.itemId == id } }
             ?.let { ItemShields.titleOf(it.item) }
-        return shaped.trouble(state.target.label, trouble, title)
+        return shaped.trouble(state.target.label, trouble, title, state.target.kind)
     }
 
     private fun describe(answer: HomeAnswer.No): String =
@@ -157,6 +164,7 @@ class TargetsRepository(
                 trouble.value = describe(answer)
                 troubleFromRead = true
                 failures++
+                noteOutage()
                 if (failures >= HOME_LOST_AFTER && homeNow.value) {
                     Diag.log("targets", "home server not answering for $failures reads in a row; no longer at home")
                     homeNow.value = false
@@ -169,8 +177,10 @@ class TargetsRepository(
             is HomeAnswer.Ok -> {
                 if (failures > 0) Diag.log("targets", "targets read again after $failures failed read(s)")
                 failures = 0
+                noteOutage()
                 if (troubleFromRead) trouble.value = null
                 live.value = answer.value.targets
+                listedAny.value = answer.value.targets.isNotEmpty()
                 noteAddress(answer.value.browserAddress)
                 markHome(why)
                 showWakes(answer.value.targets)
@@ -183,6 +193,21 @@ class TargetsRepository(
                 true
             }
         }
+    }
+
+    private fun noteOutage() {
+        val down = failures >= HOME_LOST_AFTER
+        if (down == failing.value) return
+        failing.value = down
+        Diag.log(
+            "targets",
+            if (down) {
+                "home devices unreachable: $failures reads in a row failed, so the picker offers only this phone " +
+                    "and says why (devices known=${live.value.size} remembered=${chosen.value ?: "none"})"
+            } else {
+                "home devices reachable again"
+            },
+        )
     }
 
     suspend fun watchWhile(everyMs: Long = WATCH_MS) {
@@ -201,7 +226,7 @@ class TargetsRepository(
                 "startAtMs=${request.startAtMs} shuffle=${request.shuffle} loop=${request.loop} " +
                 "repeat=${request.repeat}",
         )
-        val answer = home.queue(id, request)
+        val answer = home.queue(id, request.copy(understandsStarting = true))
         logAnswer(id, "${request.mode} of ${request.items.size}", answer)
         if (answer is HomeAnswer.Ok) {
             replace(answer.value)
@@ -487,6 +512,7 @@ class TargetsRepository(
         PlayOn.options(live.value, homeNow.value).firstOrNull { it.id == id }
 
     private fun replace(state: TargetState) {
+        listedAny.value = true
         live.update { all ->
             if (all.any { it.target.id == state.target.id }) {
                 all.map { if (it.target.id == state.target.id) state else it }

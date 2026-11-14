@@ -46,6 +46,7 @@ import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 @OptIn(ExperimentalCoroutinesApi::class)
+@Suppress("LargeClass")
 class TargetsRepositoryTest {
 
     private class FakeApi : TargetsApi {
@@ -105,8 +106,12 @@ class TargetsRepositoryTest {
     private var fade = 20.seconds
 
     private object FakeWords : TargetWords {
-        override fun trouble(label: String, trouble: TargetTrouble, title: String?) =
-            "${trouble.kind} on $label for ${title ?: "nothing"}: ${trouble.reason}"
+        val kindsAsked = mutableListOf<TargetKind>()
+
+        override fun trouble(label: String, trouble: TargetTrouble, title: String?, kind: TargetKind): String {
+            kindsAsked += kind
+            return "${trouble.kind} on $label for ${title ?: "nothing"}: ${trouble.reason}"
+        }
 
         override fun signInAgain() = "SIGN IN AGAIN"
     }
@@ -289,6 +294,34 @@ class TargetsRepositoryTest {
     }
 
     @Test
+    fun `away from home a listed browser is not offered either, and picking it earlier does not send a play to it`() =
+        runTest {
+            val silk = TargetState(Target("browser-fire1", "Silk", TargetKind.BROWSER))
+            api.answer = HomeAnswer.Ok(TargetsAnswer(listOf(tv, silk)))
+            repository.refresh("test")
+            repository.select("browser-fire1")
+            unmetered = false
+            repository.refresh("on mobile data")
+
+            assertEquals(listOf("phone"), repository.options.value.map { it.id })
+            assertNull(repository.selected.value)
+            assertFalse(repository.take(listOf(item("a")), QueueMode.PLAY, null, null))
+            assertTrue(api.queued.isEmpty())
+        }
+
+    @Test
+    fun `every queue request tells the Pi this phone can read starting`() = runTest {
+        api.answer = HomeAnswer.Ok(TargetsAnswer(listOf(tv)))
+        repository.refresh("test")
+        repository.select("lg-tv")
+
+        repository.take(listOf(item("a")), QueueMode.PLAY, null, null)
+        repository.playNextOn("lg-tv", TargetEntry(item("b").toBackup()))
+
+        assertEquals(listOf(true, true), api.queued.map { it.second.understandsStarting })
+    }
+
+    @Test
     fun `back at home the last used device is the default again`() = runTest {
         api.answer = HomeAnswer.Ok(TargetsAnswer(listOf(tv)))
         repository.refresh("test")
@@ -334,6 +367,76 @@ class TargetsRepositoryTest {
 
         repository.refresh("second failure")
         assertEquals(listOf("phone"), repository.options.value.map { it.id })
+    }
+
+    @Test
+    fun `when the Pi stops answering after devices were listed the picker says home devices are unreachable`() =
+        runTest {
+            api.answer = HomeAnswer.Ok(TargetsAnswer(listOf(tv)))
+            repository.refresh("test")
+            assertFalse(repository.homeUnreachable.value)
+            api.answer = HomeAnswer.No("down")
+
+            repository.refresh("first failure")
+            assertFalse("one failed read is not yet an outage", repository.homeUnreachable.value)
+            repository.refresh("second failure")
+
+            assertTrue(repository.homeUnreachable.value)
+            assertEquals(listOf("phone"), repository.options.value.map { it.id })
+        }
+
+    @Test
+    fun `the unreachable line goes as soon as the Pi answers again`() = runTest {
+        api.answer = HomeAnswer.Ok(TargetsAnswer(listOf(tv)))
+        repository.refresh("test")
+        api.answer = HomeAnswer.No("down")
+        repository.refresh("one")
+        repository.refresh("two")
+        api.answer = HomeAnswer.Ok(TargetsAnswer(listOf(tv)))
+
+        repository.refresh("back")
+
+        assertFalse(repository.homeUnreachable.value)
+        assertEquals(listOf("phone", "lg-tv"), repository.options.value.map { it.id })
+    }
+
+    @Test
+    fun `a phone that never had a device and was never told to use one says nothing when the Pi is down`() = runTest {
+        api.answer = HomeAnswer.No("down")
+
+        repository.refresh("one")
+        repository.refresh("two")
+
+        assertFalse(repository.homeUnreachable.value)
+    }
+
+    @Test
+    fun `a remembered device with the Pi down at launch is reported as unreachable`() = runTest {
+        playOn.save("lg-tv")
+        val fresh = TargetsRepository(
+            api,
+            { Requester("me", "My phone") },
+            InMemoryTargetColours(),
+            scope,
+            playOn = playOn,
+        )
+        api.answer = HomeAnswer.No("down")
+
+        fresh.refresh("one")
+        fresh.refresh("two")
+
+        assertTrue(fresh.homeUnreachable.value)
+    }
+
+    @Test
+    fun `on mobile data with the Pi answering is not reported as unreachable, that is just away`() = runTest {
+        api.answer = HomeAnswer.Ok(TargetsAnswer(listOf(tv)))
+        repository.refresh("test")
+        unmetered = false
+
+        repository.refresh("on mobile data")
+
+        assertFalse(repository.homeUnreachable.value)
     }
 
     @Test
@@ -664,6 +767,20 @@ class TargetsRepositoryTest {
         assertEquals("plain", repository.troubleLine(tv.copy(problem = "plain")))
         assertNull(repository.troubleLine(tv))
     }
+
+    @Test
+    fun `the words for a problem are asked for the kind of device, so a browser is closed, not switched off`() =
+        runTest {
+            val silk = TargetState(
+                Target("browser-fire1", "Silk", TargetKind.BROWSER),
+                trouble = TargetTrouble(TroubleKind.SWITCHED_OFF),
+            )
+
+            FakeWords.kindsAsked.clear()
+            repository.troubleLine(silk)
+
+            assertEquals(listOf(TargetKind.BROWSER), FakeWords.kindsAsked)
+        }
 
     @Test
     fun `a 401 says to sign in again, wherever it came from`() = runTest {

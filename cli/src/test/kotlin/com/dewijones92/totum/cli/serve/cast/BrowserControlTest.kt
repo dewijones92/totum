@@ -17,10 +17,12 @@ class BrowserControlTest {
     private val control = BrowserControl("fire1", screens, { now })
     private val ended = mutableListOf<Boolean>()
     private val lost = mutableListOf<String>()
+    private val evicted = mutableListOf<String>()
 
     init {
         control.onEnded = { ended += it }
         control.onLost = { lost += it }
+        screens.onEvicted = { evicted += it }
         browser("/screen/hello?name=Silk&id=fire1&codecs=AVC:1080")
     }
 
@@ -31,8 +33,17 @@ class BrowserControlTest {
 
     private fun commands(after: Long = 0): String = browser("/screen/poll?id=fire1&after=$after")
 
-    private fun report(load: Long, pos: Long, playing: Int = 1, ended: Int = 0, buffering: Int = 0) =
-        browser("/screen/state?id=fire1&pos=$pos&playing=$playing&ended=$ended&buffering=$buffering&load=$load")
+    private fun report(
+        load: Long,
+        pos: Long,
+        playing: Int = 1,
+        ended: Int = 0,
+        buffering: Int = 0,
+        volume: Int? = null,
+    ) = browser(
+        "/screen/state?id=fire1&pos=$pos&playing=$playing&ended=$ended&buffering=$buffering&load=$load" +
+            (volume?.let { "&vol=$it" } ?: ""),
+    )
 
     @Test
     fun `a load reaches the page as a numbered command with the manifest, the place and the title`() {
@@ -150,5 +161,83 @@ class BrowserControlTest {
 
         assertEquals(setOf(VideoCodecFamily.AVC), profile?.codecs)
         assertEquals("Silk", profile?.model)
+    }
+
+    @Test
+    fun `the page's own volume is the browser's volume, so a sleep timer has a level to fade from`() {
+        report(load = 0, pos = 0, volume = 65)
+
+        assertEquals(65, control.volumePercent())
+    }
+
+    @Test
+    fun `a volume the Pi has just set is not overwritten by a report that left before the page applied it`() {
+        report(load = 0, pos = 0, volume = 100)
+        control.volume(30)
+
+        report(load = 0, pos = 0, volume = 100)
+        assertEquals(30, control.volumePercent())
+
+        now += 3_000
+        report(load = 0, pos = 0, volume = 30)
+        assertEquals(30, control.volumePercent())
+        report(load = 0, pos = 0, volume = 55)
+        assertEquals(55, control.volumePercent())
+    }
+
+    @Test
+    fun `a report about the item before still brings the volume`() {
+        control.load("u1", "application/dash+xml", "A", 0)
+        control.load("u2", "application/dash+xml", "B", 0)
+
+        report(load = 1, pos = 1_000, volume = 80)
+
+        assertEquals(80, control.volumePercent())
+    }
+
+    @Test
+    fun `a page that says goodbye is reported closed once a moment passes with no hello, not at once`() {
+        browser("/screen/bye?id=fire1")
+        screens.sweep()
+        assertTrue(lost.toString(), lost.isEmpty())
+
+        now += 2_000
+        screens.sweep()
+        screens.sweep()
+
+        assertEquals(listOf("the browser page was closed"), lost)
+    }
+
+    @Test
+    fun `a page that says goodbye and hello again, as on a reload, is not reported closed`() {
+        browser("/screen/bye?id=fire1")
+        now += 500
+        browser("/screen/hello?name=Silk&id=fire1")
+        now += 5_000
+        screens.sweep()
+
+        assertTrue(lost.toString(), lost.isEmpty())
+    }
+
+    @Test
+    fun `a browser gone for ten minutes is forgotten, its listener too, and told to whoever holds its deck`() {
+        now += 31_000
+        screens.sweep()
+        assertEquals(1, lost.size)
+
+        now += 10 * 60_000
+        screens.sweep()
+        screens.sweep()
+
+        assertEquals(listOf("fire1"), evicted)
+        assertNull(screens.screenOf("fire1"))
+        now += 60_000
+        screens.sweep()
+        assertEquals("a forgotten browser is not reported lost again", 1, lost.size)
+    }
+
+    @Test
+    fun `a browser is never handed an address that carries a key`() {
+        assertTrue(control.keepsAddressesPrivate)
     }
 }

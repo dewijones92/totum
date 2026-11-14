@@ -478,6 +478,7 @@ internal class TargetDeck(
             target.label,
             TargetTrouble(TroubleKind.SWITCHED_OFF, entry?.itemId()),
             entry?.item?.item?.title,
+            target.kind,
         )
         player.stop()
         destination = null

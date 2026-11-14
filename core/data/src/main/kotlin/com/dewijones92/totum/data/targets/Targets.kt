@@ -22,7 +22,7 @@ public enum class TargetKind(
     SPEAKER(false, "🔈 Speaker"),
     TV(true, "📺 TV"),
     CHROMECAST(true, "📺 Chromecast"),
-    BROWSER(true, "🖥️ Browser", reachableAway = true),
+    BROWSER(true, "🖥️ Browser"),
 }
 
 @Serializable
@@ -139,6 +139,7 @@ public data class TargetQueueRequest(
     val startItemId: String? = null,
     val repeat: RepeatMode? = null,
     val loop: Boolean = false,
+    val understandsStarting: Boolean = false,
 ) {
     val group: QueueGroup? get() = groupOf(groupId, groupTitle)
 }

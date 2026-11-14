@@ -15,6 +15,7 @@ import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNotSame
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
@@ -58,6 +59,24 @@ class TargetDecksTest {
 
         assertEquals(listOf("bar", "lg"), all.map { it.target.id })
         assertEquals(listOf(TargetKind.SPEAKER, TargetKind.TV), all.map { it.target.kind })
+    }
+
+    @Test
+    fun `a forgotten deck is made again from its saved queue the next time it is asked for`() = runBlocking {
+        val decks = decks(speakers)
+        val before = decks.deck("bar") ?: error("no bar")
+        before.enqueue(send("a"))
+
+        decks.forget("bar")
+        val after = decks.deck("bar") ?: error("no bar")
+
+        assertNotSame(before, after)
+        assertEquals(listOf("a"), after.state().entries.map { it.item.itemId })
+    }
+
+    @Test
+    fun `forgetting a target nobody holds a deck for is harmless`() {
+        decks(speakers).forget("nobody")
     }
 
     @Test

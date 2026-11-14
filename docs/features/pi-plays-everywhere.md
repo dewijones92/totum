@@ -3,7 +3,7 @@ title: 📡 The Pi plays to any TV, speaker or browser; the phone is a remote
 kind: feature
 area: casting/pi
 status: built 2026-11-07, Batch A (tests written 2026-11-07; volume rule and the YouTube relay fixed after the first run on the LG; the relay not yet seen on a real TV)
-updated: 2026-11-13
+updated: 2026-11-14
 ---
 
 # 📡 The Pi plays to any TV, speaker or browser
@@ -131,10 +131,16 @@ sound processing on the Pi). Brief: [pi-plays-everywhere.md](../todos/pi-plays-e
   install, nothing to type but the address, so a Fire Stick's Silk with its remote will do.
 - **It is a device like any other** once it has said hello: `🖥️ Silk` (or Edge, Chrome, …) in the picker with a colour of its own, a
   queue of its own, row badges, remote-queue controls (play, pause, seek, skip silences, boost, volume, sleep timer). It drops out of the
-  list a minute after the page is closed, and comes back with its queue when the same browser opens the page again.
+  list a minute after the page is closed (its deck says "🖥️ Silk was closed" at once when the page says goodbye, or after 30 s of silence),
+  and comes back with its queue when the same browser opens the page again. Two tabs of one browser are one target: the newest tab
+  plays and the older says it was replaced. The browser's own volume is what a sleep timer fades from.
 - **The Pi does the work, so the phone can be off.** The picture is relayed and the sound processed on the Pi
   ([ADR 156](../adr/0156-one-casting-brain-the-pi-casts-with-the-phones-own-code.md)); the page plays the manifest from its own
   origin. The page's seek bar seeks the Pi's queue.
+- **A phone from before 2026-11-14 (v0.1.911 and earlier) is answered as it expects**: the Pi waits for the start rather than
+  answering "starting" ([ADR 158](../adr/0158-targets-end-of-batch-fixes.md)).
+  When the Pi stops answering the phone says "🏠 Home devices unreachable" in the picker row and the item menu instead of quietly
+  falling back to itself ([ADR 169](../adr/0169-play-on-is-a-choice-that-remembers-the-last-device.md)).
 - **Same network as the Pi, for now.** A friend's network cannot reach the Pi's LAN address; what the remote case would need (a public
   name in nginx, pairing so that only a browser the phone approved is a target, an uplink decision) is in the ADR. Not built.
 - **A device switched on by hand says so**: "🔌 Off · switch it on by hand" in the picker, no wake sent when it is picked,
@@ -153,7 +159,9 @@ ADR 158 (2026-11-13): `TargetDeckStartTest`, `TargetRoutesSlowStartTest`, `Targe
 `TargetStreamsTest`, `BluezTest`, `CastBrainTest`, `CastControlTest`, `CastWireTest`, `WakeThenPlayTest` (cli),
 `TargetsRepositoryTest` (app), `chromecast_helper_test.py`, `test_audio_ctl.py`; `TargetWordsTest` (instrumented, not run).
 
-ADR 170: `ScreenOnThePiTest` (core/cast: the Pi serves the page at the bare address with its host, no key on the Pi's page and the key
+ADR 170 (amended 2026-11-14: `ScreenLinkTest`, `ChromecastPlayerTest`, and the additions to `BrowserControlTest`, `TargetDeckStartTest`,
+`TargetDecksTest`, `TargetRoutesSlowStartTest`, `PlayOnTest`, `TargetsRepositoryTest`, instrumented `PlayOnPickerTest`):
+`ScreenOnThePiTest` (core/cast: the Pi serves the page at the bare address with its host, no key on the Pi's page and the key
 still needed on the phone's, rename and arrival tell the list, a cap on listed screens), `BrowserControlTest` (load, reports, stale
 loads, one end, seek and volume, reachability, lost), `BrowserSourceTest`, `BrowserServingTest` (the real page over a real socket, a
 browser listed at once and renamed in place), `BluezTest` and `TargetDeckSpeakerTest` (by hand), `PlayOnTest`,

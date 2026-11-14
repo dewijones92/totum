@@ -4,6 +4,7 @@ import com.dewijones92.totum.data.targets.KeepAwake
 import com.dewijones92.totum.data.targets.SoundSettings
 import com.dewijones92.totum.data.targets.Target
 import com.dewijones92.totum.data.targets.TargetEntry
+import com.dewijones92.totum.data.targets.TargetKind
 import com.dewijones92.totum.data.targets.TargetPower
 import com.dewijones92.totum.data.targets.TargetTrouble
 import com.dewijones92.totum.data.targets.TroubleKind
@@ -104,13 +105,19 @@ internal fun interface TargetSource {
 internal class Problem(val trouble: TargetTrouble, val text: String)
 
 internal object TroubleWords {
-    fun problem(label: String, trouble: TargetTrouble, title: String? = null): Problem =
-        Problem(trouble, text(label, trouble, title))
+    fun problem(label: String, trouble: TargetTrouble, title: String? = null, kind: TargetKind? = null): Problem =
+        Problem(trouble, text(label, trouble, title, kind))
 
-    fun text(label: String, trouble: TargetTrouble, title: String?): String = when (trouble.kind) {
+    fun text(
+        label: String,
+        trouble: TargetTrouble,
+        title: String?,
+        kind: TargetKind? = null,
+    ): String = when (trouble.kind) {
         TroubleKind.NOT_CONNECTED -> "📶 Couldn't reach $label: it isn't connected (off or out of range)"
         TroubleKind.SWITCH_ON -> "🔌 Switch $label on, then try again"
-        TroubleKind.SWITCHED_OFF -> "📺 $label was switched off"
+        TroubleKind.SWITCHED_OFF ->
+            if (kind == TargetKind.BROWSER) "🖥️ $label was closed" else "📺 $label was switched off"
         TroubleKind.WONT_WAKE -> "❌ $label didn't wake: check 'Turn on via Wi-Fi' in its settings"
         TroubleKind.COULD_NOT_PLAY -> "❌ Couldn't play ${title ?: "that"}: ${trouble.reason ?: "no reason given"}"
         TroubleKind.YOUTUBE_BACKOFF ->

@@ -270,6 +270,19 @@ class TargetDeckStartTest {
     }
 
     @Test
+    fun `a lost connection on a browser says it was closed, not that a TV was switched off`() = runBlocking {
+        val deck = deck(TargetKind.BROWSER)
+        deck.enqueue(send("a", "b"))
+
+        deck.lost("the browser page was closed")
+
+        val state = deck.state()
+        assertEquals(TroubleKind.SWITCHED_OFF, state.trouble?.kind)
+        assertEquals("🖥️ LG soundbar was closed", state.problem)
+        assertFalse(state.playing)
+    }
+
+    @Test
     fun `skipping to another item starts it from the beginning`() = runBlocking {
         val deck = deck()
         deck.enqueue(send("a", "b"))

@@ -52,7 +52,8 @@ fun PlayOnRow(targets: TargetsRepository, padStatusBar: Boolean, modifier: Modif
     }
     val options by targets.options.collectAsStateWithLifecycle()
     val address by targets.browserAddress.collectAsStateWithLifecycle()
-    if (options.size <= 1 && address == null) return
+    val unreachable by targets.homeUnreachable.collectAsStateWithLifecycle()
+    if (options.size <= 1 && address == null && !unreachable) return
     val selected by targets.selected.collectAsStateWithLifecycle()
     val colours by targets.colours.collectAsStateWithLifecycle()
     val current = PlayOn.resolve(selected, options)
@@ -67,23 +68,32 @@ fun PlayOnRow(targets: TargetsRepository, padStatusBar: Boolean, modifier: Modif
             .testTag(PLAY_ON_ROW_TAG),
     ) {
         Text(stringResource(R.string.play_on_label), style = MaterialTheme.typography.labelLarge)
-        Box {
-            TargetChip(
-                label = stringResource(R.string.play_on_current, current.target.chipLabel(current.power)),
-                colour = TargetColours.of(colours, current.id).asColour(),
-                selected = true,
-                onClick = { open = true },
+        if (unreachable) {
+            Text(
+                stringResource(R.string.play_on_home_unreachable),
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier.testTag(PLAY_ON_UNREACHABLE_TAG),
             )
-            DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-                PlayOnMenuItems(options, colours, current.id) {
-                    open = false
-                    targets.choose(it)
-                }
-                address?.let {
-                    AddBrowserEntry({
+        }
+        if (!unreachable || options.size > 1) {
+            Box {
+                TargetChip(
+                    label = stringResource(R.string.play_on_current, current.target.chipLabel(current.power)),
+                    colour = TargetColours.of(colours, current.id).asColour(),
+                    selected = true,
+                    onClick = { open = true },
+                )
+                DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+                    PlayOnMenuItems(options, colours, current.id) {
                         open = false
-                        adding = true
-                    })
+                        targets.choose(it)
+                    }
+                    address?.let {
+                        AddBrowserEntry({
+                            open = false
+                            adding = true
+                        })
+                    }
                 }
             }
         }
@@ -164,6 +174,7 @@ internal fun PlayOnHintLine(option: PlayOnOption) {
     Text(stringResource(hint), style = MaterialTheme.typography.bodySmall)
 }
 
+const val PLAY_ON_UNREACHABLE_TAG = "play-on-unreachable"
 const val ADD_BROWSER_TAG = "play-on-add-browser"
 const val ADD_BROWSER_HOW_TAG = "play-on-add-browser-how"
 const val PLAY_ON_ROW_TAG = "play-on-row"

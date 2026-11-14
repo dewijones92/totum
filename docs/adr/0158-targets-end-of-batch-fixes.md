@@ -2,13 +2,13 @@
 title: Targets, end-of-batch fixes - loops, ids, a loopback listener, slow answers, a TV that is switched off, resume, structured problems
 kind: adr
 status: accepted
-updated: 2026-11-13
+updated: 2026-11-14
 ---
 
 # 158. Targets, end-of-batch fixes
 
 - Status: Accepted
-- Date: 2026-11-09 (sections from "A slow answer" down added 2026-11-13)
+- Date: 2026-11-09 (sections from "A slow answer" down added 2026-11-13; the old-phone correction 2026-11-14)
 - Amends: [ADR 152](0152-a-target-is-anything-the-pi-plays-to-and-each-has-its-own-queue.md),
   [ADR 155](0155-a-target-repeats-plays-files-on-the-pi-and-says-why-it-could-not-play.md)
 
@@ -57,9 +57,13 @@ needed waking, a speaker that took 15 s to link or a YouTube lookup made the pho
 read a timeout as "no", the phone played the item itself, and the Pi started it as well.
 
 - **The Pi accepts at once** (`TargetDeck.accept`: validate, change the queue, mark `starting`) and does the slow part in
-  the background (`startPending`: connect, look up, start). The route waits at most 1.5 s for the start, so a speaker
-  that is already linked answers with its final state as before; anything slower answers with `starting: true` and
-  `playing: false`. `GET /targets` carries `starting` until the start has ended, then `playing` or the problem.
+  the background (`startPending`: connect, look up, start). **For a phone that says it understands that**
+  (`TargetQueueRequest.understandsStarting`, sent by `TargetsRepository.queue` on every request since 2026-11-14) the route
+  waits at most 1.5 s for the start, so a speaker that is already linked answers with its final state as before; anything
+  slower answers with `starting: true` and `playing: false`. **A request without the field, which is every phone up to
+  v0.1.911, is answered as before 28c78ada**: the route waits for the start (at most 55 s, under that phone's own 60 s read
+  timeout), so the answer says `playing`. Without this a new Pi answered such a phone `starting: true, playing: false` after
+  1.5 s, the phone read that as "it did not start", played the item itself and left the Pi playing it too. `GET /targets` carries `starting` until the start has ended, then `playing` or the problem.
 - **The phone watches** (`TargetsRepository.settle`): while the answer says `starting` it reads the Pi every half second
   (the progress strip's "Sending to X" row says "⏳ Starting on X…"; a TV that is waking also has its own "⏰ Waking X…"
   row from the polled `power`), for at most 2 minutes, giving up after 3 failed reads in a row.
@@ -142,5 +146,9 @@ is paused. Tapping any other row jumps to it.
 
 `fetch.env` may gain `TOTUM_SPEAKERS_SWITCHED_ON_BY_HAND`; compose and the image need nothing else (the hand-back file
 lives in the existing `home/.totum/targets/`). Rebuild `totum-fetch` from the release; deploy the adapter
-(`tools/handoff/hermes-audio/audio-ctl.py`) by hand. Old phones and old Pis still work together: unknown fields are
-ignored both ways, an old Pi answers synchronously, and an old phone reads `problem`.
+(`tools/handoff/hermes-audio/audio-ctl.py`) by hand. Old phones and old Pis work together only because of
+the `understandsStarting` field: unknown fields are ignored both ways, an old Pi answers synchronously (so a new phone
+meets `starting: false`), an old phone reads `problem`, and a new Pi gives an old phone the synchronous answer it expects
+(it said "old phones and old Pis still work together" before, which was false for the pair new Pi plus old phone: the item
+played twice; found by the end-of-batch review of 2026-11-14 and covered by `TargetRoutesSlowStartTest`). Test of the
+pair: a v0.1.911-shaped request, one with no `understandsStarting`, against a deck whose link connects after 2.5 s.

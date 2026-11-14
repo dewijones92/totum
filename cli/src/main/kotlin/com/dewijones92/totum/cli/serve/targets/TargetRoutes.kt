@@ -36,13 +36,15 @@ internal class TargetRoutes(
                 when (val result = deck.accept(request)) {
                     is EnqueueResult.Accepted -> {
                         val start = decks.startInBackground(deck)
-                        withTimeoutOrNull(GRACE_MS) { start.join() }
+                        val wait = if (request.understandsStarting) GRACE_MS else OLD_PHONE_WAIT_MS
+                        withTimeoutOrNull(wait) { start.join() }
                         deck.state().also {
                             Diag.log(
                                 "targets",
                                 "POST /targets/queue ${request.mode} ${request.items.size} answered after " +
                                     "${System.currentTimeMillis() - began}ms, starting=${it.starting} " +
-                                    "playing=${it.playing}",
+                                    "playing=${it.playing} (phone understands starting=" +
+                                    "${request.understandsStarting}, waited at most ${wait}ms)",
                             )
                         }
                     }
@@ -91,6 +93,7 @@ internal class TargetRoutes(
         const val UNPROCESSABLE = 422
         const val LOGGED = 300
         const val GRACE_MS = 1_500L
+        const val OLD_PHONE_WAIT_MS = 55_000L
         val PATHS = setOf("/targets", "/targets/queue", "/targets/control")
     }
 }

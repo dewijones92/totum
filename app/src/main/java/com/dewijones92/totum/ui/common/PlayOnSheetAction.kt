@@ -32,6 +32,7 @@ import com.dewijones92.totum.ui.queue.AddBrowserDialog
 import com.dewijones92.totum.ui.queue.AddBrowserEntry
 import com.dewijones92.totum.ui.queue.PLAY_ON_DOT_PREFIX
 import com.dewijones92.totum.ui.queue.PLAY_ON_OPTION_PREFIX
+import com.dewijones92.totum.ui.queue.PLAY_ON_UNREACHABLE_TAG
 import com.dewijones92.totum.ui.queue.PlayOnHintLine
 import com.dewijones92.totum.ui.queue.asColour
 import com.dewijones92.totum.ui.queue.chipLabel
@@ -43,8 +44,15 @@ internal fun PlayOnSheetAction(item: MediaItem?, onDismiss: () -> Unit) {
     val options by devices.options.collectAsStateWithLifecycle()
     val colours by devices.colours.collectAsStateWithLifecycle()
     val address by devices.browserAddress.collectAsStateWithLifecycle()
+    val unreachable by devices.homeUnreachable.collectAsStateWithLifecycle()
     val anywhereToPlay = options.size > 1 || address != null
-    if (item == null || !anywhereToPlay || item.toPlayableOrNull() == null) return
+    if (item == null || item.toPlayableOrNull() == null) return
+    if (!anywhereToPlay) {
+        if (unreachable) {
+            SheetRow(Icons.Outlined.Cast, stringResource(R.string.play_on_home_unreachable), PLAY_ON_UNREACHABLE_TAG) {}
+        }
+        return
+    }
     var open by remember(item.id) { mutableStateOf(false) }
     var adding by remember(item.id) { mutableStateOf(false) }
     SheetRow(Icons.Outlined.Cast, stringResource(R.string.play_on_item), PLAY_ON_SHEET_TAG) { open = !open }

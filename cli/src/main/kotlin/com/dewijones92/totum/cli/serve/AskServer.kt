@@ -299,6 +299,7 @@ internal suspend fun serveAsk(port: Int, out: (String) -> Unit, polite: Politene
         ownerId = home::youTubeOwnerId,
         warmDecks = keepAwake.any,
     )
+    browsers.onEvicted = { screenId -> targets.forget(BrowserSource.idOf(screenId)) }
     browsers.keepWatching(this, targets::sourcesChanged)
     val states = AskStates().also { sweepEvery(it) }
     val browserAddress = browserAddressOf(System.getenv("TOTUM_CAST_BASE")).takeIf { browserPage }

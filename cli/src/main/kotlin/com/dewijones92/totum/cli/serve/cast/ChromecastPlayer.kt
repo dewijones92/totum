@@ -6,6 +6,7 @@ import com.dewijones92.totum.cli.serve.targets.TargetKit
 import com.dewijones92.totum.cli.serve.targets.TargetLink
 import com.dewijones92.totum.cli.serve.targets.TargetPlayer
 import com.dewijones92.totum.cli.serve.targets.TargetSource
+import com.dewijones92.totum.cli.serve.targets.withoutApiKeys
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.targets.Target
 import com.dewijones92.totum.data.targets.TargetKind
@@ -79,6 +80,14 @@ internal class ChromecastPlayer(
             watchTheCutEnd(item.mediaId)
         } else {
             val url = streams.givenAsItIs(label, request.url)
+            if (control.keepsAddressesPrivate && url.withoutApiKeys() != url) {
+                Diag.warn(
+                    "cast-target",
+                    "$label: no manifest could be built for ${request.title} and its own address carries a key " +
+                        "(${hostOrPath(url)}); not handing it to a browser",
+                )
+                error("no stream could be built for $label, and the item's own address carries a key")
+            }
             rawUrl = url.takeIf { it != request.url }
             Diag.log("cast-target", "$label: ${request.title} loaded as it comes (${hostOrPath(url)})")
             control.load(url, contentTypeOf(request.url, request.picture, false), request.title, request.startAtMs)

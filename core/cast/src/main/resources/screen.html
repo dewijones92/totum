@@ -64,6 +64,8 @@
   const tap = document.getElementById('tap');
   const status = document.getElementById('status');
   let id = localStorage.getItem('totumScreenId') || '';
+  const tab = Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+  let replaced = false;
   let greeted = false;
   let currentLoad = 0;
   let after = 0;
@@ -91,6 +93,7 @@
     say('⏳ Asking ' + brain + ' to play here…');
     try {
       const reply = await api('watch', { id });
+      if (reply.status === 409) { await replacedByAnotherTab(); return; }
       if (reply.ok) {
         say('📱 Your phone is handing over…');
       } else {
@@ -109,9 +112,33 @@
     if (!stage.classList.contains('on')) say('⚠️ Nothing started here: is the queue on your phone empty?');
   }, 1000);
   const api = (path, params) => {
-    const q = new URLSearchParams(Object.assign({ key }, params));
+    const q = new URLSearchParams(Object.assign({ key, tab }, params));
     return fetch('/screen/' + path + '?' + q.toString(), { cache: 'no-store' });
   };
+
+  async function replacedByAnotherTab() {
+    if (replaced) return;
+    replaced = true;
+    video.pause();
+    try { if (player) await player.unload(); } catch (e) { lastError = 'unload: ' + e.message; }
+    stage.classList.remove('on');
+    bar.classList.remove('on');
+    tap.classList.remove('on');
+    document.getElementById('wait').style.display = 'grid';
+    document.getElementById('who').textContent = '🖥️ This browser was opened in another tab, so this tab has stopped';
+    document.getElementById('now').textContent = '';
+    watch.hidden = true;
+    say('⏹️ Replaced by another tab: use that one, or reload this one');
+  }
+  const goodbye = () => {
+    if (!id || replaced) return;
+    const q = new URLSearchParams({ key, id, tab }).toString();
+    if (!(navigator.sendBeacon && navigator.sendBeacon('/screen/bye?' + q, ''))) {
+      fetch('/screen/bye?' + q, { cache: 'no-store', keepalive: true }).catch(() => {});
+    }
+  };
+  window.addEventListener('pagehide', goodbye);
+  window.addEventListener('pageshow', (e) => { if (e.persisted) greeted = false; });
 
   const bar = document.getElementById('bar');
   const seek = document.getElementById('seek');
@@ -146,6 +173,7 @@
     say('⏩ Asking ' + brain + ' to go to ' + mmss(pos / 1000) + '…');
     try {
       const reply = await api('seek', { id, pos });
+      if (reply.status === 409) { await replacedByAnotherTab(); return; }
       if (!reply.ok) say('⚠️ ' + brain + ' refused the seek (' + reply.status + ')');
     } catch (e) {
       say('⚠️ Cannot reach ' + brain + ' to seek: ' + e.message);
@@ -266,10 +294,11 @@
   }
 
   async function pollForever() {
-    for (;;) {
+    while (!replaced) {
       try {
         if (!greeted) await hello();
         const reply = await api('poll', { id, after });
+        if (reply.status === 409) { await replacedByAnotherTab(); return; }
         if (reply.status === 400) { greeted = false; continue; }
         for (const item of await reply.json()) {
           after = Math.max(after, item.n);
@@ -284,7 +313,7 @@
   }
 
   setInterval(() => {
-    if (!id) return;
+    if (!id || replaced) return;
     const buffering = !video.paused && video.readyState < 3;
     api('state', {
       id,
@@ -294,7 +323,11 @@
       buffering: buffering ? 1 : 0,
       ended: video.ended ? 1 : 0,
       error: lastError,
-    }).then((reply) => reply.ok ? reply.json() : null).then((body) => { if (body) showNow(body.now); }).catch(() => {});
+      vol: Math.round(video.volume * 100),
+    }).then((reply) => {
+      if (reply.status === 409) { replacedByAnotherTab(); return null; }
+      return reply.ok ? reply.json() : null;
+    }).then((body) => { if (body) showNow(body.now); }).catch(() => {});
     lastError = '';
   }, 1000);
 

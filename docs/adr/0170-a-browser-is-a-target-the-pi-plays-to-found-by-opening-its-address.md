@@ -2,7 +2,7 @@
 title: A browser is a target the Pi plays to, found by opening the Pi's address; Play on… says how a device comes on
 kind: adr
 status: accepted
-updated: 2026-11-13
+updated: 2026-11-14
 ---
 
 # 170. A browser is a target the Pi plays to, found by opening the Pi's address
@@ -12,6 +12,9 @@ updated: 2026-11-13
 - Amends: [ADR 169](0169-play-on-is-a-choice-that-remembers-the-last-device.md) (the open points: how a device that is
   switched on by hand is worded, and one rule for a device's colour), [ADR 81](0081-the-pc-screen-is-a-page-the-phone-serves.md)
   (the receiver page now lives in `:core:cast` and has a second host)
+- Amended 2026-11-14 by the end-of-batch review: a goodbye on page close and its own wording, the page's volume as the sleep
+  fade's base, one live tab per browser, unguessable ids and eviction, no key in a log or a browser, and a browser is not offered
+  away from home (the sections below say which sentence changed)
 - Builds the `BROWSER` kind that [ADR 152](0152-a-target-is-anything-the-pi-plays-to-and-each-has-its-own-queue.md) modelled and never registered
 
 ## Context
@@ -45,25 +48,59 @@ rides in the link's fragment).
   (`data-host="phone"` or `"pi"`, `ScreenLink`'s `ScreenHost`), and the page words itself for it: on the Pi there is no
   "Watch here", no "On your phone" and no "Switch phone"; it says "In Totum, choose ▶️ Play on, then “<name>”." A page that
   is told to stop shows its waiting screen only after 1.5 s, so the next item of a queue does not flash it. A `volume`
-  command was added for the Pi's sleep fade and slider (a browser's volume is `video.volume`, set only by the slider, never by a
-  play, as for every device).
+  command was added for the Pi's sleep fade and slider (a browser's volume is `video.volume`, never set by a play, as for
+  every device). **Amended:** the page now reports its own `video.volume` (`vol=` on its once-a-second state call, 0 to 100),
+  and `BrowserControl.volumePercent` follows it, except for 2.5 s after the Pi itself set a level (a report that left before the
+  page applied the command would put the old level back). Before this the Pi only knew a level the slider had set, so
+  `DeckSleep` had no base for a browser and the sleep timer never faded one ("the Pi's sleep fade" above was not true); now
+  the base is whatever the page is at, and a page nobody touched reads 100.
 - **The short address.** `TOTUM_CAST_BASE` without its scheme (`192.168.0.5:8771`), sent to the phone as
   `TargetsAnswer.browserAddress` (`browserAddressOf`). The phone shows it under **🖥️ Add a browser…** at the foot of the
   picker row and of every item's "Play on…" list, which opens a dialog with the address and 📋 Copy address, only at home (ADR 169's rule) and even when no other device
   is listed. Typing `192.168.0.5:8771` into Silk with a TV remote is the whole set-up; there is no key and no pairing.
+- **No Jellyfin key in a log or a browser (amended).** `ScreenLink.send` logged every command whole, and a `load` carries the
+  stream address. A key could reach a browser: for a Jellyfin item the Pi's own address is `…/Videos/<id>/stream?static=true&api_key=…`
+  (`TargetStreams`), and when `ChromecastPlayer` could not build a manifest it sent that address to the page as it came. Now the
+  log keeps an address only up to its question mark (`…/stream?…`), and a control that `keepsAddressesPrivate` (a browser, not a TV on
+  the home network) is refused such an address: the item fails with "no stream could be built for <name>, and the item's own
+  address carries a key", which the deck words as "couldn't play". The key never reaches a manifest, which only names the Pi's own
+  per-offer paths. The Pi's proxy for Jellyfin streams ([ADR 154](0154-jellyfin-is-browsed-and-streamed-through-the-pi.md)) is on
+  the main listener behind the device token (`JellyfinRoutes`, [ADR 90](0090-a-token-per-device-and-none-in-links.md)), not on the cast port, so a browser
+  has no tokenless way to it; giving browsers a proxied Jellyfin stream is a separate piece of work, not done here.
 - **No key on the Pi's page: the home network is the gate**, as it already is for the TV streams on that port (per-offer random
   paths, no token, because a TV cannot send one). [ADR 90](0090-a-token-per-device-and-none-in-links.md) is kept: no
   home-server token is in any link, and the page never sees one. Anyone on the home LAN can open the page and list a
   browser in the picker, and nothing plays there unless a person picks it. **This is the sentence the remote case below
   breaks, and why it is not built.**
 - **Names and ids.** A browser's target id is made from its page id, which the page keeps in `localStorage`, so the same
-  browser is the same target (and keeps its queue, `target-<id>.json`) next time. Its label is the browser's name from
+  browser is the same target (and keeps its queue, `target-<id>.json`) next time. **One live tab per browser (amended):** the page
+  keeps its id in `localStorage`, which every tab of one browser shares, so two tabs said hello as one target and both played.
+  Each page load now has its own `tab` value (sent on every call); the newest tab to say hello wins, `ScreenLink` answers the
+  older one `409 {"replaced":true}` on its next poll, state, seek or Watch call (and wakes an older tab that is waiting on a long
+  poll at once), and the older page pauses, unloads and says "This browser was opened in another tab, so this tab has stopped".
+  A page that sends no tab (an older one) is not checked. The id, and so the target and its queue, stay the same across tabs and
+  reloads. **Ids the server makes** (a hello with no id) were `screen-<n>-<time>`, guessable; they are now 128 random bits
+  (`SecureRandom`). `/screen/seek` answers an id nobody has exactly as it answers a real one (200, nothing seeks), so it no
+  longer says whether an id exists; a poll from an id the server has forgotten is told to say hello again.
+  Its label is the browser's name from
   its user agent (Silk, Edge, Chrome, …); two browsers with one name are told apart by the end of their ids. `TargetDeck.relabel` lets a renamed device change
   its label without losing its deck; `TargetDecks.sourcesChanged` makes a new browser appear at once rather than at the next
   once-a-minute look. Nothing in the page lets a person type a name yet (a stored `totumScreenName` is read, nothing writes it).
 - **A browser that goes quiet is a lost connection.** It is "reachable" only if heard in the last 10 s; after 30 s of silence
   while it has a deck, `BrowserScreens.sweep` tells the deck (`lost`), which stops, keeps the place and says so, as for a TV.
-  The picker may still list it for up to a minute (the target list is re-read once a minute; arrivals are immediate, departures lag).
+  **Amended:** the page also says goodbye when it is closed (`navigator.sendBeacon` to `/screen/bye` on `pagehide`; a replaced tab's
+  goodbye is ignored, so closing the old tab never stops the new one), the screen is unheard at once (it stays listed, as a lost one does, so the deck's message can be read; a play to it is
+  refused as "couldn't reach"), and the deck is told "the browser page was closed" after a 1.5 s grace, which a reload's hello
+  cancels (the sweep now runs every second). A page that
+  comes back from the back/forward cache re-says hello, and a poll from a screen that said goodbye is told to say hello, so a
+  false goodbye heals itself. The 30 s of silence stays as the backstop (a crashed tab or a lost network sends nothing). Either way
+  the deck says **"🖥️ <name> was closed"** (was "📺 … was switched off", worded for a TV): the trouble kind is still `SWITCHED_OFF`
+  on the wire, so no phone meets an enum value it does not know, and the words are chosen by the target's kind on the Pi
+  (`TroubleWords`) and on the phone (`TargetWords`, `target_trouble_closed`). A browser unheard for 10 minutes is forgotten with
+  its commands, its listener and its in-memory deck (`ScreenLink.evictGone`, `BrowserScreens.onEvicted`, `TargetDecks.forget`);
+  its saved queue file stays on disk, so the same browser coming back has its queue (and the files of browsers that never come
+  back stay too; nothing here deletes them).
+  The picker may still list a closed browser for up to a minute (the target list is re-read once a minute; arrivals are immediate).
 
 ### Away from home: not built, and what it would need
 
@@ -84,8 +121,9 @@ all in front of the Pi, none in the page:
    which a TV remote makes miserable.
 3. **An uplink decision.** The Pi relays the picture, so a remote browser pulls roughly 5 to 10 Mbit/s of 1080p through the
    home connection's upload for as long as it plays.
-4. **The picker already allows it**: `TargetKind.BROWSER` is `reachableAway`, so a browser the Pi lists is offered away from home
-   too (Dewi away, a PC browser at home).
+4. **The picker must be told** (amended): `TargetKind.BROWSER` was `reachableAway`, which offered a listed browser away from
+   home against ADR 169's "away, only this phone". It is not any more; when remote browsers are built, set it again and say so in
+   ADR 169.
 
 If Dewi wants it, it is one nginx block, one approval route and one key check, and the order above is the order to do it in.
 
@@ -120,6 +158,9 @@ If Dewi wants it, it is one nginx block, one approval route and one key check, a
   and AAC, served by a Range-capable stub on loopback) queued on it played at 640x360 with its clock advancing; pause, play, a
   seek to 60 s and a volume of 40 (the page's `video.volume` read 0.4) each went through and the Pi's state agreed; stop put the
   waiting screen back after 1.5 s. Not heard: sound (headless), full screen, the click-for-sound overlay with a real remote, Silk.
-- Tests: `ScreenOnThePiTest` (core:cast), `BrowserControlTest`, `BrowserSourceTest`, `BrowserServingTest`, `BluezTest`,
+- Tests: `ScreenOnThePiTest`, `ScreenLinkTest` (core:cast: tabs, goodbye, ids, eviction, log redaction, uniform seek reply),
+  `BrowserControlTest` (the page's volume, goodbye and its grace, eviction), `ChromecastPlayerTest` (no keyed address to a browser),
+  `TargetDeckStartTest` ("was closed"), `TargetDecksTest` (`forget`), `TargetRoutesSlowStartTest` (an old phone), `BrowserSourceTest`,
+  `BrowserServingTest`, `BluezTest`,
   `TargetDeckSpeakerTest` (cli), `PlayOnTest`, `TargetStateWireTest`, `TargetRulesTest` (core:data), `TargetsRepositoryTest`,
   `DeviceMarksTest` (app), instrumented `PlayOnPickerTest` and `DeviceColourSurfacesTest` (run on totum-api35 at 320x640 @ 160 dpi and at 1080x2400 @ 420 dpi).

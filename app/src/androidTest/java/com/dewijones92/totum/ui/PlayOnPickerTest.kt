@@ -33,11 +33,13 @@ import com.dewijones92.totum.ui.queue.ADD_BROWSER_HOW_TAG
 import com.dewijones92.totum.ui.queue.ADD_BROWSER_TAG
 import com.dewijones92.totum.ui.queue.PLAY_ON_OPTION_PREFIX
 import com.dewijones92.totum.ui.queue.PLAY_ON_ROW_TAG
+import com.dewijones92.totum.ui.queue.PLAY_ON_UNREACHABLE_TAG
 import com.dewijones92.totum.ui.queue.PlayOnRow
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -56,7 +58,9 @@ class PlayOnPickerTest {
 
     private class Pi(var targets: List<TargetState>, var address: String? = null) : TargetsApi {
         val controlled = mutableListOf<Pair<String, TargetControl>>()
-        override suspend fun targets() = HomeAnswer.Ok(TargetsAnswer(targets, address))
+        var down = false
+        override suspend fun targets(): HomeAnswer<TargetsAnswer> =
+            if (down) HomeAnswer.No("down") else HomeAnswer.Ok(TargetsAnswer(targets, address))
         override suspend fun queue(id: String, request: TargetQueueRequest): HomeAnswer<TargetState> =
             HomeAnswer.No("unused")
         override suspend fun control(id: String, control: TargetControl): HomeAnswer<TargetState> {
@@ -125,6 +129,26 @@ class PlayOnPickerTest {
 
         assertEquals("mic", repo.selected.value)
         assertEquals(0, pi.controlled.size)
+    }
+
+    @Test
+    fun whenThePiStopsAnsweringTheRowSaysHomeDevicesAreUnreachableInsteadOfVanishing() {
+        val repo = repository()
+        show(repo)
+        compose.waitUntil(WAIT_MS) { compose.onAllNodesWithTag(PLAY_ON_ROW_TAG).fetchSemanticsNodes().isNotEmpty() }
+        pi.down = true
+
+        runBlocking {
+            repo.refresh("test: first failure")
+            repo.refresh("test: second failure")
+        }
+        compose.waitUntil(WAIT_MS) {
+            compose.onAllNodesWithTag(PLAY_ON_UNREACHABLE_TAG).fetchSemanticsNodes().isNotEmpty()
+        }
+
+        compose.onNodeWithTag(PLAY_ON_UNREACHABLE_TAG).assertIsDisplayed()
+        compose.onNodeWithText("🏠 Home devices unreachable").assertIsDisplayed()
+        TestShots.take("picker-home-unreachable")
     }
 
     @Test

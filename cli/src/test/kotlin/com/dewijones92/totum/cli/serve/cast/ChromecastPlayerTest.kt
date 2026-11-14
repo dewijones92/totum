@@ -57,6 +57,37 @@ class ChromecastPlayerTest {
     }
 
     @Test
+    fun `a browser is not given a stream's own address when it carries a key, the item fails instead`() {
+        control.keepsAddressesPrivate = true
+        val jellyfin = "http://jf:8096/Videos/a/stream?static=true&api_key=SECRETKEY"
+
+        val failure = runCatching { player(streams(base = null)).play(request(url = jellyfin, picture = true)) }
+            .exceptionOrNull()
+
+        assertTrue("should have refused", failure is IllegalStateException)
+        assertFalse(failure?.message.orEmpty(), failure?.message.orEmpty().contains("SECRETKEY"))
+        assertTrue("nothing was sent to the browser", control.loads.isEmpty())
+    }
+
+    @Test
+    fun `a TV, which is on the home network, is still given the address as it comes`() {
+        val jellyfin = "http://jf:8096/Videos/a/stream?static=true&api_key=SECRETKEY"
+
+        player(streams(base = null)).play(request(url = jellyfin, picture = true))
+
+        assertEquals(jellyfin, control.loads.single().url)
+    }
+
+    @Test
+    fun `a browser is given a plain address with no key as it comes`() {
+        control.keepsAddressesPrivate = true
+
+        player(streams(base = null)).play(request(url = "https://example.com/talk.mp3"))
+
+        assertEquals("https://example.com/talk.mp3", control.loads.single().url)
+    }
+
+    @Test
     fun `stopping stops the TV and withdraws the relay it was given`() {
         val streams = streams()
         val p = player(streams)

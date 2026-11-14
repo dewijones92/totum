@@ -4,6 +4,7 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.domain.CastScreen
 import com.dewijones92.totum.domain.VideoCodecFamily
 import java.net.URLDecoder
+import java.security.SecureRandom
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.locks.ReentrantLock
@@ -17,6 +18,7 @@ public data class ScreenReport(
     val error: String?,
     val atMs: Long,
     val load: Long? = null,
+    val volumePercent: Int? = null,
 )
 
 public data class NowPlaying(val title: String, val by: String?, val playing: Boolean, val onScreen: String?)
@@ -27,6 +29,8 @@ public data class Screen(
     val seenAtMs: Long,
     val codecs: String = "",
     val height: Int? = null,
+    val tab: String = "",
+    val byeAtMs: Long = 0,
 )
 
 public enum class ScreenHost(public val word: String) {
@@ -46,7 +50,7 @@ public class ScreenLink(
     private val arrived = lock.newCondition()
     private val screens = ConcurrentHashMap<String, Screen>()
     private val sent = mutableMapOf<String, MutableList<Pair<Long, String>>>()
-    private var next = 0L
+    private val random = SecureRandom()
     private var numbered = 0L
 
     @Volatile
@@ -70,7 +74,18 @@ public class ScreenLink(
 
     public fun screen(id: String): Screen? = screens[id]
 
-    public fun heardWithin(id: String, ms: Long): Boolean = screens[id]?.let { clock() - it.seenAtMs < ms } == true
+    public fun evictGone(afterMs: Long): List<String> = lock.withLock {
+        val gone = screens.values.filter { clock() - it.seenAtMs >= afterMs }.map { it.id }
+        gone.forEach { id ->
+            screens.remove(id)
+            sent.remove(id)
+        }
+        if (gone.isNotEmpty()) Diag.log(TAG, "screens not heard from for ${afterMs / MS_PER_S}s forgotten: $gone")
+        gone
+    }
+
+    public fun heardWithin(id: String, ms: Long): Boolean =
+        screens[id]?.let { it.byeAtMs == 0L && clock() - it.seenAtMs < ms } == true
 
     public fun send(screenId: String, command: String): Long = lock.withLock {
         val number = ++numbered
@@ -78,7 +93,7 @@ public class ScreenLink(
         queue += number to command
         while (queue.size > KEPT_COMMANDS) queue.removeAt(0)
         arrived.signalAll()
-        Diag.log(TAG, "screen $screenId <- #$number $command")
+        Diag.log(TAG, "screen $screenId <- #$number ${command.withoutQueries()}")
         number
     }
 
@@ -92,18 +107,22 @@ public class ScreenLink(
             Diag.warn(TAG, "${request.from} asked for $path with the wrong key; refused")
             return json(Http.CLIENT_ERROR, """{"error":"wrong key"}""")
         }
-        return when (path) {
-            "/screen/hello" -> hello(query, request.from)
-            "/screen/poll" -> poll(query)
-            "/screen/state" -> state(query)
-            "/screen/watch" -> watch(query, request.from)
-            "/screen/seek" -> seek(query, request.from)
-            else -> json(Http.NOT_FOUND, """{"error":"no such call"}""")
-        }
+        return call(path, query, request.from)
+    }
+
+    private fun call(path: String, query: Map<String, String>, from: String): HttpReply = when (path) {
+        "/screen/hello" -> hello(query, from)
+        "/screen/poll" -> poll(query)
+        "/screen/state" -> state(query)
+        "/screen/watch" -> watch(query, from)
+        "/screen/seek" -> seek(query, from)
+        "/screen/bye" -> bye(query, from)
+        else -> json(Http.NOT_FOUND, """{"error":"no such call"}""")
     }
 
     private fun hello(query: Map<String, String>, from: String): HttpReply {
-        val id = query["id"]?.takeIf { it.isNotBlank() } ?: "screen-${++next}-${clock()}"
+        val id = query["id"]?.takeIf { it.isNotBlank() }?.take(ID_CHARS) ?: newId()
+        val tab = query["tab"].orEmpty().take(TAB_CHARS)
         val name = query["name"]?.take(NAME_CHARS)?.ifBlank { null } ?: "PC (browser)"
         val before = screens[id]
         if (before == null && !roomForAnother()) {
@@ -112,15 +131,8 @@ public class ScreenLink(
         }
         val codecs = query["codecs"].orEmpty()
         val height = query["height"]?.toDoubleOrNull()?.toInt()
-        screens[id] = Screen(id, name, clock(), codecs, height)
-        if (before == null) {
-            Diag.log(
-                TAG,
-                "screen \"$name\" ($id) from $from said hello to the ${host.word} [codecs=$codecs height=$height]"
-            )
-        } else if (before.name != name) {
-            Diag.log(TAG, "screen $id is now called \"$name\" (was \"${before.name}\")")
-        }
+        screens[id] = Screen(id, name, clock(), codecs, height, tab)
+        noteHello(before, screens.getValue(id), from)
         if (before == null || before.name != name) onScreensChanged(present())
         val after = lock.withLock { sent[id]?.lastOrNull()?.first ?: 0L }
         return json(
@@ -129,19 +141,47 @@ public class ScreenLink(
         )
     }
 
+    private fun noteHello(before: Screen?, now: Screen, from: String) {
+        if (before != null && now.tab.isNotEmpty() && before.tab != now.tab) {
+            val older = before.tab.ifEmpty { "an unnumbered tab" }
+            Diag.log(TAG, "screen ${now.id}: a newer tab (${now.tab}) took over from $older")
+            lock.withLock { arrived.signalAll() }
+        }
+        when {
+            before == null -> Diag.log(
+                TAG,
+                "screen \"${now.name}\" (${now.id}) from $from said hello to the ${host.word} " +
+                    "[codecs=${now.codecs} height=${now.height}]",
+            )
+            before.byeAtMs != 0L -> Diag.log(TAG, "screen ${now.id} said hello again after saying goodbye")
+            before.name != now.name ->
+                Diag.log(TAG, "screen ${now.id} is now called \"${now.name}\" (was \"${before.name}\")")
+        }
+    }
+
     private fun poll(query: Map<String, String>): HttpReply {
         val id = query["id"] ?: return json(Http.CLIENT_ERROR, """{"error":"no id"}""")
         val after = query["after"]?.toLongOrNull() ?: 0L
+        val known = screens[id]
+        if (known == null || known.byeAtMs != 0L) {
+            Diag.log(
+                TAG,
+                "poll from $id, which ${if (known == null) "is not known" else "said goodbye"}; told to say hello"
+            )
+            return json(Http.CLIENT_ERROR, """{"error":"say hello first"}""")
+        }
+        if (replacedBy(id, query)) return replaced(id, "poll")
         touch(id)
         val waitUntil = clock() + pollWaitMs
         val due = lock.withLock {
             var waiting = pending(id, after)
-            while (waiting.isEmpty() && clock() < waitUntil) {
+            while (waiting.isEmpty() && clock() < waitUntil && !replacedBy(id, query)) {
                 arrived.await((waitUntil - clock()).coerceAtLeast(1), TimeUnit.MILLISECONDS)
                 waiting = pending(id, after)
             }
             waiting
         }
+        if (replacedBy(id, query)) return replaced(id, "poll")
         return json(Http.OK, due.joinToString(",", "[", "]") { (n, command) -> """{"n":$n,"command":$command}""" })
     }
 
@@ -149,6 +189,7 @@ public class ScreenLink(
 
     private fun state(query: Map<String, String>): HttpReply {
         val id = query["id"] ?: return json(Http.CLIENT_ERROR, """{"error":"no id"}""")
+        if (replacedBy(id, query)) return replaced(id, "state")
         touch(id)
         val report = ScreenReport(
             positionMs = query["pos"]?.toLongOrNull() ?: 0L,
@@ -158,6 +199,7 @@ public class ScreenLink(
             error = query["error"]?.ifBlank { null },
             atMs = clock(),
             load = query["load"]?.toLongOrNull(),
+            volumePercent = query["vol"]?.toIntOrNull()?.coerceIn(0, MAX_PERCENT),
         )
         report.error?.let { Diag.warn(TAG, "screen $id reports an error: $it") }
         onReport(id, report)
@@ -171,6 +213,7 @@ public class ScreenLink(
             Diag.warn(TAG, "Watch here from $from for screen $id, which has not said hello; refused")
             return json(Http.NOT_FOUND, """{"error":"say hello first"}""")
         }
+        if (replacedBy(id, query)) return replaced(id, "watch")
         touch(id)
         Diag.log(
             TAG,
@@ -183,17 +226,50 @@ public class ScreenLink(
     private fun seek(query: Map<String, String>, from: String): HttpReply {
         val id = query["id"] ?: return json(Http.CLIENT_ERROR, """{"error":"no id"}""")
         val positionMs = query["pos"]?.toLongOrNull()?.takeIf { it >= 0 }
-        if (screens[id] == null || positionMs == null) {
-            Diag.warn(
-                TAG,
-                "seek from $from for screen $id refused (said hello=${screens[id] != null}, pos=${query["pos"]})"
-            )
-            return json(Http.CLIENT_ERROR, """{"error":"unknown screen or position"}""")
+        if (positionMs == null) {
+            Diag.warn(TAG, "seek from $from for screen $id refused (pos=${query["pos"]})")
+            return json(Http.CLIENT_ERROR, """{"error":"no usable position"}""")
         }
+        if (screens[id] == null) {
+            Diag.warn(TAG, "seek from $from for screen $id, which has not said hello; ignored, answered as any other")
+            return json(Http.OK, """{"asked":true}""")
+        }
+        if (replacedBy(id, query)) return replaced(id, "seek")
         touch(id)
         Diag.log(TAG, "the seek bar on screen $id asks for ${positionMs}ms (from $from)")
         onSeek(id, positionMs)
         return json(Http.OK, """{"asked":true}""")
+    }
+
+    private fun bye(query: Map<String, String>, from: String): HttpReply {
+        val id = query["id"] ?: return json(Http.CLIENT_ERROR, """{"error":"no id"}""")
+        val screen = screens[id]
+        when {
+            screen == null -> Diag.log(TAG, "goodbye from $from for $id, which is not known; ignored")
+            replacedBy(id, query) ->
+                Diag.log(TAG, "goodbye from a replaced tab of $id ($from); the newer tab stays")
+            else -> {
+                screens[id] = screen.copy(byeAtMs = clock())
+                Diag.log(TAG, "screen \"${screen.name}\" ($id) from $from said goodbye; its page was closed")
+            }
+        }
+        return json(Http.OK, """{"bye":true}""")
+    }
+
+    private fun replacedBy(id: String, query: Map<String, String>): Boolean {
+        val said = query["tab"].orEmpty()
+        val current = screens[id]?.tab ?: return false
+        return said.isNotEmpty() && current != said
+    }
+
+    private fun replaced(id: String, call: String): HttpReply {
+        Diag.log(TAG, "$call from an older tab of $id; told it was replaced")
+        return json(Http.CONFLICT, """{"replaced":true}""")
+    }
+
+    private fun newId(): String {
+        val bytes = ByteArray(ID_BYTES).also(random::nextBytes)
+        return "screen-" + bytes.joinToString("") { "%02x".format(it) }
     }
 
     private fun roomForAnother(): Boolean {
@@ -221,11 +297,20 @@ public class ScreenLink(
         const val GONE_AFTER_MS = 60_000L
         const val KEPT_COMMANDS = 50
         const val NAME_CHARS = 40
+        const val ID_CHARS = 64
+        const val TAB_CHARS = 40
+        const val ID_BYTES = 16
+        const val MAX_PERCENT = 100
+        const val MS_PER_S = 1_000L
         const val MAX_SCREENS = 32
         const val HOST_MARKER = "data-host=\"phone\""
         val NO_CACHE = mapOf("Cache-Control" to "no-store")
     }
 }
+
+private val URL_QUERY = Regex("""(https?://[^"?\s]*)\?[^"\s]*""")
+
+private fun String.withoutQueries(): String = replace(URL_QUERY) { "${it.groupValues[1]}?…" }
 
 private fun nowJson(now: NowPlaying?, id: String): String {
     if (now == null) return "null"

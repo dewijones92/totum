@@ -41,6 +41,9 @@ internal class BrowserScreens(
     @Volatile
     var onChanged: () -> Unit = {}
 
+    @Volatile
+    var onEvicted: (String) -> Unit = {}
+
     init {
         link.onReport = { id, report -> listeners[id]?.onReport?.invoke(report) }
         link.onSeek = { id, positionMs ->
@@ -80,15 +83,29 @@ internal class BrowserScreens(
     }
 
     fun sweep() {
-        listeners.forEach { (id, listener) ->
-            val here = link.heardWithin(id, GONE_AFTER_MS)
-            if (here) {
-                listener.lostTold = false
-            } else if (!listener.lostTold) {
-                listener.lostTold = true
-                Diag.warn(TAG, "browser $id has not been heard from for ${GONE_AFTER_MS / MS_PER_S}s; telling its deck")
-                listener.onLost("the browser stopped answering")
-            }
+        listeners.forEach { (id, listener) -> sweepOne(id, listener) }
+        link.evictGone(EVICT_AFTER_MS).forEach { id ->
+            listeners.remove(id)
+            Diag.log(TAG, "browser $id has not been heard from for ${EVICT_AFTER_MS / MS_PER_MIN} minutes; forgotten")
+            onEvicted(id)
+        }
+    }
+
+    private fun sweepOne(id: String, listener: Listener) {
+        val byeAt = link.screen(id)?.byeAtMs ?: 0L
+        val pendingBye = byeAt != 0L && clock() - byeAt < BYE_GRACE_MS
+        val reason = when {
+            pendingBye -> return
+            byeAt != 0L -> "the browser page was closed"
+            !link.heardWithin(id, GONE_AFTER_MS) -> "the browser stopped answering"
+            else -> null
+        }
+        if (reason == null) {
+            listener.lostTold = false
+        } else if (!listener.lostTold) {
+            listener.lostTold = true
+            Diag.warn(TAG, "browser $id: $reason (silent for at most ${GONE_AFTER_MS / MS_PER_S}s); telling its deck")
+            listener.onLost(reason)
         }
     }
 
@@ -97,8 +114,11 @@ internal class BrowserScreens(
         const val POLL_WAIT_MS = 20_000L
         const val HEARD_WITHIN_MS = 10_000L
         const val GONE_AFTER_MS = 30_000L
-        const val SWEEP_MS = 5_000L
+        const val SWEEP_MS = 1_000L
+        const val BYE_GRACE_MS = 1_500L
+        const val EVICT_AFTER_MS = 600_000L
         const val MS_PER_S = 1_000L
+        const val MS_PER_MIN = 60_000L
     }
 }
 
@@ -118,10 +138,14 @@ internal class BrowserControl(
 
     @Volatile private var volume: Int? = null
 
+    @Volatile private var volumeSetAt = NONE
+
     override var onEnded: (failed: Boolean) -> Unit = {}
     override var onLost: (reason: String) -> Unit = {}
 
     override val screen: CastScreen? get() = screenProfile(screens.screenOf(screenId))
+
+    override val keepsAddressesPrivate: Boolean get() = true
 
     private class Wanted(val url: String, val title: String, val startAtMs: Long)
 
@@ -159,6 +183,7 @@ internal class BrowserControl(
 
     override fun volume(percent: Int) {
         volume = percent
+        volumeSetAt = clock()
         Diag.log(TAG, "$screenId: volume $percent%")
         screens.send(screenId, """{"do":"volume","level":${percent / PERCENT}}""")
     }
@@ -182,6 +207,7 @@ internal class BrowserControl(
 
     @Synchronized
     private fun reported(report: ScreenReport) {
+        noteVolume(report)
         if (!reportIsCurrent(report.load, loads)) {
             val verdict = stale.stale(report.load, loads)
             verdict.lines.forEach { Diag.log(TAG, "$screenId: $it") }
@@ -198,6 +224,14 @@ internal class BrowserControl(
         }
     }
 
+    private fun noteVolume(report: ScreenReport) {
+        val said = report.volumePercent ?: return
+        val setAt = volumeSetAt
+        if (setAt != NONE && clock() - setAt < VOLUME_SETTLE_MS) return
+        if (said != volume) Diag.log(TAG, "$screenId: the page's own volume is $said% (was ${volume ?: "not known"})")
+        volume = said
+    }
+
     private fun seekedOnThePage(positionMs: Long) {
         Diag.log(TAG, "$screenId: the page's seek bar asks for ${positionMs}ms")
         seek(positionMs)
@@ -207,6 +241,7 @@ internal class BrowserControl(
         const val TAG = "browser-target"
         const val NONE = -1L
         const val PERCENT = 100.0
+        const val VOLUME_SETTLE_MS = 2_500L
     }
 }
 

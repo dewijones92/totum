@@ -22,6 +22,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.net.InetSocketAddress
 import java.nio.file.Files
+import kotlin.concurrent.thread
 
 class TargetRoutesSlowStartTest {
 
@@ -72,7 +73,7 @@ class TargetRoutesSlowStartTest {
     fun `a request to a target that is slow to connect is accepted at once and says it is starting`() {
         val body = TargetsJson.encodeToString(
             TargetQueueRequest.serializer(),
-            TargetQueueRequest(listOf(podcastItem("a")), QueueMode.REPLACE),
+            TargetQueueRequest(listOf(podcastItem("a")), QueueMode.REPLACE, understandsStarting = true),
         )
         val began = System.currentTimeMillis()
 
@@ -113,5 +114,26 @@ class TargetRoutesSlowStartTest {
         assertEquals(200, code)
         assertTrue(text, stateOf(text).playing)
         assertFalse(stateOf(text).starting)
+    }
+
+    @Test
+    fun `a v0_1_911 request, which cannot read starting, waits for the start and is answered playing`() {
+        val oldPhone = TargetsJson.encodeToString(
+            TargetQueueRequest.serializer(),
+            TargetQueueRequest(listOf(podcastItem("a")), QueueMode.REPLACE),
+        ).replace(""","understandsStarting":false""", "")
+        assertFalse(oldPhone, oldPhone.contains("understandsStarting"))
+        thread {
+            Thread.sleep(2_500)
+            gate.complete(Unit)
+        }
+
+        val (code, text) = call("POST", "/targets/queue?id=slow", oldPhone)
+
+        assertEquals(200, code)
+        val answered = stateOf(text)
+        assertFalse(text, answered.starting)
+        assertTrue(text, answered.playing)
+        assertEquals(1, player.requests.size)
     }
 }

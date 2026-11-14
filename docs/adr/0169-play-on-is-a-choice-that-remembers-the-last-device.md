@@ -36,8 +36,10 @@ lists every configured TV, Chromecast and paired Bluetooth speaker whether it is
   picker are the same choice; a remote queue chip is simply the view of it.
 - **At home all devices are offered, on or off; away, only this phone.** `PlayOn.options(listed, atHome)` is this phone
   first, then every device the Pi lists (an `ASLEEP` one included, `power` carried), or only the kinds marked
-  `reachableAway` when not at home (`TargetKind`: PHONE and BROWSER; the Browser target another builder adds slots in
-  there with no further change). **At home** is `PlayOn.atHome(homeServerAnswered, onUnmeteredNetwork)`: the home server
+  `reachableAway` when not at home (`TargetKind`: only PHONE; a browser is **not** `reachableAway`, because away-from-home
+  browsers are not built, [ADR 170](0170-a-browser-is-a-target-the-pi-plays-to-found-by-opening-its-address.md), and the
+  code now says what this ADR said: away, only this phone, a listed browser included; `PlayOnTest`,
+  `TargetsRepositoryTest`). **At home** is `PlayOn.atHome(homeServerAnswered, onUnmeteredNetwork)`: the home server
   answered the last read (a failed read keeps it for one more try, two in a row end it) and the connection is not metered.
   The Pi is reachable from anywhere through its public name, so reachability alone cannot say "home"; an unmetered
   connection is the stand-in for the home Wi-Fi. **This cannot tell home Wi-Fi from any other Wi-Fi** (a café, work): there
@@ -55,7 +57,11 @@ lists every configured TV, Chromecast and paired Bluetooth speaker whether it is
   while more than this phone is on offer; a tap opens the list (a dot in each device's colour, 💤 on a switched-off one),
   one more picks. Every item menu has "📡 Play on…" (the shared `ActionSheet`, so rows, the queue and the full player all
   have it): it expands the same list and plays that item on the pick, making it the new last used device. Away from home
-  the row and the menu entry are not drawn. A bulk action (selection menus, group menus) uses the remembered device.
+  the row and the menu entry are not drawn, with one exception (2026-11-14): when the Pi had listed devices, or one was
+  remembered, and it has stopped answering (two reads in a row), the phone no longer falls back to itself silently. The row
+  shows "🏠 Home devices unreachable" and the item menu has a line saying the same (`TargetsRepository.homeUnreachable`,
+  logged on each change: "home devices unreachable: N reads in a row failed…"). A phone on mobile data with the Pi
+  answering is simply away and gets no line; a phone that never had a device and never remembered one gets none either. A bulk action (selection menus, group menus) uses the remembered device.
 - **Picking a switched-off device wakes it at once** (`select(wake = true)` sends the existing `WAKE` control, which on the
   Pi is Wake-on-LAN for a TV with a MAC); picking in the Queue chip row only looks and does not wake. A play to a sleeping
   device still wakes it first (ADR 152), so tapping Play with the TV remembered and off works without picking again, with

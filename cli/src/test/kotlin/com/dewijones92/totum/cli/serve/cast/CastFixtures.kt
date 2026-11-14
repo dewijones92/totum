@@ -112,6 +112,7 @@ internal class FakeCastControl : CastControl {
     var reachable = true
     var deviceVolume: Int? = null
     override var model: String? = "webOS"
+    override var keepsAddressesPrivate: Boolean = false
 
     override fun load(url: String, contentType: String, title: String, startAtMs: Long) {
         loads += Loaded(url, contentType, title, startAtMs)

@@ -76,6 +76,12 @@ internal class TargetDecks(
         lookedAt = 0L
     }
 
+    fun forget(id: String) {
+        val held = decks.remove(id) != null
+        val what = if (held) "deck dropped from memory (its saved queue stays on disk)" else "no deck is held for it"
+        Diag.log("targets", "$id: forgotten, $what")
+    }
+
     fun startInBackground(deck: TargetDeck): Job = scope.launch {
         runCatching { deck.startPending() }.onFailure { e ->
             if (e is CancellationException) throw e

@@ -36,10 +36,10 @@ class PlayOnTest {
     }
 
     @Test
-    fun `away from home only this phone is offered, and a browser stays offered`() {
+    fun `away from home only this phone is offered, a browser included`() {
         val options = PlayOn.options(listOf(lg, bar, browser), atHome = false)
 
-        assertEquals(listOf("phone", "pc"), options.map { it.id })
+        assertEquals(listOf("phone"), options.map { it.id })
     }
 
     @Test

@@ -21,6 +21,7 @@ internal interface CastControl {
     suspend fun reachable(): Boolean
     val model: String? get() = null
     val screen: CastScreen? get() = null
+    val keepsAddressesPrivate: Boolean get() = false
 }
 
 @Suppress("TooManyFunctions")
