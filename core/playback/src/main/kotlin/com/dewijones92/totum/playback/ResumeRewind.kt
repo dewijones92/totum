@@ -106,6 +106,15 @@ internal class ResumeRewind(
     }
 
     fun onChange(moment: PlayerMoment, endOfItem: Boolean, facts: ResumeFacts): Long? {
+        if (moment.itemId.isBlank()) {
+            Diag.log(
+                "playback",
+                "dewidebug resume rewind skipped: nothing names the item " +
+                    "[playWhenReady=${moment.playWhenReady} position=${moment.positionMs}ms ended=${moment.ended} " +
+                    "focusLost=${moment.focusLost} pausedNoted=${paused != null}]",
+            )
+            return null
+        }
         val stopped = !moment.playWhenReady || moment.focusLost
         return when {
             moment.ended -> null.also { forget() }
@@ -166,6 +175,7 @@ internal class ResumeRewindListener(
     private val player: () -> Player?,
     private val rewind: ResumeRewind,
     private val rewindTo: (Player, Long) -> Unit = { p, ms -> p.seekTo(ms) },
+    private val named: (Player) -> String? = { p -> p.currentMediaItem?.mediaId?.ifBlank { null } },
     private val facts: () -> ResumeFacts,
 ) : Player.Listener {
     override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
@@ -178,7 +188,16 @@ internal class ResumeRewindListener(
 
     private fun changed(endOfItem: Boolean) {
         val player = player() ?: return
-        val id = player.currentMediaItem?.mediaId ?: return
+        if (player.currentMediaItem == null) return
+        val id = named(player) ?: run {
+            Diag.log(
+                "playback",
+                "dewidebug resume rewind skipped: the player has an item but nothing names it " +
+                    "[playWhenReady=${player.playWhenReady} position=${player.currentPosition}ms " +
+                    "items=${player.mediaItemCount}]",
+            )
+            return
+        }
         val moment = PlayerMoment(
             itemId = id,
             positionMs = player.currentPosition,

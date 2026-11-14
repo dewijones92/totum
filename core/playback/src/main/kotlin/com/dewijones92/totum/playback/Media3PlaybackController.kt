@@ -221,7 +221,7 @@ public class Media3PlaybackController(
                     resumeRewind.reopenedPausedOn(it)
                 }
                 connected.addListener(
-                    ResumeRewindListener({ controller }, resumeRewind, ::rewindOnTheService) {
+                    ResumeRewindListener({ controller }, resumeRewind, ::rewindOnTheService, ::namedId) {
                         ResumeFacts(talk = tuning.keepsChanges, live = false, enabled = rewindOnResume.value)
                     },
                 )
@@ -542,6 +542,14 @@ public class Media3PlaybackController(
     }
 
     private fun carryOnIfWatchedElsewhere(itemId: String, positionMs: Long, pausedMs: Long?) {
+        if (itemId.isBlank()) {
+            Diag.log(
+                "playback",
+                "dewidebug not asking where else it was watched: no item id [resumed at ${positionMs}ms, " +
+                    "${pausedMs?.let { "paused ${it}ms" } ?: "app reopened on it"}]",
+            )
+            return
+        }
         val id = MediaItemId(itemId)
         scope.launch {
             val target = progressStore.watchedFurtherElsewhereMs(id, positionMs, pausedMs)
@@ -550,7 +558,7 @@ public class Media3PlaybackController(
                 return@launch
             }
             withController { controller ->
-                val nowId = controller.currentMediaItem?.mediaId
+                val nowId = namedId(controller)
                 val at = controller.currentPosition
                 if (nowId != itemId || at >= target) {
                     Diag.log(
@@ -1211,7 +1219,7 @@ public class Media3PlaybackController(
         return castLoad.unnamed()?.mediaId
     }
 
-    private fun namedId(controller: MediaController): String? {
+    private fun namedId(controller: Player): String? {
         val item = controller.currentMediaItem ?: return null
         item.mediaId.ifBlank { null }?.let { return it }
         val remote = controller.deviceInfo.playbackType == DeviceInfo.PLAYBACK_TYPE_REMOTE

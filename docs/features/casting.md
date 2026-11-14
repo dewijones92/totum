@@ -119,6 +119,16 @@ Logs: `[playback] saving <id> at …ms … under the id Totum sent`, `not saving
 `handed <id> over at …ms, the one kept while casting|the one Totum sent|the one the player has`, `[gapless] … getting
 … in line (… cast=true)`.
 
+## Resume rewind on a receiver that names nothing (2026-11-14)
+
+Report 20261114T042830 (0.1.905, 11 Nov): tapping play after 30 s paused while casting to the LG crashed with
+`IllegalArgumentException: MediaItemId must not be blank`. The receiver reports its item with no media id, and the
+resume rewind (`ResumeRewindListener`) read that blank straight off the player while every other path already used the
+stand-in. Now the rewind resolves the id through `namedId` (the item Totum last sent), skips with a line when nothing
+names the item, and `ResumeRewind` and `carryOnIfWatchedElsewhere` refuse a blank id outright.
+Logs: `dewidebug resume rewind skipped: nothing names the item [...]`, `dewidebug resume rewind skipped: the player has
+an item but nothing names it [...]`, `dewidebug not asking where else it was watched: no item id [...]`.
+
 ## Kid TV (2026-11-07)
 
 A Library tile casts a chosen pinned playlist to a chosen TV by name in kid mode with one tap; see
