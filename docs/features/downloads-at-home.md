@@ -1,9 +1,9 @@
 ---
 title: 🏠 Downloads at home (the Pi fetches; the phone copies when you ask)
 kind: feature
-status: refining
+status: built — proven end to end 2026-10-31; the 2026-11-13 retry, Move to Phone and filing fixes (ADR 168) are unit-tested but not run against the live TorrServer; playing from the Pi's copy before the phone has its own is not yet proven live
 area: downloads
-updated: 2026-11-06
+updated: 2026-11-14
 ---
 
 # 🏠 Downloads at home
@@ -57,6 +57,12 @@ phone now, or when you turn on the setting below. ADR 110.
   is `PhoneUploads`.
 
 ## Status
+
+*Status correction (2026-11-14): the frontmatter said `refining` although this section had described a built, proven feature since
+2026-10-31. It is built; tests exist on both sides (`HomeDownloadsTest`, `HomeCopyFirstTest` in the app and `:core:data`, and
+`HomeTorrentJobsTest`, `HomeFilingTest`, `HomeRoutesTest` on the Pi in `:cli`). What is not confirmed on a device or the real Pi:
+the 2026-11-13 work below (ADR 168 says the TorrServer drop-and-re-add is "not run against the live TorrServer") and playing
+from the Pi's copy before the phone has its own.*
 
 Built and unit-tested on both sides, and proven end to end on 2026-10-31 (v0.1.807 on the Pi, the emulator as the
 phone): a podcast episode sent home (8.8 MB in 2 s), announced "🏠 Ready at home" and copied over Wi-Fi through

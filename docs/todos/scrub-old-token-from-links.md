@@ -4,7 +4,7 @@ kind: todo
 status: built 2026-11-06 — stripped on read and write in the mapper and in the backup codec; not yet on a phone
 batch: A (2026-11)
 priority: medium
-updated: 2026-11-06
+updated: 2026-11-14
 ---
 
 # Stored links no longer carry the old shared token
@@ -28,3 +28,7 @@ counted and logged at 1, 2, 4, 8 … links per launch (`link` tag), never per ro
 Consistency sweep 2026-11-06: the scrub did not cover every table that holds a link. The channel-latest rows
 (`ChannelLatestEntities`), the cached feed items (`RoomFeedCache`) and podcast episodes (`RoomSubscriptionStore`) now
 strip `mediaUrl` on read and write through the same `scrubbedRead` and `storedValue`.
+
+Status check (2026-11-14): the index said "decided 2026-11-06, Batch A", but this was built the same day (`LegacyLinkToken` in
+`:lib:common`, applied in `PlaylistItemColumns` and `BackupCodec`) and the old token was retired on the Pi. Not yet on a phone, as
+the status says.

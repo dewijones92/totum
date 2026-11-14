@@ -1,10 +1,18 @@
 ---
 title: PO token minting works; it has not yet lifted the ceiling
 status: superseded 2026-09-06 — the ceiling was the request SHAPE, not attestation; see sabr-stops-at-one-megabyte.md
-updated: 2026-09-25
+updated: 2026-11-14
 ---
 
 # Minting a PO token: proven. Lifting the ceiling with it: not yet.
+
+> **2026-11-14, agreeing with [youtube-requires-attestation](youtube-requires-attestation.md):** both files now say the
+> same thing. Minting was proven from the laptop (`tools/potoken/`), but no PO token is minted in the app and none is
+> needed by any shipping route: embedded-player SABR streams uncapped without one (2026-09-07), and the signed-in TV
+> client's links work once the request is SmartTube's ([ADR 49](../adr/0049-signed-in-tv-links-are-served.md)).
+> What stays open is not here: signed-out SABR on the ANDROID endpoint (about 62 s), seeking, and quality tiers, all in
+> [sabr-cannot-seek](sabr-cannot-seek.md), [sabr-as-a-chunk-source](sabr-as-a-chunk-source.md) and [sabr-streaming](sabr-streaming.md).
+> Until 2026-11-14 the other file still said the fix "(a PO token) is not built" and called it the single blocker.
 
 > **2026-09-25: the remaining ceiling is signed-out only.** The embedded endpoint lifted the ~1 MB wall
 > (2026-09-07). For videos that refuse the embedded player, the anonymous ANDROID endpoint still stops at

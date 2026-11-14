@@ -2,11 +2,19 @@
 title: Casting
 kind: feature
 area: playback
-status: prototype
-updated: 2026-11-13
+status: built — in use with the LG and the Chromecast Ultra (fixed from Dewi's diagnostics of 7 to 11 November, ADR 164); the TV volume, the read-ahead, the 12 s step-down, SubRip on the LG and the Pi's casting are not yet seen on a real TV
+updated: 2026-11-14
 ---
 
 # Casting
+
+> **Status correction (2026-11-14).** The status said `prototype` (the index row still dated it 2026-10-21). It has since been used on the
+> real LG and Chromecast Ultra and repaired from phone reports (20261031T100318, 20261101T174143, 20261101T205710 and the diagnostics
+> of 7 to 11 November, [ADR 164](../adr/0164-casting-fixes-from-the-diagnostics-of-7-to-11-november.md)), so "prototype" understated
+> it. Still **not seen on a real TV**, per this doc: the TV's volume (2026-11-06, "Not yet seen on a device"), the read-ahead on a
+> throttled link, the 12 s step-down, SubRip captions on the LG, the PC screen's seek bar against a real phone (ADR 164's own
+> "needs a real TV" list), the 24 fps on 60 Hz judder (still a suspect), and the Pi casting with the same code
+> ([pi-plays-everywhere](pi-plays-everywhere.md): the relay is not yet seen on a real TV).
 
 Cast (the button in the player's top bar) sends what is playing to a Google Cast device. Totum stays the brain: the TV
 plays a stream the phone serves, so Totum's queue, autoplay, boost and position carry on as they do on the phone

@@ -1,9 +1,9 @@
 ---
 title: ✨ Ask (a chat that finds anything to play or download, knowing your taste)
 kind: feature
-status: refining
+status: built — live on the Pi, unit-tested, dry-run against real Haiku; checks on a phone still owed (see the todos)
 area: search
-updated: 2026-11-07
+updated: 2026-11-14
 ---
 
 # ✨ Ask
@@ -38,8 +38,16 @@ ask: YouTube subscriptions, podcasts, followed artists and saved albums, and the
 
 ## Status
 
-Built and tested against a fake brain and once against Haiku on the laptop. Waiting on Dewi's choice of Claude
-account for the Pi (`claude setup-token`); until then the service answers "❌ …" and nothing else changes.
+Built, and running on the Pi. This section said "waiting on Dewi's choice of Claude account for the Pi … until then the
+service answers ❌" and the frontmatter said `refining` until 2026-11-14; both were stale. The first real ask on the Pi
+was on 2026-11-01 ([ADR 109](../adr/0109-ask-haiku-picks-what-the-app-finds-and-ranks-which-copy.md), rounds 5 and 6), and
+[ADR 140](../adr/0140-ask-answers-about-your-own-app-with-jq-only.md) records tool probes made against the live AI service
+(0.1.880) and an nginx check on the Pi on 2026-11-07. The service's credential is `CLAUDE_CODE_OAUTH_TOKEN` in
+`/var/lib/ai-service/claude.env` ([ADR 113](../adr/0113-an-ai-service-on-the-pi-and-health-the-pi-judges.md)). Which
+account that bills to is still recorded as Dewi's call ([ADR 109](../adr/0109-ask-haiku-picks-what-the-app-finds-and-ranks-which-copy.md),
+[pi-model-subscription](../todos/pi-model-subscription.md)). Tests: the Pi's tasks and routes in `:cli`, `AskNotForMeTest`,
+the state pack's redaction tests (see [tests/_index](../tests/_index.md)). Not confirmed from this doc: the Compose and phone
+checks listed as owed in [ask-sees-the-app](../todos/ask-sees-the-app.md) and [ask-about-this-video](../todos/ask-about-this-video.md).
 
 Chats are kept: Ask reopens the last one, and "🕘 Earlier chats" offers the others (newest 20), the latest 3 shown
 with "Show all" to expand in place. ➕ New chat is always in the header (disabled while Ask is busy). Reopening a

@@ -1,10 +1,10 @@
 ---
 title: Not for me
 kind: todo
-status: built
+status: built 2026-11-06, Batch A (tests written 2026-11-07: NotForMeTest, NotForMeSurfacesTest, AskNotForMeTest; the menu action on screen is not covered; not seen on a device)
 batch: A (2026-11)
 priority: medium
-updated: 2026-11-07
+updated: 2026-11-14
 ---
 
 # Not for me

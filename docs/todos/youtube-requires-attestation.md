@@ -3,11 +3,33 @@ title: YouTube now refuses us past the first megabyte
 kind: todo
 area: playback
 priority: critical
-status: open — root cause identified and measured; the fix (a PO token) is not built
-updated: 2026-09-06
+status: answered — no PO token was ever built because none was needed (embedded-player SABR uncapped 2026-09-07; signed-in TV links served with SmartTube's request shape, ADR 49); residual SABR items are open elsewhere (see the correction)
+updated: 2026-11-14
 ---
 
 # Nothing streams, and it is not our code
+
+> **Status correction (2026-11-14).** This file's status read "open — root cause identified and measured; the fix (a PO
+> token) is not built" until today, and its closing sections still say "the single blocker is a PO token". Both were
+> overtaken, and [po-token-minting](po-token-minting.md) (superseded 2026-09-06) already said so:
+>
+> - The ~1 MB wall belonged to the ANDROID/WEB endpoint, not to attestation. SABR sessions now come from the embedded
+>   player, which streams uncapped with **no token** (shipped 2026-09-07; [sabr-stops-at-one-megabyte](sabr-stops-at-one-megabyte.md),
+>   [sabr-cannot-seek](sabr-cannot-seek.md)).
+> - The signed-in TV client's links were refused by the request's shape, not by a missing token: with the web-scale
+>   timestamp, SmartTube's Cobalt agent and `isInlinePlaybackNoAd`, 11 of 11 blocked videos served their links with no PO
+>   token ([ADR 49](../adr/0049-signed-in-tv-links-are-served.md)), and the signed-in
+>   account now answers first with yt-dlp as the backup ([ADR 50](../adr/0050-signed-in-first-yt-dlp-as-backup.md)).
+> - No path that ships needs a PO token, and nothing in the app mints one. The tooling stays in `tools/potoken/`, and the SABR
+>   request can carry a `pot` (`TheRequestCanCarryAPoTokenTest`), but no in-app minter exists. A token would matter only
+>   for **signed-out SABR on the ANDROID endpoint**, which stops at about 62 s of media.
+>
+> **What is genuinely still open** (tracked in its own files, not here): SABR seeking, the
+> [ChunkSource redesign](sabr-as-a-chunk-source.md) and [sabr-cannot-seek](sabr-cannot-seek.md); quality tiers above what
+> the embedded response offers ([sabr-streaming](sabr-streaming.md)); and the "SABR served nothing" failure reopened for a
+> re-check on 2026-10-14 ([sabr-serves-nothing-for-some-videos](sabr-serves-nothing-for-some-videos.md)). The sections
+> below are the investigation as it stood, kept for its reasoning; where one calls a PO token "the single blocker", read
+> it as superseded by the list above.
 
 Dewi, 2026-08-18: *"cant play anything that i havent already downloaded"*, then *"ai video not
 playing???? why not???? seems like I can't play anything???"*.
@@ -501,7 +523,7 @@ distinction matters:
 What it does buy is avoiding the unseekable path, since our SABR cannot seek
 (`sabr-cannot-seek.md`) — a real but much smaller benefit than "it would work".
 
-**The single blocker is a PO token.** Every branch of this investigation now ends at the same place, and
+**The single blocker is a PO token.** *(Superseded 2026-11-14, see the correction at the top: it was not.)* Every branch of this investigation now ends at the same place, and
 the app's job until then is to degrade honestly: fail rather than fake an ending, keep the sound, and say
 which of the two it did.
 

@@ -1,8 +1,8 @@
 ---
 title: Does HDR content cast properly?
 kind: todo
-status: open
-updated: 2026-10-31
+status: open — raised 2026-10-31 to discuss; the file gathers no facts yet and the casting feature doc says nothing about HDR
+updated: 2026-11-14
 ---
 
 # Does HDR content cast properly?

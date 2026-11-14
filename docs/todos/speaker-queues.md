@@ -1,10 +1,10 @@
 ---
 title: 🔈 A second queue on the Pi's speakers
 kind: todo
-status: built 2026-11-07, Batch A (tests owed)
+status: superseded 2026-11-07 by the Pi playing everywhere (ADR 152): folded into `TargetDeck`; Pi-side tests exist (`TargetDeckSpeakerTest`); not checked on a speaker from this doc
 batch: A (2026-11), phase 6: deploy the Pi side and build the phone side
 area: playback
-updated: 2026-11-07
+updated: 2026-11-14
 ---
 
 # 🔈 Speaker queues on the Pi
@@ -31,3 +31,11 @@ Decided (AskUserQuestion, 2026-11-01):
   per-target notification, and Home Assistant calling Totum (dot-files).
 
 Whole-batch review (2026-11-06): folded into [the Pi playing everywhere](pi-plays-everywhere.md) — the phone gets one "📡 Play on…" picker, not a separate speaker switch; `SpeakerDeck` becomes the target-agnostic queue.
+
+## Status correction (2026-11-14)
+
+The status here said "built 2026-11-07, Batch A (tests owed)", which read as a live item with its own tests owed. It is
+closed: the separate speaker queue was folded into the target model ([ADR 152](../adr/0152-a-target-is-anything-the-pi-plays-to-and-each-has-its-own-queue.md);
+`SpeakerDeck` became the target-agnostic `TargetDeck`, `/speakers` became `/targets`), and the speaker behaviour is
+covered by `TargetDeckSpeakerTest` in `:cli`. What remains open for speakers lives in
+[pi-plays-everywhere](pi-plays-everywhere.md) and [play-on-device-picker](play-on-device-picker.md), not here.

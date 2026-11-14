@@ -2,11 +2,18 @@
 title: Live streams
 kind: feature
 area: playback
-status: built 2026-11-06 (starts-soon wait and tag everywhere unpushed, tests owed)
-updated: 2026-11-06
+status: built 2026-11-06 (pushed; registry, live check, refresher and persistence tests written; parser, wait-schedule and watcher tests still owed; not seen on a device)
+updated: 2026-11-14
 ---
 
 # Live streams
+
+> **Status correction (2026-11-14).** The status said "starts-soon wait and tag everywhere unpushed, tests owed". Both commits are on
+> `origin/main` (`a8522f5f` the starts-soon wait, `0f08709a` the registry and refresher, `270f0998` persistence; `git branch -r
+> --contains`), and tests were committed on 2026-11-07 (`45af48cf`: `LiveKindsTest`, `LiveTagTest`, `TheLiveCheckSaysWhatIsHappeningTest`,
+> `TheResolverTellsTheLiveRegistryTest`, `LiveRefresherTest`, `MusicPlaysPlainTest`; instrumented `BatchAScreensTest`,
+> `AllSubscriptionsListTest`). Still not found in the tree: a parser test for `LIVE_STREAM_OFFLINE`, `LiveWaitScheduleTest`,
+> `LiveStartWatcherTest`. Nothing here has been seen on a device.
 
 Plays live YouTube from a manifest Totum builds from the live head ([ADR 69](../adr/0069-live-streams-play-a-manifest-totum-builds.md)),
 at 1x with nothing cut ([live-plays-at-1x.md](../todos/live-plays-at-1x.md)). Listed with the videos and tagged
@@ -77,4 +84,4 @@ rule, `LiveStates.keeps`, serves both pruning and restoring: a live entry is kep
 one 48 h after its scheduled start (12 h after last seen when no start time is known). Before, an upcoming stream was
 dropped 12 h after it was last seen even when it was scheduled for tomorrow. The report has a `live.*` block:
 `live.count` (held by phase), `live.restoredAtStart` and `live.entries` (up to 20 upcoming or live, with start time and
-minutes since last seen). Tests owed: save/restore round trip, age rules at the boundary, the diagnostics block.
+minutes since last seen). Covered by `LiveStatesPersistenceTest` (the save/restore round trip, the twelve-hour and two-day age rules, an unreadable file, the report block); this line said "Tests owed" until 2026-11-14.

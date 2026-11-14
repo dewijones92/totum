@@ -1,10 +1,10 @@
 ---
 title: Undo after every remove
 kind: todo
-status: built
+status: built 2026-11-06, Batch A (tests written 2026-11-07: PendingDownloadDeletesTest, AskChatUndoTest, LocalPlaylistDetailUndoTest and the Room/store tests; playlist-page Delete then Undo and the snackbar not covered or seen on a device)
 batch: A (2026-11)
 priority: medium
-updated: 2026-11-07
+updated: 2026-11-14
 ---
 
 # Undo after every remove

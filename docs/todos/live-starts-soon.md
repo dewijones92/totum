@@ -4,7 +4,7 @@ kind: todo
 status: built 2026-11-06, Batch A (tests owed, not seen on a device)
 batch: A (2026-11)
 priority: medium
-updated: 2026-11-06
+updated: 2026-11-14
 ---
 
 # A live stream that hasn't started says so, and calls you when it does
@@ -27,3 +27,9 @@ give-up, too far ahead), `UpcomingLivesTest` (note, refresh, clear on resolve, 1
 yt-dlp refusal notes it; a resolve clears it), `InnerTubePlayerStreamsTest` (`liveCheck` Live / StillUpcoming / Unknown),
 `LiveStartWatcherTest` (waits only for an upcoming tap, one wait per video, notifies on live, gives up after 6 h),
 `ARefusedTapSaysSoTest` (a peek that fails now toasts; the tap carries its video id).
+
+Test status check (2026-11-14): of the tests listed as still to add, those that exist now are `ARefusedTapSaysSoTest` and, for the
+registry, `LiveStatesTest`, `LiveStatesPersistenceTest`, `TheResolverTellsTheLiveRegistryTest` and
+`TheLiveCheckSaysWhatIsHappeningTest` (the live check, upcoming and unknown). Not found in the tree: a `PlayerResponseParserTest` case for
+`LIVE_STREAM_OFFLINE` / "will begin in a few moments", `LiveWaitScheduleTest`, `LiveStartWatcherTest`. So "tests owed" stays true for the
+parser, the wait schedule and the watcher.

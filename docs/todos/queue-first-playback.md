@@ -1,11 +1,11 @@
 ---
 title: Queue-first playback (AntennaPod-style) + Queue tab
 kind: todo
-status: in-progress
+status: shipped — the frontmatter said "in-progress" until 2026-11-14 although the index and feature doc said shipped
 area: playback
 priority: high
 requested: 2026-07-24
-updated: 2026-07-25
+updated: 2026-11-14
 ---
 
 # Queue-first playback + a Queue tab
@@ -160,7 +160,10 @@ so `input motionevent DOWN/MOVE/UP` was needed): a ~535px drag moved the top row
 one place and persisted immediately; a ~585px drag moved it two places, confirming the
 multi-swap loop. Both landed in the DB with no separate commit step.
 
-### Not yet done
+### Not yet done (corrected 2026-11-14: done)
 
-Routing Search-result taps through the queue (search plays an ad-hoc item with no
-stable id yet).
+Routing Search-result taps through the queue was the one open item. It is done: a search hit plays through
+`queue.playNow` (`SearchViewModel`, "queue.playNow(PlayableItem(item, PlayHandle.Video(watchUrl)), quiet = true)"), and
+search hits have had stable video ids since `94463e75` (see [search-video-hit-ids](search-video-hit-ids.md)). The
+`status` above was "in-progress" until 2026-11-14 although the index and [playback-queue](../features/playback-queue.md)
+had said shipped for months.

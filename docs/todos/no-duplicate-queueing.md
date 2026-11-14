@@ -1,10 +1,10 @@
 ---
 title: Already queued? Say so
 kind: todo
-status: built
+status: built 2026-11-06, Batch A (tests written 2026-11-07: AlreadyQueuedNoticesTest; the shell collector QueueNoticeToasts is not covered; not seen on a device)
 batch: A (2026-11)
 priority: medium
-updated: 2026-11-07
+updated: 2026-11-14
 ---
 
 # Already queued? Say so

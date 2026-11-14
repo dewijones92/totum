@@ -1,9 +1,9 @@
 ---
 title: Triage of the AI feature-gap review
 kind: todo
-status: refining
+status: triaged 2026-07-27 — seven of the nine "Agree" rows are marked DONE 2026-07-27; the played/unplayed flag and private feeds carry no outcome in this file
 area: planning
-updated: 2026-07-27
+updated: 2026-11-14
 ---
 
 # Triage: which of the AI review's gaps actually make sense

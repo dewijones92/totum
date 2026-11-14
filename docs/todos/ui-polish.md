@@ -1,11 +1,11 @@
 ---
 title: UI polish — transient overlay controls, and other candidates
 kind: todo
-status: refining
+status: partly shipped — the quality/speed overlay (2026-07-25), mini player, motion, queue marker, and queue removal as a menu action (swipe withdrawn 2026-09-15); open: the channel avatar on the go-to action, and any wider sweep
 area: ui
 priority: medium
 requested: 2026-07-25
-updated: 2026-09-15
+updated: 2026-11-14
 ---
 
 # Make the UI nicer

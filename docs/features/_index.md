@@ -1,7 +1,7 @@
 ---
 title: Features
 kind: index
-updated: 2026-11-07
+updated: 2026-11-14
 ---
 
 # Features
@@ -12,20 +12,20 @@ alone until they need more.
 
 | Feature | Area | Status | Detail |
 |---|---|---|---|
-| 📡 The Pi plays to targets: speakers, TVs and Chromecasts each with their own queue, chips and colours in the Queue tab, Send to…, the phone's skip-silence and boost run on the Pi, YouTube progress reported only for the owner's phone; plus 🎞️ Jellyfin browse and play from the Library | casting/pi | built 2026-11-07 (ADRs 152-154; tests owed, nothing run on a real TV, speaker or Chromecast) | [pi-plays-everywhere.md](pi-plays-everywhere.md) |
-| 🧳 Trip mode: say when you leave and how many per group; on Wi-Fi the phone fetches the next few of every queue group as one strip task and copies what the Pi has ready through the Pi copy path | downloads | built 2026-11-07, Batch A (ADR 149; tests owed; not run on a device) | [trip-mode.md](trip-mode.md) |
-| 👶📺 Kid TV: a Library tile casts a chosen pinned playlist to a chosen TV in kid mode with one tap (1x, no silence skipping, the playlist loops, the phone stays free); choices on a page | casting/kids | built 2026-11-07, Batch A (ADR 148; tests owed; not run on a TV) | [kid-tv-button.md](kid-tv-button.md) |
+| 📡 The Pi plays to targets: speakers, TVs and Chromecasts each with their own queue, chips and colours in the Queue tab, Send to…, the phone's skip-silence and boost run on the Pi, YouTube progress reported only for the owner's phone; plus 🎞️ Jellyfin browse and play from the Library | casting/pi | built 2026-11-07 (ADRs 152-154; tests written 2026-11-07; nothing run on a real TV, speaker or Chromecast) | [pi-plays-everywhere.md](pi-plays-everywhere.md) |
+| 🧳 Trip mode: say when you leave and how many per group; on Wi-Fi the phone fetches the next few of every queue group as one strip task and copies what the Pi has ready through the Pi copy path | downloads | built 2026-11-07, Batch A (ADR 149; tests written; not run on a device) | [trip-mode.md](trip-mode.md) |
+| 👶📺 Kid TV: a Library tile casts a chosen pinned playlist to a chosen TV in kid mode with one tap (1x, no silence skipping, the playlist loops, the phone stays free); choices on a page | casting/kids | built 2026-11-07, Batch A (ADR 148; tests written; not run on a TV) | [kid-tv-button.md](kid-tv-button.md) |
 | A draft post and demo-video script for an AI subreddit, in `docs/drafts/` (never posted) | publishing | built 2026-11-07, Batch A (drafts only) | [subreddit-draft.md](subreddit-draft.md) |
 | ❤️ Sponsor Totum: a Settings row that opens the sponsor page, drawn only when the build carries a usable https link (`totum.sponsorUrl`) | publishing | live 2026-11-13, Batch B (ADR 147; the link is https://ko-fi.com/totum) | [sponsor-button.md](sponsor-button.md) |
-| Licence and reporting: GPL-3.0 with third-party notices; reports go to the Pi only from a phone signed in to the home server, everyone else gets 🐙 Report on GitHub (a redacted preview, copied, the new-issue form opened) | publishing | built 2026-11-07, Batch A (ADR 146; tests owed) | [licence-and-reports.md](licence-and-reports.md) |
-| 🌅 The morning job: a daily 🤖 For you playlist (videos and podcasts from outside your subscriptions, picked by Haiku from what you watch, star and like, found by the app's own search) and a 🌅 digest notification (two lines on what is new in your groups, replacing the per-video group notifications while on) | ai | built 2026-11-07 (ADR 143; tests owed, not seen on a device) | [morning-job.md](morning-job.md) |
-| ✨ TL;DR, chapters and ask about this video: a three-line summary with tap-to-jump chapters and "what did they say about X?" with moments to seek to, in the Transcript tab, kept per item | ai/player | built 2026-11-07 (ADR 142; tests owed, not seen on a device) | [transcript-digest.md](transcript-digest.md) |
-| 🙈 Spoiler shield: for channels you choose, titles rewritten without the result (names in a fixed order), pictures blurred, lengths hidden until watched, through one title seam every surface reads | ai/video | built 2026-11-07 (ADR 141; tests owed, not seen on a device) | [spoiler-shield.md](spoiler-shield.md) |
+| Licence and reporting: GPL-3.0 with third-party notices; reports go to the Pi only from a phone signed in to the home server, everyone else gets 🐙 Report on GitHub (a redacted preview, copied, the new-issue form opened) | publishing | built 2026-11-07, Batch A (ADR 146; tests written 2026-11-07; device checks owed) | [licence-and-reports.md](licence-and-reports.md) |
+| 🌅 The morning job: a daily 🤖 For you playlist (videos and podcasts from outside your subscriptions, picked by Haiku from what you watch, star and like, found by the app's own search) and a 🌅 digest notification (two lines on what is new in your groups, replacing the per-video group notifications while on) | ai | built 2026-11-07 (ADR 143; JVM tests written 2026-11-07, not seen on a device) | [morning-job.md](morning-job.md) |
+| ✨ TL;DR, chapters and ask about this video: a three-line summary with tap-to-jump chapters and "what did they say about X?" with moments to seek to, in the Transcript tab, kept per item | ai/player | built 2026-11-07 (ADR 142; JVM tests written 2026-11-07, not seen on a device) | [transcript-digest.md](transcript-digest.md) |
+| 🙈 Spoiler shield: for channels you choose, titles rewritten without the result (names in a fixed order), pictures blurred, lengths hidden until watched, through one title seam every surface reads | ai/video | built 2026-11-07 (ADR 141; JVM tests written 2026-11-07, not seen on a device) | [spoiler-shield.md](spoiler-shield.md) |
 | Smooth video at any speed: the decoder and the screen are told each video's frame rate (worked out from the frames when the file gives none), and the screen runs at the rate that shows them evenly | playback | ✅ shipped 2026-11-06 (ADR 139) | [video-frame-rate.md](video-frame-rate.md) |
-| Live streams: play from the live head at 1x; one that has not started says "🔴 Starts soon", is waited for politely (progress strip, Cancel) and calls you when live; the 🔴 LIVE / ⏺️ WAS LIVE tag is the same everywhere and kept true | playback | built 2026-11-06 (ADR 69 amended, ADR 132; tests owed) | [live-streams.md](live-streams.md) |
-| 🎥 Totum recorder: screen, voice, face bubble and shown taps from an icon, saved to Movies/Totum with Share and Open | app | built 2026-11-06 (ADR 135; tests owed, not run on a device) | [totum-recorder.md](totum-recorder.md) |
-| Live streams: play from the live head at 1x; one that has not started says "🔴 Starts soon", is waited for politely (progress strip, Cancel) and calls you when live | playback | built 2026-11-06 (ADR 69 amended; tests owed) | [live-streams.md](live-streams.md) |
-| Casting with Totum's processing (DASH from the phone: original video packets, processed audio) | playback | prototype 2026-10-21 — YouTube video + boost on the LG and Chromecast Ultra, skip silences for talk, speed, TV seek/next, queue autoplay, stop/restart (ADR 68) | [casting.md](casting.md) |
+| Live streams: play from the live head at 1x; one that has not started says "🔴 Starts soon", is waited for politely (progress strip, Cancel) and calls you when live; the 🔴 LIVE / ⏺️ WAS LIVE tag is the same everywhere and kept true | playback | built 2026-11-06 (ADR 69 amended, ADR 132; registry, live check, refresher and persistence tests written; parser, wait-schedule and watcher tests owed) | [live-streams.md](live-streams.md) |
+| 🎥 Totum recorder: screen, voice, face bubble and shown taps from an icon, saved to Movies/Totum with Share and Open | app | built 2026-11-06 (ADR 135; pure-rule tests written 2026-11-07, not run on a device) | [totum-recorder.md](totum-recorder.md) |
+| Live streams: play from the live head at 1x; one that has not started says "🔴 Starts soon", is waited for politely (progress strip, Cancel) and calls you when live | playback | built 2026-11-06 (ADR 69 amended, ADR 132; registry, live check, refresher and persistence tests written; parser, wait-schedule and watcher tests owed) | [live-streams.md](live-streams.md) |
+| Casting with Totum's processing (DASH from the phone: original video packets, processed audio) | playback | built (prototype 2026-10-21; in use on the LG and Chromecast Ultra since, ADR 164) — several parts not yet seen on a real TV | [casting.md](casting.md) |
 | Stats (listens, side quests, app use) | library | built 2026-10-14 — Library → 📊 Stats from an event log, with drill-downs (ADR 44) | [stats.md](stats.md) |
 | 📱 Phone use: unlocks and screen time from Android's usage history in Stats, and an optional "still want in?" nudge when you unlock again soon | library | built 2026-11-13 (ADR 160; needs Usage access; checked on totum-api35) | [phone-use.md](phone-use.md) |
 | Downloads clean-up suggestions | downloads | built 2026-10-13 — four groups, review then delete, dequeues what it deletes | [downloads-cleanup.md](downloads-cleanup.md) |
@@ -54,12 +54,12 @@ alone until they need more.
 | Unified search (iTunes + InnerTube search, yt-dlp fallback → `SearchHit`) | search | shipped | — |
 | Search history (recent queries in every search box: main, list filters, channel, transcript) | search | shipped | [search-history.md](search-history.md) |
 | Torrents: public-domain film & TV via the home server | torrent | shipped | [torrents.md](torrents.md) |
-| ✨ Ask: say what you want, Haiku picks, the app finds the copies, you confirm; or ask about your own queue, history, downloads and stats | search | refining | [ask.md](ask.md) |
-| 🏠 Downloads at home: the Pi downloads anything, plays from home, copies to the phone on Wi-Fi | downloads | refining | [downloads-at-home.md](downloads-at-home.md) |
+| ✨ Ask: say what you want, Haiku picks, the app finds the copies, you confirm; or ask about your own queue, history, downloads and stats | search | built — live on the Pi; phone checks owed | [ask.md](ask.md) |
+| 🏠 Downloads at home: the Pi downloads anything, plays from home, copies to the phone on Wi-Fi | downloads | built — proven end to end 2026-10-31; 2026-11-13 fixes not run against the live TorrServer | [downloads-at-home.md](downloads-at-home.md) |
 | Audiobooks: free books (LibriVox, Internet Archive) and audiobook torrents, chapters in order with resume | search | shipped | [audiobooks.md](audiobooks.md) |
 | [Daily alarms](daily-alarms.md) — asked each weekday morning, rung full screen (pickup 17:30 first) | side-quest | built 2026-10-07, ships off | — |
-| 🔕 Work apps quiet hours: groups of apps (Work: Slack, Outlook, Teams; others) each snoozed outside their own hours, one status line on the alarm board, a notification at each change | side-quest | built 2026-11-06 (groups and change notifications too), ships off, tests owed | [work-apps-quiet-hours.md](work-apps-quiet-hours.md) |
-| 🌙 Bedtime sleep timer: the sleep timer arms itself at night (stop after the current item), and every sleep timer fades out | player | built 2026-11-06, ships off, tests owed (ADR 133) | [bedtime-sleep-timer.md](bedtime-sleep-timer.md) |
+| 🔕 Work apps quiet hours: groups of apps (Work: Slack, Outlook, Teams; others) each snoozed outside their own hours, one status line on the alarm board, a notification at each change | side-quest | built 2026-11-06 (groups and change notifications too), ships off, tests written 2026-11-07 | [work-apps-quiet-hours.md](work-apps-quiet-hours.md) |
+| 🌙 Bedtime sleep timer: the sleep timer arms itself at night (stop after the current item), and every sleep timer fades out | player | built 2026-11-06, ships off, tests written 2026-11-07 (ADR 133) | [bedtime-sleep-timer.md](bedtime-sleep-timer.md) |
 | Downloads (video merge, sponsors skipped live from the latest list (ADR 16) / podcast enclosure) | downloads | shipped | — |
 | Comments, related, like/dislike, Watch Later, subscribe | video | shipped | — |
 | Playlists (account) | video | shipped | — |
@@ -105,17 +105,17 @@ alone until they need more.
 | Subtitles / captions (menu on the video, cues over the picture) | playback | shipped | [subtitles.md](subtitles.md) |
 | Audio tracks: the right language by default, and a menu to change it | playback | shipped | [audio-tracks.md](audio-tracks.md) |
 | Periodic jobs: one `PeriodicJob` helper and a persisted last run ("✅ checked 2 days ago") | platform | built 2026-11-06 (tests owed; ADR 129) | [periodic-jobs.md](periodic-jobs.md) |
-| The queue tidies itself weekly (played talk older than 14 days, failed downloads) | queue | built 2026-11-06 (tests owed) | [queue-tidy-up.md](queue-tidy-up.md) |
+| The queue tidies itself weekly (played talk older than 14 days, failed downloads) | queue | built 2026-11-06 (tests written 2026-11-07) | [queue-tidy-up.md](queue-tidy-up.md) |
 | Backups are test-read weekly ("✅ Backup checked 2 days ago") | backup | built 2026-11-06 (tests owed) | [backup-checked.md](backup-checked.md) |
 | A daily mobile-data limit (video plays as sound only past it; 📶 chip) | playback | built 2026-11-06 (tests owed; counter not yet seen on a phone) | [mobile-data-budget.md](mobile-data-budget.md) |
 | Search in Settings (fuzzy, jumps to the row or opens its page) | settings | built 2026-11-06 | [settings-search.md](settings-search.md) |
-| Share and copy link on every item menu; a group shares its list of titles | app | built 2026-11-06 (tests owed; ADR 134) | [share-link.md](share-link.md) |
-| The queue says how many items play with no signal (✈️ chip) and filters to them | queue | built 2026-11-06 (tests owed; ADR 136) | [offline-playable-chip.md](offline-playable-chip.md) |
-| A ▶️ Carry on row tops the Library: half-watched items, newest first | library | built 2026-11-06 (tests owed; ADR 137) | [carry-on-row.md](carry-on-row.md) |
-| Each queue group says how long is left (⏳ 4 h 12 min left at 2x, or at least) | queue | built 2026-11-06 (tests owed; ADR 138) | [group-time-left.md](group-time-left.md) |
+| Share and copy link on every item menu; a group shares its list of titles | app | built 2026-11-06 (tests written 2026-11-07; ADR 134) | [share-link.md](share-link.md) |
+| The queue says how many items play with no signal (✈️ chip) and filters to them | queue | built 2026-11-06 (tests written 2026-11-07; ADR 136) | [offline-playable-chip.md](offline-playable-chip.md) |
+| A ▶️ Carry on row tops the Library: half-watched items, newest first | library | built 2026-11-06 (tests written 2026-11-07; ADR 137) | [carry-on-row.md](carry-on-row.md) |
+| Each queue group says how long is left (⏳ 4 h 12 min left at 2x, or at least) | queue | built 2026-11-06 (tests written 2026-11-07; ADR 138) | [group-time-left.md](group-time-left.md) |
 | The mini player shows every mode that is on (🔂 🔁 🔀 🧭 ⏩ 👶 🔕 ⏰); the notification shows 🔂 | player | built 2026-11-06 (tests to follow) | [active-modes.md](active-modes.md) |
-| The playback notification and lock screen say "⏭️ Next: …" (from the queue, refreshed on every queue edit; 🔂 replaces it under repeat one) | player | built 2026-11-06 (tests to follow; device check owed; ADR 131) | [next-in-notification.md](next-in-notification.md) |
-| Tap the title (or long-press the mini player) to see why this is playing: tapped, next in the group, Explore, repeat, radio, new upload … | player | built 2026-11-06 (tests to follow; emulator look owed; ADR 131) | [why-is-this-playing.md](why-is-this-playing.md) |
+| The playback notification and lock screen say "⏭️ Next: …" (from the queue, refreshed on every queue edit; 🔂 replaces it under repeat one) | player | built 2026-11-06 (tests written 2026-11-07; device check owed; ADR 131) | [next-in-notification.md](next-in-notification.md) |
+| Tap the title (or long-press the mini player) to see why this is playing: tapped, next in the group, Explore, repeat, radio, new upload … | player | built 2026-11-06 (tests written 2026-11-07; emulator look owed; ADR 131) | [why-is-this-playing.md](why-is-this-playing.md) |
 | A group page shows its last list while refreshing (kept on disk) | video | built 2026-11-06 (tests to follow) | [group-page.md](group-page.md) |
 | Settings that stay put across the next video (speed, boost, captions, quality, track) | playback | shipped | [settings-that-stay-put.md](settings-that-stay-put.md) |
 | Command line: `totum "jazz live stream"` on Linux/macOS, same libraries as the app | cli | shipped | [command-line.md](command-line.md) |

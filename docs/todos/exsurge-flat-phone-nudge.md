@@ -1,11 +1,11 @@
 ---
 title: Exsurge nudges when the phone has lain flat while it is off
 kind: todo
-status: built 2026-10-14 — ADRs 37, 38
+status: built 2026-10-14 — ADR 37 (the nudge, still live); ADR 38 (off for today) was superseded by ADR 71 on 2026-10-22
 area: side-quest
 priority: high
 requested: 2026-10-14
-updated: 2026-10-14
+updated: 2026-11-14
 ---
 
 # A nudge when you have sat down and Exsurge is off
@@ -30,3 +30,7 @@ silent always-present banner.
   process, a short exact alarm sampling window, or `TYPE_STATIONARY_DETECT` where the phone has it.
   Measure battery on the Pixel before calling it done.
 - Log every decision: flat since, still since, nudged or why not (outside hours, already nudged, on).
+
+Status check (2026-11-14): the status named ADR 38 as part of what was built. ADR 38 ("off means off for today") was superseded on
+2026-10-22 by [ADR 71](../adr/0071-exsurge-off-stays-off-and-reminds-once-a-day.md): off now stays off and reminds once a day, and
+ADR 71 says the flat-phone "Sat down?" nudge (ADR 37) stays as it is.

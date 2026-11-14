@@ -1,13 +1,19 @@
 ---
 title: The hour-long live test stalls about nine seconds in, on CI only
 kind: todo
-status: cause found 2026-10-14 (one request at play start drips); re-ask fix committed (ADR 33); the next CI run is the proof
+status: cause found 2026-10-14 (one request at play start drips); re-ask fix pushed (ADR 33, 3aadcf7a is on origin/main); no CI run has yet been confirmed to prove it
 area: playback
 priority: high — it is the standing reason CI is red on main
-updated: 2026-10-14
+updated: 2026-11-14
 ---
 
 # `AnHourLongItemDoesNotRebufferTest` stalls early, on CI
+
+> **Status correction (2026-11-14).** The index said the fix was "committed (ADR 33), unpushed". It is pushed:
+> `3aadcf7a` ("ask again for a range that drips, from the byte it reached", 2026-10-14) is an ancestor of `origin/main`
+> (`git branch -r --contains 3aadcf7a`). "The next CI run is the proof" is still unsettled: pushes do not run the live phase, and
+> in the nightly run of 2026-11-13 (run 43404540517) the only failing test annotation was `CastingFivePointOneSoundTest`, with no
+> mention of this test; whether it ran and passed there is not confirmed from the log.
 
 ## Cause found (2026-10-14)
 

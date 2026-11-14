@@ -1,7 +1,7 @@
 ---
 title: Backlog
 kind: index
-updated: 2026-11-07
+updated: 2026-11-14
 ---
 
 # Backlog
@@ -13,14 +13,14 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 |---|---|---|---|
 | [Batch A, November 2026: the plan and its order](batch-a-2026-11.md) | batch | high | decided 2026-11-06 |
 | [Consistency leftovers (ADR 108)](consistency-leftovers.md) | ui | medium | swept 2026-11-13: 3 fixed, 8 open |
-| [🎥 Totum recorder](totum-recorder.md) | app | medium | built 2026-11-06, Batch A (tests owed) |
-| [🔴 LIVE everywhere, kept up to date](live-tag-everywhere.md) | video | medium | built 2026-11-06, Batch A (tests owed) |
-| [Stored links no longer carry the old shared token](scrub-old-token-from-links.md) | pi/security | medium | decided 2026-11-06, Batch A |
+| [🎥 Totum recorder](totum-recorder.md) | app | medium | built 2026-11-06, Batch A (tests written 2026-11-07: the pure rules and the stores; not run on a device) |
+| [🔴 LIVE everywhere, kept up to date](live-tag-everywhere.md) | video | medium | built 2026-11-06, Batch A (tests written 2026-11-07; not seen on a device) |
+| [Stored links no longer carry the old shared token](scrub-old-token-from-links.md) | pi/security | medium | built 2026-11-06, Batch A (the old token retired on the Pi the same day; not yet on a phone) |
 | [Queued tracks keep their artist](queued-tracks-keep-their-artist.md) | music/queue | medium | built 2026-11-06, Batch A (tests owed) |
-| [A live stream that hasn't started says so](live-starts-soon.md) | playback | medium | built 2026-11-06, Batch A (tests owed) |
+| [A live stream that hasn't started says so](live-starts-soon.md) | playback | medium | built 2026-11-06, Batch A (tests owed for the parser, the wait schedule and the watcher; the registry and the refused-tap toast have tests; not seen on a device) |
 | [📡 The Pi plays to any TV, browser or speaker](pi-plays-everywhere.md) | casting/pi | high | built 2026-11-07, Batch A (tests written 2026-11-07; device checks owed) |
-| [▶️ Play on… on every play and queue action](play-on-device-picker.md) | casting/pi | high | built 2026-11-13, Batch B P4 (device checks owed) |
-| [🖥️ A browser is a Play on… target, at home and away](browser-target.md) | casting/pi | high | built 2026-11-13, Batch B P9 (home network; away from home decided, not built) |
+| [▶️ Play on… on every play and queue action](play-on-device-picker.md) | casting/pi | high | built 2026-11-13, Batch B P4 (unit tests green; instrumented tests written and compiled; nothing run on a real TV, soundbar or the Soundmic) |
+| [🖥️ A browser is a Play on… target (open the Pi's address in any browser)](browser-target.md) | casting/pi | high | built 2026-11-13, Batch B P9 (home network only; away from home decided, not built; real-device checks owed) |
 | [📺 Cast to Apple TV (AirPlay) and DLNA players too](cast-to-airplay-and-dlna.md) | casting/pi | medium | backlog (to discuss), 2026-11-13 |
 | [🔊 Home Assistant's sounds play through Totum](home-assistant-sounds-through-totum.md) | casting/pi | high | Totum side built 2026-11-07 (live waits for the casting-brain move), adapter not deployed |
 | [A daily 🤖 For you feed](for-you-feed.md) | ai | medium | built 2026-11-07, Batch A (tests written 2026-11-07; device checks owed) |
@@ -29,13 +29,13 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [A morning digest of what's new](morning-digest.md) | ai | low | built 2026-11-07, Batch A (tests written 2026-11-07; device checks owed) |
 | [A spoiler shield for sport](tennis-spoiler-shield.md) | ai/video | medium | built 2026-11-07, Batch A (tests written 2026-11-07; device checks owed) |
 | [Jellyfin's films and series inside Totum](jellyfin-in-totum.md) | home | medium | built 2026-11-07, Batch A (tests written 2026-11-07; device checks owed) |
-| [Trip mode](trip-mode.md) | downloads | low | built 2026-11-07, Batch A (ADR 149; tests owed; not run on a device) |
-| [One tap puts the kid playlist on the TV](kid-tv-button.md) | casting/kids | low | built 2026-11-07, Batch A (ADR 148; tests owed; not run on a TV) |
-| [A bedtime sleep timer](bedtime-sleep-timer.md) | player | low | built 2026-11-06, Batch A (ADR 133); tests owed |
+| [Trip mode](trip-mode.md) | downloads | low | built 2026-11-07, Batch A (ADR 149; tests written; not run on a device) |
+| [One tap puts the kid playlist on the TV](kid-tv-button.md) | casting/kids | low | built 2026-11-07, Batch A (ADR 148; tests written; not run on a TV) |
+| [A bedtime sleep timer](bedtime-sleep-timer.md) | player | low | built 2026-11-06, Batch A (ADR 133; tests written 2026-11-07) |
 | [Ready for other people: licence and reports](publish-licence-and-reports.md) | publishing | medium | built 2026-11-07, Batch A (tests written 2026-11-07; device checks owed) |
-| [A ❤️ Sponsor button](sponsor-button.md) | publishing | low | built 2026-11-07, Batch A (tests written 2026-11-07; device checks owed); hidden until the link is set |
+| [A ❤️ Sponsor button](sponsor-button.md) | publishing | low | live 2026-11-13, Batch B (ADR 147; the link is https://ko-fi.com/totum; device checks owed) |
 | [A post and video script for an AI subreddit](subreddit-video-draft.md) | publishing | low | built 2026-11-07, Batch A (drafts only; Dewi edits and posts) |
-| [Live streams play at 1x with no silence skipping](live-plays-at-1x.md) | playback | high | built 2026-11-06, Batch A (tests owed) |
+| [Live streams play at 1x with no silence skipping](live-plays-at-1x.md) | playback | high | built 2026-11-06, Batch A (tuning covered by MusicPlaysPlainTest; the route-label test and a controller-level check still owed) |
 | [✨ Ask: the restore crash, and a chat list that hides the input](ask-restore-race-and-chat-list.md) | ai | high | built 2026-11-06, Batch A (tests owed) |
 | [Playing or queueing a Pi item never copies it to the phone](pi-files-never-copied-by-playing.md) | downloads/home | high | built 2026-11-06, Batch A (tests owed) |
 | [A Pi copy casts with its picture](cast-home-copy-picture.md) | casting | high | built 2026-11-06, Batch A (ADR 122); tests to follow |
@@ -46,31 +46,31 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [Resuming a paused item takes YouTube's newer place](resume-from-account-position.md) | sync | high | built 2026-11-06 (tests owed), Batch A |
 | [Every pause and cast drop says why; a flight recorder](pause-and-cast-drop-reasons.md) | diagnostics | high | built 2026-11-06, Batch A (ADR 120); tests and device checks to follow |
 | [The PC screen knows both phones](pc-screen-two-phones.md) | casting/pi | high | built 2026-11-06, Batch A (tests still to add) |
-| [The AI service decides which tools a caller may use](ai-service-tool-allowlist.md) | pi/security | high | decided 2026-11-06, Batch A |
-| [Slack, Outlook and Teams stay quiet outside work hours](work-apps-quiet-hours.md) | side-quest | high | built 2026-11-06 with groups and change notifications (ADR 124 amended), Batch A; tests owed |
+| [The AI service decides which tools a caller may use](ai-service-tool-allowlist.md) | pi/security | high | built 2026-11-06, Batch A (in the service and its unit tests; Pi deployment unconfirmed from this repo) |
+| [Slack, Outlook and Teams stay quiet outside work hours](work-apps-quiet-hours.md) | side-quest | high | built 2026-11-06 with groups and change notifications (ADR 124 amended), Batch A (tests written 2026-11-07; device checks owed) |
 | [Every download says what, from where, to where; Move to Pi moves the file](download-wording-and-moves.md) | downloads | high | built 2026-11-06, Batch A (ADR 126); Pi deploy, nginx body limit and tests to follow |
 | [The codec beside every quality; AV1 first when the hardware decodes it](codec-everywhere.md) | video | high | built 2026-11-06, Batch A (ADR 127); tests owed, not seen on a device |
 | [TV volume from the phone; the strip says what is cast](tv-volume-and-cast-strip.md) | casting | medium | built 2026-11-06, Batch A; tests owed, not seen on a device |
 | [Search results as tabs](search-results-tabs.md) | search | medium | built 2026-11-06, Batch A; tests to follow |
-| [Subtitles off stays off until turned on](subtitles-off-stays-off.md) | player | medium | built 2026-11-06, Batch A (ADR 123); tests to follow |
+| [Subtitles off stays off until turned on](subtitles-off-stays-off.md) | player | medium | built 2026-11-06, Batch A (ADR 123; CaptionPreferenceTest inverted and extended; the settings round trip, backup restore and a device check still owed) |
 | [A group page shows its last list while refreshing](group-page-last-list.md) | video | medium | built 2026-11-06, Batch A; tests to follow |
 | [The queue tidies itself](queue-tidy-up.md) | queue | medium | built 2026-11-06, Batch A |
 | [The mini player shows every mode that is on](sticky-modes-row.md) | player | high | built 2026-11-06, Batch A (ADR 125); tests to follow |
-| [Why is this playing?](why-is-this-playing.md) | player | medium | built 2026-11-06, Batch A (tests owed) |
+| [Why is this playing?](why-is-this-playing.md) | player | medium | built 2026-11-06, Batch A (tests written 2026-11-07; emulator look owed) |
 | [What's new after an update](whats-new-card.md) | app | medium | built 2026-11-06, Batch A (ADR 130); first card needs a CI release carrying the notes; tests to follow |
 | [A Quick Settings tile sends a Totum report](send-report-tile.md) | diagnostics | medium | built 2026-11-06, Batch A; tests and a device run to follow |
 | [Search in Settings](settings-search.md) | settings | low | built 2026-11-06, Batch A; tests to follow |
 | [Update straight from the banner](in-app-updater.md) | app | high | built 2026-11-06, Batch A (ADR 130); tests and a device run to follow |
-| [Undo after every remove](undo-everywhere.md) | app | medium | built 2026-11-06, Batch A; tests to follow |
-| [Offline at a glance](offline-playable-chip.md) | queue | medium | built 2026-11-06, Batch A (tests owed) |
+| [Undo after every remove](undo-everywhere.md) | app | medium | built 2026-11-06, Batch A (tests written 2026-11-07; the playlist page Delete then Undo and the snackbar are not covered) |
+| [Offline at a glance](offline-playable-chip.md) | queue | medium | built 2026-11-06, Batch A (tests written 2026-11-07) |
 | [A daily mobile-data budget](mobile-data-budget.md) | playback | medium | built 2026-11-06, Batch A |
 | [Backups are test-read weekly](backup-checked.md) | backup | medium | built 2026-11-06, Batch A |
-| [Share and copy link on every item](share-link-everywhere.md) | app | medium | built 2026-11-06, Batch A (tests owed) |
-| [A Carry on row in Library](carry-on-row.md) | library | medium | built 2026-11-06, Batch A (tests owed) |
-| [Already queued? Say so](no-duplicate-queueing.md) | queue | medium | built 2026-11-06, Batch A; tests to follow |
-| [Time left per queue group](group-time-left.md) | queue | low | built 2026-11-06, Batch A (tests owed) |
-| [What's next, in the notification](next-in-notification.md) | player | low | built 2026-11-06, Batch A (tests owed) |
-| [Not for me](not-for-me.md) | queue | medium | built 2026-11-06, Batch A; tests to follow |
+| [Share and copy link on every item](share-link-everywhere.md) | app | medium | built 2026-11-06, Batch A (tests written 2026-11-07) |
+| [A Carry on row in Library](carry-on-row.md) | library | medium | built 2026-11-06, Batch A (tests written 2026-11-07) |
+| [Already queued? Say so](no-duplicate-queueing.md) | queue | medium | built 2026-11-06, Batch A (tests written 2026-11-07; the toast collector is not covered) |
+| [Time left per queue group](group-time-left.md) | queue | low | built 2026-11-06, Batch A (tests written 2026-11-07) |
+| [What's next, in the notification](next-in-notification.md) | player | low | built 2026-11-06, Batch A (tests written 2026-11-07; device check owed) |
+| [Not for me](not-for-me.md) | queue | medium | built 2026-11-06, Batch A (tests written 2026-11-07; the menu action on screen is not covered) |
 | [✨ Ask can answer about your own app](ask-sees-the-app.md) | ai | high | built 2026-11-07, Batch A (tests written 2026-11-07; device checks owed) |
 | [Torrent results say whether they look trustworthy](torrent-trust-badges.md) | torrents | high | ✅ shipped 2026-10-30 (ADR 101) |
 | [Work still done on the main thread](main-thread-work.md) | performance | medium | ⏳ partly fixed 2026-10-30 (parsing, Room maps, diagnostics send) |
@@ -93,9 +93,9 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [One-off alarms, set in two taps](one-off-alarms.md) | side-quest | high | built 2026-10-28 (ADR 91) |
 | [Nightly reminders (close the fridge) and a one-tap alarm page](reminders-and-one-tap-alarm-page.md) | side-quest | high | built 2026-10-29 (ADR 92) |
 | [Watch the phone's current item on the PC from a private-area tile](pc-screen-from-the-private-area.md) | casting | high | built 2026-10-29 (ADR 93) |
-| [Group feeds done properly: date order, new marker, notifications, a Library tile](group-feeds-done-properly.md) | video | high | built 2026-10-29 (ADRs 94, 95) |
+| [Group feeds done properly: date order, new marker, notifications, a Library tile](group-feeds-done-properly.md) | video | high | built 2026-10-29 (ADRs 94, 95, 96), awaiting Dewi on the phone |
 | [Torrent search answers fast and never gives up early](torrent-search-speed.md) | search/torrents/pi | high | decided 2026-10-24, in progress |
-| [A token per device for the home server, none in links](home-server-per-device-tokens.md) | torrents/pi/security | high | in progress |
+| [A token per device for the home server, none in links](home-server-per-device-tokens.md) | torrents/pi/security | high | built — layers 1 and 2 shipped, the old shared token retired 2026-11-06; only an optional device list in Settings is open |
 | [Confirm big destructive actions](confirm-big-actions.md) | queue/ui | high | done 2026-10-22 (clear queue/history, delete downloads, remove group: hold to confirm); history clear moved to Undo 2026-11-06 |
 | [Lock a download so it is not easily deleted](locked-downloads.md) | downloads | high | ✅ done 2026-10-22 (ADR 75) |
 | [Reset a whole group or list to the start](reset-group-progress.md) | queue/library | medium | built 2026-10-22 for queue groups (⋮ → ↩️ Start again; ☑️ Select these → Mark as unplayed for any subset) |
@@ -103,7 +103,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [Totum's boost on live sound while casting](live-cast-boost.md) | cast | low | requested 2026-10-22 (Dewi's 24 h batch) |
 | [Triage the 16 unconsidered phone reports (15-22 Oct)](phone-reports-oct-15-22.md) | diagnostics | high | requested 2026-10-22 (Dewi's 24 h batch) |
 | [The first visit to Music and Queue costs one long frame](first-tab-visit-cost.md) | performance | medium | found 2026-10-15 (ADR 61 sweep), not started |
-| [A radio seeded from several songs](radio-from-several-songs.md) | music | high | built (select songs → "Radio from these", ADR 27 revision 2026-10-15); this row was stale until 2026-10-22 |
+| [A radio seeded from several songs](radio-from-several-songs.md) | music | high | built 2026-10-15 (select songs → "Radio from these", ADR 27 revision); the file said "requested, to refine" until 2026-11-14 |
 | [Make Totum run on a Pixel 4a](run-on-pixel-4a.md) | platform | high | built 2026-10-14 → ADR 39; minSdk 33, verified on totum-api33 |
 | [A bold Roman redesign of the Exsurge and Daily alarms screens](side-quest-ui-redesign.md) | side-quest/ui | high | built 2026-10-14 → ADR 34; ring and question screens not yet seen ringing |
 | [Artist page: Shuffle all songs, and the Shuffle station fixed](artist-shuffle-all-songs.md) | music | high | built 2026-10-14 → ADR 30 amended |
@@ -111,8 +111,8 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [Queue groups move and shuffle like items](queue-groups-move-and-shuffle.md) | queue | high | built 2026-10-14 → ADR 40, with the drag rewrite |
 | [Surgius cries when Exsurge is off or paused](surgius-cries-when-off.md) | side-quest | medium | built 2026-10-14 → exsurge-et-disce feature doc |
 | [One tap to switch between music and talk](music-talk-toggle.md) | queue/playback | high | built 2026-10-14 → ADR 42 |
-| [Exsurge nudges when the phone has lain flat while it is off](exsurge-flat-phone-nudge.md) | side-quest | high | built 2026-10-14 → ADRs 37, 38 |
-| [An "Even out" loudness mode](even-out-loudness.md) | playback | high | built 2026-10-14 → ADR 35 |
+| [Exsurge nudges when the phone has lain flat while it is off](exsurge-flat-phone-nudge.md) | side-quest | high | built 2026-10-14 → ADR 37 (still live); ADR 38 superseded by ADR 71 on 2026-10-22 |
+| [An "Even out" loudness mode](even-out-loudness.md) | playback | high | built 2026-10-14 → ADR 35; made faster 2026-10-31 → ADR 112 |
 | [Recent actions as a Recently row and app shortcuts](recently-row-and-shortcuts.md) | queue/ui | medium | built 2026-10-14 → ADR 36 |
 | [Suggest groups of downloads to delete](suggest-downloads-to-delete.md) | downloads | high | built 2026-10-13 → [features/downloads-cleanup.md](../features/downloads-cleanup.md), ADR 31 |
 | [Set today's alarm from the alarms page](alarm-on-from-the-page.md) | side-quest | medium | built 2026-10-12 → [features/daily-alarms.md](../features/daily-alarms.md) |
@@ -135,7 +135,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [exsurge-et-disce](exsurge-et-disce.md) | side-quest | medium | built 2026-10-01 → [features/exsurge-et-disce.md](../features/exsurge-et-disce.md); awaiting a real day on the phone |
 | [exsurge-back-goes-to-totum](exsurge-back-goes-to-totum.md) | side-quest | low | built 2026-10-07: Back opens the player if an item is loaded, else Totum |
 | [exsurge-go-scrolls-to-current-lesson](exsurge-go-scrolls-to-current-lesson.md) | side-quest | medium | built 2026-10-07: GO opens Loquax on Learn, scrolled to the current lesson and highlighted (Loquax ADR 19) |
-| [exsurge-continue-video-test-fails-on-emulator](exsurge-continue-video-test-fails-on-emulator.md) | testing | low | corrected 2026-10-07: state-dependent, passed in two full runs later that day; cause not established |
+| [exsurge-continue-video-test-fails-on-emulator](exsurge-continue-video-test-fails-on-emulator.md) | testing | low | state-dependent; the 18:4x recurrence was host load (a second emulator at ~10 cores); the podcast twin's CI failure was a test bug, fixed (2026-10-14) |
 | [Music favourites polish — a cover for Liked songs, and Like on album track rows](music-favourites-polish.md) | music | low | done 2026-10-14; player Like merge open |
 | [MultiSelectTest fails locally; the long-press never reaches the row](multiselect-test-fails-locally.md) | testing | medium | open — refined 2026-10-14; leads: a clickable child (the follow mark?) under the title, geometry, merged semantics |
 | [daily-alarms](daily-alarms.md) | side-quest | high | built 2026-10-07 → [features/daily-alarms](../features/daily-alarms.md); ships off, awaiting Dewi's first weekday |
@@ -146,7 +146,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [instrumented-tests-read-the-wrong-item](instrumented-tests-read-the-wrong-item.md) | testing | medium | done 2026-10-08: all fourteen converted tests pass on totum-api35; CI's live phase had been skipping (stale home-IP secret), now follows the home domain |
 | [YouTube refuses subtitles with 429; the app hammered it and said nothing](subtitles-refused-429.md) | playback | high | back-off shipped 2026-10-14; on-screen message and a second caption source open |
 | [The learned fresh-URL window aims at the earliest acceptance](young-url-window-aims-too-early.md) | playback | medium | open — 4–6 young 403s per play on the emulator; edon5wb5Qsc give-up rare; needs phone data before changing |
-| [an-hour-long-item-stalls-early-in-ci](an-hour-long-item-stalls-early-in-ci.md) | playback | high | cause found 2026-10-14: one request opened at play start drips (280 KB in 21.9 s); re-ask fix committed (ADR 33), unpushed; the next CI run is the proof |
+| [an-hour-long-item-stalls-early-in-ci](an-hour-long-item-stalls-early-in-ci.md) | playback | high | cause found 2026-10-14: one request opened at play start drips (280 KB in 21.9 s); re-ask fix pushed (ADR 33, 3aadcf7a on origin/main); no CI run confirmed to prove it yet |
 | [stalls-near-the-end-of-an-item](stalls-near-the-end-of-an-item.md) | playback | high | not seen since 0.1.477 (10 phone reports, mostly local files); cause not established; its detector cried wolf on every seek and is fixed |
 | [Explore channel content](../features/channel-browse.md) | channel | high | shipped |
 | [Views and dates everywhere](../features/upload-dates.md) | video/search/playback | high | shipped (incl. the video page, 2026-08-06) |
@@ -158,18 +158,18 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [play-history-screen](play-history-screen.md) | library | medium | shipped |
 | [local-cross-pillar-playlists](local-cross-pillar-playlists.md) | library | high | shipped |
 | [skip-silence-on-video](skip-silence-on-video.md) | playback | medium | superseded — video cuts samples, picture follows the sound |
-| [queue-first-playback](queue-first-playback.md) | playback | high | shipped (incl. drag-reorder) |
+| [queue-first-playback](queue-first-playback.md) | playback | high | shipped (incl. drag-reorder and Search taps through the queue); the file said "in-progress" until 2026-11-14 |
 | [auto-download-queue](auto-download-queue.md) | downloads | high | shipped |
 | [autoplay-next-guaranteed](autoplay-next-guaranteed.md) | playback | medium | shipped |
 | [volume-boost-normalize](volume-boost-normalize.md) | playback | medium | shipped |
 | [subtitles-captions](subtitles-captions.md) | playback | medium | shipped (video; podcast transcripts open) |
 | [youtube-progress-two-way-sync](youtube-progress-two-way-sync.md) | video | medium | **shipped** → [features/progress-sync.md](../features/progress-sync.md) |
-| [ui-polish](ui-polish.md) | ui | medium | quality/speed overlay shipped; wider sweep open |
+| [ui-polish](ui-polish.md) | ui | medium | partly shipped — quality/speed overlay, mini player, motion, queue marker; the channel avatar on the go-to action and any wider sweep are open |
 | [rebrand](rebrand.md) | branding | medium | shipped as **Totum** |
 | [crash-reporting](crash-reporting.md) | infrastructure | high | shipped (verbose reports live on the Pi) |
 | [row-status-indicators](row-status-indicators.md) | ui | high | shipped (real PlayState behind it) |
 | [high-quality-playback-fix](high-quality-playback-fix.md) | video | high | shipped |
-| [feature-gap-review](feature-gap-review.md) | planning | — | triage of the AI review |
+| [feature-gap-review](feature-gap-review.md) | planning | — | triaged 2026-07-27 — seven of nine "Agree" rows DONE; the played flag and private feeds carry no outcome |
 | [channel-groups](channel-groups.md) | video | high | shipped |
 | [watch-history-not-recorded](watch-history-not-recorded.md) | video | high | done — fixed by an authenticated player call carrying a current signatureTimestamp |
 | [sabr-streaming](sabr-streaming.md) | video | medium | fallback + QuickJS shipped; the ~1MB wall fell 2026-09-07 (embedded endpoint); seeking still open |
@@ -178,7 +178,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [public-domain-film-tv](public-domain-film-tv.md) | search | medium | **shipped** → [features/torrents.md](../features/torrents.md) |
 | [age-restricted-videos](age-restricted-videos.md) | video | high | shipped — age-restricted videos play on-device |
 | [torrent-zero-config](torrent-zero-config.md) | torrent | high | **shipped** — host from a CI secret, sign-in one tap |
-| [testing-depth](testing-depth.md) | tests | medium | refining |
+| [testing-depth](testing-depth.md) | tests | medium | refined 2026-10-14 — the scenario half happened under other names; four named gaps remain |
 | [audio-video-switching](audio-video-switching.md) | playback | high | shipped (local-audio merge outstanding) |
 | [notification-opens-app](notification-opens-app.md) | playback | high | shipped |
 | [listen-mode-exit-ux](listen-mode-exit-ux.md) | playback | high | shipped |
@@ -224,10 +224,12 @@ command).
 | [ExsurgeTakeoverFlowTest's paused-podcast case fails now and then on CI](exsurge-continue-podcast-test-flaky.md) | exsurge | medium | open 2026-10-23: red on 0fb35de5 and 1a2d2c35, green 10 runs between and 3/3 locally |
 | [In Listen mode, offer the picture](listen-mode-offers-the-picture.md) | playback | high | done 2026-10-23 (ADR 84) |
 | [Everything Totum runs on the Pi lives in this repo](totum-backend-in-this-repo.md) | pi/infra | medium | done 2026-10-23 (ADR 85) |
-| [Does HDR content cast properly?](hdr-casting.md) | casting | medium | to discuss 2026-11-01 |
+| [Does HDR content cast properly?](hdr-casting.md) | casting | medium | open — raised 2026-10-31 to discuss; no facts gathered yet |
 | [Boost by speech: measure (and maybe lift) only detected speech](speech-gated-boost.md) | playback | medium | building 2026-11-01: both variants in Settings with feedback |
 | [A model subscription of Dewi's own for the Pi, and a weekly value check](pi-model-subscription.md) | pi/infra | medium | to discuss 2026-11-01 |
 | [Media3 1.11 plays the silence at the end of an item](media3-1-11-trailing-silence.md) | playback | medium | waiting: rolled back to 1.10.1 on 2026-11-05 |
-- [🔈 A second queue on the Pi's speakers](speaker-queues.md) — built 2026-11-07, folded into the Pi playing everywhere
-- [🏠 Move or copy a phone download to home](move-to-home.md) — decided 2026-11-01
-- [✨ Ask about anything, as a chat that knows your taste](ask-everything.md) — decided 2026-11-01
+| [Quick alarm from the alarm notification, with saved presets](quick-alarm-presets.md) | side-quest | high | built 2026-10-30 (ADR 99), awaiting Dewi on the phone |
+| [PO token minting works; it has not lifted the ceiling](po-token-minting.md) | playback | — | superseded 2026-09-06 — the ceiling was the request shape, not attestation; no PO token is minted in the app and none is needed (corrected 2026-11-14) |
+- [🔈 A second queue on the Pi's speakers](speaker-queues.md) — superseded 2026-11-07: folded into `TargetDeck` (ADR 152, [the Pi playing everywhere](pi-plays-everywhere.md)); `TargetDeckSpeakerTest` covers it
+- [🏠 Move or copy a phone download to home](move-to-home.md) — done 2026-11-01 (ADRs 110, 111)
+- [✨ Ask about anything, as a chat that knows your taste](ask-everything.md) — done 2026-11-01 (ADR 109; chats kept across restarts the same day)
