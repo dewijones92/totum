@@ -1,16 +1,26 @@
 package com.dewijones92.totum.data.torrent
 
+import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import mockwebserver3.Dispatcher
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
 import mockwebserver3.RecordedRequest
+import okhttp3.MediaType
 import okhttp3.OkHttpClient
+import okhttp3.ResponseBody
+import okio.Buffer
+import okio.BufferedSource
+import okio.ForwardingSource
+import okio.buffer
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.util.concurrent.Executors
 
 class CinemetaTest {
 
@@ -65,5 +75,41 @@ class CinemetaTest {
         catalogue()
 
         assertNull(cinemeta().posterFor("Totally.Unknown.Thing.2031.1080p"))
+    }
+
+    @Test
+    fun `the catalogue's reply is read off the thread that asked for the poster`() {
+        catalogue("The%20Matrix" to ("tt0133093" to "The Matrix|1999"))
+        val readOn = java.util.Collections.synchronizedList(mutableListOf<String>())
+        val client = OkHttpClient.Builder()
+            .addInterceptor { chain ->
+                val response = chain.proceed(chain.request())
+                val real = response.body
+                val watching = object : ResponseBody() {
+                    override fun contentType(): MediaType? = real.contentType()
+
+                    override fun contentLength(): Long = real.contentLength()
+
+                    override fun source(): BufferedSource = object : ForwardingSource(real.source()) {
+                        override fun read(sink: Buffer, byteCount: Long): Long {
+                            readOn += Thread.currentThread().name
+                            return super.read(sink, byteCount)
+                        }
+                    }.buffer()
+                }
+                response.newBuilder().body(watching).build()
+            }
+            .build()
+        val main = Executors.newSingleThreadExecutor { Thread(it, "pretend-main") }
+        val poster = try {
+            runBlocking(main.asCoroutineDispatcher()) {
+                Cinemeta(client, server.url("").toString().trimEnd('/')).posterFor("The Matrix 1999 1080p BluRay")
+            }
+        } finally {
+            main.shutdown()
+        }
+
+        assertEquals("https://images.metahub.space/poster/medium/tt0133093/img", poster)
+        assertTrue("read on $readOn", readOn.isNotEmpty() && readOn.none { it.startsWith("pretend-main") })
     }
 }

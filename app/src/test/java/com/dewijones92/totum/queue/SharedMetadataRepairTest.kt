@@ -1,5 +1,6 @@
 package com.dewijones92.totum.queue
 
+import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.data.download.fake.FakeDownloadManager
 import com.dewijones92.totum.data.queue.QueueEntry
@@ -12,20 +13,29 @@ import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.placeholderTitleFor
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.IOException
 import java.time.Instant
+import java.util.Collections
+import java.util.concurrent.Executors
+import kotlin.coroutines.EmptyCoroutineContext
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SharedMetadataRepairTest {
@@ -56,7 +66,7 @@ class SharedMetadataRepairTest {
         SharedMetadataRepair(queue, downloads, {
             calls++
             resolved
-        }, learned::add, { online.await() }, backgroundScope)
+        }, learned::add, { online.await() }, backgroundScope, io = EmptyCoroutineContext)
             .start()
         runCurrent()
         assertEquals(0, calls)
@@ -99,6 +109,7 @@ class SharedMetadataRepairTest {
             learned::add,
             {},
             backgroundScope,
+            io = EmptyCoroutineContext,
             posterOf = { item ->
                 asked += item.item.author.orEmpty()
                 poster
@@ -135,6 +146,7 @@ class SharedMetadataRepairTest {
             {},
             {},
             backgroundScope,
+            io = EmptyCoroutineContext,
             posterOf = { item ->
                 asked += item.item.author.orEmpty()
                 null
@@ -158,6 +170,7 @@ class SharedMetadataRepairTest {
             learned::add,
             {},
             backgroundScope,
+            io = EmptyCoroutineContext,
             retryDelayMs = 1_000,
             now = { testScheduler.currentTime },
         ).start()
@@ -182,6 +195,7 @@ class SharedMetadataRepairTest {
             {},
             {},
             backgroundScope,
+            io = EmptyCoroutineContext,
             retryDelayMs = 1_000,
             now = { testScheduler.currentTime },
         ).start()
@@ -212,6 +226,7 @@ class SharedMetadataRepairTest {
             {},
             {},
             backgroundScope,
+            io = EmptyCoroutineContext,
             retryDelayMs = 30_000,
             now = { testScheduler.currentTime },
         ).start()
@@ -234,6 +249,7 @@ class SharedMetadataRepairTest {
             {},
             {},
             backgroundScope,
+            io = EmptyCoroutineContext,
         ).start()
         runCurrent()
 
@@ -251,7 +267,8 @@ class SharedMetadataRepairTest {
             { withContext(NonCancellable) { lookup.await() } },
             learned::add,
             {},
-            backgroundScope
+            backgroundScope,
+            io = EmptyCoroutineContext,
         ).start()
         runCurrent()
         queue.value = QueueSnapshot()
@@ -294,6 +311,7 @@ class SharedMetadataRepairTest {
             learned::add,
             {},
             backgroundScope,
+            io = EmptyCoroutineContext,
             dateOf = { if (it == undated.item.id) day else null },
         ).start()
         runCurrent()
@@ -319,14 +337,234 @@ class SharedMetadataRepairTest {
             {},
             {},
             backgroundScope,
+            io = EmptyCoroutineContext,
             dateOf = {
                 asked += it.value
                 null
             },
         ).start()
         runCurrent()
+        advanceTimeBy(10_000)
+        runCurrent()
 
         val expected = ((45..80) - 52 - 53).map { "video-%05d".format(it) }
         assertEquals(expected.toSet(), asked.toSet())
+    }
+
+    private fun torrentRow(hash: String, file: Int, name: String): PlayableItem = PlayableItem(
+        MediaItem(
+            MediaItemId("torrent:$hash:$file"),
+            SourceId("torrent"),
+            "$name file $file",
+            publishedAt = null,
+            duration = null,
+            author = name,
+            mediaUrl = HttpUrl.of("https://home.test/stream/$hash/$file.mkv"),
+        ),
+        PlayHandle.Podcast(),
+    )
+
+    private val somePoster = HttpUrl.of("https://images.metahub.space/poster/medium/tt1/img")
+
+    private inline fun <T> capturingMetadataLines(body: (List<String>) -> T): T {
+        val lines = Collections.synchronizedList(mutableListOf<String>())
+        val previous = Diag.sink
+        Diag.sink = Diag.Sink { _, tag, message, _ -> if (tag == "metadata") lines += message }
+        try {
+            return body(lines)
+        } finally {
+            Diag.sink = previous
+        }
+    }
+
+    @Test
+    fun `every lookup runs off the thread that started the repair, and only the adoption comes back to it`() {
+        val main = Executors.newSingleThreadExecutor { Thread(it, "pretend-main") }
+        val lookedUpOn = Collections.synchronizedList(mutableListOf<String>())
+        val adoptedOn = Collections.synchronizedList(mutableListOf<String>())
+        val here = { lookedUpOn += Thread.currentThread().name }
+        val music = dated(7).let {
+            it.copy(item = it.item.copy(sourceId = SourceId("music:x"), contentKind = MediaContentKind.MUSIC))
+        }
+        val rows = listOf(placeholder, dated(1), music, torrentRow("aa", 1, "A.Film.2025.1080p"))
+        val allFour = CompletableDeferred<Unit>()
+        try {
+            runBlocking {
+                val scope = CoroutineScope(main.asCoroutineDispatcher() + Job())
+                SharedMetadataRepair(
+                    MutableStateFlow(QueueSnapshot(entries = rows.map { QueueEntry(it) }, currentIndex = 0)),
+                    FakeDownloadManager(),
+                    {
+                        here()
+                        resolved
+                    },
+                    {
+                        adoptedOn += Thread.currentThread().name
+                        if (adoptedOn.size == rows.size) allFour.complete(Unit)
+                    },
+                    {},
+                    scope,
+                    dateOf = {
+                        here()
+                        Instant.parse("2026-10-30T12:00:00Z")
+                    },
+                    artistOf = {
+                        here()
+                        "An artist"
+                    },
+                    posterOf = {
+                        here()
+                        somePoster
+                    },
+                ).start()
+                withTimeout(10_000) { allFour.await() }
+                scope.coroutineContext[Job]?.cancel()
+            }
+        } finally {
+            main.shutdown()
+        }
+        assertEquals(4, lookedUpOn.size)
+        assertTrue("looked up on $lookedUpOn", lookedUpOn.none { it.startsWith("pretend-main") })
+        assertTrue("adopted on $adoptedOn", adoptedOn.all { it.startsWith("pretend-main") })
+    }
+
+    @Test
+    fun `thirty files of one torrent ask for its poster once`() = runTest {
+        val rows = (1..30).map { torrentRow("aa", it, "A.Film.2025.1080p") }
+        val asked = mutableListOf<String>()
+        val learned = mutableListOf<MediaItem>()
+        SharedMetadataRepair(
+            MutableStateFlow(QueueSnapshot(entries = rows.map { QueueEntry(it) })),
+            FakeDownloadManager(),
+            { null },
+            learned::add,
+            {},
+            backgroundScope,
+            io = EmptyCoroutineContext,
+            posterOf = {
+                asked += it.item.author.orEmpty()
+                somePoster
+            },
+        ).start()
+        runCurrent()
+        advanceTimeBy(1_000)
+        runCurrent()
+
+        assertEquals(listOf("A.Film.2025.1080p"), asked)
+        assertEquals(30, learned.size)
+        assertTrue(learned.all { it.thumbnailUrl == somePoster })
+    }
+
+    @Test
+    fun `a long list is repaired in batches with a pause between them`() = runTest {
+        val rows = (1..60).map { torrentRow("h%02d".format(it), 1, "Film.$it.2025") }
+        val asked = mutableListOf<String>()
+        var waits = 0
+        SharedMetadataRepair(
+            MutableStateFlow(QueueSnapshot(entries = rows.map { QueueEntry(it) })),
+            FakeDownloadManager(),
+            { null },
+            {},
+            { waits++ },
+            backgroundScope,
+            io = EmptyCoroutineContext,
+            posterOf = {
+                asked += it.item.author.orEmpty()
+                somePoster
+            },
+            batchSize = 20,
+            batchGapMs = 1_000,
+        ).start()
+        runCurrent()
+        assertEquals(20, asked.size)
+        advanceTimeBy(1_000)
+        runCurrent()
+        assertEquals(40, asked.size)
+        advanceTimeBy(1_000)
+        runCurrent()
+        assertEquals(60, asked.size)
+        assertEquals(3, waits)
+    }
+
+    @Test
+    fun `a pass over sixty rows is one summary line, not a line per row`() = runTest {
+        val names = (0 until 6).map { "Film.$it.2025" }
+        val rows = names.flatMapIndexed { n, name -> (1..10).map { torrentRow("h$n", it, name) } }
+        capturingMetadataLines { lines ->
+            SharedMetadataRepair(
+                MutableStateFlow(QueueSnapshot(entries = rows.map { QueueEntry(it) })),
+                FakeDownloadManager(),
+                { null },
+                {},
+                {},
+                backgroundScope,
+                io = EmptyCoroutineContext,
+                posterOf = {
+                    when (names.indexOf(it.item.author)) {
+                        0, 1 -> somePoster
+                        2, 3 -> null
+                        else -> throw IOException("no route to the poster host")
+                    }
+                },
+            ).start()
+            runCurrent()
+            advanceTimeBy(5_000)
+            runCurrent()
+
+            val summaries = lines.filter { it.startsWith("pass:") }
+            assertEquals(lines.toString(), 1, summaries.size)
+            val summary = summaries.single()
+            assertTrue(summary, "due=60" in summary)
+            assertTrue(summary, "repaired=20" in summary)
+            assertTrue(summary, "none=20" in summary)
+            assertTrue(summary, "failed=20" in summary)
+            assertTrue(summary, "poster lookups=6" in summary)
+            assertTrue(summary, "IOException=20" in summary)
+            assertTrue(lines.toString(), lines.size <= 2)
+        }
+    }
+
+    @Test
+    fun `a start-up pass over Dewi's 5857 queue rows asks eight torrents and leaves a handful of lines`() = runTest {
+        val names = (0 until 8).map { "Film.$it.2025.1080p" }
+        val torrents = (0 until 114).map { torrentRow("h${it % 8}", it, names[it % 8]) }
+        val undated = (0 until 36).map { dated(100 + it) }
+        val done = (0 until 5_707).map {
+            dated(1_000 + it).let { row -> row.copy(item = row.item.copy(publishedText = "1 day ago")) }
+        }
+        val rows = done.take(5_680) + undated + torrents + done.drop(5_680)
+        val posterAsked = mutableListOf<String>()
+        val dateAsked = mutableListOf<String>()
+        capturingMetadataLines { lines ->
+            SharedMetadataRepair(
+                MutableStateFlow(QueueSnapshot(entries = rows.map { QueueEntry(it) }, currentIndex = 5_685)),
+                FakeDownloadManager(),
+                { null },
+                {},
+                {},
+                backgroundScope,
+                io = EmptyCoroutineContext,
+                dateOf = {
+                    dateAsked += it.value
+                    null
+                },
+                posterOf = {
+                    posterAsked += it.item.author.orEmpty()
+                    throw IOException("no route to the poster host")
+                },
+            ).start()
+            runCurrent()
+            advanceTimeBy(10_000)
+            runCurrent()
+
+            assertEquals(5_857, rows.size)
+            assertEquals(names.toSet(), posterAsked.toSet())
+            assertEquals(8, posterAsked.size)
+            assertEquals(36, dateAsked.size)
+            assertEquals(lines.toString(), 2, lines.size)
+            val summary = lines.single { it.startsWith("pass:") }
+            assertTrue(summary, "due=150 of 150 candidate(s)" in summary)
+            assertTrue(summary, "poster lookups=8 reused=106" in summary)
+        }
     }
 }

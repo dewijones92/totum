@@ -1,6 +1,8 @@
 package com.dewijones92.totum.data.torrent
 
 import com.dewijones92.totum.common.Diag
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -10,10 +12,12 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.IOException
 import java.net.URLEncoder
+import kotlin.coroutines.CoroutineContext
 
 public class Cinemeta(
     private val client: OkHttpClient,
     private val base: String = CINEMETA_BASE,
+    private val io: CoroutineContext = Dispatchers.IO,
 ) {
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -66,9 +70,9 @@ public class Cinemeta(
         }
     }
 
-    internal suspend fun get(url: String): String? {
+    internal suspend fun get(url: String): String? = withContext(io) {
         val request = Request.Builder().url(url).build()
-        return client.newCall(request).await().use { response ->
+        client.newCall(request).await().use { response ->
             if (response.isSuccessful) {
                 response.body.string()
             } else {
