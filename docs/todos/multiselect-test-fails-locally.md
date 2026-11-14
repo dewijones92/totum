@@ -1,11 +1,11 @@
 ---
 title: MultiSelectTest fails on totum-api35 because the long-press never reaches the row; CI passes
 kind: todo
-status: open — refined 2026-10-14; in the 2026-10-14 batch to make deterministic
+status: fixed 2026-11-06 (e295172f); verified 12 of 12, three runs in a row, on totum-api35 2026-11-14
 area: testing
 priority: medium
 requested: 2026-10-14
-updated: 2026-10-14
+updated: 2026-11-14
 ---
 
 # MultiSelectTest fails locally and passes on CI
@@ -42,3 +42,15 @@ locally, and every playback change is verified locally first.
 The class passes 12 of 12 on `totum-api35` at its own geometry, three runs in a row, and still passes on
 CI; the fix targets the row (a test tag on the row, pressed at a point that is the row's own) rather than
 loosening what the test checks.
+
+## Fixed (2026-11-06), verified 2026-11-14
+
+Lead 1 was the cause. `e295172f` makes `MultiSelectTest.longPress` press at 10% of the row's width
+(`percentOffset(HOLD_X, HOLD_Y)`) instead of the centre, where the follow mark (ADR 22) sits at this
+geometry and took the press, so no `dewidebug long-press` line was logged and selection never started. The
+todo was not updated then.
+
+Verified on `totum-api35` at its own geometry (1080x2400 px, 420 dpi, long-press timeout 400 ms) against the
+debug and test APKs built from `bf7d878b` + two playback fixes: `am instrument -e class
+com.dewijones92.totum.ui.MultiSelectTest` printed `OK (12 tests)` three runs in a row (about 40 s each), with
+the YouTube sign-in file intact. CI was already passing the class.
