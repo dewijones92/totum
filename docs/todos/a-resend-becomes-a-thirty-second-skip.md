@@ -1,8 +1,8 @@
 ---
 title: A resend is read as "the server has nothing" and answered with a 30-second skip
-status: open
+status: fixed 2026-11-14 (offline test; not yet re-measured on the emulator soak)
 severity: critical
-updated: 2026-08-20
+updated: 2026-11-14
 ---
 
 # A resend is read as an empty answer, and the cure strands the player
@@ -66,3 +66,19 @@ empty answer.
   the same pass, are the other two doors into this same runaway.
 - `HeldSegments.asRanges` starting at `held.firstKey()` and never pruning is the likely reason the
   ranges stop describing the buffer truthfully once a gap exists.
+
+## Fixed (2026-11-14)
+
+`SabrStream.askedSameTimeAgain` now claims an answer that carried bytes of this stream's own itag, all
+dropped because they were already served: it asks the same time again, within the shared same-time budget
+(`MAX_SAME_TIME_RETRIES`, three, refilled by any kept byte), and logs `dewidebug ... a resend` with the
+carried bytes, the ranges sent, the read offset and `heldTo`. Once the budget is spent the old skip rule
+applies, so a server that resends for ever still ends the read. A genuinely empty answer still skips thirty
+seconds.
+
+The ranges are now logged on every fetch line (`sent ranges [start+duration seg a-b]`), which was the first
+thing this todo asked for: a report can now say whether the claim was ahead of the bytes or the server ignored
+the ranges. Why the server resent is still unestablished; the next report with a `a resend` line answers it.
+
+Test: `AResendOfOurOwnFormatIsNotAGapTest` (seen red at the skip: asked times `[0, 10000, 40000]`).
+Not yet re-measured on the emulator over the five-minute `AnHourLongItemDoesNotRebufferTest` soak.

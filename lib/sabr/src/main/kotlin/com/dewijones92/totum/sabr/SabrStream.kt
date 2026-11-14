@@ -391,6 +391,8 @@ public class SabrStream(
 
     private suspend fun fetch() {
         honourBackoff()
+        val ranges = bufferedRanges()
+        lastRangesSent = ranges
         val body = VideoPlaybackAbrRequest(
             ustreamerConfig = ustreamerConfig,
             playerTimeMs = playerTimeMs,
@@ -399,7 +401,7 @@ public class SabrStream(
             // Audio alone is a tenth of the bytes. Asking for video accepts audio alongside it,
             // because the sentinel range that would suppress it is unbuilt — see SabrTracks.
             tracks = if (kind == SabrTrackKind.AUDIO) SabrTracks.AUDIO_ONLY else SabrTracks.AUDIO_AND_VIDEO,
-            bufferedRanges = bufferedRanges(),
+            bufferedRanges = ranges,
             poToken = poToken,
             clientInfo = clientInfo,
             playbackCookie = playbackCookie,
@@ -434,7 +436,7 @@ public class SabrStream(
             "sabr",
             "fetch #$fetches itag ${format.itag} at ${playerTimeMs}ms -> " +
                 "${response.size}B response, ${added}B kept, ${elapsed}ms, holding to ${furthestHeld}B, " +
-                "carried $carried" +
+                "carried $carried, sent ranges ${describeRanges(ranges)}" +
                 if (elapsed > SLOW_FETCH_MS) " — SLOW" else "",
         )
         // Said on EVERY fetch that carries one, not only on an empty answer — see
@@ -518,6 +520,19 @@ public class SabrStream(
         // seconds past it tears a hole no later fetch fills — measured 2026-09-07 (Spring, itag 400: one
         // such skip at 5.4s, then 20MB served from 35s onwards that the player could never reach). Ask
         // for the same time again; the budget is the read's own fetch count.
+        val ownBytes = carried.bytesOf(format.itag)
+        if (ownBytes > 0 && sameTimeRetries < MAX_SAME_TIME_RETRIES) {
+            sameTimeRetries++
+            emptyResponses--
+            Diag.log(
+                "sabr",
+                "dewidebug itag ${format.itag}: this answer carried ${ownBytes}B of OUR format that we had already " +
+                    "served (a resend: $carried), not a gap — asking ${playerTimeMs}ms again (retry " +
+                    "#$sameTimeRetries of $MAX_SAME_TIME_RETRIES), sent ranges ${describeRanges(lastRangesSent)}, " +
+                    "reading=${served}B heldTo=${furthestHeld}B",
+            )
+            return true
+        }
         if (carried.hasOthersThan(format.itag) && sameTimeRetries < MAX_SAME_TIME_RETRIES) {
             sameTimeRetries++
             emptyResponses--
@@ -681,6 +696,17 @@ public class SabrStream(
         val fate = if (update.sendByDefault) "echoed from the next request" else "noted, not echoed"
         Diag.log("sabr", "server context update $update — $fate")
     }
+
+    private var lastRangesSent: List<BufferedRange> = emptyList()
+
+    private fun describeRanges(ranges: List<BufferedRange>): String =
+        if (ranges.isEmpty()) {
+            "none"
+        } else {
+            ranges.joinToString(" ") {
+                "[${it.startTimeMs}ms+${it.durationMs}ms seg${it.startSegment}-${it.endSegment}]"
+            }
+        }
 
     /** What the last response carried, which is how the sharing question gets answered. */
     private val carried = CarriedItags()
