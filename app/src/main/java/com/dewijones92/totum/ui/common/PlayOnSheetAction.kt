@@ -28,6 +28,7 @@ import com.dewijones92.totum.R
 import com.dewijones92.totum.data.targets.TargetColours
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.toPlayableOrNull
+import com.dewijones92.totum.ui.queue.AddBrowserDialog
 import com.dewijones92.totum.ui.queue.AddBrowserEntry
 import com.dewijones92.totum.ui.queue.PLAY_ON_DOT_PREFIX
 import com.dewijones92.totum.ui.queue.PLAY_ON_OPTION_PREFIX
@@ -45,6 +46,7 @@ internal fun PlayOnSheetAction(item: MediaItem?, onDismiss: () -> Unit) {
     val anywhereToPlay = options.size > 1 || address != null
     if (item == null || !anywhereToPlay || item.toPlayableOrNull() == null) return
     var open by remember(item.id) { mutableStateOf(false) }
+    var adding by remember(item.id) { mutableStateOf(false) }
     SheetRow(Icons.Outlined.Cast, stringResource(R.string.play_on_item), PLAY_ON_SHEET_TAG) { open = !open }
     if (open) {
         Column {
@@ -73,9 +75,10 @@ internal fun PlayOnSheetAction(item: MediaItem?, onDismiss: () -> Unit) {
                     }
                 }
             }
-            address?.let { AddBrowserEntry(it, Modifier.padding(start = 56.dp)) }
+            address?.let { AddBrowserEntry({ adding = true }, Modifier.padding(start = 56.dp)) }
         }
     }
+    address?.takeIf { adding }?.let { AddBrowserDialog(it) { adding = false } }
 }
 
 const val PLAY_ON_SHEET_TAG = "play-on-sheet"

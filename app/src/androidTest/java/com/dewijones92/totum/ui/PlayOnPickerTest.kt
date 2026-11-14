@@ -137,11 +137,15 @@ class PlayOnPickerTest {
         compose.onNodeWithTag(ADD_BROWSER_TAG).assertIsDisplayed()
         assertEquals(0, compose.onAllNodesWithTag(ADD_BROWSER_HOW_TAG).fetchSemanticsNodes().size)
         compose.onNodeWithTag(ADD_BROWSER_TAG).performClick()
+        compose.waitForIdle()
+        TestShots.take("picker-add-a-browser")
 
         compose.onNodeWithTag(ADD_BROWSER_HOW_TAG).assertIsDisplayed()
         compose.onNodeWithText("192.168.0.5:8771", substring = true).assertIsDisplayed()
         compose.onNodeWithText("📋 Copy address").assertIsDisplayed()
-        TestShots.take("picker-add-a-browser")
+        compose.onNodeWithText("✅ Done").performClick()
+        compose.waitForIdle()
+        assertEquals(0, compose.onAllNodesWithTag(ADD_BROWSER_HOW_TAG).fetchSemanticsNodes().size)
     }
 
     @Test

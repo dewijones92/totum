@@ -1450,6 +1450,7 @@
     <string name="play_on_add_browser">🖥️ Add a browser…</string>
     <string name="play_on_add_browser_how">🌐 On the browser, open %1$s while it is on the home Wi-Fi. It shows up here as soon as it is connected, and then you can play on it.</string>
     <string name="play_on_copy_address">📋 Copy address</string>
+    <string name="play_on_add_browser_done">✅ Done</string>
     <string name="target_waiting_headline">⏳ Waiting for %1$s</string>
     <string name="target_waiting_hint">The home server has not listed it yet.</string>
     <string name="target_empty_headline">📭 Nothing queued on %1$s</string>

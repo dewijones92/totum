@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
@@ -56,6 +57,7 @@ fun PlayOnRow(targets: TargetsRepository, padStatusBar: Boolean, modifier: Modif
     val colours by targets.colours.collectAsStateWithLifecycle()
     val current = PlayOn.resolve(selected, options)
     var open by remember { mutableStateOf(false) }
+    var adding by remember { mutableStateOf(false) }
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -77,10 +79,16 @@ fun PlayOnRow(targets: TargetsRepository, padStatusBar: Boolean, modifier: Modif
                     open = false
                     targets.choose(it)
                 }
-                address?.let { AddBrowserEntry(it) }
+                address?.let {
+                    AddBrowserEntry({
+                        open = false
+                        adding = true
+                    })
+                }
             }
         }
     }
+    address?.takeIf { adding }?.let { AddBrowserDialog(it) { adding = false } }
 }
 
 @Composable
@@ -114,28 +122,36 @@ internal fun PlayOnMenuItems(
 }
 
 @Composable
-internal fun AddBrowserEntry(address: String, modifier: Modifier = Modifier) {
-    var open by remember { mutableStateOf(false) }
-    val clipboard = LocalClipboardManager.current
-    Column(
-        modifier
+internal fun AddBrowserEntry(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Text(
+        stringResource(R.string.play_on_add_browser),
+        modifier = modifier
             .fillMaxWidth()
             .testTag(ADD_BROWSER_TAG)
-            .clickable { open = !open }
+            .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 12.dp),
-    ) {
-        Text(stringResource(R.string.play_on_add_browser))
-        if (open) {
+    )
+}
+
+@Composable
+internal fun AddBrowserDialog(address: String, onDismiss: () -> Unit) {
+    val clipboard = LocalClipboardManager.current
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.play_on_add_browser)) },
+        text = {
             Text(
                 stringResource(R.string.play_on_add_browser_how, address),
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.padding(top = 4.dp).testTag(ADD_BROWSER_HOW_TAG),
+                modifier = Modifier.testTag(ADD_BROWSER_HOW_TAG),
             )
+        },
+        confirmButton = {
             TextButton(onClick = { clipboard.setText(AnnotatedString(address)) }) {
                 Text(stringResource(R.string.play_on_copy_address))
             }
-        }
-    }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.play_on_add_browser_done)) } },
+    )
 }
 
 @Composable

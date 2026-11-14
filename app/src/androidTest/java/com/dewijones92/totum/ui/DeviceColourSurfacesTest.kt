@@ -11,6 +11,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onRoot
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.dewijones92.totum.data.targets.PlayOn
 import com.dewijones92.totum.data.targets.PlayOnOption
@@ -31,6 +32,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import kotlin.math.abs
+import kotlin.math.roundToInt
 
 @RunWith(AndroidJUnit4::class)
 class DeviceColourSurfacesTest {
@@ -47,6 +49,8 @@ class DeviceColourSurfacesTest {
         browser.id to TargetColours.palette[3],
     )
     private val itemOn = mapOf(PlayOn.phone.id to "on-phone", tv.id to "on-tv", browser.id to "on-browser")
+
+    private lateinit var screen: androidx.compose.ui.graphics.PixelMap
 
     private fun show() {
         val marks = DeviceMarkRules.marks(
@@ -79,6 +83,7 @@ class DeviceColourSurfacesTest {
             }
         }
         compose.waitForIdle()
+        screen = compose.onRoot().captureToImage().toPixelMap()
     }
 
     private fun Color.isNear(other: Color) =
@@ -86,13 +91,13 @@ class DeviceColourSurfacesTest {
             abs(blue - other.blue) <= TOLERANCE
 
     private fun centre(tag: String): Color {
-        val pixels = compose.onNodeWithTag(tag).captureToImage().toPixelMap()
-        return pixels[pixels.width / 2, pixels.height / 2]
+        val bounds = compose.onNodeWithTag(tag, useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        return screen[(bounds.left + bounds.width / 2).roundToInt(), (bounds.top + bounds.height / 2).roundToInt()]
     }
 
     private fun leftEdge(tag: String): Color {
-        val pixels = compose.onNodeWithTag(tag).captureToImage().toPixelMap()
-        return pixels[0, pixels.height / 2]
+        val bounds = compose.onNodeWithTag(tag, useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        return screen[bounds.left.roundToInt(), (bounds.top + bounds.height / 2).roundToInt()]
     }
 
     @Test

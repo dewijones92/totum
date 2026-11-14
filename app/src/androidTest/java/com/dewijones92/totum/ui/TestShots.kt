@@ -9,6 +9,7 @@ internal object TestShots {
     fun take(name: String) {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         if (InstrumentationRegistry.getArguments().getString(ARGUMENT) == null) return
+        Thread.sleep(HEADS_UP_GONE_MS)
         val dir = File(instrumentation.targetContext.getExternalFilesDir(null), "shots").apply { mkdirs() }
         val bitmap = instrumentation.uiAutomation.takeScreenshot() ?: return
         File(dir, "$name.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, PNG_QUALITY, it) }
@@ -16,4 +17,5 @@ internal object TestShots {
 
     private const val ARGUMENT = "shots"
     private const val PNG_QUALITY = 100
+    private const val HEADS_UP_GONE_MS = 6_000L
 }
