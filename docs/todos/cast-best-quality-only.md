@@ -1,10 +1,10 @@
 ---
 title: Cast the best quality only; Totum steps down itself
 kind: todo
-status: built 2026-11-06 (ADR 122); tests and device checks to follow
+status: built; tests written
 batch: A (2026-11)
 priority: high
-updated: 2026-11-06
+updated: 2026-11-14
 ---
 
 # Cast the best quality only; Totum steps down itself
@@ -31,6 +31,10 @@ rung only (the best rung's URL, so the "fewer than 2 rungs falls back to the pho
 re-send the queue at the same place; the PC page reports per-codec heights (`VP9:2160+AV1:2160`). Pinning tests
 `CastLadderTest` and `CastRungsTest` were rewritten for one rung.
 
-Still to do: tests (above); a real-LG check that `setMediaItems` at the same position resumes cleanly and that the
+Still to do: tests *(written in part 2026-11-14: see "Tests written 2026-11-14" below for what is done and what is still owed)* (above); a real-LG check that `setMediaItems` at the same position resumes cleanly and that the
 cast-progress work treats the playlist change as no end; the dead "going up to …" strip line and `castFetchHeight`
 can go; the PC page's `MediaCapabilities` probe is untested in Edge.
+
+## Tests written 2026-11-14
+
+`CastBestRungOnlyTest` (only the best rung, at its own address; nothing showable; stepping down one height at a time until none is lower; a ceiling; probe failures), `CastScreenCodecCapsTest` (LG per-codec caps, never AV1). Owed: `CastStepDownWatch` and `CastStreams.stepDown` (a `Handler` and a `Player`), the server-level step down with a real ladder, and a real LG.

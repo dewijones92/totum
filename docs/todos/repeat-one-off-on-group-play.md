@@ -1,10 +1,10 @@
 ---
 title: Starting an album or group switches Repeat one off
 kind: todo
-status: built (tests owed)
+status: built; tests written
 batch: A (2026-11)
 priority: high
-updated: 2026-11-06
+updated: 2026-11-14
 ---
 
 # Starting an album or group switches Repeat one off
@@ -22,12 +22,16 @@ a group started by you, the toast in `ui/common/QueueNoticeToasts.kt`, and ADR 2
 (`byYou = false`, brought in by the sweep below) and the kid lock were left alone. The diagnostics state block already carried both `settings.repeatMode`
 and `playback.repeatNow`, so nothing was added there; the rule logs each decision under `[queue]`.
 
-Tests owed (testing stretch): `RepeatOneRuleTest` (ONE becomes OFF and says so; other modes and kid lock untouched);
+Tests owed (testing stretch) *(written in part 2026-11-14: see "Tests written 2026-11-14" below for what is done and what is still owed)*: `RepeatOneRuleTest` (ONE becomes OFF and says so; other modes and kid lock untouched);
 `PlaybackQueueTest`: `playAll` with a group and `byYou` switches it off and emits the notice, with no group or
 `byYou = false` does not (red against the old queue, where repeat stayed ONE); album and artist shuffle end to end.
 
 Consistency sweep 2026-11-06 (Dewi's decision): the Shorts reel is a run too. `PlaybackQueue.playAll` has its own
 `endsRepeatOne` flag (defaulting to `byYou`), so the reel, which stays "not by you" for the listen offers, still
 switches "This one" off and says so when it opens; it does so once per opening, not each time more shorts load, so
-choosing repeat-one while watching the reel is respected. Tests owed: `playAll` with `byYou = false, endsRepeatOne = true`
+choosing repeat-one while watching the reel is respected. Tests owed *(written in part 2026-11-14: see "Tests written 2026-11-14" below for what is done and what is still owed)*: `playAll` with `byYou = false, endsRepeatOne = true`
 switches it off and emits the notice.
+
+## Tests written 2026-11-14
+
+`RepeatOneRuleTest` and `StartingAGroupEndsRepeatOneTest` (through the real `PlaybackQueue`: a group started by you switches it off and says which one; no group, a run the app starts, `endsRepeatOne = false`, the kid lock and every other mode leave it alone; the Shorts reel opts in on its own). Owed: album and artist shuffle end to end from their view models.

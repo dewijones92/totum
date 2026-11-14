@@ -42,7 +42,7 @@ after 1.5 s and logged.
 each scroll (`scrolled to <ROW> and highlighted it`), and a target that was not on screen (`dropped`). The recent
 store logs under `recent`.
 
-## Tests still to write
+## Tests still to write (written in part 2026-11-14: see [the tests index](../tests/_index.md))
 
 Registry sanity (every constant has a label, section, and an anchor on the main page unless it has a page), the
 fuzzy match over `SettingsRow` strings, and a Compose test that a pick scrolls to and tints a row far down the page.

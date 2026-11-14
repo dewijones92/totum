@@ -32,7 +32,7 @@ sound only on mobile data. Decisions in [ADR 129](../adr/0129-periodic-jobs-reme
 day's total, every 25 MB, the moment the limit is reached, a new day, and a warning if the phone reports no byte
 counters; `data` lines from `MeteredAudioSwitch` carry `[dailyLimitReached=…]`; report vital `data.mobileTodayKb`.
 
-## Tests still to write
+## Tests still to write (written in part 2026-11-14: see [the tests index](../tests/_index.md))
 
 `MobileDataMeter.sample` with fake counter/metered/day (metered vs unmetered deltas, reboot where the counter drops,
 midnight reset, unsupported counter, persistence round trip); `reachedLimit`/`holdingBack`; `MeteredAudioSwitch` over

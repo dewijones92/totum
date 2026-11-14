@@ -1,10 +1,10 @@
 ---
 title: Every pause and cast drop says why; a flight recorder
 kind: todo
-status: built, unverified on a device (code first; tests and device checks to follow)
+status: built; tests written
 batch: A (2026-11)
 priority: high
-updated: 2026-11-06
+updated: 2026-11-14
 ---
 
 # Every pause and cast drop says why; a flight recorder
@@ -23,6 +23,10 @@ Reasons for every pause and suppression, cast session lifecycle with named codes
 the on-disk flight recorder (stall give-up, cast drop, Exsurge summons outside active hours) carried in every
 report, and `playback.repeatNow`. Details in [crash-reporting.md](../features/crash-reporting.md).
 
-Still to do: tests (`FlightRecorder`, `CastCodes`, the kept lane, the reason lines); a real pause, unplug and
+Still to do: tests *(written in part 2026-11-14: see "Tests written 2026-11-14" below for what is done and what is still owed)* (`FlightRecorder`, `CastCodes`, the kept lane, the reason lines); a real pause, unplug and
 Cast drop on a device to read the new lines; name codes 2055, 2154 and 2155 once a report shows the SDK's text
 for them (the SDK does not name them in `CastStatusCodes`).
+
+## Tests written 2026-11-14
+
+`CastCodesTest`, `BreadcrumbsKeptLaneTest` (the longer-kept cast and side-quest lane), `SavingTheTrailTest`, instrumented `FlightRecorderTest` (needs `org.json`, which a JVM unit test does not have). Owed: the pause-reason lines in `PlaybackDiagnostics` and the Exsurge summons trigger; naming codes 2055, 2154 and 2155.

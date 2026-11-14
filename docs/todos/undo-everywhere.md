@@ -47,3 +47,7 @@ slot ignored).
 Still owed: the helper's own no-host and nothing-removed branches and the snackbar itself (`rememberRemoveWithUndo`
 is a composable; it needs a Compose host with a `SnackbarHostState`), and the playlist page's Delete then Undo on a
 device with a screenshot.
+
+## No new tests on 2026-11-14
+
+what is owed is the helper `rememberRemoveWithUndo` (a composable needing a snackbar host) and the playlist page on a device. Still owed.

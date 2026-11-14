@@ -44,7 +44,7 @@ action, not a mode, so it has no chip; the shuffled repeat modes are the only pe
   `dewidebug active modes <before> -> <after>` on every change; `dewidebug mode chip … tapped` on a tap;
   `dewidebug telling the session` and `dewidebug notification context` on the push.
 
-## Tests still to write
+## Tests still to write (written in part 2026-11-14: see [the tests index](../tests/_index.md))
 
 `activeModesOf` per input (effective repeat under the kid lock, Explore hidden under the kid lock, speed tolerance,
 order); `activeModesFor` against fakes (a settings change, a speed change, quiet hours starting at the window edge,

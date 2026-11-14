@@ -1,10 +1,10 @@
 ---
 title: Queued tracks keep their artist
 kind: todo
-status: built (tests owed)
+status: built; tests written (lookup only)
 batch: A (2026-11)
 priority: medium
-updated: 2026-11-06
+updated: 2026-11-14
 ---
 
 # Queued tracks keep their artist
@@ -33,6 +33,10 @@ the existing `queue.adoptFacts` and `downloads.learnFacts` (`fillingSilenceFrom`
 **Not found:** the backup was not available to the builder, so the other ~1,500 author-less rows are unexplained (torrent
 files and book chapters carry no artist by nature; videos should have a channel). Check by source after the repair runs.
 
-Tests owed: `MusicPageParserTest` (album track with no artist text takes the album's artist, seen red; artist page top
+Tests owed *(written in part 2026-11-14: see "Tests written 2026-11-14" below for what is done and what is still owed)*: `MusicPageParserTest` (album track with no artist text takes the album's artist, seen red; artist page top
 songs); `SharedMetadataRepairTest` (an album track with no author learns it with one album read for many tracks, a track
 the album does not list takes the album artist, a failed lookup retries twice then stops); `ArtistLookupTest`.
+
+## Tests written 2026-11-14
+
+`ArtistLookupTest` (the track, then the album, then the artist page; the album from the row or the source; one read per album, 300 albums of 19 tracks cost 300 reads; a failed read is asked again). Still owed: `MusicPageParserTest` for an album track with no artist text and the artist page top songs, and `SharedMetadataRepairTest` for the artist need (two tries then stop).

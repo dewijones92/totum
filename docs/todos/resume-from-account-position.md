@@ -1,10 +1,10 @@
 ---
 title: Resuming a paused item takes YouTube's newer place
 kind: todo
-status: built 2026-11-06 (tests owed)
+status: built; tests written
 batch: A (2026-11)
 priority: high
-updated: 2026-11-06
+updated: 2026-11-14
 ---
 
 # Resuming a paused item takes YouTube's newer place
@@ -25,3 +25,7 @@ when it wins, and the controller seeks and emits `PlaybackEvent.CarriedOn`; `Pla
 `QueueNotice.CarriedOn` for the existing toast. Details, log lines and the tests owed are in
 [progress-sync](../features/progress-sync.md); ADR 57 carries the decision. Not seen on a device. The reopen case rests
 on the controller reading a paused item from the connected service at connect time, which is unconfirmed.
+
+## Tests written 2026-11-14
+
+`AccountResumeCarriesOnTest` (ahead and newer carries on and is recorded and adopted; behind, within a percent, finished here, finished on the account, the 10% floor, already acted on and never heard of do not; a moved figure carries on again; offline uses what is held; an account of 1,207 positions). Owed: the `ResumeRewind` callback cases and the controller seek (need a Media3 player), and a device check.

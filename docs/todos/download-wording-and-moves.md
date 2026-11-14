@@ -1,10 +1,10 @@
 ---
 title: Every download says what, from where, to where; Move to Pi moves the file
 kind: todo
-status: built (2026-11-06), awaiting Pi deploy and the testing stretch
+status: built; tests written in part
 batch: A (2026-11)
 priority: high
-updated: 2026-11-06
+updated: 2026-11-14
 ---
 
 # Every download says what, from where, to where; Move to Pi moves the file
@@ -25,7 +25,7 @@ is the one Pi call shell; `PUT /files` streams the phone's file to the Pi (cappe
 finished download); the poll is 2 s while a job is busy and the strip observes the known state. Owed: the Pi's nginx
 `/fetch/` body limit, a deploy of the CLI, unit tests (below), and one on-phone move.
 
-Tests the testing stretch must add: `transferText` for every phase and place pair; `HomeJob.transfer()` and
+Tests the testing stretch must add *(written in part 2026-11-14: see "Tests written 2026-11-14" below for what is done and what is still owed)*: `transferText` for every phase and place pair; `HomeJob.transfer()` and
 `percentOf`; `HomePiCall` (blank token, HTTP error with and without the Pi's `error`, unreadable answer, IO error);
 `HomeRoutes` PUT `/files` (stored, 411 without a length, 413 over the limit, 400 on a wrong id or a short body, 409
 busy); `DefaultDownloadManager.adopt` (stored, busy, sound-only over full, replaced older copy, stale `.incoming.part`
@@ -40,3 +40,7 @@ leftover "at home" wording in `SendHome` and `HomeFollower` says "the Pi"; a bul
 (and its confirm says the Pi's copies go too) when any selected item has a Pi copy, and the row's downloaded tick says
 so in its description. Not touched: the "Send home" share-sheet label and the "home server" setting names, which name
 the feature and the server rather than where a file is.
+
+## Tests written 2026-11-14
+
+`TransferTest` (`:core:domain`: `Transfer`, `percentOf`, `transfer(fromPi)`), instrumented `TransferTextTest` (every route and phase in words). Still owed: `HomeRoutes` PUT `/files`, `adopt`, `HomeUploadFrame`, `PhoneUploads`, `sendFromPhone`.

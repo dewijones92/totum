@@ -27,7 +27,7 @@ list in memory only, so every launch started empty.
 Not done: a deleted group's list stays in the file (it is never shown); the file is not in the Drive backup, being a
 cache.
 
-## Tests still to write
+## Tests still to write (written in part 2026-11-14: see [the tests index](../tests/_index.md))
 
 `GroupFeed` with a file: a list survives a new instance; a member removed from the group is not shown from the kept
 list; a corrupt file starts empty and is logged; a failed member's items are carried over and a member that returns

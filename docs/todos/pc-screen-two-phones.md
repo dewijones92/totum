@@ -1,10 +1,10 @@
 ---
 title: The PC screen knows both phones
 kind: todo
-status: built 2026-11-06, Batch A (tests still to add)
+status: built; tests written
 batch: A (2026-11)
 priority: high
-updated: 2026-11-06
+updated: 2026-11-14
 ---
 
 # The PC screen knows both phones
@@ -25,6 +25,10 @@ else a chooser (`/screen?choose=1` forces it, and the phone's page links to it);
 model, playing (`wantsToPlay`) and title. Entries are still unauthenticated (device token and the Pi serving the page
 itself come with phase 7). See ADR 93 (amended) and the crash-log server README.
 
-Tests still to add (code-first stretch): `test_screen.py` for the decision table (one fresh, two fresh with one playing,
+Tests still to add (code-first stretch) *(written in part 2026-11-14: see "Tests written 2026-11-14" below for what is done and what is still owed)*: `test_screen.py` for the decision table (one fresh, two fresh with one playing,
 two idle, stale only, `choose`), chooser escaping of model and title, the 8-phone cap, `legacy` and `unknown` handling;
 `ScreenAnnouncerTest` for a re-announce when the playing flag or title changes.
+
+## Tests written 2026-11-14
+
+`tests/test_screen_phones.py` (the decision table, ordering, escaping, the eight-phone cap, legacy and unknown ids, text cleaning) and `ScreenAnnouncerStateTest`. The Python tests import the web framework through `main`, which is not on this laptop: they were run with the framework stubbed out.

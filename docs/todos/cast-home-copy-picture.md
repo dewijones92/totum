@@ -1,10 +1,10 @@
 ---
 title: A Pi copy casts with its picture
 kind: todo
-status: built 2026-11-06 (ADR 122); tests and device checks to follow
+status: built; tests written
 batch: A (2026-11)
 priority: high
-updated: 2026-11-06
+updated: 2026-11-14
 ---
 
 # A Pi copy casts with its picture
@@ -23,4 +23,8 @@ a sound-extension address and a YouTube address that carries no picture are not,
 cast path depends on `playedFromHome` forcing `PlayHandle.Podcast` (no `pillar` is read there); the phone's own Listen/Watch
 offer for a Pi film still reads `UNKNOWN`, which is a separate item. Carrying the file name from the Pi would need a
 server change (`/files` has no name); not done, so the phone and the Pi keep deploying in any order.
-Tests to add: `pictureVerdict` for `…/files?id=torrent…`, an `.mp3`, a YouTube address and a local file.
+Tests to add *(written in part 2026-11-14: see "Tests written 2026-11-14" below for what is done and what is still owed)*: `pictureVerdict` for `…/files?id=torrent…`, an `.mp3`, a YouTube address and a local file.
+
+## Tests written 2026-11-14
+
+`CastPictureVerdictTest` (an address with no file type is probed and casts with its picture, a sound name never gets one, a phone file is judged by its bytes, listening is sound only, a non-video is sound only; the "picture because" reason for each). A googlevideo address is not covered (it needs a network).

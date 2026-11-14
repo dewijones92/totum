@@ -70,7 +70,7 @@ no list is marked seen. Shows the installed release's changes only, not every re
 - `AppUpdateCheckTest` (JVM): numeric ordering (0.1.99 < 0.1.100), dev builds never asking, older /
   same / newer installs, a failed lookup keeping the verdict, report keys, GitHub reply parsing.
 - `OutOfDateBannerTest` (instrumented): the banner on every tab when behind; absent when current.
-- **Still to write** (code-first batch, 2026-11-06): `judgeApk` per refusal; `whatsNewVerdict` and `whatsNewLines`
+- **Still to write** (code-first batch, 2026-11-06; `judgeApk`, `whatsNewVerdict`, `whatsNewLines` and `GitHubLatestRelease` written 2026-11-14, see [the tests index](../tests/_index.md)): `judgeApk` per refusal; `whatsNewVerdict` and `whatsNewLines`
   (Co-Authored lines, prefixes, no section); `GitHubLatestRelease` reading the asset and body and `byTag`;
   `AppUpdateInstaller` with a fake package reader; a banner test per `UpdateInstall` state; an instrumented install
   of a re-signed APK, which must be refused.

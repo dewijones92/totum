@@ -26,7 +26,7 @@ read back empty, not a backup, or from a newer Totum), `NotSetUp` (the job is sk
 `backup` lines: `dewidebug backup check (weekly): <copy> from <where> reads fine [bytes, modified, subscriptions]`, or a
 warning with the reason; the `jobs` lines.
 
-## Tests still to write
+## Tests still to write (written in part 2026-11-14: see [the tests index](../tests/_index.md))
 
 `checkLatest` against an in-memory `BackupFolder` (good copy, corrupt copy, newer version, empty, no copies, read
 throwing); the row text for each `LastRun`; a device check against a real Drive location (not done).

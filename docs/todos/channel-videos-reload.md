@@ -1,17 +1,17 @@
 ---
 title: A channel's Videos reload when reopened
 kind: todo
-status: built
+status: built; tests written
 batch: A (2026-11)
 priority: medium
-updated: 2026-11-06
+updated: 2026-11-14
 ---
 
 # A channel's Videos reload when reopened
 
 Built 2026-11-06: `ChannelViewModel.refreshVideosOnEntry()` (from `ChannelScreen`) reloads the Videos list when it is
 5 minutes old or its last load failed, keeps the old list on screen with a progress bar meanwhile, keeps it if the
-refresh fails, and logs the reuse and its age. Tests owed: reuse under 5 minutes, reload after, a failed refresh
+refresh fails, and logs the reuse and its age. Tests owed *(written in part 2026-11-14: see "Tests written 2026-11-14" below for what is done and what is still owed)*: reuse under 5 minutes, reload after, a failed refresh
 keeping the list.
 
 Report 20261101T222816: a 6-hour-old Tennis TV upload was missing from the channel list (hypothesis, the first load
@@ -21,4 +21,8 @@ was before the buffer). `ChannelScreen.kt:92-93` keys an Activity-scoped `Channe
 Consistency sweep 2026-11-06: one rule for Videos, Shorts and Playlists. `ChannelViewModel.refreshOnEntry()` and
 selecting an already loaded tab both apply it (5 minutes old, or the last load failed: the old list stays under a
 progress bar, a failed refresh keeps it); one `reload` serves all three tabs, with the paging step sharing the same
-`TabLens` per tab. Tests owed: Shorts and Playlists reuse under 5 minutes, reload after, a failed refresh keeping the list.
+`TabLens` per tab. Tests owed *(written in part 2026-11-14: see "Tests written 2026-11-14" below for what is done and what is still owed)*: Shorts and Playlists reuse under 5 minutes, reload after, a failed refresh keeping the list.
+
+## Tests written 2026-11-14
+
+`ChannelTabsReloadTest` (videos, shorts and playlists: reused under five minutes, fetched again at five, the old list kept under a progress bar while it runs, a failed refresh keeping the list, a failed first load retried at once, entering never loading a tab nobody opened, one load at a time).

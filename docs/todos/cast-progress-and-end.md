@@ -1,10 +1,10 @@
 ---
 title: Casting keeps your place and notices the end
 kind: todo
-status: built, tests pending
+status: built; tests written
 batch: A (2026-11)
 priority: high
-updated: 2026-11-06
+updated: 2026-11-14
 ---
 
 # Casting keeps your place and notices the end
@@ -32,7 +32,7 @@ for. No test covers `RemoteEnd` yet.
 - Also: `TimeMappedCastPlayer` reports the source's duration (position was already source time), otherwise a cut item
   looked near its end early and the percentage was skewed.
 
-Tests the testing stretch must add, each seen red on the old code:
+Tests the testing stretch must add *(written in part 2026-11-14: see "Tests written 2026-11-14" below for what is done and what is still owed)*, each seen red on the old code:
 1. `RemoteEndWatch`: an item seeded from the stand-in whose receiver then drops it near its end gives `Ended`; the old
    `RemoteEnd` never seeded it. Also: dropped early gives nothing; a still-present item gives nothing; `finishedOnTv`.
 2. `saveProgress` with a blank receiver id saves under the stand-in (and under nothing with two items): needs the
@@ -46,3 +46,7 @@ Tests the testing stretch must add, each seen red on the old code:
 
 Unverified on a device: whether adding an item to the receiver's queue restarts the playing one (report 20261101T170416
 suggested it); the 75 s window makes it rarer, not impossible.
+
+## Tests written 2026-11-14
+
+`RemoteEndWatchTest`, `RemoteEndTest` (the Media3 adapter over a proxy `Player`), `CastHandoffTest`, `SpuriousEndTest`, `GaplessArmerOnACastTest`. Owed: `saveProgress`/`standInFor` (private to the Media3 controller, need a `MediaController`), `announceEnd` dropping a duplicate within 3 s, `TimeMappedCastPlayer`'s source duration, and a real TV.

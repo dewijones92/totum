@@ -53,6 +53,44 @@ real wiring of the Ask state supplies and `appTaste` (they read the whole contai
 controller); a source scan proving every surface reads the spoiler seam; the real Pi (nginx, the rebuilt AI image, a real
 Chromecast, a real Jellyfin).
 
+## Batch A testing stretch, second pass (14 Nov 2026)
+
+The first stretch left features built with tests missing or partial. This pass wrote them, JVM first. "Mutated" means
+the named change was made to the code, the test run, and a test went red; each mutant was then put back. Several
+mutants were run together, so a red is attributed by its test's name, and where a mutant could be masked by another it
+was run alone. Anything that scales (the queue, groups, resume, downloads) also has a case at the size of Dewi's real
+state (about 5,800 queue items, 1,600 subscriptions, 500 downloads, 1,200 progress records) built from synthetic data.
+
+| Area | Where | What it proves, and what turned it red |
+|---|---|---|
+| A live stream that has not started | `:core:video` `LiveWaitScheduleTest`; `:lib:innertube` `UpcomingLiveParserTest`; `:app` `LiveStartWatcherTest` | the 2/5/10 minute steps, the floor and ceiling before a start, give-up at exactly six hours, the six hour limit; the parser's offline, microformat and wording branches; the watcher waits once per video, only for an upcoming tap, notifies once, gives up and clears, a recording is marked ended. Mutated: `QUICK_CHECKS`, `>=` to `>` on the give-up, `<=` to `<` on the six hour limit, the 15 minute ceiling, the 30 second floor, each parser branch, the one-wait guard, the far-event guard, the upcoming-only guard, the give-up notice and clear, the recording branch |
+| The codec beside every quality | `:core:domain` `QualityLabelTest`; `:core:video` `TheQualityMenuNamesTheCodecTest`; `:app` `DownloadChooserQualityForTest`; `:core:data` `ADownloadSkipsCodecsThePhoneCannotPlayTest` | both ladders name the winning codec, `qualityFor` honours the cap, the yt-dlp selector for every mix of avoid list, cap, language and sound-only. Mutated: each label, the cap, the height the avoid list is asked for, the sound-only branch |
+| The mini player's modes | `:app` `ActiveModesTest`; instrumented `ActiveModesRowTest` | order, Explore hidden under the kid lock, the speed tolerance; the row follows the flow and a tap opens the player. Mutated: the kid-lock test on Explore, the tolerance |
+| Channel and group lists | `:app` `ChannelTabsReloadTest`, `FileGroupNewsStoreTest`; `:core:data` `GroupFeedKeptListsTest` | the five minute rule for videos, shorts and playlists and a failed refresh keeping the list; kept group lists across a restart (300 channels of 15 videos). Mutated: the five minutes, the error and keep branches, the carried rows, the member filter |
+| Repeat one, artists, Pi files, Start again | `:app` `RepeatOneRuleTest`, `StartingAGroupEndsRepeatOneTest`, `ArtistLookupTest`, `QueueAutoDownloaderAtHomeTest`, `QueueGroupIdsTest` | a group started by you ends repeat one (kid lock and the Shorts reel included); where an artist comes from and one read per album (300 albums); an item at home is never fetched (5,857 queued); the ids Start again walks. Mutated: the by-you default, the kid-lock and mode branches, the album order and cache, the at-home branch, both copy-on-Wi-Fi defaults |
+| Resume from the account | `:app` `AccountResumeCarriesOnTest` | ahead and newer carries on and is adopted; behind, noise, finished, the 10% floor, already acted on do not (1,207 positions). Mutated: the finished guard and the carried-on result |
+| Cast progress and end | `:core:playback` `RemoteEndWatchTest`, `RemoteEndTest`, `CastHandoffTest`, `SpuriousEndTest`; `:app` `GaplessArmerOnACastTest` | the end of an item on the TV, seeded from the stand-in; the hand-back; the 75 second arming window on a cast. Mutated: the five second near-end, the playing guard, the same-item guard, the stand-in, the armed reset, `itemFor`, both spurious-end bounds, the cast branch of `due` |
+| Cast: picture, rung, step down | `:core:cast` `CastPictureVerdictTest`, `CastBestRungOnlyTest`, `CastVolumeTest`; `:core:domain` `CastScreenCodecCapsTest` | the picture verdict and its reason; one best rung at its own address and stepping down a height at a time; the LG caps; TV volume maths. Mutated: both verdict branches, `nextLowerHeight`, the volume clamp and rounding, the LG cap |
+| Drop reasons and the flight recorder | `:app` `CastCodesTest`; `:lib:common` `BreadcrumbsKeptLaneTest`, `SavingTheTrailTest`; instrumented `FlightRecorderTest` | named cast codes; the longer-kept lane (cap 1,000, routing); the recorder hand-off. Mutated: the kept cap and routing, the silent failure, a suspension reason |
+| TV volume | `:app` `VideoGestureTvVolumeTest`; instrumented `CastVolumeRowTest` | the drag drives the TV and is judged by where it began; the strip's readout, mute and slider. Mutated: the call to the TV |
+| PC screen, two phones | `tools/crashlog-server/tests/test_screen_phones.py` (28); `:app` `ScreenAnnouncerStateTest` | the decision table, ordering, escaping, the eight-phone cap, legacy and unknown ids; what the phone announces and when. Mutated: the announced playing flag, the title, the muted guard |
+| Also, from the "if time remains" list | `:app` `MobileDataMeterTest`, `MeteredAudioSwitchOverLimitTest`, `DriveBackupCheckTest`, `SettingsRegistryTest`; `:core:data` `ApkCheckTest`, `WhatsNewTest`; `:core:domain` `TransferTest`; instrumented `TransferTextTest` | the data counter and the limit, the weekly backup read (and that it never restores), every `judgeApk` refusal, the what's-new lines, the transfer words, every settings row anchored |
+
+Run as: `./gradlew :core:video:test :lib:innertube:test :core:domain:test :core:cast:test :core:data:test
+:core:playback:testDebugUnitTest :lib:common:test :app:testDebugUnitTest` and `python3 -m unittest discover -s tools/crashlog-server/tests`
+(the last needs the server's web framework installed, or stubbed as it was here). Instrumented classes (`FlightRecorderTest`, `CastVolumeRowTest`, `ActiveModesRowTest`, `TransferTextTest`: 30 tests) were run
+with `am instrument -e class ...` on `totum-api35` on 14 Nov 2026, once at the default size and once at 320x640 at 160, all green,
+and again against a build with eight changes made (the flight recorder's cooldown, prune and size budget, the strip's mute and
+slider, the mode row's empty check and tap, the upload verb): ten tests went red, every change was caught. The emulator was put
+back to its own size and density and the unmutated build reinstalled.
+
+**Owed after this pass:** `activeModesFor` and the `PlaybackContext` bundle (need the container and a `Bundle`),
+`saveProgress`/`standInFor`/`announceEnd` and `TimeMappedCastPlayer` (need a `MediaController`), `CastStepDownWatch` and
+`CastStreams.stepDown` (a `Handler` and a `Player`), `rememberRemoveWithUndo` and `startAgain` (composables over a
+snackbar), `AppUpdateInstaller` and the install of a re-signed APK, the Pi upload routes, the send-report tile, the
+artist repair in `SharedMetadataRepair` and the parser's album-track artist, the backup row text, and every device check
+named in the todos.
+
 ## Where coverage lives
 
 | Area | Kind | Notes |

@@ -1,10 +1,10 @@
 ---
 title: Playing or queueing a Pi item never copies it to the phone
 kind: todo
-status: built
+status: built; tests written
 batch: A (2026-11)
 priority: high
-updated: 2026-11-06
+updated: 2026-11-14
 ---
 
 # Playing or queueing a Pi item never copies it to the phone
@@ -18,3 +18,7 @@ Dewi 2026-11-05: "if a file is on my Raspberry Pi and I play it … I don't want
 gate, so a queued item the Pi finished is copied on any network. Decided: the queue auto-download skips anything at
 home; `copyHomeOnWifi` defaults to OFF (was true, `AppPreferences.kt:159,219`); "📥 Copy to the phone now" stays.
 Tests: `HomeCopyFirstTest`, `HomeDownloadsTest`.
+
+## Tests written 2026-11-14
+
+`QueueAutoDownloaderAtHomeTest` (an item finished at home is never fetched, the reason is logged once, 5,857 queued items with three on the web fetch only those three, copy-on-Wi-Fi off by default in the settings and the phone side). `HomeCopyFirstTest` and `HomeDownloadsTest` were already there.
