@@ -5,6 +5,7 @@ import com.dewijones92.totum.domain.SourceId
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -191,16 +192,16 @@ class SharedLinkTest {
 
     @Test
     fun `a share with no link at all says so`() {
-        assertEquals("⚠️ No link in what was shared", shareFeedback("android.intent.action.SEND", null))
-        assertEquals("⚠️ No link in what was shared", shareFeedback("android.intent.action.SEND", ""))
-        assertEquals("⚠️ No link in what was shared", shareFeedback("android.intent.action.SEND", "just some words"))
+        assertTrue(sharedWithNoLink("android.intent.action.SEND", null))
+        assertTrue(sharedWithNoLink("android.intent.action.SEND", ""))
+        assertTrue(sharedWithNoLink("android.intent.action.SEND", "just some words"))
     }
 
     @Test
     fun `a share with a link, or anything that is not a share, has no feedback of its own`() {
-        assertNull(shareFeedback("android.intent.action.SEND", "see https://example.com/blog"))
-        assertNull(shareFeedback("android.intent.action.SEND", watch))
-        assertNull(shareFeedback("android.intent.action.VIEW", null))
-        assertNull(shareFeedback(null, null))
+        assertFalse(sharedWithNoLink("android.intent.action.SEND", "see https://example.com/blog"))
+        assertFalse(sharedWithNoLink("android.intent.action.SEND", watch))
+        assertFalse(sharedWithNoLink("android.intent.action.VIEW", null))
+        assertFalse(sharedWithNoLink(null, null))
     }
 }

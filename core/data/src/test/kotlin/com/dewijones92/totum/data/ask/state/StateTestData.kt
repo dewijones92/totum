@@ -137,6 +137,7 @@ object StateTestData {
         listens: List<ListenFact> = listOf(
             ListenFact(NOW - HOUR_MS, "A song", "An Artist", null, "An Album", "music", false, 200_000, 240_000, true),
         ),
+        stats: List<StatFact> = listOf(StatFact(NOW - HOUR_MS, "use:search", """{"type":"use","what":"SEARCH"}""")),
         events: List<Breadcrumbs.Entry> = this.events,
         secrets: List<String> = emptyList(),
         hosts: List<String> = emptyList(),
@@ -148,7 +149,7 @@ object StateTestData {
         records = records,
         locked = setOf("v2"),
         listens = listens,
-        stats = listOf(StatFact(NOW - HOUR_MS, "use:search", """{"type":"use","what":"SEARCH"}""")),
+        stats = stats,
         trail = listOf(queue[0].item, queue[1].item),
         trailCursor = 1,
         events = events,

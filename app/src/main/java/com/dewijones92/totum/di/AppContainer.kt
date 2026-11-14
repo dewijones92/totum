@@ -128,6 +128,7 @@ import com.dewijones92.totum.diagnostics.installAndroidLogSink
 import com.dewijones92.totum.diagnostics.installFlightRecorder
 import com.dewijones92.totum.diagnostics.knownHomeHosts
 import com.dewijones92.totum.diagnostics.preferencesOf
+import com.dewijones92.totum.diagnostics.reportSecrets
 import com.dewijones92.totum.diagnostics.runningOnAnEmulator
 import com.dewijones92.totum.diagnostics.runningUnderInstrumentation
 import com.dewijones92.totum.diagnostics.thisDevice
@@ -320,6 +321,7 @@ import com.dewijones92.totum.targets.PrefsTargetColours
 import com.dewijones92.totum.targets.RequesterIdentity
 import com.dewijones92.totum.targets.SendToTarget
 import com.dewijones92.totum.targets.TargetsRepository
+import com.dewijones92.totum.targets.withPlayOn
 import com.dewijones92.totum.trip.TripMode
 import com.dewijones92.totum.trip.tripModeFor
 import com.dewijones92.totum.ui.ask.AskLatest
@@ -972,6 +974,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                 kept = PrefsKeptAtHome(context),
                 moving = PrefsKeptAtHome(context, "totum_moving_home"),
                 movingToPhone = PrefsKeptAtHome(context, "totum_moving_to_phone"),
+                freeBytes = ::freeDownloadSpaceBytes,
                 identity = { requesterIdentity.requester() },
             ),
             downloads = lockingDownloads,
@@ -1068,7 +1071,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                 pinStore
             ).withRecent(recentActions).withNotForMe(notForMe).withBedtime(bedtime).withWorkApps(workApps)
                 .withDailyAlarms(dailyAlarms).withRecorderChoices(RecorderChoiceStore(context))
-                .withKidTv(kidTv).withPhoneUse(phoneUse),
+                .withKidTv(kidTv).withPhoneUse(phoneUse).withPlayOn { targets },
             appVersion = BuildConfig.VERSION_NAME,
             extras = BackupService.Extras(
                 groups = sourceGroupStore,
@@ -2074,7 +2077,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                 appVersion = BuildConfig.VERSION_NAME,
                 starredName = STARRED_PLAYLIST_NAME,
                 secrets = {
-                    appPreferences.settings.value.let { listOf(it.homeServerToken, it.prowlarrApiKey) }
+                    appPreferences.settings.value.let { reportSecrets(it.homeServerToken, it.prowlarrApiKey) }
                 },
                 hosts = { knownHomeHosts(appPreferences.settings.value.homeServerBase) },
                 titleFor = { id, title, author -> aiFeatures.spoilerShield.titleOf(MediaItemId(id), title, author) },

@@ -36,7 +36,7 @@ internal fun TorrentMenuSheet(search: SearchViewModel, container: AppContainer) 
         onRemoveFromQueue = null,
         onPeek = null,
         onDownloadVideo = null,
-        onDownload = { container.episodeDownloads.ask(chosen.title, chosen.items) },
+        onDownload = { container.episodeDownloads.ask(chosen.title, chosen.items, chosen.details) },
         onDeleteDownload = null,
         onSwitchMode = null,
         audioMode = false,

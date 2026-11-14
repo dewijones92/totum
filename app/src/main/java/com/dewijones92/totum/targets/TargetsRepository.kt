@@ -114,6 +114,17 @@ class TargetsRepository(
         if (!troubleFromRead) trouble.value = null
     }
 
+    val lastUsed: String? get() = chosen.value
+
+    fun restoreLastUsed(id: String?) {
+        Diag.log(
+            "targets",
+            "last Play on… device restored from a backup: ${id ?: "this phone"} (was ${chosen.value ?: "this phone"})",
+        )
+        chosen.value = id
+        playOn.save(id)
+    }
+
     fun choose(option: PlayOnOption) = select(option.target.id.takeUnless { option.isPhone }, wake = true)
 
     private fun destinationNow(): String? = PlayOn.destination(chosen.value, PlayOn.options(live.value, homeNow.value))

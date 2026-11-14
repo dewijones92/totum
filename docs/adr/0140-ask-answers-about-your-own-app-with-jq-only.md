@@ -2,7 +2,7 @@
 title: Ask answers about your own app with jq only, and keeps the data away from the web
 kind: adr
 status: accepted
-updated: 2026-11-07
+updated: 2026-11-14
 ---
 
 # 140. Ask answers about your own app with jq only, and keeps the data away from the web
@@ -70,7 +70,7 @@ place, downloads in every state with sizes and locks, the stats log, the back/fo
   milliseconds; `percentDone`; episode `{season, episode, code}` read from the title or the file name
   (`episodeCodeOf`); the queue group, when it was added, its queue place, `starred`, a finished copy on the phone,
   and the names of the person's channel groups whose source includes the item.
-- Lists capped at their newest rows say so in `snapshot.notes` (listens 3,000, other stats 500, events 5,000); every
+- Lists capped at their newest rows say so in `snapshot.notes` (listens 3,000, other stats newest 200 of each kind, events 5,000); every
   other list is complete; `snapshot.counts` holds each list's size. Settings are expanded from the backup's flat
   strings (a value that is a JSON list or object becomes one).
 - **Not in the pack as a field:** an address for an item or a feed (a subscription carries only the feed's host), the

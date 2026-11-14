@@ -11,6 +11,7 @@ import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.TorrentIds
 import com.dewijones92.totum.domain.pictureOfFileName
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Turns a prepared torrent into ordinary queue items.
@@ -38,13 +39,12 @@ public object TorrentPlayables {
      * One item per file rather than one per torrent: a season pack IS two dozen things to watch,
      * and collapsing it to one would make the queue lie about what is in it.
      */
-    public suspend fun queueItems(
+    public fun queueItems(
         server: HomeTorrentServer,
         torrent: PreparedTorrent,
         kind: MediaContentKind = MediaContentKind.STANDARD,
         artwork: HttpUrl? = null,
     ): List<PlayableItem> {
-        val picture = artworkFor(server, torrent, artwork)
         val roles = TorrentRoles.classify(torrent).filter { it.role != TorrentFileRole.SAMPLE }
             .associate { it.file.index to it.role }
         return TorrentEpisodes.playableInOrder(torrent.files).map { file ->
@@ -60,7 +60,7 @@ public object TorrentPlayables {
                     author = torrent.name,
                     mediaUrl = server.stream(torrent, file),
                     contentKind = kind,
-                    thumbnailUrl = picture,
+                    thumbnailUrl = artwork,
                 ),
                 // The audio-only variant, so Listen mode costs 2.1 MB/min instead of 15.2.
                 handle = PlayHandle.Podcast(
@@ -70,19 +70,32 @@ public object TorrentPlayables {
         }
     }
 
-    private suspend fun artworkFor(server: HomeTorrentServer, torrent: PreparedTorrent, given: HttpUrl?): HttpUrl? {
-        if (given != null) {
-            Diag.log("torrent", "\"${torrent.name}\" artwork: the caller's, $given")
-            return given
+    public suspend fun posterFor(
+        server: HomeTorrentServer,
+        torrent: PreparedTorrent,
+        kind: MediaContentKind = MediaContentKind.STANDARD,
+    ): HttpUrl? {
+        if (kind == MediaContentKind.AUDIOBOOK) {
+            Diag.log("torrent", "\"${torrent.name}\" poster: not looked up, an audiobook has no film poster")
+            return null
         }
-        val found = server.posterFor(torrent.name)
+        val found = withTimeoutOrNull(POSTER_WAIT_MS) { server.posterFor(torrent.name) }
         Diag.log(
             "torrent",
-            "\"${torrent.name}\" artwork: " +
-                (found?.let { "looked up by title and year, $it" } ?: "none (none from its site, none found by title)"),
+            "\"${torrent.name}\" poster: " +
+                (found?.let { "looked up by title and year, $it" } ?: "none within ${POSTER_WAIT_MS}ms by title"),
         )
         return found
     }
+
+    public fun withPoster(items: List<PlayableItem>, poster: HttpUrl?): List<PlayableItem> =
+        if (poster == null) {
+            items
+        } else {
+            items.map { if (it.item.thumbnailUrl == null) it.copy(item = it.item.copy(thumbnailUrl = poster)) else it }
+        }
+
+    private const val POSTER_WAIT_MS = 3_000L
 
     /**
      * What a row says.

@@ -76,7 +76,7 @@ public class BuiltState(
 public object AppStateBuilder {
 
     public const val MAX_LISTENS: Int = 3_000
-    public const val MAX_OTHER_STATS: Int = 500
+    public const val MAX_OTHER_STATS_PER_TYPE: Int = 200
     public const val MAX_EVENTS: Int = 5_000
 
     public fun build(inputs: AppStateInputs): BuiltState {
@@ -85,9 +85,13 @@ public object AppStateBuilder {
         val identifiers = ReportRedactor(inputs.secrets, inputs.hosts, keepIdentifiers = true)
         val notes = mutableListOf<String>()
         val listens = inputs.listens.sortedByDescending { it.atMs }
-        val others = inputs.stats.sortedByDescending { it.atMs }
+        val allOthers = inputs.stats.sortedByDescending { it.atMs }
+        val others = allOthers.groupBy { it.type }.values.flatMap { it.take(MAX_OTHER_STATS_PER_TYPE) }
+            .sortedByDescending { it.atMs }
         if (listens.size > MAX_LISTENS) notes += "listens: newest $MAX_LISTENS of ${listens.size}"
-        if (others.size > MAX_OTHER_STATS) notes += "otherStats: newest $MAX_OTHER_STATS of ${others.size}"
+        if (others.size < allOthers.size) {
+            notes += "otherStats: newest $MAX_OTHER_STATS_PER_TYPE of each kind, ${others.size} of ${allOthers.size}"
+        }
         if (inputs.events.size > MAX_EVENTS) notes += "events: newest $MAX_EVENTS of ${inputs.events.size}"
         if (inputs.trail.isEmpty()) notes += "trail: nothing has played since the trail began"
         notes += "downloads at home on the Pi are not in this snapshot"
@@ -110,7 +114,7 @@ public object AppStateBuilder {
             downloads = facts.downloads(),
             progress = facts.progressRows(),
             listens = listens.take(MAX_LISTENS).map(facts::listen),
-            otherStats = others.take(MAX_OTHER_STATS).map { StatRow(facts.at(it.atMs), it.atMs, it.type, it.detail) },
+            otherStats = others.map { StatRow(facts.at(it.atMs), it.atMs, it.type, it.detail) },
             trail = facts.trail(),
             settings = settings(inputs.backup.settings),
             events = inputs.events.takeLast(

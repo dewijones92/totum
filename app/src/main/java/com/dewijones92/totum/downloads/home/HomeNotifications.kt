@@ -9,6 +9,7 @@ import androidx.core.content.ContextCompat
 import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.domain.TransferPlace
+import com.dewijones92.totum.domain.formatBytes
 import com.dewijones92.totum.downloads.DownloadsRequests
 import com.dewijones92.totum.downloads.DownloadsSection
 import com.dewijones92.totum.notifications.DownloadNotifications
@@ -27,6 +28,11 @@ class HomeNotifications(private val context: Context) : HomeNotices {
     )
 
     override fun problem(key: String, text: String) = post(key, text)
+
+    override fun noRoomOnPhone(title: String, needsBytes: Long, hasBytes: Long) = post(
+        title,
+        context.getString(R.string.home_notice_no_room, formatBytes(needsBytes), formatBytes(hasBytes), title),
+    )
 
     override fun uploading(title: String, percent: Int?) {
         val text = titled(TransferPlace.PHONE, title)

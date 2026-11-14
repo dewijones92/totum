@@ -2,7 +2,7 @@
 title: The screen stays on for a video playing, and for a paused full-screen video only while charging
 kind: adr
 status: accepted
-updated: 2026-11-13
+updated: 2026-11-14
 ---
 
 # 161. The screen stays on for a video playing, and for a paused full-screen video only while charging
@@ -27,6 +27,9 @@ screen it stays on only while the phone is charging.
   follows plug and unplug while the surface is on screen.
 - Every change logs `screenawake` with the surface, the answer, the reason and the three inputs; a charging flip logs
   its plug type.
+- It shares its one `view.keepScreenOn` holder with the reminder kit's `KeepScreenAwake` (2026-11-14): both call
+  `HoldScreen(keepOn, tag, entered, left)`, which sets the flag, logs, and clears it when it leaves, so the flag is
+  written in one place. Each caller keeps its own rule and its own log tag.
 - The kid lock keeps its own rule (ADR 76: the window keeps the screen on for the whole lock, paused or not). That is a
   superset of this rule and a deliberate exception for a phone a toddler holds, so it was left alone.
 - Picture-in-picture is declared in the manifest but nothing in the code enters it, so there is no surface to cover.

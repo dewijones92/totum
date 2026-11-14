@@ -112,6 +112,40 @@ class SharedMetadataRepairTest {
     }
 
     @Test
+    fun `an audiobook torrent is never given a film poster`() = runTest {
+        val book = PlayableItem(
+            MediaItem(
+                MediaItemId("torrent:def:1"),
+                SourceId("torrent"),
+                "Chapter one",
+                publishedAt = null,
+                duration = null,
+                author = "A.Book.Read.By.Someone",
+                mediaUrl = HttpUrl.of("https://home.test/stream/a.mp3"),
+                contentKind = MediaContentKind.AUDIOBOOK,
+            ),
+            PlayHandle.Podcast(),
+        )
+        val queue = MutableStateFlow(QueueSnapshot(entries = listOf(QueueEntry(book))))
+        val asked = mutableListOf<String>()
+        SharedMetadataRepair(
+            queue,
+            FakeDownloadManager(),
+            { null },
+            {},
+            {},
+            backgroundScope,
+            posterOf = { item ->
+                asked += item.item.author.orEmpty()
+                null
+            },
+        ).start()
+        runCurrent()
+
+        assertEquals(emptyList<String>(), asked)
+    }
+
+    @Test
     fun `a failed metadata lookup retries without a queue edit`() = runTest {
         val downloads = FakeDownloadManager()
         val queue = MutableStateFlow(QueueSnapshot(entries = listOf(QueueEntry(placeholder))))

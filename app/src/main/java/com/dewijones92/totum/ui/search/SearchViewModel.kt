@@ -25,6 +25,7 @@ import com.dewijones92.totum.data.torrent.PreparedTorrent
 import com.dewijones92.totum.data.torrent.SeenTorrent
 import com.dewijones92.totum.data.torrent.TorrentCategory
 import com.dewijones92.totum.data.torrent.TorrentEpisodes
+import com.dewijones92.totum.data.torrent.TorrentFileDetail
 import com.dewijones92.totum.data.torrent.TorrentPlayables
 import com.dewijones92.totum.data.torrent.TorrentSidecarSubtitles
 import com.dewijones92.totum.data.torrent.TorrentTrust
@@ -53,6 +54,7 @@ import com.dewijones92.totum.ui.common.toMediaItem
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -175,7 +177,12 @@ class SearchViewModel(
 
     private val playAttempt = MutableStateFlow(PlayAttempt())
 
-    data class TorrentMenu(val title: String, val group: QueueGroup, val items: List<PlayableItem>)
+    data class TorrentMenu(
+        val title: String,
+        val group: QueueGroup,
+        val items: List<PlayableItem>,
+        val details: Map<MediaItemId, TorrentFileDetail> = emptyMap(),
+    )
 
     private val menu = MutableStateFlow<TorrentMenu?>(null)
     val torrentMenu: StateFlow<TorrentMenu?> = menu
@@ -191,7 +198,12 @@ class SearchViewModel(
                 return@launch
             }
             Diag.log("search", "\"${hit.title}\": menu for ${items.size} file(s)")
-            menu.value = TorrentMenu(prepared.name, QueueGroup(id = prepared.hash, title = prepared.name), items)
+            menu.value = TorrentMenu(
+                prepared.name,
+                QueueGroup(id = prepared.hash, title = prepared.name),
+                items,
+                TorrentPlayables.details(prepared),
+            )
         }
     }
 
@@ -487,7 +499,10 @@ class SearchViewModel(
                 return@launch
             }
             Diag.log("search", "offering ${items.size} file(s) of \"${hit.title}\" to download")
-            episodes.ask(prepared!!.name, items, TorrentPlayables.details(prepared!!))
+            val poster = items.takeIf { all -> all.any { it.item.thumbnailUrl == null } }?.let {
+                viewModelScope.async { TorrentPlayables.posterFor(server, prepared!!, kindOf(hit)) }
+            }
+            episodes.ask(prepared!!.name, items, TorrentPlayables.details(prepared!!), poster)
         }
     }
 
@@ -502,16 +517,17 @@ class SearchViewModel(
                 torrents?.subtitles?.remember(it)
                 torrents?.seen?.remember(it)
             }
-            val kind = when (hit.category) {
-                TorrentCategory.AUDIOBOOKS -> MediaContentKind.AUDIOBOOK
-                TorrentCategory.ANY -> MediaContentKind.STANDARD
-            }
-            items = prepared?.let { TorrentPlayables.queueItems(server, it, kind, hit.artworkUrl) }.orEmpty()
+            items = prepared?.let { TorrentPlayables.queueItems(server, it, kindOf(hit), hit.artworkUrl) }.orEmpty()
             val warning = prepared?.let { TorrentTrust.filesWarning(it.files) }
             warning?.let { Diag.warn("search", "\"${hit.title}\": $it") }
             if (items.isEmpty()) OperationEnd.Nothing else OperationEnd.Done(items.size, note = warning)
         }
         return prepared to items
+    }
+
+    private fun kindOf(hit: SearchHit.Torrent) = when (hit.category) {
+        TorrentCategory.AUDIOBOOKS -> MediaContentKind.AUDIOBOOK
+        TorrentCategory.ANY -> MediaContentKind.STANDARD
     }
 
     fun playTorrent(hit: SearchHit.Torrent) {

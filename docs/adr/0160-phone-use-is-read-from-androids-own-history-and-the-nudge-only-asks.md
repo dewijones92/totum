@@ -2,7 +2,7 @@
 title: Phone use is read from Android's own history, and the unlock nudge only asks
 kind: adr
 status: accepted
-updated: 2026-11-13
+updated: 2026-11-14
 ---
 
 # 160. Phone use is read from Android's own history, and the unlock nudge only asks
@@ -72,8 +72,16 @@ tracker that has to run all day is one more thing for Android to kill.
   heads-up notification that opens the same screen.
 - Foreground detection is best effort: a navigation app running in the background does not hold the nudge back, and an
   app with an unusual camera or navigation intent is not recognised.
-- The Ask pack carries unlocks and nudge outcomes but leaves out the raw screen on/off events, which are the bulk of
-  the log. Screen-time questions to Ask therefore cannot be answered from it.
+- The Ask pack and the state dump carry unlocks (their time) and nudge outcomes but leave out the raw screen on/off
+  events, which are the bulk of the log, and **never carry the app opened first**: `AskStateSource` takes `firstApp`
+  out of every `PhoneUnlock` before it is encoded (2026-11-14; until then the package name went to the Pi in every
+  pack and dump, while the Usage access card said app names stay on the phone). The Stats page on the phone still has
+  it, and the card now says the times can go to the home server and the app names never do. Screen-time questions to
+  Ask cannot be answered from the pack.
+- **Unlocks are counted per kind in the pack.** A day of unlocks is hundreds of rows, and the pack's "other stats" were
+  one newest-500 list, so a busy fortnight pushed every Exsurge and alarm row out of the Ask pack and the state dump.
+  `AppStateBuilder` now keeps the newest 200 of each kind (`MAX_OTHER_STATS_PER_TYPE`) and says so in
+  `snapshot.notes`; the `phone-unlock` kind can fill its 200 and no more.
 - With nothing holding the process, Android can stop it and no nudge comes until Totum is next opened (seen on `totum-api35`,
   which has no alarms; Dewi's phone has the pinned board, so it should be held there, not confirmed). Usage tracking is
   unaffected, since it reads Android's history.

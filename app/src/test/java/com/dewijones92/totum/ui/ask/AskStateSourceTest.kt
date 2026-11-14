@@ -117,6 +117,18 @@ class AskStateSourceTest {
         }
 
     @Test
+    fun `an unlock goes into the pack with its time and never the app it opened first`() = runTest(dispatcher) {
+        stats = listOf(StatEvent.PhoneUnlock(at = 5_000, firstApp = "com.whatsapp"))
+
+        val text = AskStateWire.unpack(source().snapshot().packed).state.toString()
+        val state = stateOf(source().snapshot())
+
+        assertFalse(text, text.contains("com.whatsapp"))
+        assertEquals(listOf("phone-unlock"), state.otherStats.map { it.type })
+        assertEquals(5_000L, state.otherStats.single().atMs)
+    }
+
+    @Test
     fun `a secret and a host the service knows are taken out of the pack`() = runTest(dispatcher) {
         queue = listOf(video("v1", "Link https://pi.example/x?token=SECRET-TOKEN-123 and pi.example"))
         secrets = listOf("SECRET-TOKEN-123")

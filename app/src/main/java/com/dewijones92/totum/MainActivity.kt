@@ -230,7 +230,8 @@ class MainActivity : FragmentActivity() {
         val text = intent.sharedText()
         val share = describeShare(action, intent.type, intent.hasExtra(Intent.EXTRA_STREAM), text)
         logUnplayableShare(share, text, via)
-        shareFeedback(action, text)?.let { notice ->
+        if (sharedWithNoLink(action, text)) {
+            val notice = getString(R.string.share_no_link)
             Toast.makeText(this, notice, Toast.LENGTH_LONG).show()
             Diag.log("share", "told the user: $notice [$share]")
         }

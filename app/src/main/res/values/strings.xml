@@ -1322,6 +1322,8 @@
     <string name="settings_copy_home_summary">On: on Wi-Fi, by itself. Off (the default): they stay on the Pi until you choose 📥 Copy to 📱 Phone now.</string>
     <string name="home_notice_ready">✅ On 🏠 Pi · %1$s</string>
     <string name="home_notice_refused">❌ Not sent to 🏠 Pi · %1$s · %2$s</string>
+    <string name="share_no_link">⚠️ No link in what was shared</string>
+    <string name="home_notice_no_room">⚠️ Not enough space on the phone (needs %1$s, has %2$s) · %3$s</string>
     <string name="ops_home_percent">⏳ %1$d%%</string>
     <string name="ops_retrying">⏳ Retrying %1$d of %2$d in %3$s: %4$s</string>
     <plurals name="ops_home_done">

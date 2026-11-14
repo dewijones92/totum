@@ -1,9 +1,11 @@
 package com.dewijones92.totum.downloads
 
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.data.download.DownloadManager
 import com.dewijones92.totum.data.torrent.TorrentFileDetail
 import com.dewijones92.totum.data.torrent.TorrentFileRole
+import com.dewijones92.totum.data.torrent.TorrentPlayables
 import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItemId
@@ -18,6 +20,7 @@ import com.dewijones92.totum.settings.DownloadChoice
 import com.dewijones92.totum.settings.DownloadPlace
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -40,6 +43,7 @@ class EpisodeDownloads(
         val title: String,
         val items: List<PlayableItem>,
         val details: Map<MediaItemId, TorrentFileDetail> = emptyMap(),
+        val poster: Deferred<HttpUrl?>? = null,
     ) {
         val offersAChoice: Boolean get() = items.any { it.handle is PlayHandle.Video && !it.isSong }
         val extras: Set<MediaItemId> get() = details.filterValues { it.role == TorrentFileRole.EXTRA }.keys
@@ -48,8 +52,13 @@ class EpisodeDownloads(
     private val _asking = MutableStateFlow<Ask?>(null)
     val asking: StateFlow<Ask?> = _asking.asStateFlow()
 
-    fun ask(title: String, items: List<PlayableItem>, details: Map<MediaItemId, TorrentFileDetail> = emptyMap()) {
-        val ask = Ask(title, items, details)
+    fun ask(
+        title: String,
+        items: List<PlayableItem>,
+        details: Map<MediaItemId, TorrentFileDetail> = emptyMap(),
+        poster: Deferred<HttpUrl?>? = null,
+    ) {
+        val ask = Ask(title, items, details, poster)
         Diag.log(
             TAG,
             "choose episodes of \"$title\": ${items.size} offered, ${items.size - ask.extras.size} ticked, " +
@@ -69,7 +78,15 @@ class EpisodeDownloads(
         if (atHome != null) {
             Diag.log(TAG, "sending ${picked.size} of ${ask.items.size} from \"${ask.title}\" home as ${choice.stored}")
             _asking.value = null
-            picked.forEach { atHome.start(it, choice.takeIf { _ -> it.handle is PlayHandle.Video }) }
+            val send = { items: List<PlayableItem> ->
+                items.forEach { atHome.start(it, choice.takeIf { _ -> it.handle is PlayHandle.Video }) }
+            }
+            val poster = ask.poster
+            if (poster == null) {
+                send(picked)
+            } else {
+                scope.launch { send(TorrentPlayables.withPoster(picked, poster.await())) }
+            }
             return
         }
         Diag.log(

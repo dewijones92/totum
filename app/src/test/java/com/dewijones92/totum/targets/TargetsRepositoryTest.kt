@@ -262,6 +262,18 @@ class TargetsRepositoryTest {
     }
 
     @Test
+    fun `a last used device restored from a backup is the one remembered and offered`() = runTest {
+        api.answer = HomeAnswer.Ok(TargetsAnswer(listOf(tv)))
+        repository.refresh("test")
+
+        repository.restoreLastUsed("lg-tv")
+
+        assertEquals("lg-tv", repository.lastUsed)
+        assertEquals("lg-tv", repository.selected.value)
+        assertEquals("lg-tv", playOn.load())
+    }
+
+    @Test
     fun `away from home a play stays on this phone and the last used device is not offered`() = runTest {
         api.answer = HomeAnswer.Ok(TargetsAnswer(listOf(tv)))
         repository.refresh("test")

@@ -170,6 +170,35 @@ class AppStateBuilderTest {
     }
 
     @Test
+    fun `a flood of unlocks does not push the exsurge and alarm history out of the pack`() {
+        val unlocks = (1..600).map {
+            StatFact(
+                StateTestData.NOW - it * 1_000L,
+                "phone-unlock",
+                """{"type":"unlock"}"""
+            )
+        }
+        val older = (1..10).map {
+            StatFact(StateTestData.NOW - 10_000_000L - it * 1_000L, "exsurge", """{"type":"exsurge","n":$it}""")
+        }
+        val alarm = StatFact(StateTestData.NOW - 20_000_000L, "alarm", """{"type":"alarm"}""")
+
+        val big = AppStateBuilder.build(StateTestData.inputs(stats = unlocks + older + alarm))
+        val kept = big.json.getValue(
+            "otherStats"
+        ).jsonArray.map { it.jsonObject.getValue("type").jsonPrimitive.content }
+
+        assertEquals(10, kept.count { it == "exsurge" })
+        assertEquals(1, kept.count { it == "alarm" })
+        assertEquals(AppStateBuilder.MAX_OTHER_STATS_PER_TYPE, kept.count { it == "phone-unlock" })
+        assertTrue(
+            big.notes.any {
+                it.startsWith("otherStats: newest ${AppStateBuilder.MAX_OTHER_STATS_PER_TYPE} of each kind")
+            }
+        )
+    }
+
+    @Test
     fun `durations and sizes read the way a person says them`() {
         assertEquals("0:05", AppStateBuilder.durationText(5_000))
         assertEquals("1:02:03", AppStateBuilder.durationText(3_723_000))

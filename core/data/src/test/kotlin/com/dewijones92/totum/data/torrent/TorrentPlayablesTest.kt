@@ -4,7 +4,9 @@ import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.data.torrent.fake.FakeHomeTorrentServer
 import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.PlayHandle
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
@@ -93,7 +95,17 @@ class TorrentPlayablesTest {
 
     @Test
     fun `samples and junk never reach the queue`() {
-        val items = queued(server, pack("sample.mkv", "S01E01.mkv", "notes.nfo"))
+        val torrent = PreparedTorrent(
+            hash = "abc123",
+            name = "Some.Show.S01.1080p-GROUP",
+            files = listOf(
+                TorrentFile(1, "Some.Show.S01/sample.mkv", 40_000_000),
+                TorrentFile(2, "Some.Show.S01/S01E01.mkv", 1_000_000_000),
+                TorrentFile(3, "Some.Show.S01/notes.nfo", 1_000),
+            ),
+        )
+
+        val items = queued(server, torrent)
 
         assertEquals(1, items.size)
     }
@@ -157,16 +169,6 @@ class TorrentPlayablesTest {
     }
 
     @Test
-    fun `a torrent with no picture from its site gets one looked up by title, for every caller`() {
-        val looked = HttpUrl.of("https://images.metahub.space/poster/medium/tt1/img")
-        server.posters["Some.Show.S01.1080p-GROUP"] = looked
-
-        val items = queued(server, pack("S01E01.mkv", "S01E02.mkv"))
-
-        assertEquals(listOf(looked, looked), items.map { it.item.thumbnailUrl })
-    }
-
-    @Test
     fun `a picture the caller already has is used and nothing is looked up`() {
         val given = HttpUrl.of("https://site.test/poster.jpg")
 
@@ -176,7 +178,50 @@ class TorrentPlayablesTest {
     }
 
     @Test
+    fun `a poster found alongside fills only the items that have none`() {
+        val looked = HttpUrl.of("https://images.metahub.space/poster/medium/tt1/img")
+        val given = HttpUrl.of("https://site.test/poster.jpg")
+        server.posters["Some.Show.S01.1080p-GROUP"] = looked
+        val torrent = pack("S01E01.mkv", "S01E02.mkv")
+        val bare = queued(server, torrent)
+        val mixed = listOf(bare[0], bare[1].let { it.copy(item = it.item.copy(thumbnailUrl = given)) })
+
+        val found = runBlocking { TorrentPlayables.posterFor(server, torrent) }
+        val patched = TorrentPlayables.withPoster(mixed, found)
+
+        assertEquals(listOf(looked, given), patched.map { it.item.thumbnailUrl })
+    }
+
+    @Test
+    fun `an audiobook is never looked up as a film`() {
+        val found = runBlocking {
+            TorrentPlayables.posterFor(
+                server,
+                pack("Chapter 1.mp3"),
+                MediaContentKind.AUDIOBOOK
+            )
+        }
+
+        assertEquals(null, found)
+        assertEquals(emptyList<String>(), server.postersAsked)
+    }
+
+    @Test
     fun `no picture found leaves the thumbnail empty`() {
         assertEquals(listOf(null), queued(server, pack("S01E01.mkv")).map { it.item.thumbnailUrl })
+    }
+
+    @Test
+    fun `a poster lookup that never answers gives up rather than holding a send`() {
+        val slow = object : HomeTorrentServer by FakeHomeTorrentServer() {
+            override suspend fun posterFor(torrentName: String): HttpUrl? {
+                delay(60_000)
+                return null
+            }
+        }
+
+        val found = runBlocking { withTimeout(10_000) { TorrentPlayables.posterFor(slow, pack("S01E01.mkv")) } }
+
+        assertEquals(null, found)
     }
 }

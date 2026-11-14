@@ -61,8 +61,9 @@ class SendHome(
         val prepared = operations.showing("send-home:${magnet.hashCode()}", "🏠 Preparing a shared torrent on the Pi") {
             server.prepare(TorrentLink.Magnet(magnet))
         } ?: return refused(NotSent.NOT_PREPARED, magnet)
-        val files = TorrentPlayables.queueItems(server, prepared)
-        if (files.isEmpty()) return refused(NotSent.NOTHING_PLAYABLE, magnet)
+        val bare = TorrentPlayables.queueItems(server, prepared)
+        if (bare.isEmpty()) return refused(NotSent.NOTHING_PLAYABLE, magnet)
+        val files = TorrentPlayables.withPoster(bare, TorrentPlayables.posterFor(server, prepared))
         remember(prepared)
         val details = TorrentPlayables.details(prepared)
         val wanted = files.filter { details[it.item.id]?.role != TorrentFileRole.EXTRA }

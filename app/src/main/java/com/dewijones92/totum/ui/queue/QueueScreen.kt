@@ -44,6 +44,7 @@ import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.queue.QueueEntry
 import com.dewijones92.totum.data.queue.QueueGroup
+import com.dewijones92.totum.data.torrent.extraDetailsOf
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.ItemFilters
 import com.dewijones92.totum.domain.MediaItem
@@ -265,7 +266,9 @@ private fun rememberQueueActions(
         onShareGroup = itemActions?.let { actions -> { id -> shareGroup(actions, queue, id) } },
         onPickGroupDownloads = { id ->
             val members = queue.state.value.entries.filter { it.group?.id == id }
-            container.episodeDownloads.ask(members.firstOrNull()?.group?.title ?: id, members.map { it.item })
+            val items = members.map { it.item }
+            val extras = container.torrentsSeen?.records?.value.orEmpty().extraDetailsOf(items)
+            container.episodeDownloads.ask(members.firstOrNull()?.group?.title ?: id, items, extras)
         },
     )
 }

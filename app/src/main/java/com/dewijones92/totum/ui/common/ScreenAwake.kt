@@ -12,8 +12,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalView
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.reminders.kit.HoldScreen
 
 internal data class ScreenAwake(val keepOn: Boolean, val reason: String)
 
@@ -48,16 +48,12 @@ private fun rememberIsCharging(): Boolean {
 
 @Composable
 fun KeepScreenOnForVideo(playing: Boolean, fullscreen: Boolean, where: String) {
-    val view = LocalView.current
     val charging = rememberIsCharging()
     val decision = screenAwakeDecision(playing, fullscreen, charging)
-    DisposableEffect(view, decision) {
-        view.keepScreenOn = decision.keepOn
-        Diag.log(
-            "screenawake",
-            "$where keepScreenOn=${decision.keepOn}: ${decision.reason} " +
-                "[playing=$playing fullscreen=$fullscreen charging=$charging]",
-        )
-        onDispose { view.keepScreenOn = false }
-    }
+    HoldScreen(
+        keepOn = decision.keepOn,
+        tag = "screenawake",
+        entered = "$where keepScreenOn=${decision.keepOn}: ${decision.reason} " +
+            "[playing=$playing fullscreen=$fullscreen charging=$charging]",
+    )
 }

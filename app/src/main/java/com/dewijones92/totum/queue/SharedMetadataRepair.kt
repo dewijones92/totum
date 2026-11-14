@@ -197,7 +197,8 @@ private val PlayableItem.needsAnArtist: Boolean
     get() = item.saysNoArtist && !item.hasPlaceholderTitle
 
 private val PlayableItem.needsAPoster: Boolean
-    get() = item.sourceId == TorrentIds.SOURCE && item.thumbnailUrl == null && !item.author.isNullOrBlank()
+    get() = item.sourceId == TorrentIds.SOURCE && item.contentKind != MediaContentKind.AUDIOBOOK &&
+        item.thumbnailUrl == null && !item.author.isNullOrBlank()
 
 private enum class Need(val label: String) { TITLE("title"), DATE("date"), ARTIST("artist"), POSTER("poster") }
 

@@ -2,10 +2,12 @@ package com.dewijones92.totum.playback
 
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.dailyalarms.WorkAppsStatus
+import com.dewijones92.totum.data.targets.TargetState
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.RepeatMode
 import com.dewijones92.totum.kidlock.KidRules
 import com.dewijones92.totum.mobiledata.holdingBack
+import com.dewijones92.totum.targets.asTimerState
 import com.dewijones92.totum.video.LiveTag
 import com.dewijones92.totum.video.liveTagOf
 import com.dewijones92.totum.video.videoIdOf
@@ -30,6 +32,9 @@ internal fun effectiveRepeatFor(c: AppContainer): Flow<RepeatMode> = combine(
     c.appPreferences.settings.map { it.repeatMode }.distinctUntilChanged(),
 ) { locked, group, chosen -> KidRules.repeat(locked, group, chosen) }
 
+internal fun selectedTargetSleeping(selected: String?, states: List<TargetState>): Boolean =
+    selected != null && states.firstOrNull { it.target.id == selected }?.sleep.asTimerState() != SleepTimerState.Off
+
 internal fun activeModesFor(c: AppContainer): Flow<List<ActiveMode>> {
     val first = combine(
         effectiveRepeatFor(c),
@@ -40,7 +45,11 @@ internal fun activeModesFor(c: AppContainer): Flow<List<ActiveMode>> {
     ) { chosen, explore, kidLocked, speed, quiet ->
         ModeInputs(chosen, explore, kidLocked, speed, quiet)
     }
-    val sleeping = c.sleepTimer.state.map { it != SleepTimerState.Off }.distinctUntilChanged()
+    val sleeping = combine(
+        c.sleepTimer.state.map { it != SleepTimerState.Off },
+        c.targets.selected,
+        c.targets.targets,
+    ) { phone, selected, states -> phone || selectedTargetSleeping(selected, states) }.distinctUntilChanged()
     val limited = combine(
         c.mobileData.state,
         c.appPreferences.settings.map { it.dataLimitMb }.distinctUntilChanged(),

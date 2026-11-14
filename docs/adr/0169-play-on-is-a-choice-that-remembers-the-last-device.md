@@ -2,7 +2,7 @@
 title: Play on… is one choice that remembers the last device, offered everywhere, with home devices always listed
 kind: adr
 status: accepted
-updated: 2026-11-13
+updated: 2026-11-14
 ---
 
 # 169. Play on… is one choice that remembers the last device, offered everywhere, with home devices always listed
@@ -43,6 +43,10 @@ lists every configured TV, Chromecast and paired Bluetooth speaker whether it is
   connection is the stand-in for the home Wi-Fi. **This cannot tell home Wi-Fi from any other Wi-Fi** (a café, work): there
   the home devices would be offered, and a play would work (the Pi does the casting) but be odd. A tighter check (the
   LAN address, or a Wi-Fi name) needs Dewi's decision and is the one open question.
+- **The last used device is in the preference backup** (2026-11-14, `play-on.v1`, `withPlayOn`, as the Kid TV's chosen TV
+  already is), so a reinstall or the second phone starts on the same device. A restore sets and saves the remembered id
+  without waking anything; it is not exported while the phone is the choice, and a restored id that is not on offer
+  falls back to this phone like any other (next bullet).
 - **A choice that is not on offer is not a destination.** If the last used device is not listed or not at home, the
   destination is this phone and the log line says why (`PlayOn.why`: "last used LG TV, but not at home, so This phone").
   The remembered id is kept, so coming home brings the default back without a tap.

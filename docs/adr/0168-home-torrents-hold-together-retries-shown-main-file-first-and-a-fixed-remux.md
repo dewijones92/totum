@@ -2,7 +2,7 @@
 title: Home torrents hold together: retries are shown, the phone's address is kept, a film is its main file, a late-Tracks MKV is remuxed
 kind: adr
 status: accepted
-updated: 2026-11-13
+updated: 2026-11-14
 ---
 
 # 168. Home torrents hold together: retries are shown, the phone's address is kept, a film is its main file, a late-Tracks MKV is remuxed
@@ -60,9 +60,14 @@ otherwise, or said nothing.
   "Send home" sends the main files only. A search row says "At home" only when its main file is done
   (`SeenFile.extra`, kept in `torrents-seen.json`, is how the row knows). A 🏠 row of a torrent plays through its
   torrent's queue group.
-- **A torrent's picture is resolved once**, in `TorrentPlayables.queueItems`: the caller's, else Cinemeta by title and
-  year (`HomeTorrentServer.posterFor`; Cinemeta's catalogue lookup moved out of `Torrentio` into `Cinemeta` and is
-  shared), shortened word by word for a pack; the decision is logged on every path. A torrent item with no picture is
+- **A torrent's picture is looked up beside the start, never in front of it** (amended 2026-11-14). `queueItems`
+  queues with the caller's picture or none, and a start no longer waits on Cinemeta (one request per word dropped from
+  the title, up to the 20 s timeout, before any item existed). The title-and-year lookup (`TorrentPlayables.posterFor`,
+  `HomeTorrentServer.posterFor`; Cinemeta's catalogue lookup moved out of `Torrentio` into `Cinemeta` and is shared),
+  shortened word by word for a pack, runs alongside: queued items and download records are patched by
+  `SharedMetadataRepair`, and a send to the Pi (`SendHome`, the picker's "At home") waits at most 3 s for it
+  (`withPoster`) because a Pi job keeps the picture it was started with. An audiobook is never looked up as a film, in
+  the lookup or the repair. The decision is logged on every path. A torrent item with no picture is
   repaired like a placeholder title (`SharedMetadataRepair`, queue and downloads), and the Pi repairs its own stored
   jobs at start and when a job without one starts.
 - **Filing remuxes a late-Tracks MKV** (`MkvLayout` reads the EBML elements, `MkvRemux` runs `ffmpeg -map 0 -c copy`
@@ -80,7 +85,15 @@ otherwise, or said nothing.
   path), and `PhoneMoves` deletes the Pi's copy (the same `cancel` a phone delete uses, `DeletesAtHomeToo`) only when
   the phone's copy is `Downloaded`, of the same kind (sound or video) and the same size as the Pi's file. A failed or
   mismatched copy leaves the Pi's file; a move left from an earlier run is dropped, not carried out. The set is
-  persisted (`totum_moving_to_phone`).
+  persisted (`totum_moving_to_phone`). Amended 2026-11-14: the persisted set is not settled until the Pi's jobs have
+  been read once (the first settle ran against an empty job list and dropped every move as "home no longer has the
+  file"), and neither Move to Phone nor Copy now checks the phone's free space first: a file that needs more than the
+  phone has is refused with "⚠️ Not enough space on the phone (needs X, has Y)" before anything is fetched or
+  recorded as moving; a phone that cannot say its free space copies as before, and the log says so.
+- **A sample is a small file with the word in its name** (amended 2026-11-14). `TorrentFile.isSample`: "sample" as a
+  whole word and under 250 MB. It replaced "the name contains sample", which dropped a film titled "The Sample…" from
+  every listing. The role classifier has only the Sample folder rule; the brief that asked for this named a size and
+  word-boundary rule there that does not exist, so the rule lives in `isPlayable`, where the name rule was.
 - **The last events survive a restart.** `EventTail` writes the newest 300 events every 10 seconds when they changed;
   at the next start they are restored into the report buffer marked "[before restart]" (`Breadcrumbs.restore`).
   What happened in the last ten seconds before a kill is still lost.

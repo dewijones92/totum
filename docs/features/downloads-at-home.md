@@ -84,6 +84,10 @@ the phone, done on the Pi in 7 minutes, copied to the phone over Wi-Fi in ~70 s.
 - **The Pi keeps the phone's own address** in a job's item; the rewrite to `gluetun:8090` happens only when fetching.
 - **📥 Move to 📱 Phone** (row button and sheet, any finished file at home): copy first, then the copy at home is deleted
   only once the phone's copy has landed, is the same kind and the same size (`PhoneMoves`, `totum_moving_to_phone`).
+- **Not enough room is refused first** (2026-11-14): Move to Phone and Copy to Phone compare the file's size with the
+  phone's free space and say "⚠️ Not enough space on the phone (needs X, has Y)" instead of starting a copy that cannot
+  finish. The moves kept from before a restart are not settled until the Pi's jobs have been read once. Tests:
+  `HomeDownloadsTest`.
 - **Filing**: a late-Tracks MKV is remuxed with `ffmpeg -c copy`; an unwritable target folder is skipped for a fresh
   clean-named one; either failure is a home problem on the health banner.
 - **Pi posters**: stored jobs with no picture get one by title and year at start and when a job starts.

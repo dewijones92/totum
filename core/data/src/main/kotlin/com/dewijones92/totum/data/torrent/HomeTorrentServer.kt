@@ -154,10 +154,19 @@ public data class TorrentFile(
     /**
      * Whether this is worth offering as something to play.
      *
-     * Extension-based, because the server reports paths and lengths and nothing else. Samples
-     * are excluded by name: a release folder routinely carries a 30-second "sample.mkv" that is
-     * a perfectly valid video and never the thing anyone wants.
+     * Extension-based, because the server reports paths and lengths and nothing else. A sample is
+     * a small file with "sample" as a whole word in its name: a release folder routinely carries a
+     * 30-second "sample.mkv" that is a perfectly valid video and never the thing anyone wants, while
+     * a film that merely has the word in its title is large and stays.
      */
     public val isPlayable: Boolean
-        get() = pictureOfFileName(name) != Picture.UNKNOWN && !name.contains("sample", ignoreCase = true)
+        get() = pictureOfFileName(name) != Picture.UNKNOWN && !isSample
+
+    public val isSample: Boolean
+        get() = sizeBytes < SAMPLE_MAX_BYTES && SAMPLE_WORD.containsMatchIn(name)
+
+    private companion object {
+        const val SAMPLE_MAX_BYTES = 250_000_000L
+        val SAMPLE_WORD = Regex("""(?i)(^|[^\p{L}\p{N}])sample([^\p{L}\p{N}]|$)""")
+    }
 }

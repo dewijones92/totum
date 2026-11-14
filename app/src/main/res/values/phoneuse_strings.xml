@@ -7,7 +7,7 @@
     <string name="phone_use_access_title">Usage access</string>
     <string name="phone_use_access_on">✅ Usage access is on</string>
     <string name="phone_use_access_off">⚠️ Usage access is off</string>
-    <string name="phone_use_access_why">Android only lets an app read when the screen came on, when the phone was unlocked and which app opened first once you allow this, once. Totum keeps only those times and app names on this phone; it does not read what is in any app.</string>
+    <string name="phone_use_access_why">Android only lets an app read when the screen came on, when the phone was unlocked and which app opened first once you allow this, once. Totum keeps those times and which app opened first on this phone only: the times can go to your home server in an Ask or a diagnostics report, the app names never do. It does not read what is in any app.</string>
     <string name="phone_use_access_open">Open usage access</string>
     <string name="phone_use_access_restricted">ℹ️ If Android greys the switch out: Settings → Apps → Totum → ⋮ → Allow restricted settings, then try again.</string>
 

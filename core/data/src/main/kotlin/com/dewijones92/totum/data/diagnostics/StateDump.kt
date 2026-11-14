@@ -26,6 +26,7 @@ public object StateDump {
     public val CREDENTIAL_FILES: List<String> = listOf(
         "youtube_account",
         "totum_visitor",
+        "totum_screen",
         "totum_drive_backup",
         "totum_test_holds",
         "totum_diagnostics",

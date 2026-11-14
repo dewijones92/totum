@@ -3,6 +3,7 @@ package com.dewijones92.totum.data.torrent
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.writeTextReplacing
 import com.dewijones92.totum.domain.MediaItemId
+import com.dewijones92.totum.domain.PlayableItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -30,6 +31,16 @@ public data class SeenTorrent(
 public fun Map<String, SeenTorrent>.extraIds(): Set<MediaItemId> = flatMap { (hash, record) ->
     record.files.filter { it.extra }.map { TorrentProgress.itemId(hash, it.index) }
 }.toSet()
+
+public fun Map<String, SeenTorrent>.extraDetailsOf(items: List<PlayableItem>): Map<MediaItemId, TorrentFileDetail> {
+    val extras = extraIds()
+    return items.map { it.item.id }.filter { it in extras }.associateWith {
+        TorrentFileDetail(
+            0L,
+            TorrentFileRole.EXTRA
+        )
+    }
+}
 
 public class TorrentsSeen(
     private val file: File,

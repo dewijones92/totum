@@ -25,6 +25,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -46,6 +47,9 @@ class HomeDownloadsTest {
         override fun ready(title: String) { said += "ready $title" }
         override fun refused(title: String, why: String) { said += "refused $title: $why" }
         override fun problem(key: String, text: String) { said += "problem $text" }
+        override fun noRoomOnPhone(title: String, needsBytes: Long, hasBytes: Long) {
+            said += "no room $title needs $needsBytes has $hasBytes"
+        }
     }
 
     private val api = FakeHomeApi()
@@ -146,6 +150,81 @@ class HomeDownloadsTest {
         api.listed = listOf(job(HomeJobState.DONE))
         advanceTimeBy(3_000)
         assertTrue(notices.said.toString(), "ready A film" in notices.said)
+    }
+
+    @Test
+    fun `a move kept from before a restart is not dropped before home's jobs have been read`() = runTest {
+        val moving = InMemoryKeptAtHome().also { it.keep("abcdefghijk") }
+        local.setDownloading(video.item.id, 5, 10)
+        api.listed = listOf(job(HomeJobState.DONE))
+        val home = HomeDownloads(
+            api,
+            PhoneSide({ tokens }, { emptyList() }, { false }, { true }, movingToPhone = moving),
+            local,
+            Operations(),
+            notices,
+            backgroundScope,
+            Pacing(pollMs = 1_000, idleMs = 600_000),
+        )
+
+        home.watch()
+        runCurrent()
+
+        assertTrue("the move was dropped at start-up: ${moving.ids.value}", "abcdefghijk" in moving.ids.value)
+    }
+
+    @Test
+    fun `a move or a copy to a phone with too little room is refused before anything is fetched`() = runTest {
+        val moving = InMemoryKeptAtHome()
+        val home = HomeDownloads(
+            api,
+            PhoneSide(
+                { tokens },
+                { emptyList() },
+                { false },
+                { true },
+                freeBytes = { 4 },
+                movingToPhone = moving,
+            ),
+            local,
+            Operations(),
+            notices,
+            this,
+            Pacing(pollMs = 1),
+        )
+        api.listed = listOf(job(HomeJobState.DONE))
+        home.refresh("done")
+
+        home.moveToPhone(video.item.id)
+        home.copyNow(video.item.id)
+        advanceUntilIdle()
+
+        assertTrue("nothing was fetched: ${local.requested}", local.requested.isEmpty())
+        assertTrue("no move was begun", moving.ids.value.isEmpty())
+        assertEquals(listOf("no room A film needs 10 has 4", "no room A film needs 10 has 4"), notices.said)
+    }
+
+    @Test
+    fun `a phone with room, or one that cannot say, copies as before`() = runTest {
+        var free: Long? = 10
+        val home = HomeDownloads(
+            api,
+            PhoneSide({ tokens }, { emptyList() }, { false }, { true }, freeBytes = { free }),
+            local,
+            Operations(),
+            notices,
+            this,
+            Pacing(pollMs = 1),
+        )
+        api.listed = listOf(job(HomeJobState.DONE))
+        home.refresh("done")
+
+        home.copyNow(video.item.id)
+        free = null
+        home.copyNow(video.item.id)
+        advanceUntilIdle()
+
+        assertEquals(2, local.requested.size)
     }
 
     @Test

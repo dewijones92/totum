@@ -24,6 +24,17 @@ class TorrentEpisodesTest {
     }
 
     @Test
+    fun `a film with Sample in its title is playable, a small file named sample is not`() {
+        fun playable(name: String, size: Long) = TorrentFile(0, "Release/$name", size).isPlayable
+
+        assertEquals(true, playable("The.Sample.2019.1080p.mkv", 2_000_000_000))
+        assertEquals(true, playable("Resampled.mkv", 40_000_000))
+        assertEquals(false, playable("sample.mkv", 40_000_000))
+        assertEquals(false, playable("Film.2019-sample.mkv", 40_000_000))
+        assertEquals(false, playable("Sample-Film.2019.mkv", 40_000_000))
+    }
+
+    @Test
     fun `reads the common SxxExx form`() {
         assertEquals(TorrentEpisodes.Episode(1, 3), TorrentEpisodes.episodeOf("Show.S01E03.1080p.mkv"))
         assertEquals(TorrentEpisodes.Episode(12, 24), TorrentEpisodes.episodeOf("Show.s12e24.mkv"))

@@ -41,6 +41,7 @@ interface HomeNotices {
     fun problem(key: String, text: String)
     fun uploading(title: String, percent: Int?) = Unit
     fun uploadStopped(title: String) = Unit
+    fun noRoomOnPhone(title: String, needsBytes: Long, hasBytes: Long) = Unit
 }
 
 object NoHomeNotices : HomeNotices {
@@ -59,6 +60,7 @@ class PhoneSide(
     val moving: KeptAtHome = InMemoryKeptAtHome(),
     val identity: suspend () -> Requester = { Requester("unknown", "This phone") },
     val movingToPhone: KeptAtHome = InMemoryKeptAtHome(),
+    val freeBytes: () -> Long? = { null },
 )
 
 class Pacing(
@@ -110,7 +112,11 @@ class HomeDownloads(
 
     fun watch() {
         if (client == null) return
-        scope.launch { phoneDownloads.observeDownloads().collect { phoneMoves.settle(known.value, it) } }
+        scope.launch {
+            phoneDownloads.observeDownloads().collect {
+                if (read.value != null) phoneMoves.settle(known.value, it)
+            }
+        }
         scope.launch {
             var why = "tick"
             while (true) {
@@ -161,15 +167,30 @@ class HomeDownloads(
     fun copyNow(id: MediaItemId) {
         val job = known.value[id]?.takeIf { it.state == HomeJobState.DONE } ?: return
         val item = job.item.toPlayable() ?: return
+        if (!roomOnPhoneFor(job)) return
         phone.kept.release(id.value)
         Diag.log(TAG, "\"${job.item.title}\": copy to the phone now (asked; whatever the network)")
         scope.launch { phoneDownloads.download(item, audioOnly = job.audioOnly) }
+    }
+
+    private fun roomOnPhoneFor(job: HomeJob): Boolean {
+        val needs = job.totalBytes ?: job.bytes
+        val has = phone.freeBytes()
+        if (has == null) {
+            Diag.log(TAG, "\"${job.item.title}\": the phone's free space is unknown; copying without a space check")
+            return true
+        }
+        if (has >= needs) return true
+        Diag.warn(TAG, "\"${job.item.title}\": not copied to the phone, it needs ${needs}B and has ${has}B free")
+        notices.noRoomOnPhone(job.item.title, needs, has)
+        return false
     }
 
     fun moveToPhone(id: MediaItemId) {
         val job = known.value[id]?.takeIf { it.state == HomeJobState.DONE }
             ?: return Diag.warn(TAG, "${id.value}: not moved to the phone, home has no finished file for it")
         val item = job.item.toPlayable() ?: return Diag.warn(TAG, "${id.value}: not moved, its item cannot be rebuilt")
+        if (!roomOnPhoneFor(job)) return
         phone.kept.release(id.value)
         phoneMoves.begin(id)
         Diag.log(

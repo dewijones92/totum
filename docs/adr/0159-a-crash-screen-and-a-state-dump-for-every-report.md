@@ -2,7 +2,7 @@
 title: A crash screen for everyone, reports to the Pi as a setting, and a state dump with every report
 kind: adr
 status: accepted
-updated: 2026-11-13
+updated: 2026-11-14
 ---
 
 # 159. A crash screen for everyone, reports to the Pi as a setting, and a state dump with every report
@@ -48,10 +48,11 @@ coordinator and agreed. A crash used to be invisible on the phone: the handler w
   (the list, not the files), progress, listens and other stats, the trail, settings and the event log. A dump follows a
   report only after the report was accepted, once per upload run, and a dump that cannot be gathered never stops a
   report being sent or deleted.
-- **Credentials never go.** `youtube_account*`, `totum_visitor`, `totum_drive_backup`, `totum_test_holds` and
+- **Credentials never go.** `youtube_account*`, `totum_visitor`, `totum_screen` (the PC screen's access key, added
+  2026-11-14: it was in every dump), `totum_drive_backup`, `totum_test_holds` and
   `totum_diagnostics` are left out whole, and every string value in them is added to the redactor's secrets, so the same
   token cannot come back through an event line. Keys that name a secret (token, secret, password, cookie, refresh, api
-  key…) are dropped everywhere. `StateDumpTest` seeds fake home-server, Prowlarr, YouTube access and refresh tokens and a
+  key…) are dropped everywhere. `StateDumpTest` seeds fake home-server, Prowlarr, YouTube access and refresh tokens, the PC screen key and a
   cookie in the preferences and in event text and asserts none appears, nor the home server's host; and on 2026-11-13 a
   real dump built by the emulator (signed in to YouTube and to the home server) was checked against the emulator's own
   four secret values: all absent.

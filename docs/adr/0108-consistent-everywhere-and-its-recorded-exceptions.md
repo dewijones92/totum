@@ -2,7 +2,7 @@
 title: Consistent everywhere, with its exceptions recorded
 kind: adr
 status: accepted
-updated: 2026-11-13
+updated: 2026-11-14
 ---
 
 # 108. Consistent everywhere, with its exceptions recorded
@@ -179,6 +179,17 @@ Recorded exceptions from that pass:
 - **An album's tracks sort like any list, and keep their album number** (`3.`) whatever the order shown.
 - **The group edit sheet only offers channels you are subscribed to on the account.** A channel you do not follow joins a
   group from its own page or from "Add channel to group" in any item's menu.
+
+Recorded exceptions from the end-of-batch review, 2026-11-14:
+
+- **A torrent pack's menu has no "📡 Play on…" and no Move to Phone.** A pack has no single item to play on a device
+  (the item menu plays one item, and a pack menu acts on every file); no group menu has it, the queue's included, and
+  the remembered device already takes the pack's Play next and Add to queue. Move to Phone is a finished file at the Pi,
+  and a pack that has only just been prepared has no job there; once its files are at home, each is a row with the full
+  menu. A single-file torrent opens the ordinary item menu, which has both.
+- **A pack's download picker leaves the extras unticked from every way in**: the search menu passes the prepared torrent's
+  file roles, and a queue group's picker reads the roles kept in `torrents-seen.json` (`extraDetailsOf`), so the three
+  ways in agree. A queue group of a torrent never seen on this phone (restored from a backup) has no roles and ticks all.
 
 Recorded exception from the Play on… pass ([ADR 169](0169-play-on-is-a-choice-that-remembers-the-last-device.md), 2026-11-13):
 

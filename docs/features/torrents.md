@@ -3,7 +3,7 @@ title: Torrents (public-domain film & TV)
 kind: feature
 status: shipped
 area: torrent
-updated: 2026-11-06
+updated: 2026-11-14
 ---
 
 # Torrents (public-domain film & TV)
@@ -106,6 +106,12 @@ else one borrowed from another copy of the same film or show in the same search;
 search log says how many came from each. [ADR 106](../adr/0106-a-torrent-wears-its-poster.md). Tests:
 `SharedPostersTest`, `TorrentSearchSourceTest`/`ProwlarrShapeTest` (poster and IMDb id), `ApibayTest`,
 `TorrentPlayablesTest` (queued files carry it), `TorrentControlsTest` (the row shows it).
+
+A start never waits for a poster (2026-11-14): items queue with the site's picture or none, the title-and-year lookup
+runs beside the start and `SharedMetadataRepair` fills the rows, a send to the Pi waits at most 3 s for it, and an
+audiobook is never looked up as a film ([ADR 168](../adr/0168-home-torrents-hold-together-retries-shown-main-file-first-and-a-fixed-remux.md)).
+A film with "Sample" in its title is no longer dropped: a sample is a file under 250 MB with the word in its name.
+Tests: `TorrentStartDoesNotWaitTest`, `TorrentEpisodesTest`.
 
 ## Speed (measured 2026-10-08, emulator against the Pi)
 

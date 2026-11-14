@@ -3,7 +3,7 @@ title: Phone use — unlocks, screen time and an optional "still want in?" nudge
 kind: feature
 area: library
 status: built 2026-11-13 — checked on totum-api35 (see Verified); not yet on Dewi's phone, which needs Usage access
-updated: 2026-11-13
+updated: 2026-11-14
 ---
 
 # 📱 Phone use
@@ -49,6 +49,14 @@ many times … maybe lock the phone … not be able to open the phone more than 
   `UsageAccessCard` (shared with Stats), `PhoneUseBackup`.
 - `app/…/ui/stats/` — `PhoneUseSection`, `PhoneUseActions`; `StatsViewModel` gains `PhonePage` and the unlock drill-downs.
 - `app/…/reminders/kit/OverApps.kt` — the over-other-apps launch, now shared with Exsurge.
+
+## What leaves the phone
+
+The times of unlocks and the nudge's outcomes go into the Ask pack and the state dump; **the app opened first never does**
+(`AskStateSource.statFact` takes it out of every `PhoneUnlock`), and the Usage access card says so. The pack keeps the
+newest 200 rows of each kind of event, so a busy day of unlocks cannot push Exsurge or alarm history out
+([ADR 160](../adr/0160-phone-use-is-read-from-androids-own-history-and-the-nudge-only-asks.md)).
+Tests: `AskStateSourceTest`, `AppStateBuilderTest`.
 
 ## Logged
 

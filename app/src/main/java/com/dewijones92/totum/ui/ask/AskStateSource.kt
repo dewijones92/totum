@@ -89,7 +89,7 @@ class AskStateSource(
             listens = all.filterIsInstance<StatEvent.Listen>().map(::listenFact),
             stats = all.filterNot {
                 it is StatEvent.Listen || it is StatEvent.PhoneScreen
-            }.map { StatFact(it.at, typeOf(it), StatsCodec.line(it)) },
+            }.map(::statFact),
             trail = items,
             trailCursor = position,
             events = events,
@@ -103,6 +103,11 @@ class AskStateSource(
             hosts = ports.hosts(),
             titleFor = ports.titleFor,
         )
+    }
+
+    private fun statFact(event: StatEvent): StatFact {
+        val shared = if (event is StatEvent.PhoneUnlock) event.copy(firstApp = null) else event
+        return StatFact(event.at, typeOf(event), StatsCodec.line(shared))
     }
 
     private fun listenFact(listen: StatEvent.Listen) = ListenFact(

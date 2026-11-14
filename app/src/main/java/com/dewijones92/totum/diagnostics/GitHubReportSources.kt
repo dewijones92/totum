@@ -28,12 +28,15 @@ internal object GitHubReportSources {
 internal fun knownHomeHosts(homeServerBase: String, builtInBase: String = BuildConfig.HOME_SERVER): List<String> =
     HomeServerHosts.allFor(listOf(homeServerBase, builtInBase))
 
+internal fun reportSecrets(homeServerToken: String, prowlarrKey: String): List<String> =
+    listOf(homeServerToken, prowlarrKey)
+
 internal fun reportRedactorFor(
     homeServerBase: String,
     homeServerToken: String,
     prowlarrKey: String,
     builtInBase: String = BuildConfig.HOME_SERVER,
 ): ReportRedactor = ReportRedactor(
-    secrets = listOf(homeServerToken, prowlarrKey),
+    secrets = reportSecrets(homeServerToken, prowlarrKey),
     hosts = knownHomeHosts(homeServerBase, builtInBase),
 )

@@ -1,5 +1,9 @@
 package com.dewijones92.totum.data.torrent
 
+import com.dewijones92.totum.domain.MediaItem
+import com.dewijones92.totum.domain.MediaItemId
+import com.dewijones92.totum.domain.PlayHandle
+import com.dewijones92.totum.domain.PlayableItem
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -44,5 +48,45 @@ class TorrentsSeenTest {
         val file = folder.root.resolve("seen.json").apply { writeText("not json") }
         val seen = TorrentsSeen(file).also { it.load() }
         assertEquals(emptyMap<String, SeenTorrent>(), seen.records.value)
+    }
+}
+
+class SeenExtrasDetailsTest {
+
+    private val hash = "abc"
+
+    private fun item(index: Int) = PlayableItem(
+        item = MediaItem(
+            id = TorrentProgress.itemId(hash, index),
+            sourceId = TorrentPlayables.SOURCE,
+            title = "file $index",
+            publishedAt = null,
+            duration = null,
+        ),
+        handle = PlayHandle.Podcast(audioUrl = null),
+    )
+
+    @Test
+    fun `a queued pack's extras come from what was seen and are marked as extras`() {
+        val seen = mapOf(
+            hash to SeenTorrent(
+                hash,
+                "Film",
+                listOf(SeenFile(0, "Film"), SeenFile(1, "Featurette", extra = true)),
+                atEpochMs = 0,
+            ),
+        )
+
+        val details = seen.extraDetailsOf(listOf(item(0), item(1)))
+
+        assertEquals(setOf(TorrentProgress.itemId(hash, 1)), details.keys)
+        assertEquals(TorrentFileRole.EXTRA, details.getValue(TorrentProgress.itemId(hash, 1)).role)
+    }
+
+    @Test
+    fun `items of a torrent never seen offer no extras`() {
+        val none = emptyMap<String, SeenTorrent>().extraDetailsOf(listOf(item(1)))
+
+        assertEquals(emptyMap<MediaItemId, TorrentFileDetail>(), none)
     }
 }
