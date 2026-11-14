@@ -32,6 +32,7 @@ internal class TvWake(
     private val label: String,
     private val mac: ByteArray,
     private val broadcasts: List<String>,
+    private val host: String? = null,
     private val sender: WakeSender,
     private val answers: suspend () -> Boolean,
     private val pause: suspend (Long) -> Unit = { delay(it) },
@@ -77,7 +78,7 @@ internal class TvWake(
         failure = null
         val startedAt = clock()
         var sentAt = startedAt
-        Diag.log("cast-target", "$label: not answering, waking it (wake-on-LAN to ${broadcasts.joinToString()})")
+        Diag.log("cast-target", "$label: not answering, waking it (wake-on-LAN to ${wakeTargets()})")
         sendPackets()
         while (clock() - startedAt < WAKE_TIMEOUT_MS) {
             pause(POLL_MS)
@@ -112,16 +113,26 @@ internal class TvWake(
     private fun sendPackets() {
         sentWake = true
         val packet = WakeOnLan.magicPacket(mac)
-        var delivered = 0
-        broadcasts.forEach { address ->
-            WakeOnLan.PORTS.forEach { port ->
-                runCatching { sender.send(packet, address, port) }
-                    .onSuccess { delivered++ }
-                    .onFailure { Diag.warn("cast-target", "$label: wake packet to $address:$port not sent", it) }
-            }
+        val tried = broadcasts.flatMap { address -> WakeOnLan.PORTS.map { port -> address to port } } +
+            listOfNotNull(host?.let { it to WakeOnLan.UNICAST_PORT })
+        val sent = mutableListOf<String>()
+        val failed = mutableListOf<String>()
+        tried.forEach { (address, port) ->
+            runCatching { sender.send(packet, address, port) }
+                .onSuccess { sent += "$address:$port" }
+                .onFailure {
+                    failed += "$address:$port"
+                    Diag.warn("cast-target", "$label: wake packet to $address:$port not sent", it)
+                }
         }
-        Diag.log("cast-target", "$label: wake packets sent=$delivered of ${broadcasts.size * WakeOnLan.PORTS.size}")
+        Diag.log(
+            "cast-target",
+            "$label: wake packets sent=${sent.size} of ${tried.size} to ${sent.joinToString().ifEmpty { "none" }}" +
+                if (failed.isEmpty()) "" else "; not sent to ${failed.joinToString()}",
+        )
     }
+
+    private fun wakeTargets(): String = (broadcasts + listOfNotNull(host?.let { "$it (direct)" })).joinToString()
 
     private companion object {
         const val WAKE_TIMEOUT_MS = 25_000L

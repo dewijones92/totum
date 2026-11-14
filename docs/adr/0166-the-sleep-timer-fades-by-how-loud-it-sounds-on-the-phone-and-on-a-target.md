@@ -2,7 +2,7 @@
 title: The sleep timer fades by how loud it sounds, on the phone and on a Pi target
 kind: adr
 status: accepted
-updated: 2026-11-13
+updated: 2026-11-14
 ---
 
 # 166. The sleep timer fades by how loud it sounds, on the phone and on a Pi target
@@ -63,3 +63,30 @@ target is selected had no way to reach the Pi: the phone's timer watched the pho
 - Unverified on a real speaker, TV or Chromecast: that mpv's volume command and the helper's volume are audible as a
   smooth fade (a Chromecast steps in its own volume steps), and that the pause lands inside the one second wait.
 - The countdown shown for a target moves with the phone's two-second read of the Pi, not each second.
+
+## Amended 2026-11-14: the fade drives the control the volume mode names, and puts it back before the speaker is let go
+
+An Opus review found four ways a target's fade could end louder than it began or leave the volume low. The "never above
+where it began" rule above is now enforced by what is written, not just by the base number.
+
+- **One control, the one the mode names.** `TargetVolume.beginFade()` returns a `VolumeFade` (the base and a `set` that
+  never goes above where the fade began). For a speaker in `HARDWARE` mode it writes only the speaker's own volume, holding
+  the raw value it began at; in `SOFTWARE` mode it writes only mpv's. Before, a fade in `SOFTWARE` mode with the speaker's
+  own level also known (mpv at 40%, speaker at 10%, heard 4%) wrote the speaker's volume and put mpv back to 100%, so the
+  first step made it about 40%. A fade write never moves between the two controls and never falls back to mpv when the
+  speaker's own volume has gone.
+- **The restore comes before the unlink.** `finish` released the speaker, then restored the volume, by which time the
+  A2DP transport was gone and the restore fell back to mpv, splitting the two controls. It now stops the player, restores
+  the volume, then hands the speaker back. A connection that is already lost (the transport is gone) cannot be put back:
+  the write is skipped and logged ("the volume could not be put back … nothing else was made louder in its place").
+- **A cancelled fade cannot write after the restore.** `DeckSleep.release` cancelled the timer's job without waiting, so a
+  step still writing (a shell call is not cancellable) could land after the put-back and leave the volume low. Writes now
+  go through one mutex per timer, and the restore takes it, closes the timer, then writes: an in-flight step finishes
+  first, and a later one is dropped and logged.
+- **A person's slider move during a fade, and a TV.** Unchanged: it becomes the new base only when lower. A TV or a player
+  without a speaker volume fades through `TargetPlayer.volume` as before, never above its base.
+- **Not under the deck's lock.** The slider, the tick's level read and the read after a link run outside the deck's lock
+  (ADR 158), so a slow `busctl` cannot hold up Pause or Stop.
+- **Tests:** `SpeakerVolumeTest` (the heard level, hardware × mpv, never above where it began after any write, including a
+  speaker that never reports back), `TargetDeckVolumeSafetyTest` (restore before release, a lost speaker not put right
+  through mpv, a step in flight when the timer is cancelled).

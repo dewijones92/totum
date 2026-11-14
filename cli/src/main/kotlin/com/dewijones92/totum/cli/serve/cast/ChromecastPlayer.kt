@@ -279,11 +279,12 @@ internal class ChromecastSource(
         val mac = cast.mac?.let(WakeOnLan::parseMac) ?: return null
         val broadcasts = WakeOnLan.broadcastsFor(cast.host, extraBroadcasts)
         return TvWake(
-            cast.name,
-            mac,
-            broadcasts,
-            UdpWakeSender(),
-            ReceiverProbe(cast.host)::answers
+            label = cast.name,
+            mac = mac,
+            broadcasts = broadcasts,
+            host = cast.host,
+            sender = UdpWakeSender(),
+            answers = ReceiverProbe(cast.host)::answers,
         ).also { it.watch() }
     }
 }

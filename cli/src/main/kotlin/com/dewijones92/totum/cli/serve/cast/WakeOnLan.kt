@@ -20,6 +20,7 @@ internal class UdpWakeSender : WakeSender {
 internal object WakeOnLan {
     const val GLOBAL_BROADCAST = "255.255.255.255"
     val PORTS = listOf(9, 7)
+    const val UNICAST_PORT = 9
 
     private const val MAC_BYTES = 6
     private const val REPEATS = 16

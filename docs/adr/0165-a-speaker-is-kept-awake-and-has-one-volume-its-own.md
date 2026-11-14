@@ -2,7 +2,7 @@
 title: A speaker can be kept awake by the Pi, and its volume slider is the speaker's own
 kind: adr
 status: accepted
-updated: 2026-11-13
+updated: 2026-11-14
 ---
 
 # 165. A speaker can be kept awake by the Pi, and its volume slider is the speaker's own
@@ -97,3 +97,21 @@ known" until a level is known.
   whether the Soundmic runs in `HARDWARE` or `SOFTWARE`/falls asleep; the state and logs say which.
 - A speaker switched off is still not woken (Bluetooth cannot do that); the keeper reconnects it when it is switched
   on again and the speaker itself reconnects first in most cases.
+
+## Amended 2026-11-14: a slider move or a fade never makes a speaker louder than it was or than it was asked to be
+
+An Opus review found three ways the one-volume rule could raise what is heard. The rule that follows is **nothing automatic
+ever raises a speaker or a TV, and a slider move is never louder than what was asked**.
+
+- **A write the speaker has not taken.** After `busctl set-property` the read-back may still be the old level (BlueZ
+  updates `Volume` only when the speaker answers over AVRCP, and a speaker that ignores absolute volume never does).
+  `set` used to put mpv back to 100% whenever mpv was below it, so a stale read-back could leave the speaker at its old,
+  louder level with mpv no longer holding it down. Now mpv is put back to 100% only when the read-back is at or below
+  what was asked for (plus 2 raw steps of tolerance). Otherwise mpv is **not** raised: it is set to asked ÷ reported, so
+  what is heard stays at about what was asked, and the mode stays `SOFTWARE` (logged with all four numbers). A speaker
+  whose mpv is already at 100% is left alone, as before.
+- **The exact level goes back.** A fade (ADR 166) now holds the raw level it began at and restores that raw value, not
+  the nearest percent (raw 2 is 2% and 2% is raw 3: a restore through the percent was louder than it began).
+- **Tests:** `SpeakerVolumeTest` (a stale read-back with mpv turned down, one with the speaker below the request, a
+  fade that fades mpv and leaves the hardware alone, one that restores raw 2 not 3, a speaker that never reports back,
+  a speaker that has gone).

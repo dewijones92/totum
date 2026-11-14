@@ -1,6 +1,7 @@
 package com.dewijones92.totum.targets
 
 import androidx.test.platform.app.InstrumentationRegistry
+import com.dewijones92.totum.data.targets.TargetKind
 import com.dewijones92.totum.data.targets.TargetTrouble
 import com.dewijones92.totum.data.targets.TroubleKind
 import org.junit.Assert.assertEquals
@@ -32,6 +33,14 @@ class TargetWordsTest {
         assertEquals(
             "📺 LG TV was switched off",
             words.trouble("LG TV", TargetTrouble(TroubleKind.SWITCHED_OFF), "Bluey")
+        )
+    }
+
+    @Test
+    fun aSpeakerSwitchedOffMidQueueSaysItWasSwitchedOffOrOutOfRange() {
+        assertEquals(
+            "🔌 Soundmic was switched off or went out of range",
+            words.trouble("Soundmic", TargetTrouble(TroubleKind.SWITCHED_OFF), "Bluey", TargetKind.SPEAKER),
         )
     }
 

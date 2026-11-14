@@ -45,7 +45,7 @@ import java.io.File
 import kotlin.math.abs
 import kotlin.random.Random
 
-@Suppress("TooManyFunctions")
+@Suppress("TooManyFunctions", "LargeClass")
 internal class TargetDeck(
     initial: Target,
     private val player: TargetPlayer,
@@ -169,7 +169,8 @@ internal class TargetDeck(
             val first = queue.entries.indexOfFirst {
                 it.item.item.id.value == (request.startItemId ?: wanted.first().item.id.value)
             }
-            pending = PendingStart(first.coerceAtLeast(0), request.startAtMs.takeIf { !request.shuffle } ?: 0)
+            val at = first.coerceAtLeast(0)
+            pending = PendingStart(queue.entries[at].itemId(), at, request.startAtMs.takeIf { !request.shuffle } ?: 0)
             starting = true
         }
         save()
@@ -177,23 +178,65 @@ internal class TargetDeck(
     }
 
     suspend fun startPending() {
-        if (lock.withLock { pending == null }) return
-        reachingFirst(needsLink = true) { startPendingLocked() }
+        val wanted = lock.withLock { pending } ?: return
+        reachingFirst(needsLink = true) {
+            if (pending === wanted) startPendingLocked() else startCalledOff(wanted)
+        }
+    }
+
+    private suspend fun startCalledOff(wanted: PendingStart) {
+        val handBack = pending == null && destination == null && reachedAhead != null
+        Diag.log(
+            "targets",
+            "${target.id}: the start of ${wanted.itemId} was called off while it linked, so nothing is played " +
+                "(another start waiting=${pending != null}, handing the link back=$handBack)",
+        )
+        if (handBack) link.release()
+    }
+
+    private fun cancelPending(why: String) {
+        val was = pending ?: return
+        pending = null
+        starting = false
+        Diag.log("targets", "${target.id}: the waiting start of ${was.itemId} was called off: $why")
+    }
+
+    private fun dropPendingIfGone() {
+        val waiting = pending ?: return
+        if (queue.entries.none { it.itemId() == waiting.itemId }) cancelPending("it left the queue")
+    }
+
+    private fun indexOfPending(start: PendingStart): Int? {
+        val ids = queue.entries.map { it.itemId() }
+        if (ids.getOrNull(start.index) == start.itemId) return start.index
+        return ids.indices.filter { ids[it] == start.itemId }.minByOrNull { abs(it - start.index) }
     }
 
     @Suppress("TooGenericExceptionCaught")
     private suspend fun startPendingLocked() {
         val start = pending ?: return
         pending = null
+        val index = indexOfPending(start)
+        if (index == null) {
+            starting = false
+            Diag.log("targets", "${target.id}: the waiting start of ${start.itemId} found it gone, nothing played")
+            return
+        }
+        if (index != start.index) {
+            Diag.log(
+                "targets",
+                "${target.id}: the waiting start of ${start.itemId} was at ${start.index}, it is at $index now",
+            )
+        }
         val began = clock()
         resolveMs = 0
         try {
-            startAt(start.index, start.startAtMs)
+            startAt(index, start.startAtMs)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            Diag.warn("targets", "${target.id}: starting item ${start.index} failed", e)
-            val entry = queue.entries.getOrNull(start.index)
+            Diag.warn("targets", "${target.id}: starting item $index failed", e)
+            val entry = queue.entries.getOrNull(index)
             problem = TroubleWords.problem(
                 target.label,
                 TargetTrouble(TroubleKind.COULD_NOT_PLAY, entry?.itemId(), "${e.message}"),
@@ -205,13 +248,28 @@ internal class TargetDeck(
         }
         Diag.log(
             "targets",
-            "${target.id}: start of item ${start.index} done, playing=$playing " +
+            "${target.id}: start of item $index done, playing=$playing " +
                 "link=${linkMs}ms sinkWait=${sinkWaitMs}ms resolve=${resolveMs}ms total=${clock() - began + linkMs}ms",
         )
     }
 
     suspend fun control(control: TargetControl): TargetState =
-        reachingFirst(needsLink = control.action in STARTING_ACTIONS) { controlLocked(control) }
+        if (control.action == TargetAction.VOLUME) {
+            volumeChanged(control)
+        } else {
+            reachingFirst(needsLink = control.action in STARTING_ACTIONS) { controlLocked(control) }
+        }
+
+    private suspend fun volumeChanged(control: TargetControl): TargetState {
+        val wanted = control.volume?.coerceIn(0, MAX_VOLUME)
+        Diag.log("targets", "${target.id}: VOLUME wanted=$wanted at=${queue.currentIndex} playing=$playing")
+        if (wanted != null) {
+            val followed = sleep.personSetVolume(wanted)
+            Diag.log("targets", "${target.id}: volume set to $wanted from the phone, followed by a fade=$followed")
+            if (!followed) volumeControl?.set(wanted) ?: player.volume(wanted)
+        }
+        return state()
+    }
 
     @Suppress("CyclomaticComplexMethod")
     private suspend fun controlLocked(control: TargetControl): TargetState {
@@ -234,17 +292,13 @@ internal class TargetDeck(
                 placeMs = it
                 lastSeenMs = null
             }
-            TargetAction.VOLUME -> control.volume?.let {
-                val wanted = it.coerceIn(0, MAX_VOLUME)
-                val followed = sleep.personSetVolume(wanted)
-                Diag.log("targets", "${target.id}: volume set to $wanted from the phone, followed by a fade=$followed")
-                if (!followed) volumeControl?.set(wanted) ?: player.volume(wanted)
-            }
+            TargetAction.VOLUME -> Unit
             TargetAction.STOP -> {
                 problem = null
                 finish("stopped")
             }
-            TargetAction.REMOVE -> control.itemIds?.let { removeIds(it) } ?: index?.let { remove(it) }
+            TargetAction.REMOVE ->
+                control.itemIds?.let { removeIds(it, control.stopIfCurrent) } ?: index?.let { remove(it) }
             TargetAction.SOUND -> control.sound?.let { changeSound(it) }
             TargetAction.REPEAT -> control.repeat?.let(::setRepeat)
             TargetAction.WAKE -> woken()
@@ -255,6 +309,7 @@ internal class TargetDeck(
     }
 
     private suspend fun pausePlaying() {
+        cancelPending("paused")
         if (!playing) return
         reportProgress(finished = false)
         captureThePlace()
@@ -310,11 +365,18 @@ internal class TargetDeck(
         return chosen
     }
 
-    suspend fun ended(failed: Boolean) = reachingFirst(needsLink = false) { endedLocked(failed) }
+    suspend fun ended(failed: Boolean) {
+        val there = !playing || link.present()
+        reachingFirst(needsLink = false) { endedLocked(failed, there) }
+    }
 
-    private suspend fun endedLocked(failed: Boolean) {
+    private suspend fun endedLocked(failed: Boolean, there: Boolean) {
         if (!playing) {
             Diag.log("targets", "${target.id}: an end with nothing playing, ignored (failed=$failed)")
+            return
+        }
+        if (!there) {
+            lostLocked("the player ended (failed=$failed) and the link no longer has the target")
             return
         }
         val title = queue.current?.item?.item?.title
@@ -387,12 +449,12 @@ internal class TargetDeck(
         val began = clock()
         val ahead = if (linked || !needsLink) null else link.connect()
         val connectedFor = clock() - began
+        if (!linked && needsLink && ahead != null) volumeControl?.refresh()
         return lock.withLock {
             reachedAhead = ahead
             if (!linked && needsLink) {
                 linkMs = connectedFor
                 sinkWaitMs = link.sinkWaitMs
-                if (ahead != null) volumeControl?.refresh()
             }
             try {
                 block()
@@ -414,12 +476,15 @@ internal class TargetDeck(
         if (checked && keeper.state == KeepAwake.KEPT) volumeControl?.refresh()
     }
 
-    suspend fun tick() = lock.withLock {
-        if (playing) {
-            volumeControl?.refresh()
-            reportProgress(finished = false)
-            captureThePlace()
-            save()
+    suspend fun tick() {
+        if (!playing) return
+        volumeControl?.refresh()
+        lock.withLock {
+            if (playing) {
+                reportProgress(finished = false)
+                captureThePlace()
+                save()
+            }
         }
     }
 
@@ -460,10 +525,13 @@ internal class TargetDeck(
         }
     }
 
-    suspend fun lost(reason: String) = lock.withLock {
+    suspend fun lost(reason: String) = lock.withLock { lostLocked(reason) }
+
+    private suspend fun lostLocked(reason: String) {
+        cancelPending("connection lost: $reason")
         if (!playing && destination == null) {
             Diag.log("targets", "${target.id}: connection lost ($reason) with nothing playing, ignored")
-            return@withLock
+            return
         }
         val entry = queue.current
         captureThePlace()
@@ -493,6 +561,7 @@ internal class TargetDeck(
     }
 
     private suspend fun moveTo(index: Int) {
+        cancelPending("moved to item $index")
         problem = null
         if (playing) reportProgress(finished = false)
         placeMs = 0
@@ -501,6 +570,10 @@ internal class TargetDeck(
 
     private suspend fun resume() {
         if (playing) return
+        if (pending != null) {
+            Diag.log("targets", "${target.id}: play asked while a start is waiting for the link; that start plays it")
+            return
+        }
         if (queue.current != null && destination != null) {
             player.pause(false)
             playing = true
@@ -614,31 +687,44 @@ internal class TargetDeck(
         if (index !in queue.entries.indices) return
         val wasCurrent = index == queue.currentIndex
         queue = queue.removingAt(index)
+        dropPendingIfGone()
         if (wasCurrent) placeMs = 0
         if (wasCurrent && playing) startAt(index)
     }
 
-    private suspend fun removeIds(ids: List<String>) {
+    private suspend fun removeIds(ids: List<String>, stopIfCurrent: Boolean) {
         val gone = ids.mapTo(HashSet()) { MediaItemId(it) }
         val wasCurrent = queue.current?.item?.item?.id in gone
         val keptBefore = queue.entries.take(queue.currentIndex.coerceAtLeast(0)).count { it.item.item.id !in gone }
         val before = queue.entries.size
         queue = queue.removingAll(gone)
-        Diag.log("targets", "${target.id}: removed ${before - queue.entries.size} of ${ids.size} named item(s)")
+        dropPendingIfGone()
+        Diag.log(
+            "targets",
+            "${target.id}: removed ${before - queue.entries.size} of ${ids.size} named item(s) " +
+                "wasCurrent=$wasCurrent playing=$playing stopIfCurrent=$stopIfCurrent",
+        )
         if (wasCurrent) placeMs = 0
-        if (wasCurrent && playing) startAt(keptBefore)
+        if (wasCurrent && playing) {
+            if (stopIfCurrent) {
+                finish("the sent item was withdrawn", report = false, keepPlace = false)
+            } else {
+                startAt(keptBefore)
+            }
+        }
     }
 
     private suspend fun finish(why: String, report: Boolean = true, keepPlace: Boolean = true) {
+        cancelPending(why)
         val wasLinked = destination != null
         if (report && playing) reportProgress(finished = false)
         if (keepPlace) captureThePlace() else placeMs = 0
         player.stop()
         playing = false
+        sleep.release("playback stopped: $why")
         if (wasLinked) link.release()
         destination = null
         Diag.log("targets", "${target.id}: $why; target handed back=$wasLinked")
-        sleep.release("playback stopped: $why")
         save()
     }
 
@@ -678,7 +764,7 @@ private const val STALL_MS = 20_000L
 
 private fun QueueEntry.itemId(): String = item.item.id.value
 
-private class PendingStart(val index: Int, val startAtMs: Long)
+private class PendingStart(val itemId: String, val index: Int, val startAtMs: Long)
 
 private val INDEXED_ACTIONS = setOf(TargetAction.JUMP, TargetAction.REMOVE)
 

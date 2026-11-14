@@ -53,6 +53,8 @@ internal interface TargetLink {
     val power: TargetPower? get() = null
 
     suspend fun look() = Unit
+
+    suspend fun present(): Boolean = true
 }
 
 internal fun interface TargetSounds {
@@ -74,6 +76,12 @@ internal fun interface ProgressReporter {
     }
 }
 
+internal interface VolumeFade {
+    val basePercent: Int
+
+    suspend fun set(percent: Int): Boolean
+}
+
 internal interface TargetVolume {
     val percent: Int?
     val mode: VolumeMode?
@@ -81,6 +89,19 @@ internal interface TargetVolume {
     suspend fun set(percent: Int)
 
     suspend fun refresh()
+
+    suspend fun beginFade(): VolumeFade? {
+        refresh()
+        val base = percent ?: return null
+        return SetFade(this, base)
+    }
+}
+
+private class SetFade(private val volume: TargetVolume, override val basePercent: Int) : VolumeFade {
+    override suspend fun set(percent: Int): Boolean {
+        volume.set(percent)
+        return true
+    }
 }
 
 internal interface TargetKeeper {
@@ -116,8 +137,11 @@ internal object TroubleWords {
     ): String = when (trouble.kind) {
         TroubleKind.NOT_CONNECTED -> "📶 Couldn't reach $label: it isn't connected (off or out of range)"
         TroubleKind.SWITCH_ON -> "🔌 Switch $label on, then try again"
-        TroubleKind.SWITCHED_OFF ->
-            if (kind == TargetKind.BROWSER) "🖥️ $label was closed" else "📺 $label was switched off"
+        TroubleKind.SWITCHED_OFF -> when (kind) {
+            TargetKind.BROWSER -> "🖥️ $label was closed"
+            TargetKind.SPEAKER -> "🔌 $label was switched off or went out of range"
+            else -> "📺 $label was switched off"
+        }
         TroubleKind.WONT_WAKE -> "❌ $label didn't wake: check 'Turn on via Wi-Fi' in its settings"
         TroubleKind.COULD_NOT_PLAY -> "❌ Couldn't play ${title ?: "that"}: ${trouble.reason ?: "no reason given"}"
         TroubleKind.YOUTUBE_BACKOFF ->

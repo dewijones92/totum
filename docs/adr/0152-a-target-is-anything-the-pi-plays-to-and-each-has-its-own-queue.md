@@ -111,7 +111,9 @@ to send a queue to. ADR 116 had built that for speakers only, with its own wire 
     so `GET /targets` keeps answering): `TvWake.ensureAwake` sends the magic packet to `255.255.255.255`, the target's own
     /24 broadcast (derived from an IPv4 address) and any configured ones, on UDP ports 9 and 7, again every 5 s, and
     polls port 8009 once a second for up to 25 s; one wake at a time per TV, so two phones send one. Once the port
-    answers the helper's own connect gets one more try (20 s) before the play goes ahead. On timeout the deck's
+    answers the helper's own connect gets one more try (20 s) before the play goes ahead. (2026-11-14: a broadcast
+    from the container never left Docker, so the packet also goes unicast to the TV's own address, see
+    [ADR 158](0158-targets-end-of-batch-fixes.md).) On timeout the deck's
     `problem` is "❌ LG TV didn't wake: check 'Turn on via Wi-Fi' in its settings", `playing` is false, and the phone
     plays the items itself as for any target that could not start. A TV already on gets no packet.
   - **The phone shows it.** While `power` is `WAKING` the repository puts "⏰ Waking LG TV…" on the progress strip

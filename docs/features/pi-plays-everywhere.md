@@ -168,7 +168,7 @@ browser listed at once and renamed in place), `BluezTest` and `TargetDeckSpeaker
 `TargetStateWireTest`, `TargetRulesTest` (core/data), `TargetsRepositoryTest`, `DeviceMarksTest`, `DeviceColourRuleTest` (app),
 instrumented `PlayOnPickerTest` and `DeviceColourSurfacesTest`.
 
-Unit (wake, hand back, live, ADR 152 amendments of 2026-11-07): `WakeOnLanTest`, `TvWakeTest`, `WakeThenPlayTest`, `YtDlpLiveHlsTest`, `LiveForSpeakersTest`, `CastWireTest`, `CastControlTest`, `ChromecastPlayerTest`, `TargetDeckTest`, `MpvPlayerTest` (cli), `TargetRulesTest` (core), `TargetsRepositoryTest`, `TargetChipLabelTest` (app), `server/totum-cli/chromecast_helper_test.py`.
+Unit (wake, hand back, live, ADR 152 amendments of 2026-11-07): `WakeOnLanTest`, `TvWakeTest`, `WakeThenPlayTest`, `YtDlpLiveHlsTest`, `LiveForSpeakersTest`, `CastWireTest`, `CastControlTest`, `ChromecastPlayerTest`, `TargetDeckTest`, `TargetDeckStartTest`, `TargetDeckVolumeSafetyTest`, `SpeakerVolumeTest`, `MpvPlayerTest` (cli), `TargetRulesTest` (core), `TargetsRepositoryTest`, `TargetChipLabelTest` (app), `server/totum-cli/chromecast_helper_test.py`.
 
 Unit: `PcmChainTest`, `TargetRulesTest`, `TargetEntriesTest` (core), `TargetDeckTest`, `YouTubeProgressTest`,
 `PcmPumpTest`, `CastWireTest`, `CastControlTest`, `YouTubeOwnershipTest` (cli); `TargetsRepositoryTest`, `PlayLocallyTest`,

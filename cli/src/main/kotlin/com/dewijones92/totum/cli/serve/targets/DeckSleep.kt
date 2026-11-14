@@ -10,6 +10,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
 import kotlin.time.Duration
@@ -41,7 +43,10 @@ internal class DeckSleep(
         val ramp: FadeRamp,
     ) {
         var job: Job? = null
+        var fade: VolumeFade? = null
         var base: Int? = null
+        val writes = Mutex()
+        var closed = false
         var lastGain = 1f
         var lastSet: Int? = null
         var noFadeLogged = false
@@ -160,8 +165,8 @@ internal class DeckSleep(
     private suspend fun step(sleep: Armed, remaining: Duration) {
         if (armed !== sleep) return
         if (!sleep.ramp.faded && sleep.ramp.due(remaining)) {
-            volume?.refresh()
-            sleep.base = if (volume != null) volume.percent else player.fadeBasePercent
+            sleep.fade = if (volume != null) volume.beginFade() else playerFade()
+            sleep.base = sleep.fade?.basePercent
             if (sleep.base == null) return noFade(sleep, "its volume is not known")
         }
         val base = sleep.base ?: return
@@ -175,8 +180,19 @@ internal class DeckSleep(
         val level = (base * sleep.lastGain).roundToInt().coerceIn(0, base)
         if (level == sleep.lastSet) return
         sleep.lastSet = level
-        setLevel(level)
+        sleep.writes.withLock {
+            if (sleep.closed) {
+                Diag.log(
+                    "sleep",
+                    "dewidebug sleep fade on $label: a write of $level% came after the timer ended, dropped",
+                )
+            } else {
+                sleep.fade?.set(level)
+            }
+        }
     }
+
+    private fun playerFade(): VolumeFade? = player.fadeBasePercent?.let { PlayerFade(player, it) }
 
     private fun noFade(sleep: Armed, why: String) {
         if (sleep.noFadeLogged) return
@@ -191,19 +207,36 @@ internal class DeckSleep(
             delay(RESTORE_AFTER_PAUSE)
         } finally {
             if (armed === sleep) armed = null
-            withContext(NonCancellable) { restore(sleep, "the countdown ended and playback was paused") }
+            restore(sleep, "the countdown ended and playback was paused")
         }
     }
 
-    private suspend fun restore(sleep: Armed, why: String) {
-        if (!sleep.ramp.end(why)) return
-        val base = sleep.base ?: return
-        Diag.log("sleep", "dewidebug sleep timer on $label: volume back to $base% after the fade")
-        setLevel(base)
+    private suspend fun restore(sleep: Armed, why: String) = withContext(NonCancellable) {
+        sleep.writes.withLock {
+            sleep.closed = true
+            if (!sleep.ramp.end(why)) return@withLock
+            val base = sleep.base ?: return@withLock
+            val put = sleep.fade?.set(base) ?: false
+            if (put) {
+                Diag.log("sleep", "dewidebug sleep timer on $label: volume back to $base% after the fade")
+            } else {
+                Diag.warn(
+                    "sleep",
+                    "dewidebug sleep timer on $label: the volume could not be put back to $base% after the fade " +
+                        "(its volume control is gone); it keeps whatever level it has, and nothing else was made " +
+                        "louder in its place",
+                )
+            }
+        }
     }
 
-    private suspend fun setLevel(percent: Int) {
-        if (volume != null) volume.set(percent) else player.volume(percent)
+    private class PlayerFade(private val player: TargetPlayer, private val base: Int) : VolumeFade {
+        override val basePercent: Int = base
+
+        override suspend fun set(percent: Int): Boolean {
+            player.volume(minOf(percent, base))
+            return true
+        }
     }
 
     private companion object {

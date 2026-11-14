@@ -8,7 +8,7 @@ updated: 2026-11-14
 # 158. Targets, end-of-batch fixes
 
 - Status: Accepted
-- Date: 2026-11-09 (sections from "A slow answer" down added 2026-11-13; the old-phone correction 2026-11-14)
+- Date: 2026-11-09 (sections from "A slow answer" down added 2026-11-13; the old-phone correction and "Second review" 2026-11-14)
 - Amends: [ADR 152](0152-a-target-is-anything-the-pi-plays-to-and-each-has-its-own-queue.md),
   [ADR 155](0155-a-target-repeats-plays-files-on-the-pi-and-says-why-it-could-not-play.md)
 
@@ -152,3 +152,68 @@ meets `starting: false`), an old phone reads `problem`, and a new Pi gives an ol
 (it said "old phones and old Pis still work together" before, which was false for the pair new Pi plus old phone: the item
 played twice; found by the end-of-batch review of 2026-11-14 and covered by `TargetRoutesSlowStartTest`). Test of the
 pair: a v0.1.911-shaped request, one with no `understandsStarting`, against a deck whose link connects after 2.5 s.
+
+## Second review (2026-11-14)
+
+An Opus review and a sweep of the targets and the speaker volume found seven more defects, each checked against the code
+before it was fixed (the decisions were the coordinator's). Each one has a test seen failing first.
+
+### A waiting start is called off by every edit
+
+`accept` sets `pending` and `startPending` then links, which can take up to 25 s on a TV wake or 15 s on a Bluetooth
+sink, **outside the deck's lock**. Only the start itself cleared `pending`, so a Stop, a Pause, a removal, a jump or a
+lost connection during the wait changed nothing, and the item played as soon as the link arrived, sometimes the wrong
+one (the pending start held an index that a removal had shifted).
+
+- A pending start names its item (`PendingStart(itemId, index, startAtMs)`) and is found again by id when it runs; the
+  index is only a hint (the nearest entry with that id wins). An item that has left the queue means nothing plays.
+- Stop (`finish`), Pause (`pausePlaying`, so a sleep timer's pause too), a jump or skip (`moveTo`), a lost connection and a
+  removal of the waiting item all call it off at once (`starting` goes false at once, not when the link arrives). A Play
+  while a start is waiting does nothing: that start plays it.
+- `startPending` remembers which start it was waiting for and plays only if that is still the waiting one. A start called
+  off after the link came up hands the link back (`TargetLink.release`) unless another start is waiting, so a speaker
+  that linked for nothing is not left connected.
+- The phone's fall-back "withdraw" (`TargetsRepository.removeSent`) sends `TargetControl.stopIfCurrent`. A removal of the
+  item that is playing normally moves on to the next one (that is what the queue's own remove means), but a withdrawn
+  item must not send the Pi on to whatever was queued before it: with `stopIfCurrent` the deck stops, keeps nothing and
+  hands the target back. An older Pi ignores the field (it moves on as before); a newer Pi with an older phone is
+  unchanged. Deploy order: any.
+- Tests: `TargetDeckStartTest` (a link held on a `CompletableDeferred`, then stop, pause, remove the item, remove another
+  item, lost connection, and a withdrawn current item), `TargetsRepositoryTest` (the withdraw carries the flag).
+
+### A speaker that goes away stops the queue
+
+`MpvPlayer` has no `onLost`. When the Bluetooth sink vanished (Soundmic switched off mid-queue), mpv's exit went to
+`ended`, which started the next item, resolved it, spawned mpv again and failed, in turn through the whole queue, ending
+with a misleading "could not play".
+
+- `TargetLink.present()` (default true; `BluezLink` asks PulseAudio whether the sink is there) is asked **outside the
+  lock** each time an item ends. If it says no, the deck treats it as a lost connection: it stops at the item it was on,
+  keeps its place, and says "🔌 <speaker> was switched off or went out of range" (`SWITCHED_OFF`). The Pi's own text is
+  worded by the target's kind (a TV still says "📺 <name> was switched off"); the phone composes its line from the kind
+  (`ContextTargetWords`, `TargetWords.trouble(…, kind)`), so a speaker gets the new words there too.
+- Tests: `TargetDeckStartTest` (a link whose sink is gone: one play, no lookups for the rest, the place kept, the words),
+  `TargetsRepositoryTest` (the words are told the kind); `TargetWordsTest` (instrumented, not run here).
+- Not seen on the real Soundmic: whether mpv exits or goes on playing to nothing when the sink disappears. The exit path
+  is covered; a player that stays alive is not detected (the 20 s stall check still reports it).
+
+### The deck's lock is not held for the speaker's slow calls
+
+A volume change from the phone ran `busctl tree`, `set-property` and `get-property` (up to three 25 s shell timeouts)
+under the deck's lock, and the 30 s tick and the read after a link came up did the same, so a slow speaker stalled
+Pause, Stop and the phone's reads.
+
+- `VOLUME` is handled before the lock (`volumeChanged`), and the level reads (`refresh` in `tick` and after a link) run
+  before taking it. `SpeakerVolume` serialises its own writes and reads with one mutex, in arrival order, so two volume
+  changes still land in the order they were sent.
+- Tests: `TargetDeckVolumeSafetyTest` (a volume write and a level read held open, a Pause still answers).
+
+### Wake-on-LAN also goes straight to the TV
+
+Proved on the real Pi on 2026-11-14: a magic packet sent from the `bin_private` container, to `255.255.255.255` and to
+the TV's /24 broadcast, never left Docker; the same packet sent from the Pi host woke the LG in under 4 s. `TvWake` now
+also sends the packet **unicast to the TV's own address on port 9** every round, and logs each address it tried and which
+went out. The broadcasts are kept (they work from a host with a flat network). A unicast to a sleeping TV needs the Pi
+host to know the TV's MAC, because a sleeping TV does not answer ARP: add a static entry on the Pi host,
+`ip neigh replace <tv ip> lladdr <mac> nud permanent dev eth0`, which `server/README.md` documents. Tests: `TvWakeTest`.
+Not seen on the real TV from this change; the coordinator adds the ARP entry and tests it.

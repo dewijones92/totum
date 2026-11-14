@@ -696,6 +696,7 @@ class TargetsRepositoryTest {
         assertEquals("lg-tv", id)
         assertEquals(TargetAction.REMOVE, control.action)
         assertEquals(listOf("a", "b"), control.itemIds)
+        assertTrue("a withdrawn item that has started must stop, not move on", control.stopIfCurrent)
     }
 
     @Test
@@ -781,6 +782,15 @@ class TargetsRepositoryTest {
 
             assertEquals(listOf(TargetKind.BROWSER), FakeWords.kindsAsked)
         }
+
+    @Test
+    fun `the words are told what kind of target the trouble is on`() = runTest {
+        repository.troubleLine(bar.copy(trouble = TargetTrouble(TroubleKind.SWITCHED_OFF)))
+        assertEquals(TargetKind.SPEAKER, FakeWords.kindsAsked.last())
+
+        repository.troubleLine(tv.copy(trouble = TargetTrouble(TroubleKind.SWITCHED_OFF)))
+        assertEquals(TargetKind.TV, FakeWords.kindsAsked.last())
+    }
 
     @Test
     fun `a 401 says to sign in again, wherever it came from`() = runTest {

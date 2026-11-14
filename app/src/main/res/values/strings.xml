@@ -1488,6 +1488,7 @@
     <string name="target_trouble_switch_on">🔌 Switch %1$s on, then try again</string>
     <string name="target_trouble_switched_off">📺 %1$s was switched off</string>
     <string name="target_trouble_closed">🖥️ %1$s was closed</string>
+    <string name="target_trouble_speaker_gone">🔌 %1$s was switched off or went out of range</string>
     <string name="target_trouble_wont_wake">❌ %1$s didn\'t wake: check \'Turn on via Wi-Fi\' in its settings</string>
     <string name="target_trouble_youtube_backoff">⏳ YouTube is refusing the Pi for now; try again around %1$s</string>
     <string name="target_trouble_stalled">⚠️ “%1$s” has stopped moving on %2$s</string>

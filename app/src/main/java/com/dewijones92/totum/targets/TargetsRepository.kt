@@ -412,7 +412,7 @@ class TargetsRepository(
 
     private suspend fun removeSent(play: Redirected) {
         val ids = play.items.map { it.item.id.value }
-        val answer = control(play.id, TargetControl(TargetAction.REMOVE, itemIds = ids))
+        val answer = control(play.id, TargetControl(TargetAction.REMOVE, itemIds = ids, stopIfCurrent = true))
         if (answer is HomeAnswer.No) {
             Diag.warn(
                 "targets",

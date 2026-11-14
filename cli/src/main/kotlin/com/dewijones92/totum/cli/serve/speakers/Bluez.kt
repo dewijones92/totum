@@ -133,6 +133,8 @@ internal class BluezLink(
 
     override suspend fun linked(): Boolean = sinkIndex() != null
 
+    override suspend fun present(): Boolean = sinkIndex() != null
+
     override suspend fun reconnect(): Boolean {
         if (sinkIndex() != null) return true
         Diag.log(

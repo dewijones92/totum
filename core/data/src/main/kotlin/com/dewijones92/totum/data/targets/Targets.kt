@@ -172,6 +172,7 @@ public data class TargetControl(
     val itemId: String? = null,
     val itemIds: List<String>? = null,
     val sleep: TargetSleepAsk? = null,
+    val stopIfCurrent: Boolean = false,
 )
 
 public fun QueueEntry.toTargetEntry(from: Requester? = null, ownerId: String? = null): TargetEntry = TargetEntry(

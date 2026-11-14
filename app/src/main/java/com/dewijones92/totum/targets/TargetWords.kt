@@ -13,7 +13,7 @@ interface TargetWords {
         label: String,
         trouble: TargetTrouble,
         title: String?,
-        kind: TargetKind = TargetKind.SPEAKER,
+        kind: TargetKind = TargetKind.TV,
     ): String
 
     fun signInAgain(): String
@@ -30,7 +30,11 @@ internal class ContextTargetWords(private val context: Context) : TargetWords {
         TroubleKind.NOT_CONNECTED -> context.getString(R.string.target_trouble_not_connected, label)
         TroubleKind.SWITCH_ON -> context.getString(R.string.target_trouble_switch_on, label)
         TroubleKind.SWITCHED_OFF -> context.getString(
-            if (kind == TargetKind.BROWSER) R.string.target_trouble_closed else R.string.target_trouble_switched_off,
+            when (kind) {
+                TargetKind.BROWSER -> R.string.target_trouble_closed
+                TargetKind.SPEAKER -> R.string.target_trouble_speaker_gone
+                else -> R.string.target_trouble_switched_off
+            },
             label,
         )
         TroubleKind.WONT_WAKE -> context.getString(R.string.target_trouble_wont_wake, label)

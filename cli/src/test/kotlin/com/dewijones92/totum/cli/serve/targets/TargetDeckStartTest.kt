@@ -18,6 +18,8 @@ import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
@@ -54,13 +56,18 @@ class TargetDeckStartTest {
     private class Link(var sink: String? = "bar-sink") : TargetLink {
         var connects = 0
         var gate: CompletableDeferred<Unit>? = null
+        var releases = 0
+        var present = true
         override var unreachable: TargetTrouble? = null
         override suspend fun connect(): String? {
             connects++
             gate?.await()
             return sink
         }
-        override suspend fun release() = Unit
+        override suspend fun release() {
+            releases++
+        }
+        override suspend fun present(): Boolean = present
     }
 
     private class Sounds : TargetSounds {
@@ -140,6 +147,150 @@ class TargetDeckStartTest {
         link.gate?.complete(Unit)
         start.await()
         assertFalse(deck.state().starting)
+        assertTrue(deck.state().playing)
+    }
+
+    private fun CoroutineScope.startWaitingOnTheLink(deck: TargetDeck, vararg ids: String): Deferred<Unit> {
+        link.gate = CompletableDeferred()
+        runBlocking { deck.accept(send(*ids)) }
+        val start = async(Dispatchers.Default) { deck.startPending() }
+        repeat(100) { if (link.connects == 0) Thread.sleep(20) }
+        assertEquals("the start never reached the link", 1, link.connects)
+        return start
+    }
+
+    private suspend fun finishLinking(start: Deferred<Unit>) {
+        link.gate?.complete(Unit)
+        start.await()
+    }
+
+    @Test
+    fun `a stop while the link is coming up means nothing plays when it arrives`() = runBlocking {
+        val deck = deck()
+        val start = startWaitingOnTheLink(deck, "a")
+
+        deck.control(TargetControl(TargetAction.STOP))
+        assertFalse("stop says it is no longer starting", deck.state().starting)
+        finishLinking(start)
+
+        assertTrue("it played ${player.requests.map { it.url }}", player.requests.isEmpty())
+        assertFalse(deck.state().playing)
+        assertFalse(deck.state().starting)
+        assertEquals("the speaker that linked for nothing is handed back", 1, link.releases)
+    }
+
+    @Test
+    fun `a pause while the link is coming up means nothing plays when it arrives`() = runBlocking {
+        val deck = deck()
+        val start = startWaitingOnTheLink(deck, "a")
+
+        deck.control(TargetControl(TargetAction.PAUSE))
+        finishLinking(start)
+
+        assertTrue("it played ${player.requests.map { it.url }}", player.requests.isEmpty())
+        assertFalse(deck.state().playing)
+        assertFalse(deck.state().starting)
+    }
+
+    @Test
+    fun `removing the item that is waiting for the link means nothing plays when it arrives`() = runBlocking {
+        val deck = deck()
+        val start = startWaitingOnTheLink(deck, "a")
+
+        deck.control(TargetControl(TargetAction.REMOVE, itemIds = listOf("a")))
+        assertFalse("the start of a removed item is called off at once", deck.state().starting)
+        finishLinking(start)
+
+        assertTrue("it played ${player.requests.map { it.url }}", player.requests.isEmpty())
+        assertFalse(deck.state().playing)
+        assertFalse(deck.state().starting)
+    }
+
+    @Test
+    fun `removing another item while the link comes up does not send the start to the wrong item`() = runBlocking {
+        val deck = deck()
+        link.gate = CompletableDeferred()
+        deck.accept(TargetQueueRequest(listOf(item("a"), item("b")), QueueMode.REPLACE, startItemId = "b"))
+        val start = async(Dispatchers.Default) { deck.startPending() }
+        repeat(100) { if (link.connects == 0) Thread.sleep(20) }
+
+        deck.control(TargetControl(TargetAction.REMOVE, itemIds = listOf("a")))
+        finishLinking(start)
+
+        assertEquals(listOf("https://sound/b"), player.requests.map { it.url })
+        assertEquals(0, deck.state().at)
+    }
+
+    @Test
+    fun `a lost connection while the link is coming up means nothing plays when it arrives`() = runBlocking {
+        val deck = deck(TargetKind.TV)
+        val start = startWaitingOnTheLink(deck, "a")
+
+        deck.lost("the connection to LG soundbar was LOST")
+        finishLinking(start)
+
+        assertTrue("it played ${player.requests.map { it.url }}", player.requests.isEmpty())
+        assertFalse(deck.state().playing)
+        assertFalse(deck.state().starting)
+    }
+
+    @Test
+    fun `a sent item withdrawn while it is the one playing stops, and does not move on to what was queued before`() =
+        runBlocking {
+            val deck = deck()
+            deck.enqueue(send("x", "y"))
+            deck.enqueue(TargetQueueRequest(listOf(item("a")), QueueMode.PLAY))
+            assertEquals(listOf("https://sound/x", "https://sound/a"), player.requests.map { it.url })
+
+            val state = deck.control(TargetControl(TargetAction.REMOVE, itemIds = listOf("a"), stopIfCurrent = true))
+
+            assertEquals(2, player.requests.size)
+            assertFalse(state.playing)
+            assertEquals(listOf("x", "y"), state.entries.map { it.item.itemId })
+        }
+
+    @Test
+    fun `removing the playing item without the withdraw flag still moves on to the next`() = runBlocking {
+        val deck = deck()
+        deck.enqueue(send("x", "y"))
+        deck.enqueue(TargetQueueRequest(listOf(item("a")), QueueMode.PLAY))
+
+        deck.control(TargetControl(TargetAction.REMOVE, itemIds = listOf("a")))
+
+        assertEquals("https://sound/y", player.requests.last().url)
+        assertTrue(deck.state().playing)
+    }
+
+    @Test
+    fun `a speaker that has gone when the player ends is not run through the rest of the queue`() = runBlocking {
+        val deck = deck()
+        deck.enqueue(send("a", "b", "c"))
+        player.position = 31_000
+        link.present = false
+        sounds.asked.clear()
+
+        deck.ended(failed = true)
+
+        val state = deck.state()
+        assertEquals("only a was ever played", 1, player.requests.size)
+        assertTrue("nothing else was looked up: ${sounds.asked}", sounds.asked.isEmpty())
+        assertFalse(state.playing)
+        assertEquals("it keeps its place on a", 0, state.at)
+        assertEquals(31_000, state.positionMs)
+        assertEquals(TroubleKind.SWITCHED_OFF, state.trouble?.kind)
+        assertEquals("a", state.trouble?.itemId)
+        assertEquals("🔌 LG soundbar was switched off or went out of range", state.problem)
+    }
+
+    @Test
+    fun `a speaker that is still there when an item ends carries on to the next`() = runBlocking {
+        val deck = deck()
+        deck.enqueue(send("a", "b"))
+        now += 5_000
+
+        deck.ended(failed = false)
+
+        assertEquals(2, player.requests.size)
         assertTrue(deck.state().playing)
     }
 
