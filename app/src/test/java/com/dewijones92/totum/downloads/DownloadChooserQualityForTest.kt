@@ -80,7 +80,10 @@ class DownloadChooserQualityForTest {
     @Test
     fun `the ladder is asked for the item being downloaded`() {
         val asked = mutableListOf<MediaItemId>()
-        val chooser = chooser { asked += it.id; ladder }
+        val chooser = chooser { asking ->
+            asked += asking.id
+            ladder
+        }
 
         chooser.qualityFor(item, 720)
 

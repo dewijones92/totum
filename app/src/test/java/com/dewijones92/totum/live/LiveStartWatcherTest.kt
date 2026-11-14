@@ -50,12 +50,13 @@ class LiveStartWatcherTest {
         val lives: LiveStates,
         val operations: Operations,
         val notices: Notices,
-        val checkedAt: MutableList<Long>,
-        val checkedUrls: MutableList<HttpUrl>,
-        val ended: MutableList<Ended>,
-        val answers: MutableList<LiveCheck>,
-        var fallback: LiveCheck,
-    )
+    ) {
+        val checkedAt = mutableListOf<Long>()
+        val checkedUrls = mutableListOf<HttpUrl>()
+        val ended = mutableListOf<Ended>()
+        val answers = mutableListOf<LiveCheck>()
+        var fallback: LiveCheck = LiveCheck.Unknown("nothing scripted")
+    }
 
     private fun TestScope.rig(
         vararg answers: LiveCheck,
@@ -65,10 +66,9 @@ class LiveStartWatcherTest {
         val lives = LiveStates { currentTime }
         val operations = Operations { currentTime }
         val notices = Notices()
-        val rig = Rig(
-            taps, lives, operations, notices, mutableListOf(), mutableListOf(), mutableListOf(),
-            answers.toMutableList(), fallback,
-        )
+        val rig = Rig(taps, lives, operations, notices)
+        rig.answers += answers
+        rig.fallback = fallback
         backgroundScope.launch { operations.ended.collect { rig.ended += it } }
         LiveStartWatcher(
             scope = backgroundScope,
