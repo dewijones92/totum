@@ -3,8 +3,8 @@ title: Work still done on the main thread, found by four scouts after report 0.1
 kind: todo
 area: performance
 priority: medium
-status: found 2026-10-30, partly fixed
-updated: 2026-10-30
+status: found 2026-10-30, partly fixed; 2026-11-14 pass blocked (emulator died), nothing further changed
+updated: 2026-11-14
 ---
 
 # Work still done on the main thread
@@ -43,3 +43,17 @@ before it is worked on.
 - `rowPlayStates` (`AppContainer`) still combines the whole history map on Main per save.
 - Stats drill-down filters the whole event log in the tap; Explore reads every episode with `first()`.
 - `RowFollowing` is a `staticCompositionLocalOf` given a new value when the follow lists change.
+
+## 2026-11-14: not advanced, and what is now certain
+
+The pass meant to judge the open suspects by the `[main]` lines of Dewi's real-scale state (ADR 100) could not run:
+the project emulator died with a segfault at 06:55 and the builder may not boot one, and Dewi's state dump carries
+no `[main]` lines or vitals (1,400 events, none tagged `main`), so the evidence the todo asks for does not exist yet.
+`SharedMetadataRepair` was left alone as briefed (another builder is moving it off Main).
+
+Read from the code, not measured: the queue auto-downloader's pass runs on Main. `startQueueAutoDownloader` hands it
+`applicationScope`, which is `SupervisorJob() + Dispatchers.Main` (`AppContainer.kt`), and `pass` sorts, counts and
+channels every one of 5,857 entries per emission before any lane starts. That makes it the first suspect to
+measure, with `RandomStarts.follow` and `GroupDownloads.track`, which have the same scope. Moving the collector to
+`Dispatchers.Default` is the obvious fix, but `isEnabled`, `isAllowedOnThisNetwork`, `playingNow`, `atHome` and
+`groupAllows` are lambdas from `AppContainer` and each would need checking for main-only state first.

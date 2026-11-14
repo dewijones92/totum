@@ -73,7 +73,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [Not for me](not-for-me.md) | queue | medium | built 2026-11-06, Batch A (tests written 2026-11-07; the menu action on screen is not covered) |
 | [✨ Ask can answer about your own app](ask-sees-the-app.md) | ai | high | built 2026-11-07, Batch A (tests written 2026-11-07; device checks owed) |
 | [Torrent results say whether they look trustworthy](torrent-trust-badges.md) | torrents | high | ✅ shipped 2026-10-30 (ADR 101) |
-| [Work still done on the main thread](main-thread-work.md) | performance | medium | ⏳ partly fixed 2026-10-30 (parsing, Room maps, diagnostics send) |
+| [Work still done on the main thread](main-thread-work.md) | performance | medium | ⏳ partly fixed 2026-10-30 (parsing, Room maps, diagnostics send); 2026-11-14 pass blocked, emulator died |
 | [Shuffle all across several sources at once](multi-source-shuffle.md) | queue/shuffle | high | ⏳ partly done 2026-10-22 (Subscriptions, queue groups) |
 | [Exsurge off never summons; one nudge a day](exsurge-off-never-summons.md) | side-quest | high | done 2026-10-22 (ADR 71) |
 | [Rewind without buffering, for everything](instant-rewind-cache.md) | playback | high | built 2026-10-22 (ADR 72: 1 GB playback cache) |
@@ -102,7 +102,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [Speed through long pauses in videos while casting](video-skip-silences-speed.md) | cast | low | requested 2026-10-22 (Dewi's 24 h batch) |
 | [Totum's boost on live sound while casting](live-cast-boost.md) | cast | low | requested 2026-10-22 (Dewi's 24 h batch) |
 | [Triage the 16 unconsidered phone reports (15-22 Oct)](phone-reports-oct-15-22.md) | diagnostics | high | requested 2026-10-22 (Dewi's 24 h batch) |
-| [The first visit to Music and Queue costs one long frame](first-tab-visit-cost.md) | performance | medium | found 2026-10-15 (ADR 61 sweep), not started |
+| [The first visit to Music and Queue costs one long frame](first-tab-visit-cost.md) | performance | medium | found 2026-10-15 (ADR 61 sweep); 2026-11-14 measuring blocked, emulator died; not started |
 | [A radio seeded from several songs](radio-from-several-songs.md) | music | high | built 2026-10-15 (select songs → "Radio from these", ADR 27 revision); the file said "requested, to refine" until 2026-11-14 |
 | [Make Totum run on a Pixel 4a](run-on-pixel-4a.md) | platform | high | built 2026-10-14 → ADR 39; minSdk 33, verified on totum-api33 |
 | [A bold Roman redesign of the Exsurge and Daily alarms screens](side-quest-ui-redesign.md) | side-quest/ui | high | built 2026-10-14 → ADR 34; ring and question screens not yet seen ringing |
