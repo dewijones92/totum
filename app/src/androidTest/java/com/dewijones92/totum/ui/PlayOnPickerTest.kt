@@ -94,7 +94,9 @@ class PlayOnPickerTest {
         compose.onNodeWithTag(PLAY_ON_OPTION_PREFIX + "lg-tv").assertIsDisplayed()
         compose.onNodeWithTag(PLAY_ON_OPTION_PREFIX + "bar").assertIsDisplayed()
         compose.onNodeWithTag(PLAY_ON_OPTION_PREFIX + "lg-tv").performClick()
-        compose.waitUntil(WAIT_MS) { pi.controlled.isNotEmpty() }
+        compose.waitUntil(WAIT_MS) {
+            pi.controlled.isNotEmpty() && repo.selected.value == "lg-tv" && store.load() == "lg-tv"
+        }
 
         assertEquals("lg-tv", repo.selected.value)
         assertEquals("lg-tv", store.load())
@@ -119,7 +121,7 @@ class PlayOnPickerTest {
         compose.onNodeWithText("💤 Off · picking it switches it on").assertIsDisplayed()
         TestShots.take("picker-by-hand-hint")
         compose.onNodeWithTag(PLAY_ON_OPTION_PREFIX + "mic").performClick()
-        compose.waitForIdle()
+        compose.waitUntil(WAIT_MS) { repo.selected.value == "mic" && store.load() == "mic" }
 
         assertEquals("mic", repo.selected.value)
         assertEquals(0, pi.controlled.size)

@@ -49,7 +49,7 @@ rides in the link's fragment).
   play, as for every device).
 - **The short address.** `TOTUM_CAST_BASE` without its scheme (`192.168.0.5:8771`), sent to the phone as
   `TargetsAnswer.browserAddress` (`browserAddressOf`). The phone shows it under **🖥️ Add a browser…** at the foot of the
-  picker row and of every item's "Play on…" list, with 📋 Copy address, only at home (ADR 169's rule) and even when no other device
+  picker row and of every item's "Play on…" list, which opens a dialog with the address and 📋 Copy address, only at home (ADR 169's rule) and even when no other device
   is listed. Typing `192.168.0.5:8771` into Silk with a TV remote is the whole set-up; there is no key and no pairing.
 - **No key on the Pi's page: the home network is the gate**, as it already is for the TV streams on that port (per-offer random
   paths, no token, because a TV cannot send one). [ADR 90](0090-a-token-per-device-and-none-in-links.md) is kept: no
@@ -122,4 +122,4 @@ If Dewi wants it, it is one nginx block, one approval route and one key check, a
   waiting screen back after 1.5 s. Not heard: sound (headless), full screen, the click-for-sound overlay with a real remote, Silk.
 - Tests: `ScreenOnThePiTest` (core:cast), `BrowserControlTest`, `BrowserSourceTest`, `BrowserServingTest`, `BluezTest`,
   `TargetDeckSpeakerTest` (cli), `PlayOnTest`, `TargetStateWireTest`, `TargetRulesTest` (core:data), `TargetsRepositoryTest`,
-  `DeviceMarksTest` (app), instrumented `PlayOnPickerTest` (written and compiled; run at 320x640).
+  `DeviceMarksTest` (app), instrumented `PlayOnPickerTest` and `DeviceColourSurfacesTest` (run on totum-api35 at 320x640 @ 160 dpi and at 1080x2400 @ 420 dpi).
