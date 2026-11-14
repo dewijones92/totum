@@ -2,6 +2,7 @@ package com.dewijones92.totum.cli.serve.cast
 
 import com.dewijones92.totum.cli.serve.sound.ProcessedSound
 import com.dewijones92.totum.cli.serve.targets.PlayRequest
+import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.targets.SoundSettings
 import com.dewijones92.totum.data.targets.TargetKind
 import com.dewijones92.totum.playback.VolumeBoost
@@ -61,17 +62,45 @@ class ChromecastPlayerTest {
         assertNull(player().notice)
     }
 
+    private fun logged(block: () -> Unit): String {
+        val lines = mutableListOf<String>()
+        Diag.sink = Diag.Sink { _, _, message, _ -> lines += message }
+        try {
+            block()
+        } finally {
+            Diag.sink = Diag.Sink { _, _, _, _ -> }
+        }
+        return lines.joinToString("\n")
+    }
+
     @Test
-    fun `an item with a picture on a sound-only format says so, and a DASH control says nothing`() {
+    fun `an item with a picture on a device that takes sound only says so and is given the sound alone`() {
+        control.format = CastFormat.HLS
+        control.showsPictures = false
+        val p = player()
+
+        val text = logged { p.play(request(url = "https://example.com/film.mp4", picture = true)) }
+
+        assertTrue(p.notice.toString(), p.notice!!.startsWith("🔈 LG TV plays the sound of this;"))
+        assertTrue(text, text.contains("picture because listening (the picture is off by choice)"))
+        assertTrue(control.loads.single().url.endsWith("hls.m3u8"))
+    }
+
+    @Test
+    fun `a device that takes pictures, over HLS or DASH, is told nothing and is offered the picture`() {
         control.format = CastFormat.HLS
         val p = player()
-        p.play(request(url = "https://example.com/film.mp4", picture = true))
-
-        assertTrue(p.notice.toString(), p.notice!!.startsWith("🔈 LG TV plays the sound of this over HLS"))
+        val over = logged { p.play(request(url = "https://example.com/film.mp4", picture = true)) }
         control.format = CastFormat.DASH
         val q = player()
-        q.play(request(url = "https://example.com/film.mp4", picture = true))
+        val dash = logged { q.play(request(url = "https://example.com/film.mp4", picture = true)) }
+
+        assertNull(p.notice)
         assertNull(q.notice)
+        assertTrue(over, over.contains("picture because the file name says video"))
+        assertTrue(dash, dash.contains("picture because the file name says video"))
+        assertTrue(control.loads.first().url.endsWith("hls.m3u8"))
+        assertTrue(control.loads.last().url.endsWith("manifest.mpd"))
     }
 
     @Test

@@ -17,11 +17,12 @@ private const val AIRPLAY_PORT = 7000
 internal enum class CastProtocol(val word: String, val port: Int?) {
     CHROMECAST("chromecast", CHROMECAST_PORT),
     AIRPLAY("airplay", AIRPLAY_PORT),
+    KODI("kodi", null),
     DLNA("dlna", null),
     ;
 
     companion object {
-        val DEFAULT_ORDER = listOf(CHROMECAST, AIRPLAY, DLNA)
+        val DEFAULT_ORDER = listOf(CHROMECAST, AIRPLAY, KODI, DLNA)
 
         fun named(word: String): CastProtocol? = entries.firstOrNull { it.word == word.trim().lowercase() }
     }
@@ -40,10 +41,7 @@ internal class KnownDevice(
 
     val mac: String? get() = addresses.values.firstNotNullOfOrNull { it.mac }
 
-    val host: String
-        get() = addresses.values.first().let { entry ->
-            runCatching { URI(entry.host).host }.getOrNull() ?: entry.host
-        }
+    val host: String get() = hostOf(addresses.values.first().host)
 
     val kind: TargetKind
         get() = if (name.contains("chromecast", ignoreCase = true)) TargetKind.CHROMECAST else TargetKind.TV
@@ -52,11 +50,19 @@ internal class KnownDevice(
         (mac?.let { " (wake $it)" } ?: "")
 }
 
+private fun uriOf(address: String): URI? =
+    runCatching { URI(if (address.contains("://")) address else "http://$address") }.getOrNull()
+
+internal fun hostOf(address: String): String = uriOf(address)?.host ?: address
+
+internal fun portOf(address: String): Int? = uriOf(address)?.port?.takeIf { it > 0 }
+
 internal fun knownDevicesFrom(
     chromecast: List<KnownCasts>,
     airplay: List<KnownCasts>,
     dlna: List<KnownCasts>,
     firstSpec: String? = null,
+    kodi: List<KnownCasts> = emptyList(),
 ): List<KnownDevice> {
     val first = firstSpec.orEmpty().split(';').mapNotNull { pair ->
         val parts = pair.split('=', limit = 2)
@@ -64,7 +70,12 @@ internal fun knownDevicesFrom(
         if (parts.first().isBlank() || protocol == null) null else castIdOf(parts.first()) to protocol
     }.toMap()
     val byId = linkedMapOf<String, Pair<String, MutableMap<CastProtocol, KnownCasts>>>()
-    listOf(CastProtocol.CHROMECAST to chromecast, CastProtocol.AIRPLAY to airplay, CastProtocol.DLNA to dlna)
+    listOf(
+        CastProtocol.CHROMECAST to chromecast,
+        CastProtocol.AIRPLAY to airplay,
+        CastProtocol.KODI to kodi,
+        CastProtocol.DLNA to dlna,
+    )
         .forEach { (protocol, entries) ->
             entries.forEach { entry ->
                 val id = castIdOf(entry.name)
@@ -106,6 +117,7 @@ internal class FirstReachableControl(
         }
 
     override val format: CastFormat get() = current.format
+    override val showsPictures: Boolean get() = current.showsPictures
     override val keepsAddressesPrivate: Boolean get() = current.keepsAddressesPrivate
     override val model: String? get() = current.model
     override val screen: CastScreen? get() = current.screen
@@ -154,6 +166,8 @@ internal class CastPlaces(
     val handbackDir: File?,
     val airplayDir: File?,
     val airplayHelper: String = System.getenv("TOTUM_AIRPLAY_HELPER") ?: "/opt/totum/airplay_helper.py",
+    val kodiCredentials: File? = null,
+    val kodiDash: Boolean = false,
 ) {
     fun credentialsOf(id: String): File? = airplayDir?.let { File(it, "airplay-$id.json") }
 }
@@ -198,6 +212,12 @@ internal class CastDeviceSource(
                 kind = "AirPlay",
                 keepsAddressesPrivate = true,
             )
+            CastProtocol.KODI -> KodiControl(
+                address,
+                device.name,
+                JdkKodiRpc(kodiEndpoint(address), KodiCredentials.fromFile(places.kodiCredentials)),
+                dashWhenAble = places.kodiDash,
+            )
             CastProtocol.DLNA -> DlnaControl(address, device.name)
         }
     }
@@ -206,8 +226,7 @@ internal class CastDeviceSource(
         val mac = device.mac?.let(WakeOnLan::parseMac) ?: return null
         val broadcasts = WakeOnLan.broadcastsFor(device.host, extraBroadcasts)
         val ports = device.order.mapNotNull { protocol ->
-            protocol.port ?: runCatching { URI(device.addresses.getValue(protocol).host).port }.getOrNull()
-                ?.takeIf { it > 0 }
+            protocol.port ?: portOf(device.addresses.getValue(protocol).host)
         }
         val probes = ports.map { ReceiverProbe(device.host, it) }
         return TvWake(

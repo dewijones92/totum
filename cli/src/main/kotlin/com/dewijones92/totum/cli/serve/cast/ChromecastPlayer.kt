@@ -8,9 +8,9 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.targets.TargetPower
 import com.dewijones92.totum.data.targets.TargetTrouble
 import com.dewijones92.totum.data.targets.TroubleKind
-import com.dewijones92.totum.playback.cast.CastFormat
 import com.dewijones92.totum.playback.cast.CastItem
 import com.dewijones92.totum.playback.cast.LocalManifests
+import com.dewijones92.totum.playback.cast.soundOnly
 import kotlin.concurrent.thread
 
 internal class ChromecastPlayer(
@@ -66,12 +66,13 @@ internal class ChromecastPlayer(
         tv.notice = null
         val wanted = request.cast ?: CastItem(request.title, request.url, listening = !request.picture)
         liveNow = LocalManifests.isLive(wanted.uri)
-        val item = wanted.copy(mediaId = "$label|${wanted.mediaId}", skipsSilence = request.sound.skipSilence)
+        val named = wanted.copy(mediaId = "$label|${wanted.mediaId}", skipsSilence = request.sound.skipSilence)
+        val item = if (control.showsPictures) named else named.soundOnly()
         val format = control.format
         val manifest = if (streams.available) streams.urlFor(tv, item, request.sound, format) else null
         if (manifest != null) {
             mediaId = item.mediaId
-            soundOnlyNote(request, format)
+            soundOnlyNote(request)
             control.load(manifest, format.mime, request.title, request.startAtMs)
             watchTheCutEnd(item.mediaId)
         } else {
@@ -90,13 +91,10 @@ internal class ChromecastPlayer(
         }
     }
 
-    private fun soundOnlyNote(request: PlayRequest, format: CastFormat) {
-        if (format == CastFormat.DASH || !request.picture || !hasAPicture(request)) return
-        tv.notice = "🔈 $label plays the sound of this over ${format.name}; there is no picture yet"
-        Diag.log(
-            "cast-target",
-            "$label: ${request.title} has a picture, but ${format.name} carries sound only; ${tv.notice}"
-        )
+    private fun soundOnlyNote(request: PlayRequest) {
+        if (control.showsPictures || !request.picture || !hasAPicture(request)) return
+        tv.notice = "🔈 $label plays the sound of this; it lists no video format it takes"
+        Diag.log("cast-target", "$label: ${request.title} has a picture, but the device takes sound only; ${tv.notice}")
     }
 
     private fun hasAPicture(request: PlayRequest): Boolean {

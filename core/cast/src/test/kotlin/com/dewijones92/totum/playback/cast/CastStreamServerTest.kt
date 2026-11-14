@@ -60,10 +60,10 @@ class CastStreamServerTest {
     }
 
     @Test
-    fun `asked for HLS the same processed segments are listed as a playlist, sound only whatever the item carries`() {
+    fun `asked for HLS the same processed segments are listed as a playlist when the device takes sound only`() {
         val withPicture = CastItem("h", "https://example.com/film.mp4", skipsSilence = null)
 
-        val url = server.urlFor(withPicture, CastFormat.HLS)!!
+        val url = server.urlFor(withPicture.soundOnly(), CastFormat.HLS)!!
 
         assertTrue(url, Regex("""http://pi:$port/c/[0-9a-f]{16}/hls\.m3u8""").matches(url))
         val reply = get(url)

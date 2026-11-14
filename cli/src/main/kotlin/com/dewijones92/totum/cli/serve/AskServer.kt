@@ -441,10 +441,16 @@ private fun castDevicesFromEnv(streams: PiStreams, targetsDir: File, airplayDir:
         knownCastsFrom(System.getenv("TOTUM_AIRPLAY_TARGETS")),
         knownCastsFrom(System.getenv("TOTUM_DLNA_TARGETS")),
         System.getenv("TOTUM_CAST_PROTOCOL_FIRST"),
+        kodi = knownCastsFrom(System.getenv("TOTUM_KODI_TARGETS")),
     ),
     streams,
     System.getenv("TOTUM_WAKE_BROADCAST").orEmpty().split(','),
-    CastPlaces(targetsDir, airplayDir),
+    CastPlaces(
+        targetsDir,
+        airplayDir,
+        kodiCredentials = System.getenv("TOTUM_KODI_CREDENTIALS")?.takeIf { it.isNotBlank() }?.let(::File),
+        kodiDash = System.getenv("TOTUM_KODI_FORMAT").equals("auto", ignoreCase = true),
+    ),
 )
 
 internal fun browserAddressOf(castBase: String?): String? =

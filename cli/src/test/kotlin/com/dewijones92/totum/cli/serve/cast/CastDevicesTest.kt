@@ -26,7 +26,14 @@ class CastDevicesTest {
         airplay: String? = null,
         dlna: String? = null,
         first: String? = null,
-    ) = knownDevicesFrom(knownCastsFrom(cast), knownCastsFrom(airplay), knownCastsFrom(dlna), first)
+        kodi: String? = null,
+    ) = knownDevicesFrom(
+        knownCastsFrom(cast),
+        knownCastsFrom(airplay),
+        knownCastsFrom(dlna),
+        first,
+        kodi = knownCastsFrom(kodi),
+    )
 
     @Test
     fun `one name in two lists is one device, driven over Chromecast first unless it says otherwise`() {
@@ -65,6 +72,51 @@ class CastDevicesTest {
         assertEquals("192.168.0.211", device.host)
         assertEquals("aa:bb:cc:dd:ee:ff", device.mac)
         assertEquals("dlna (wake aa:bb:cc:dd:ee:ff)", device.describe())
+    }
+
+    @Test
+    fun `one device that Kodi and DLNA both reach is one target driven over Kodi first`() {
+        val device = devices(
+            kodi = "Kodi=192.168.0.211:8080@aa:bb:cc:dd:ee:ff",
+            dlna = "Kodi=http://192.168.0.211:1285/"
+        )
+            .single()
+
+        assertEquals(listOf(CastProtocol.KODI, CastProtocol.DLNA), device.order)
+        assertEquals("kodi+dlna (wake aa:bb:cc:dd:ee:ff)", device.describe())
+        assertEquals("192.168.0.211", device.host)
+        assertEquals(
+            listOf(CastProtocol.DLNA, CastProtocol.KODI),
+            devices(kodi = "Kodi=1.1.1.1:8080", dlna = "Kodi=http://1.1.1.1:1285/", first = "Kodi=dlna").single().order,
+        )
+    }
+
+    @Test
+    fun `a Kodi only device keeps its host without the JSON-RPC port, and each protocol gets its own control`() =
+        runBlocking {
+            val device = devices(kodi = "Kodi=192.168.0.211:8080", dlna = "Kodi=http://192.168.0.211:1285/").single()
+            val source = CastDeviceSource(
+                listOf(device),
+                streams(),
+                places = CastPlaces(tmp, File(tmp, "airplay"), kodiCredentials = File(tmp, "kodi.txt")),
+            )
+
+            assertTrue(source.controlFor(device, CastProtocol.KODI) is KodiControl)
+            assertTrue(source.controlFor(device, CastProtocol.DLNA) is DlnaControl)
+            assertTrue(source.controlFor(device, CastProtocol.KODI).keepsAddressesPrivate)
+            assertEquals("192.168.0.211", devices(kodi = "Kodi=192.168.0.211:8080").single().host)
+        }
+
+    @Test
+    fun `a device that takes no pictures is told so by the control in use`() = runBlocking {
+        val sound = Stub(true, CastFormat.HLS, showsPictures = false)
+        val picture = Stub(true, CastFormat.HLS)
+        val both = FirstReachableControl("TV", listOf(CastProtocol.KODI to sound, CastProtocol.DLNA to picture))
+
+        assertFalse(both.showsPictures)
+        sound.answers = false
+        both.reachable()
+        assertTrue(both.showsPictures)
     }
 
     @Test
@@ -128,6 +180,7 @@ class CastDevicesTest {
     private class Stub(
         var answers: Boolean,
         override val format: CastFormat,
+        override val showsPictures: Boolean = true,
     ) : CastControl {
         val calls = mutableListOf<String>()
         override var onEnded: (Boolean) -> Unit = {}

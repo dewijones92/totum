@@ -2,7 +2,6 @@ package com.dewijones92.totum.cli.serve.cast
 
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.playback.cast.CastFormat
-import kotlin.concurrent.thread
 
 @Suppress("TooManyFunctions", "LongParameterList")
 internal class DlnaControl(
@@ -18,36 +17,41 @@ internal class DlnaControl(
 
     override val keepsAddressesPrivate: Boolean get() = true
 
-    override var onEnded: (failed: Boolean) -> Unit = {}
+    override var onEnded: (failed: Boolean) -> Unit
+        get() = watch.onEnded
+        set(value) {
+            watch.onEnded = value
+        }
 
-    override var onLost: (reason: String) -> Unit = {}
+    override var onLost: (reason: String) -> Unit
+        get() = watch.onLost
+        set(value) {
+            watch.onLost = value
+        }
 
     override val model: String? get() = device?.model ?: device?.friendlyName
 
+    override val showsPictures: Boolean get() = picturesListed
+
     private val soap = UpnpSoap(http)
-    private val lock = Any()
 
     @Volatile private var device: UpnpDevice? = null
 
     @Volatile private var hlsMime: String? = null
 
-    @Volatile private var latest: CastReading? = null
+    @Volatile private var picturesListed = true
 
     @Volatile private var deviceVolume: Int? = null
 
-    @Volatile private var loaded = false
-
-    @Volatile private var loadedAt = 0L
-
-    @Volatile private var sawPlaying = false
-
-    @Volatile private var pendingSeekMs = 0L
-
-    @Volatile private var generation = 0
-
-    @Volatile private var misses = 0
-
-    @Volatile private var polling: Thread? = null
+    private val watch = RendererWatch(
+        label,
+        clock,
+        pollMs,
+        polls,
+        look = ::look,
+        seekNow = ::seekNow,
+        extras = ::readVolume,
+    )
 
     private fun avTransport() = device?.service(UpnpDevice.AV_TRANSPORT)
 
@@ -59,7 +63,7 @@ internal class DlnaControl(
     }
 
     override suspend fun reachable(): Boolean {
-        if (device != null && !loaded) return refresh()
+        if (device != null && !watch.isLoaded) return refresh()
         if (device != null) return true
         return try {
             val answer = http.get(descriptionUrl)
@@ -99,11 +103,17 @@ internal class DlnaControl(
         try {
             val sink = soap.call(service, "GetProtocolInfo")["Sink"].orEmpty()
             hlsMime = hlsMimeFrom(sink)
+            picturesListed = takesPictures(sink)
+            val pictures = if (picturesListed) {
+                "video or HLS listed, so it is sent the picture"
+            } else {
+                "no video format listed, so it gets sound only"
+            }
             Diag.log(
                 "cast-target",
                 "$label: accepts ${sink.split(',').size} format(s); " +
-                    "HLS as ${hlsMime ?: "not listed, sending " + CastFormat.HLS_MIME}" +
-                    " (sink: ${sink.take(SINK_LOGGED)})",
+                    "HLS as ${hlsMime ?: "not listed, sending " + CastFormat.HLS_MIME}; $pictures " +
+                    "(sink: ${sink.take(SINK_LOGGED)})",
             )
         } catch (e: java.io.IOException) {
             Diag.warn("cast-target", "$label: GetProtocolInfo failed; sending HLS as ${CastFormat.HLS_MIME}", e)
@@ -126,13 +136,7 @@ internal class DlnaControl(
     }
 
     override fun load(url: String, contentType: String, title: String, startAtMs: Long) {
-        synchronized(lock) {
-            generation++
-            loaded = false
-            sawPlaying = false
-            latest = null
-            misses = 0
-        }
+        watch.beforeLoad()
         val mime = hlsMime ?: contentType
         try {
             runCatching { transport("Stop") }
@@ -144,106 +148,32 @@ internal class DlnaControl(
             transport("Play", "Speed" to "1")
         } catch (e: java.io.IOException) {
             Diag.warn("cast-target", "$label: load of \"$title\" was refused: ${e.message}")
-            onEnded(true)
+            watch.refused()
             return
         }
-        synchronized(lock) {
-            pendingSeekMs = startAtMs
-            loadedAt = clock()
-            loaded = true
-        }
+        watch.loaded(startAtMs)
         Diag.log("cast-target", "$label: DLNA load sent as $mime from=${startAtMs}ms \"$title\"")
-        startPolling()
     }
 
-    private fun startPolling() {
-        if (!polls) return
-        synchronized(lock) {
-            if (polling != null) return
-            polling = thread(name = "dlna-poll-$label", isDaemon = true) { pollWhileWanted() }
-        }
-    }
+    fun poll(readVolumeToo: Boolean = false) = watch.poll(readVolumeToo)
 
-    private fun pollWhileWanted() {
-        var tick = 0
-        var idle = 0
-        while (true) {
-            Thread.sleep(pollMs)
-            if (!loaded) {
-                synchronized(lock) {
-                    if (++idle >= IDLE_TICKS && !loaded) {
-                        polling = null
-                        return
-                    }
-                }
-                continue
-            }
-            idle = 0
-            poll(readVolumeToo = tick++ % VOLUME_EVERY == 0)
-        }
-    }
-
-    @Suppress("CyclomaticComplexMethod")
-    fun poll(readVolumeToo: Boolean = false) {
-        val mine = generation
-        if (!loaded) return
-        val state: Map<String, String>
-        val position: Map<String, String>
-        try {
-            state = transport("GetTransportInfo")
-            position = transport("GetPositionInfo")
-        } catch (e: java.io.IOException) {
-            missed(mine, e)
-            return
-        }
-        if (readVolumeToo) readVolume()
-        var verdict: Boolean? = null
-        synchronized(lock) {
-            if (generation != mine || !loaded) return
-            misses = 0
-            val transportState = state["CurrentTransportState"].orEmpty()
-            val status = state["CurrentTransportStatus"].orEmpty()
-            val playing = transportState == "PLAYING"
-            val at = UpnpTime.parse(position["RelTime"]) ?: 0
-            val length = UpnpTime.parse(position["TrackDuration"])?.takeIf { it > 0 }
-            latest = CastReading(at, length, playing, clock())
-            if (playing) sawPlaying = true
-            if ((transportState == "PLAYING" || transportState == "PAUSED_PLAYBACK") && pendingSeekMs > 0) {
-                val wanted = pendingSeekMs
-                pendingSeekMs = 0
-                seekNow(wanted)
-            }
-            if (transportState == "STOPPED" || transportState == "NO_MEDIA_PRESENT") {
-                val errored = status == "ERROR_OCCURRED"
-                val waited = clock() - loadedAt
-                if (sawPlaying || errored || waited > START_TIMEOUT_MS) {
-                    Diag.log(
-                        "cast-target",
-                        "$label: renderer is $transportState (status ${status.ifEmpty { "unreported" }}) " +
-                            "after ${at}ms, " +
-                            "seen playing=$sawPlaying, waited ${waited}ms; the item is over, " +
-                            "failed=${errored || !sawPlaying}",
-                    )
-                    loaded = false
-                    verdict = errored || !sawPlaying
-                }
-            }
-        }
-        verdict?.let(onEnded)
-    }
-
-    private fun missed(mine: Int, e: java.io.IOException) {
-        var lost = false
-        synchronized(lock) {
-            if (generation != mine || !loaded) return
-            misses++
-            Diag.warn("cast-target", "$label: poll $misses of $LOST_AFTER failed: ${e.message}")
-            if (misses >= LOST_AFTER) {
-                loaded = false
-                lost = true
-            }
-        }
-        if (lost) onLost("$label stopped answering")
+    private fun look(): RendererSnapshot {
+        val state = transport("GetTransportInfo")
+        val position = transport("GetPositionInfo")
+        val transportState = state["CurrentTransportState"].orEmpty()
+        val status = state["CurrentTransportStatus"].orEmpty()
+        return RendererSnapshot(
+            state = when (transportState) {
+                "PLAYING" -> RendererState.PLAYING
+                "PAUSED_PLAYBACK" -> RendererState.PAUSED
+                "STOPPED", "NO_MEDIA_PRESENT" -> RendererState.OVER
+                else -> RendererState.OTHER
+            },
+            positionMs = UpnpTime.parse(position["RelTime"]) ?: 0,
+            durationMs = UpnpTime.parse(position["TrackDuration"])?.takeIf { it > 0 },
+            errored = status == "ERROR_OCCURRED",
+            detail = "$transportState (status ${status.ifEmpty { "unreported" }})",
+        )
     }
 
     private fun seekNow(positionMs: Long) {
@@ -264,7 +194,7 @@ internal class DlnaControl(
     }
 
     override fun seek(positionMs: Long) {
-        latest = latest?.let { CastReading(positionMs, it.durationMs, it.playing, clock()) }
+        watch.moved(positionMs)
         seekNow(positionMs)
     }
 
@@ -294,12 +224,7 @@ internal class DlnaControl(
     override fun volumePercent(): Int? = deviceVolume
 
     override fun stop() {
-        val was = synchronized(lock) {
-            generation++
-            loaded.also { loaded = false }
-        }
-        latest = null
-        if (!was) {
+        if (!watch.stopped()) {
             Diag.log("cast-target", "$label: stop not sent, nothing is loaded from Totum")
             return
         }
@@ -314,14 +239,10 @@ internal class DlnaControl(
         Diag.log("cast-target", "$label: release needs nothing for a DLNA renderer")
     }
 
-    override fun reading(): CastReading? = latest
+    override fun reading(): CastReading? = watch.reading
 
     companion object {
         private const val POLL_MS = 1_000L
-        private const val VOLUME_EVERY = 10
-        private const val IDLE_TICKS = 30
-        private const val LOST_AFTER = 3
-        private const val START_TIMEOUT_MS = 20_000L
         private const val SINK_LOGGED = 240
         private const val MAX_PERCENT = 100
         private val HTTP_OK = 200..299
@@ -333,8 +254,17 @@ internal class DlnaControl(
             "application/x-hls",
         )
 
+        private fun mimesOf(sink: String): List<String> = sink.split(',').mapNotNull { entry ->
+            entry.trim().split(':').getOrNull(2)?.trim()?.lowercase()
+        }
+
         fun hlsMimeFrom(sink: String): String? = sink.split(',').mapNotNull { entry ->
             entry.trim().split(':').getOrNull(2)?.trim()
         }.firstOrNull { it.lowercase() in HLS_MIMES }
+
+        fun takesPictures(sink: String): Boolean {
+            val mimes = mimesOf(sink)
+            return mimes.isEmpty() || mimes.any { it in HLS_MIMES || it.startsWith("video/") }
+        }
     }
 }

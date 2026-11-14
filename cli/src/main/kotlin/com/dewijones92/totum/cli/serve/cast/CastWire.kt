@@ -11,7 +11,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
 
 internal sealed interface CastEvent {
-    data class Ready(val name: String?, val model: String?) : CastEvent
+    data class Ready(val name: String?, val model: String?, val video: Boolean? = null) : CastEvent
     data class Status(
         val state: String?,
         val idle: String?,
@@ -55,7 +55,7 @@ internal object CastWire {
     fun parse(text: String): CastEvent? {
         val obj = runCatching { Json.parseToJsonElement(text).jsonObject }.getOrNull() ?: return null
         return when (obj.text("event")) {
-            "ready" -> CastEvent.Ready(obj.text("name"), obj.text("model"))
+            "ready" -> CastEvent.Ready(obj.text("name"), obj.text("model"), obj.text("video")?.toBooleanStrictOrNull())
             "status" -> CastEvent.Status(
                 obj.text("state"),
                 obj.text("idle"),

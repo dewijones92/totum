@@ -230,5 +230,30 @@ class CredentialsTest(unittest.TestCase):
             self.assertIn("unreadable", out.getvalue())
 
 
+class ReadyTest(unittest.TestCase):
+    def ready_event(self, video):
+        said = Said()
+        device = FakeDevice()
+        device.video = video
+        with mock.patch.object(sys, "stdin", io.StringIO("")), mock.patch.object(sys, "stdout", said.out):
+            asyncio.run(airplay_helper.run("192.168.0.219", None, device))
+        return said.of("ready")[0]
+
+    def test_the_ready_event_says_whether_the_receiver_takes_pictures(self):
+        self.assertTrue(self.ready_event(True)["video"])
+        self.assertFalse(self.ready_event(False)["video"])
+        self.assertIsNone(self.ready_event(None)["video"])
+
+    def test_the_video_feature_is_bit_zero_of_the_first_features_word(self):
+        self.assertTrue(airplay_helper.takes_video("0x1F"))
+        self.assertTrue(airplay_helper.takes_video("0x4A7FDFD5,0x3C155FDE"))
+        self.assertFalse(airplay_helper.takes_video("0x4A7FDFD4,0x3C155FDE"))
+
+    def test_features_that_are_missing_or_unreadable_say_nothing_rather_than_no(self):
+        self.assertIsNone(airplay_helper.takes_video(None))
+        self.assertIsNone(airplay_helper.takes_video(""))
+        self.assertIsNone(airplay_helper.takes_video("not hex"))
+
+
 if __name__ == "__main__":
     unittest.main()

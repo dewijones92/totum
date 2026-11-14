@@ -157,7 +157,7 @@ $template
     private const val HD_BANDWIDTH = 2_500_000
     private const val SD_BANDWIDTH = 1_200_000
     private const val LOW_BANDWIDTH = 700_000
-    private const val AUDIO_BANDWIDTH = 160_000
+    internal const val AUDIO_BANDWIDTH = 160_000
     private const val BITS_PER_BYTE = 8
     private const val DEFAULT_RATE = 48_000
 }

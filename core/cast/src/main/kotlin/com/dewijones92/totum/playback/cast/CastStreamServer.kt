@@ -31,6 +31,8 @@ public data class CastItem(
     public val subtitles: List<CastSubtitleSource> = emptyList(),
 )
 
+public fun CastItem.soundOnly(): CastItem = copy(listening = true, ladder = emptyList())
+
 public interface CastHostPort {
     public val vpnInTheWay: Boolean
     public fun baseUrl(port: Int): String?
@@ -100,7 +102,7 @@ public class CastStreamServer(
     private val reach = CastReach(tvs, vpnInTheWay = { host.vpnInTheWay })
     private val failures = CastFailures(tvs)
 
-    @Suppress("TooManyFunctions")
+    @Suppress("TooManyFunctions", "LongParameterList")
     private inner class Session(
         val token: String,
         val item: CastItem,
@@ -108,7 +110,10 @@ public class CastStreamServer(
         val audioSource: String,
         val ladder: List<CastRung>,
         val ceiling: Int?,
+        val format: CastFormat,
     ) {
+        private fun screen() = format.screenFor(tvs.current(item.mediaId)?.screen)
+
         val rungs = CastRungs(
             item.mediaId,
             onSent = { label -> if (latest[item.mediaId] === this) videos.sent(item.mediaId, label) },
@@ -164,7 +169,7 @@ public class CastStreamServer(
                     url.contains(YOUTUBE_STREAMS) && chooseRung(url) -> Unit
                     url.contains(YOUTUBE_STREAMS) ->
                         layout = StreamLayouts.probe { span -> Upstream.bytes(url, span) }
-                            .takeIf { shows(it.codecs, it.height) }
+                            .takeIf { shows(it.codecs, it.height, it.container) }
                     else -> remoteFile(url)
                 }
             } catch (e: UnreadableLayout) {
@@ -182,7 +187,7 @@ public class CastStreamServer(
                         "only and a step-down has nowhere to go",
                 )
             }
-            return rungs.choose(url, ladder, tvs.current(item.mediaId)?.screen, ceiling)
+            return rungs.choose(url, ladder, screen(), ceiling)
         }
 
         private fun remoteFile(url: String) {
@@ -215,7 +220,7 @@ public class CastStreamServer(
         private fun use(found: FoundVideo, file: File?) {
             when (found) {
                 is FoundVideo.Remuxed -> if (shows(found.video.codecs, found.video.height)) remuxed = found.video
-                is FoundVideo.Fragmented -> layout = found.layout.takeIf { shows(it.codecs, it.height) }
+                is FoundVideo.Fragmented -> layout = found.layout.takeIf { shows(it.codecs, it.height, it.container) }
                     ?.also { videoFile = file }
                 is FoundVideo.NoPicture -> noteNoPicture(found.why)
             }
@@ -224,11 +229,15 @@ public class CastStreamServer(
         private fun noteNoPicture(why: String) =
             Diag.log("cast", "${item.mediaId}: no picture to send the TV — $why; sound only, nothing refused")
 
-        private fun shows(codecs: String, height: Int?): Boolean {
-            val screen = tvs.current(item.mediaId)?.screen
+        private fun shows(codecs: String, height: Int?, container: Container? = null): Boolean {
+            val screen = screen()
+            val what = height?.let { QualityLabel.of(it, codecs).text } ?: VideoCodecFamily.of(codecs)?.name ?: codecs
+            if (container != null && !format.carries(container)) {
+                refuse("$what in ${container.name}", "${format.name} cannot carry a $container file")
+                return false
+            }
             if (screen != null && !screen.canDecode(codecs, height)) {
-                val family = VideoCodecFamily.of(codecs)?.name ?: codecs
-                refuse(height?.let { QualityLabel.of(it, codecs).text } ?: family, "beyond ${screen.label}")
+                refuse(what, "beyond ${screen.label}")
                 return false
             }
             if (latest[item.mediaId] === this && height != null) {
@@ -292,23 +301,119 @@ public class CastStreamServer(
             return HttpReply.Bytes(Http.OK, VIDEO_MP4, bytes)
         }
 
-        fun playlist(): String? {
+        @Volatile private var pictureBuilt = false
+
+        @Volatile private var picture: HlsPicture? = null
+
+        private fun processedSound(): CastAudio.Processed = CastAudio.Processed(
+            initUrl = "audio/init.mp4",
+            mediaTemplate = "audio/\$Number\$.m4s",
+            sampleRate = audio.format.sampleRate,
+            channels = audio.format.channels,
+            codecs = audio.format.codecs,
+            segmentSamples = audio.segmentSamples,
+        )
+
+        private fun durationMs(): Long =
+            audio.durationUs.takeIf { it != UNKNOWN_US }?.div(Http.MILLIS) ?: item.durationMs ?: 0L
+
+        @Synchronized
+        private fun hlsPicture(): HlsPicture? {
             ready()
-            val durationMs = audio.durationUs.takeIf { it != UNKNOWN_US }?.div(Http.MILLIS)
-                ?: item.durationMs ?: 0L
-            val text = HlsPlaylist.sound(durationMs, audio.segmentSamples, audio.format.sampleRate, "audio/init.mp4") {
-                "audio/$it.m4s"
+            if (pictureBuilt) return picture
+            pictureBuilt = true
+            picture = try {
+                castVideo()?.let(::hlsOf)
+            } catch (e: UnreadableLayout) {
+                refuse("in a layout ${format.name} cannot be cut from", e.message ?: "unreadable")
+                null
+            } catch (e: IOException) {
+                Diag.warn("cast", "${item.mediaId}: could not read the picture's index for HLS; sound only", e)
+                null
             }
-            val segments = text?.lines()?.count { it.startsWith("#EXTINF") }
-            val what = if (segments != null) "of $segments segment(s) for ${durationMs}ms" else "refused: no length"
-            Diag.log("cast", "${item.mediaId}: HLS playlist $what")
+            return picture
+        }
+
+        private fun hlsOf(video: CastVideo): HlsPicture = when (video) {
+            is CastVideo.Segmented -> remuxedPicture(video)
+            is CastVideo.Ladder -> rangedPicture(video.rungs.first())
+            is CastVideo.Relayed -> rangedPicture(video)
+        }
+
+        private fun remuxedPicture(video: CastVideo.Segmented) = HlsPicture(
+            video.codecs,
+            video.width,
+            video.height,
+            DashManifest.bandwidthFor(video.height),
+            HlsPlaylist.media(
+                video.initUrl,
+                null,
+                video.timeline.mapIndexed { i, s ->
+                    HlsSegment(video.mediaTemplate.replace("\$Number\$", "$i"), s.durationMs / MILLIS_D)
+                },
+            ),
+        )
+
+        private fun readerFor(url: String): RangeReader = url.removePrefix("video/r").toIntOrNull()
+            ?.let { rungs.urlOf(it) }
+            ?.let { source -> RangeReader { span -> Upstream.bytes(source, span) } }
+            ?: videoReader
+
+        private fun rangedPicture(video: CastVideo.Relayed): HlsPicture {
+            val l = video.layout
+            val segments = Sidx.read(readerFor(video.url).read(l.index), l.index.first)
+            return HlsPicture(
+                l.codecs,
+                l.width ?: 0,
+                l.height ?: 0,
+                video.bandwidth,
+                HlsPlaylist.media(
+                    video.url,
+                    l.init,
+                    segments.map { HlsSegment(video.url, it.durationUs / MICROS_D, it.bytes) },
+                ),
+            )
+        }
+
+        fun hls(what: String): String? {
+            val picture = hlsPicture()
+            val text = when {
+                picture == null && what == CastFormat.HLS_VIDEO -> null
+                picture == null -> soundPlaylist().also { logPlaylist(it, "sound only") }
+                what == CastFormat.HLS.file -> HlsPlaylist.master(
+                    picture,
+                    processedSound(),
+                    CastFormat.HLS_VIDEO,
+                    CastFormat.HLS_SOUND,
+                ).also { logMaster(picture) }
+                what == CastFormat.HLS_VIDEO -> picture.playlist
+                else -> soundPlaylist().also { logPlaylist(it, "its sound") }
+            }
             return text
         }
 
-        fun manifest(): String {
-            ready()
-            val durationMs = audio.durationUs.takeIf { it != UNKNOWN_US }?.div(Http.MILLIS)
-                ?: item.durationMs ?: 0L
+        private fun logMaster(picture: HlsPicture) {
+            val dropped = subtitles.size
+            val left = if (dropped > 0) "; $dropped subtitle track(s) are not carried by HLS" else ""
+            Diag.log(
+                "cast",
+                "${item.mediaId}: HLS master with a picture (${picture.codecs} ${picture.width}x${picture.height}, " +
+                    "${picture.bandwidth / KBPS}kbps) and the processed sound$left",
+            )
+        }
+
+        private fun soundPlaylist(): String? =
+            HlsPlaylist.sound(durationMs(), audio.segmentSamples, audio.format.sampleRate, "audio/init.mp4") {
+                "audio/$it.m4s"
+            }
+
+        private fun logPlaylist(text: String?, what: String) {
+            val segments = text?.lines()?.count { it.startsWith("#EXTINF") }
+            val said = if (segments != null) "of $segments segment(s) for ${durationMs()}ms" else "refused: no length"
+            Diag.log("cast", "${item.mediaId}: HLS playlist $said ($what)")
+        }
+
+        private fun castVideo(): CastVideo? {
             val ladder = rungs.rungs.mapIndexed { i, (rung, l) ->
                 CastVideo.Relayed(l, "video/r$i", DashManifest.bandwidthFor(rung.url, l.height))
             }
@@ -319,28 +424,26 @@ public class CastStreamServer(
                         ladder.joinToString { "${it.layout.height}p=${it.bandwidth / KBPS}kbps" },
                 )
             }
+            return ladder.takeIf { it.isNotEmpty() }?.let { CastVideo.Ladder(it) }
+                ?: layout?.let { CastVideo.Relayed(it, "video") }
+                ?: remuxed?.let {
+                    CastVideo.Segmented(
+                        it.codecs,
+                        it.width,
+                        it.height,
+                        it.timeline,
+                        "video/init.mp4",
+                        "video/\$Number\$.m4s",
+                    )
+                }
+        }
+
+        fun manifest(): String {
+            ready()
             return DashManifest.build(
-                durationMs,
-                ladder.takeIf { it.isNotEmpty() }?.let { CastVideo.Ladder(it) }
-                    ?: layout?.let { CastVideo.Relayed(it, "video") }
-                    ?: remuxed?.let {
-                        CastVideo.Segmented(
-                            it.codecs,
-                            it.width,
-                            it.height,
-                            it.timeline,
-                            "video/init.mp4",
-                            "video/\$Number\$.m4s",
-                        )
-                    },
-                CastAudio.Processed(
-                    initUrl = "audio/init.mp4",
-                    mediaTemplate = "audio/\$Number\$.m4s",
-                    sampleRate = audio.format.sampleRate,
-                    channels = audio.format.channels,
-                    codecs = audio.format.codecs,
-                    segmentSamples = audio.segmentSamples,
-                ),
+                durationMs(),
+                castVideo(),
+                processedSound(),
                 subtitles.mapIndexed { i, sub ->
                     CastSubtitle(
                         sub.language ?: "und",
@@ -429,7 +532,7 @@ public class CastStreamServer(
             Diag.log("cast", "${item.mediaId}: a live manifest cannot be given as ${format.name}; given as it is")
             return null
         }
-        val sources = if (manifest == null) sourcesFor(format.shaped(item)) ?: return null else null
+        val sources = if (manifest == null) sourcesFor(item) ?: return null else null
         val base = host.baseUrl(port) ?: run {
             Diag.warn("cast", "${item.mediaId}: no address the TV can reach (not on Wi-Fi?); given as it is")
             reach.noAddress()
@@ -465,7 +568,7 @@ public class CastStreamServer(
     private fun open(item: CastItem, sources: Sources, base: String, format: CastFormat): String {
         server.start(port)
         val token = random.token()
-        val session = sessionFor(token, item, sources)
+        val session = sessionFor(token, item, sources, format)
         tvs.stage(item.mediaId, CastStage.PREPARING)
         sessions[token] = session
         latest[item.mediaId] = session
@@ -485,13 +588,13 @@ public class CastStreamServer(
         return url
     }
 
-    private fun sessionFor(token: String, item: CastItem, sources: Sources): Session {
+    private fun sessionFor(token: String, item: CastItem, sources: Sources, format: CastFormat): Session {
         val reload = steppingDown.remove(item.mediaId)
         if (!reload) {
             ceilings.remove(item.mediaId)
             videos.forget(item.mediaId)
         }
-        return Session(token, item, sources.video, sources.audio, sources.ladder, ceilings[item.mediaId])
+        return Session(token, item, sources.video, sources.audio, sources.ladder, ceilings[item.mediaId], format)
     }
 
     public fun stopAll() {
@@ -562,9 +665,8 @@ public class CastStreamServer(
 
     private fun replyFor(session: Session, what: String, request: HttpRequest): HttpReply? = when {
         what == CastFormat.DASH.file -> HttpReply.Bytes(Http.OK, Http.MPD, session.manifest().toByteArray())
-        what == CastFormat.HLS.file -> session.playlist()?.let {
-            HttpReply.Bytes(Http.OK, CastFormat.HLS_MIME, it.toByteArray())
-        }
+        what == CastFormat.HLS.file || what == CastFormat.HLS_VIDEO || what == CastFormat.HLS_SOUND ->
+            session.hls(what)?.let { HttpReply.Bytes(Http.OK, CastFormat.HLS_MIME, it.toByteArray()) }
         what.startsWith("video") -> videoPart(session, what, request.header("range"), request.method == "HEAD")
         what.startsWith("subtitles/") -> subtitle(session, what)
         what.startsWith("audio/") -> session.audioPart(what.removePrefix("audio/")) ?: notFound()
@@ -689,3 +791,5 @@ private fun SecureRandom.token(): String = ByteArray(
 
 private const val TOKEN_BYTES = 8
 private const val KBPS = 1000
+private const val MILLIS_D = 1000.0
+private const val MICROS_D = 1_000_000.0

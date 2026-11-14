@@ -11,6 +11,16 @@ STOP_WAIT_SECONDS = 5
 NEEDS_PAIRING = "AirPlay needs pairing first: run  totum airplay-pair %s"
 
 
+def takes_video(features):
+    if not features:
+        return None
+    try:
+        words = [int(part, 16) for part in str(features).split(",")]
+    except ValueError:
+        return None
+    return bool(words[0] & 1)
+
+
 def say(**event):
     sys.stdout.write(json.dumps(event) + "\n")
     sys.stdout.flush()
@@ -52,6 +62,7 @@ class PyatvDevice:
         self.credentials = credentials
         self.name = None
         self.model = None
+        self.video = None
         self.connection = None
         self.play_task = None
         self.atv = None
@@ -71,7 +82,9 @@ class PyatvDevice:
             config.set_credentials(Protocol.AirPlay, self.credentials)
         self.config = config
         self.name = config.name
-        self.model = str(config.device_info.model)
+        raw = getattr(config.device_info, "raw_model", None)
+        self.model = raw or str(config.device_info.model)
+        self.video = takes_video(config.get_service(Protocol.AirPlay).properties.get("features"))
         self.atv = await pyatv.connect(config, loop)
         original = airplay.http_connect
 
@@ -230,7 +243,7 @@ async def run(host, credentials_path, device=None):
         return 2
     if not credentials.load():
         note("no AirPlay credentials stored for %s; a receiver that requires pairing will refuse" % host)
-    say(event="ready", name=device.name, model=device.model)
+    say(event="ready", name=device.name, model=device.model, video=getattr(device, "video", None))
     player = Player(device, host)
     loop = asyncio.get_running_loop()
     while True:

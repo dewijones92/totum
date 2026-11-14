@@ -258,4 +258,24 @@ class DlnaControlTest {
         assertNull(DlnaControl.hlsMimeFrom("http-get:*:audio/mpeg:*,http-get:*:video/mp4:*"))
         assertNull(DlnaControl.hlsMimeFrom(""))
     }
+
+    @Test
+    fun `a renderer that lists HLS or a video format is sent the picture, one that lists only sound is not`() {
+        assertTrue(ready().showsPictures)
+        FakeRenderer(sink = "http-get:*:video/mp4:*,http-get:*:audio/mpeg:*").use {
+            assertTrue(ready(control(it)).showsPictures)
+        }
+        FakeRenderer(sink = "http-get:*:audio/mpeg:*,http-get:*:audio/L16:*").use {
+            assertFalse(ready(control(it)).showsPictures)
+        }
+        assertTrue(control().showsPictures)
+    }
+
+    @Test
+    fun `what a sink lists decides whether it takes pictures, and an unreadable sink is no verdict`() {
+        assertTrue(DlnaControl.takesPictures("http-get:*:application/x-mpegURL:*"))
+        assertTrue(DlnaControl.takesPictures("http-get:*:audio/mpeg:*, http-get:*:video/x-matroska:*"))
+        assertFalse(DlnaControl.takesPictures("http-get:*:audio/mpeg:*,http-get:*:audio/x-wav:*"))
+        assertTrue(DlnaControl.takesPictures(""))
+    }
 }

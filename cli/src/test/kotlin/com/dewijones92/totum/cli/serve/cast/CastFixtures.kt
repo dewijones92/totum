@@ -113,6 +113,7 @@ internal class FakeCastControl : CastControl {
     var deviceVolume: Int? = null
     override var model: String? = "webOS"
     override var keepsAddressesPrivate: Boolean = false
+    override var showsPictures: Boolean = true
     override var format: com.dewijones92.totum.playback.cast.CastFormat =
         com.dewijones92.totum.playback.cast.CastFormat.DASH
 

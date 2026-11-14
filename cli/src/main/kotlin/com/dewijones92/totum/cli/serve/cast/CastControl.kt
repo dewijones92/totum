@@ -24,6 +24,7 @@ internal interface CastControl {
     val screen: CastScreen? get() = null
     val keepsAddressesPrivate: Boolean get() = false
     val format: CastFormat get() = CastFormat.DASH
+    val showsPictures: Boolean get() = true
 }
 
 @Suppress("TooManyFunctions")
@@ -59,8 +60,12 @@ internal class PyCastControl(
 
     @Volatile private var deviceVolume: Int? = null
 
+    @Volatile private var pictures = true
+
     @Volatile override var model: String? = null
         private set
+
+    override val showsPictures: Boolean get() = pictures
 
     @Synchronized
     private fun session(): BufferedWriter? {
@@ -88,7 +93,12 @@ internal class PyCastControl(
                 is CastEvent.Ready -> {
                     ready = true
                     model = event.model
-                    Diag.log("cast-target", "$label: connected, ${event.name} (${event.model})")
+                    event.video?.let { pictures = it }
+                    Diag.log(
+                        "cast-target",
+                        "$label: connected, ${event.name} (${event.model}), " +
+                            "pictures ${if (pictures) "accepted" else "not accepted"}",
+                    )
                 }
                 is CastEvent.Status -> status(event)
                 is CastEvent.Volume -> {
