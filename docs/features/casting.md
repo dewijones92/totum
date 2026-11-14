@@ -126,8 +126,15 @@ Report 20261114T042830 (0.1.905, 11 Nov): tapping play after 30 s paused while c
 resume rewind (`ResumeRewindListener`) read that blank straight off the player while every other path already used the
 stand-in. Now the rewind resolves the id through `namedId` (the item Totum last sent), skips with a line when nothing
 names the item, and `ResumeRewind` and `carryOnIfWatchedElsewhere` refuse a blank id outright.
+The 12 s step-down ([ADR 164](../adr/0164-casting-fixes-from-the-diagnostics-of-7-to-11-november.md)) had the same
+gap: it read the blank id off the cast player, so on the LG a freeze was judged under `""`, found no ladder and never
+stepped down. `CastStepDownWatch` now names the item through `namedItemId` (the receiver's id, else the item Totum sent,
+which the service holds as the hand-over), and re-sends that item when the receiver's own copy has no id. `SilentTailWatch`
+resolves its id the same way (it watches the phone's own player, which always names its items).
 Logs: `dewidebug resume rewind skipped: nothing names the item [...]`, `dewidebug resume rewind skipped: the player has
 an item but nothing names it [...]`, `dewidebug not asking where else it was watched: no item id [...]`.
+`dewidebug step-down watch: the receiver names nothing; using <id>, the item Totum sent`, `dewidebug step-down watch: the TV is
+buffering and nothing names the item, ...`, `dewidebug silent tail not watched: nothing names the item`.
 
 ## Kid TV (2026-11-07)
 

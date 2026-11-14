@@ -65,11 +65,13 @@ internal class SilentTailWatch(
     private val player: () -> androidx.media3.common.Player?,
     private val silentForMs: () -> Long,
     private val speech: TailSpeechScans? = null,
+    private val named: (androidx.media3.common.Player) -> String? = { namedItemId(it.currentMediaItem, null) },
+    private val ticker: Ticker = HandlerTicker(),
 ) {
-    private val handler = android.os.Handler(android.os.Looper.getMainLooper())
     private var noted: String? = null
     private var acted: String? = null
     private var lastTick: Pair<String, Long>? = null
+    private var unnamedLogged = false
 
     @Volatile
     var enabled: Boolean = false
@@ -81,21 +83,31 @@ internal class SilentTailWatch(
     private val tick = object : Runnable {
         override fun run() {
             check()
-            handler.postDelayed(this, TAIL_TICK_MS)
+            ticker.later(this, TAIL_TICK_MS)
         }
     }
 
     fun start() {
-        handler.postDelayed(tick, TAIL_TICK_MS)
+        ticker.later(tick, TAIL_TICK_MS)
     }
 
     fun stop() {
-        handler.removeCallbacks(tick)
+        ticker.cancel(tick)
+    }
+
+    private fun noteUnnamed(player: androidx.media3.common.Player) {
+        if (player.currentMediaItem == null || unnamedLogged) return
+        unnamedLogged = true
+        com.dewijones92.totum.common.Diag.log(
+            "silence",
+            "dewidebug silent tail not watched: nothing names the item [position=${player.currentPosition}ms]",
+        )
     }
 
     private fun check() {
         val player = player()?.takeIf { it.isPlaying } ?: return
-        val id = player.currentMediaItem?.mediaId ?: return
+        val id = named(player) ?: return noteUnnamed(player)
+        unnamedLogged = false
         val duration = player.duration.takeIf { it > 0 } ?: return
         val position = player.currentPosition
         if (enabled && endNoSpeechLeft(player, id, position, duration)) return

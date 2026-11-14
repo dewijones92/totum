@@ -434,7 +434,7 @@ public class PlaybackService : MediaSessionService() {
         )
         castStreams = streams
         screens = screensFor(streams, localPlayer)
-        screens?.player?.let { screen -> screen.addListener(CastStepDownWatch(screen, streams)) }
+        screens?.player?.let { screen -> screen.addListener(CastStepDownWatch(screen, streams::stepDown)) }
         val remote = RemoteCastPlayer.Builder(this)
             .setMediaItemConverter(TotumCastConverter(streams))
             .setTrackSelector(TotumCastTrackSelector())
@@ -443,7 +443,7 @@ public class PlaybackService : MediaSessionService() {
             .build()
         val cast = TimeMappedCastPlayer(remote, streams::timelineFor)
         cast.addListener(watchTheTv(cast))
-        cast.addListener(CastStepDownWatch(cast, streams))
+        cast.addListener(CastStepDownWatch(cast, streams::stepDown, sentItem = { handoff.item }))
         screens?.observe(cast)
         remote.setSessionAvailabilityListener(
             object : SessionAvailabilityListener {
