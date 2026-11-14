@@ -60,6 +60,32 @@ class CastStreamServerTest {
     }
 
     @Test
+    fun `asked for HLS the same processed segments are listed as a playlist, sound only whatever the item carries`() {
+        val withPicture = CastItem("h", "https://example.com/film.mp4", skipsSilence = null)
+
+        val url = server.urlFor(withPicture, CastFormat.HLS)!!
+
+        assertTrue(url, Regex("""http://pi:$port/c/[0-9a-f]{16}/hls\.m3u8""").matches(url))
+        val reply = get(url)
+        assertEquals(200, reply.first)
+        val playlist = String(reply.second)
+        assertTrue(playlist, playlist.contains("#EXT-X-MAP:URI=\"audio/init.mp4\""))
+        assertTrue(playlist, playlist.contains("audio/0.m4s"))
+        assertTrue(playlist, playlist.trimEnd().endsWith("#EXT-X-ENDLIST"))
+        assertEquals("moof", String(get(url.substringBeforeLast('/') + "/audio/0.m4s").second, 4, 4))
+        assertEquals(CastStage.PREPARING, tv.stages.first().second)
+        assertFalse(server.urlFor(withPicture, CastFormat.DASH)!!.contains("hls"))
+    }
+
+    @Test
+    fun `a live manifest is not offered as HLS, and DASH stays the default`() {
+        val published = LocalManifests.publish("live-hls", "<MPD/>")
+
+        assertNull(server.urlFor(CastItem("live-hls", published.value), CastFormat.HLS))
+        assertTrue(server.urlFor(CastItem("live-hls", published.value))!!.endsWith("live.mpd"))
+    }
+
+    @Test
     fun `its segments are the engine's, numbered from the one asked, and silence follows the real end`() {
         val url = server.urlFor(sound())!!
         val base = url.substringBeforeLast('/')

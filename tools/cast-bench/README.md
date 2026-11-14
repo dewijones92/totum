@@ -32,3 +32,19 @@ model none` clears it. Needs Node and `playwright-core` in `C:\edge-cdp` (see th
 It covers the receiving side: manifest, segments, seeks, start time, subtitles, sound only. It cannot cover the Cast
 session (queue moves, the TV remote, ends): Android checks a Cast device's Google-signed certificate, so nothing
 here can pose as one.
+
+## DLNA and AirPlay stand-ins (no device needed, silent)
+
+ADR 174. `discover-dlna.py [host]` prints `name=description-url` lines for `TOTUM_DLNA_TARGETS` (SSDP; run it on the Pi host,
+or unicast to one host).
+
+- **DLNA**: gmrender-resurrect in Docker with fake sinks, so nothing is heard:
+  `docker build -t totum-dlna-standin-gmediarender` from a Dockerfile that installs `gmediarender` and the GStreamer plugins, then
+  `docker run -d --name totum-dlna-standin -p 49494:49494 totum-dlna-standin-gmediarender gmediarender --port 49494
+  --gstout-audiopipe "fakesink sync=true" --gstout-videosink fakesink --logfile stdout`. Its description is
+  `http://127.0.0.1:49494/description.xml`; point a locally built `totum serve` at it with `TOTUM_DLNA_TARGETS`, and set
+  `TOTUM_CAST_BASE` to an address the container can reach (the docker bridge gateway, `172.17.0.1`).
+- **AirPlay**: `airplay-standin/standin.py --address <a local non-loopback address>` (needs pyatv's venv: aiohttp-free, uses
+  `zeroconf`) is an AirPlay v1 receiver that answers `/play`, `/playback-info`, `/rate`, `/scrub` and `/stop`, fetches the
+  playlist and segments it is given and plays nothing. pyatv's unicast scan finds it (mDNS is not answered on 127.0.0.1).
+  It models the endpoints from pyatv's client code, not from a real receiver.

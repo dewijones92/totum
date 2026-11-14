@@ -292,6 +292,19 @@ public class CastStreamServer(
             return HttpReply.Bytes(Http.OK, VIDEO_MP4, bytes)
         }
 
+        fun playlist(): String? {
+            ready()
+            val durationMs = audio.durationUs.takeIf { it != UNKNOWN_US }?.div(Http.MILLIS)
+                ?: item.durationMs ?: 0L
+            val text = HlsPlaylist.sound(durationMs, audio.segmentSamples, audio.format.sampleRate, "audio/init.mp4") {
+                "audio/$it.m4s"
+            }
+            val segments = text?.lines()?.count { it.startsWith("#EXTINF") }
+            val what = if (segments != null) "of $segments segment(s) for ${durationMs}ms" else "refused: no length"
+            Diag.log("cast", "${item.mediaId}: HLS playlist $what")
+            return text
+        }
+
         fun manifest(): String {
             ready()
             val durationMs = audio.durationUs.takeIf { it != UNKNOWN_US }?.div(Http.MILLIS)
@@ -410,9 +423,13 @@ public class CastStreamServer(
         }.also { Diag.log("cast", "$mediaId: ${it.size} subtitle track(s) from the film itself") }
     }
 
-    public fun urlFor(item: CastItem): String? {
+    public fun urlFor(item: CastItem, format: CastFormat = CastFormat.DASH): String? {
         val manifest = LocalManifests.manifestAt(item.uri)
-        val sources = if (manifest == null) sourcesFor(item) ?: return null else null
+        if (manifest != null && format != CastFormat.DASH) {
+            Diag.log("cast", "${item.mediaId}: a live manifest cannot be given as ${format.name}; given as it is")
+            return null
+        }
+        val sources = if (manifest == null) sourcesFor(format.shaped(item)) ?: return null else null
         val base = host.baseUrl(port) ?: run {
             Diag.warn("cast", "${item.mediaId}: no address the TV can reach (not on Wi-Fi?); given as it is")
             reach.noAddress()
@@ -423,7 +440,7 @@ public class CastStreamServer(
             host.hold(true)
             return manifest?.let { live.open(item.mediaId, it, base, random.token()) }
         }
-        return open(item, sources, base)
+        return open(item, sources, base, format)
     }
 
     public fun relayLive(item: CastItem, base: String): String? {
@@ -445,7 +462,7 @@ public class CastStreamServer(
         Diag.log("cast", "$mediaId: released ${mine.size} session(s)")
     }
 
-    private fun open(item: CastItem, sources: Sources, base: String): String {
+    private fun open(item: CastItem, sources: Sources, base: String, format: CastFormat): String {
         server.start(port)
         val token = random.token()
         val session = sessionFor(token, item, sources)
@@ -455,7 +472,7 @@ public class CastStreamServer(
         order.addLast(token)
         while (order.size > MAX_SESSIONS) order.pollFirst()?.let { sessions.remove(it)?.close() }
         host.hold(true)
-        val url = "$base/c/$token/manifest.mpd"
+        val url = "$base/c/$token/${format.file}"
         reach.handedOver(item.mediaId, token)
         Diag.log(
             "cast",
@@ -527,7 +544,7 @@ public class CastStreamServer(
         }
         val answered = replyStatus(reply) < Http.CLIENT_ERROR
         if (answered) {
-            if (what == "manifest.mpd" || what.startsWith("audio/")) failures.worked(session.item.mediaId)
+            if (CastFormat.isManifest(what) || what.startsWith("audio/")) failures.worked(session.item.mediaId)
             stageAfter(session, what)
         } else {
             Diag.warn(
@@ -544,7 +561,10 @@ public class CastStreamServer(
     }
 
     private fun replyFor(session: Session, what: String, request: HttpRequest): HttpReply? = when {
-        what == "manifest.mpd" -> HttpReply.Bytes(Http.OK, Http.MPD, session.manifest().toByteArray())
+        what == CastFormat.DASH.file -> HttpReply.Bytes(Http.OK, Http.MPD, session.manifest().toByteArray())
+        what == CastFormat.HLS.file -> session.playlist()?.let {
+            HttpReply.Bytes(Http.OK, CastFormat.HLS_MIME, it.toByteArray())
+        }
         what.startsWith("video") -> videoPart(session, what, request.header("range"), request.method == "HEAD")
         what.startsWith("subtitles/") -> subtitle(session, what)
         what.startsWith("audio/") -> session.audioPart(what.removePrefix("audio/")) ?: notFound()
@@ -552,14 +572,14 @@ public class CastStreamServer(
     }
 
     private fun noteFailure(session: Session, what: String, cause: Throwable) {
-        val ours = what == "manifest.mpd" || what.startsWith("audio/")
+        val ours = CastFormat.isManifest(what) || what.startsWith("audio/")
         if (ours && SoundDecoders.missing(cause) == null) failures.failed(session.item.mediaId, what, cause)
     }
 
     private fun stageAfter(session: Session, what: String) {
         when {
             session.flowing -> Unit
-            what == "manifest.mpd" -> tvs.stage(session.item.mediaId, CastStage.TV_STARTING)
+            CastFormat.isManifest(what) -> tvs.stage(session.item.mediaId, CastStage.TV_STARTING)
             what.startsWith("video") || what.startsWith("audio/") && what != "audio/init.mp4" -> {
                 session.flowing = true
                 tvs.stage(session.item.mediaId, null)

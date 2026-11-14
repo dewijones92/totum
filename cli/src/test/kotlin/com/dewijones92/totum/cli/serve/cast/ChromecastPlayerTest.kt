@@ -5,6 +5,7 @@ import com.dewijones92.totum.cli.serve.targets.PlayRequest
 import com.dewijones92.totum.data.targets.SoundSettings
 import com.dewijones92.totum.data.targets.TargetKind
 import com.dewijones92.totum.playback.VolumeBoost
+import com.dewijones92.totum.playback.cast.CastFormat
 import com.dewijones92.totum.playback.cast.CastItem
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -45,6 +46,42 @@ class ChromecastPlayerTest {
         assertEquals("Talk", load.title)
         assertEquals(9_000L, load.startAtMs)
         assertEquals(listOf("stop"), control.calls)
+    }
+
+    @Test
+    fun `a control that takes HLS is given the HLS playlist of the same processed sound, with the mime it declares`() {
+        control.format = CastFormat.HLS
+
+        player().play(request(startAtMs = 4_000))
+
+        val load = control.loads.single()
+        assertTrue(load.url, Regex("""http://pi:$port/c/[0-9a-f]{16}/hls\.m3u8""").matches(load.url))
+        assertEquals("application/vnd.apple.mpegurl", load.type)
+        assertEquals(4_000L, load.startAtMs)
+        assertNull(player().notice)
+    }
+
+    @Test
+    fun `an item with a picture on a sound-only format says so, and a DASH control says nothing`() {
+        control.format = CastFormat.HLS
+        val p = player()
+        p.play(request(url = "https://example.com/film.mp4", picture = true))
+
+        assertTrue(p.notice.toString(), p.notice!!.startsWith("🔈 LG TV plays the sound of this over HLS"))
+        control.format = CastFormat.DASH
+        val q = player()
+        q.play(request(url = "https://example.com/film.mp4", picture = true))
+        assertNull(q.notice)
+    }
+
+    @Test
+    fun `a sound file the deck could not rule a picture out of is not said to have lost one`() {
+        control.format = CastFormat.HLS
+        val p = player()
+
+        p.play(request(url = "/sounds/tone.mp3", picture = true))
+
+        assertNull(p.notice)
     }
 
     @Test
@@ -229,7 +266,7 @@ class ChromecastPlayerTest {
     @Test
     fun `configured casts become targets named and typed from their names`() = runBlocking {
         val known = knownCastsFrom("LG TV=192.168.0.10; Chromecast Ultra = 192.168.0.11;;broken;=x;y=")
-        val found = ChromecastSource(known, streams()).find(fresh = false)
+        val found = CastDeviceSource(knownDevicesFrom(known, emptyList(), emptyList()), streams()).find(fresh = false)
 
         assertEquals(listOf("lg-tv", "chromecast-ultra"), found.map { it.target.id })
         assertEquals(listOf(TargetKind.TV, TargetKind.CHROMECAST), found.map { it.target.kind })

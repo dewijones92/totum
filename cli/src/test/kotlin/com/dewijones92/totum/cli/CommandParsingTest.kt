@@ -29,6 +29,18 @@ class CommandParsingTest {
     }
 
     @Test
+    fun `airplay-pair takes a device name of several words and an optional pin`() {
+        val named = parse(listOf("airplay-pair", "LG", "TV", "--pin=1234")) as Command.AirPlayPair
+        val bare = parse(listOf("airplay-pair", "192.168.0.219")) as Command.AirPlayPair
+
+        assertEquals("LG TV", named.device)
+        assertEquals("1234", named.pin)
+        assertEquals("192.168.0.219", bare.device)
+        assertEquals(null, bare.pin)
+        assertTrue(parse(listOf("airplay-pair")) is Command.Help)
+    }
+
+    @Test
     fun `play takes either`() {
         assertTrue((parse(listOf("play", URL)) as Command.Play).target is Target.Url)
         assertTrue((parse(listOf("play", "some", "words")) as Command.Play).target is Target.Query)

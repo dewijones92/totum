@@ -31,6 +31,7 @@ sound processing on the Pi). Brief: [pi-plays-everywhere.md](../todos/pi-plays-e
   target says it is playing; if the target does not start, the phone keeps its queue and the strip says why.
 - **Speakers are targets.** Any paired Bluetooth device with an Audio Sink is listed, linked only while it plays
   (ADR 116, unchanged), each with its own queue at the same time as the others.
+- **DLNA renderers and AirPlay receivers** are the same target with another control ([ADR 174](../adr/0174-dlna-and-airplay-are-more-controls-behind-the-one-cast-player.md)): `TOTUM_DLNA_TARGETS=Kodi=http://192.168.0.211:1285/` and `TOTUM_AIRPLAY_TARGETS=LG TV=192.168.0.219` (pair once: `totum airplay-pair "LG TV"`); they are given the same processed sound as an HLS playlist (`hls.m3u8`), sound only so far, and appear as TVs. A name in two lists is one device that uses the first protocol that answers.
 - **TVs and Chromecasts** listed in `TOTUM_CAST_TARGETS` (name=address, optionally `@mac`, `;`-separated) are driven through `pychromecast`.
   **A TV loads what the phone would load** ([ADR 156](../adr/0156-one-casting-brain-the-pi-casts-with-the-phones-own-code.md)):
   `…/c/<token>/manifest.mpd` (`application/dash+xml`, stream type buffered) served by the same `CastStreamServer` as the

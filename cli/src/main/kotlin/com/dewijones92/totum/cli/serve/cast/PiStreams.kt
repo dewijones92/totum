@@ -3,6 +3,7 @@ package com.dewijones92.totum.cli.serve.cast
 import com.dewijones92.totum.cli.serve.sound.ProcessedSound
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.targets.SoundSettings
+import com.dewijones92.totum.playback.cast.CastFormat
 import com.dewijones92.totum.playback.cast.CastItem
 import com.dewijones92.totum.playback.cast.CastStreamServer
 import com.dewijones92.totum.playback.cast.CastTimeline
@@ -56,13 +57,14 @@ internal class PiStreams(
 
     fun relayed(): Int = relay.offered()
 
-    fun urlFor(tv: PiCastTv, item: CastItem, sound: SoundSettings): String? {
+    fun urlFor(tv: PiCastTv, item: CastItem, sound: SoundSettings, format: CastFormat = CastFormat.DASH): String? {
         tvs.expect(item.mediaId, tv)
         playing[item.mediaId] = Playing(sound, item.durationMs?.let { it * MICROS_PER_MS })
-        return server.urlFor(item).also {
+        return server.urlFor(item, format).also {
             Diag.log(
                 "cast-target",
-                "${tv.label}: ${item.mediaId} -> ${it ?: "given as it is"} (uri=${hostOf(item.uri)} " +
+                "${tv.label}: ${item.mediaId} -> ${it ?: "given as it is"} as ${format.name} " +
+                    "(uri=${hostOf(item.uri)} " +
                     "separateAudio=${item.separateAudioUrl != null} ladder=${item.ladder.size} " +
                     "listening=${item.listening})",
             )

@@ -26,6 +26,8 @@ internal sealed interface Command {
 
     data class Sidecars(val files: List<String>) : Command
 
+    data class AirPlayPair(val device: String, val pin: String?) : Command
+
     data class AskStateCheck(
         val backup: String,
         val questions: List<String>,
@@ -86,6 +88,9 @@ private fun homeServer(name: String, rest: List<String>, flags: Set<String>): Co
     "serve" -> Command.Serve(portFrom(flags))
     "ai-serve" -> Command.AiServe(portFrom(flags, AI_PORT))
     "sidecars" -> Command.Sidecars(rest)
+    "airplay-pair" -> rest.joinToString(" ").ifBlank { null }
+        ?.let { Command.AirPlayPair(it, flagValue(flags, "--pin=")) }
+        ?: Command.Help("airplay-pair needs the device's name (as in TOTUM_AIRPLAY_TARGETS) or its address")
     "file-check" -> fileCheck(rest, flags)
     "ask-state-check" -> askStateCheck(rest, flags)
     else -> null
@@ -138,6 +143,9 @@ private fun askStateCheck(rest: List<String>, flags: Set<String>): Command {
         flags.firstOrNull { it.startsWith("--pack-out=") }?.removePrefix("--pack-out="),
     )
 }
+
+private fun flagValue(flags: Set<String>, prefix: String): String? =
+    flags.firstOrNull { it.startsWith(prefix) }?.removePrefix(prefix)?.takeIf { it.isNotBlank() }
 
 private fun intFlag(flags: Set<String>, prefix: String): Int? =
     flags.firstOrNull { it.startsWith(prefix) }?.removePrefix(prefix)?.toIntOrNull()

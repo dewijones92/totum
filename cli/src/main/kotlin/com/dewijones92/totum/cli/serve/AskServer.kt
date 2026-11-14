@@ -7,10 +7,12 @@ import com.dewijones92.totum.cli.serve.ai.RemoteCompleter
 import com.dewijones92.totum.cli.serve.ai.UsageLog
 import com.dewijones92.totum.cli.serve.cast.BrowserScreens
 import com.dewijones92.totum.cli.serve.cast.BrowserSource
-import com.dewijones92.totum.cli.serve.cast.ChromecastSource
+import com.dewijones92.totum.cli.serve.cast.CastDeviceSource
+import com.dewijones92.totum.cli.serve.cast.CastPlaces
 import com.dewijones92.totum.cli.serve.cast.PiStreams
 import com.dewijones92.totum.cli.serve.cast.YtDlpLiveHls
 import com.dewijones92.totum.cli.serve.cast.knownCastsFrom
+import com.dewijones92.totum.cli.serve.cast.knownDevicesFrom
 import com.dewijones92.totum.cli.serve.cast.piMediaTools
 import com.dewijones92.totum.cli.serve.filing.FileCheck
 import com.dewijones92.totum.cli.serve.filing.Filing
@@ -292,7 +294,7 @@ internal suspend fun serveAsk(port: Int, out: (String) -> Unit, polite: Politene
         ),
         listOf(
             SpeakerSource(shell, targetsDir, streams::locally, switchedOnByHandFromEnv(), keepAwake),
-            chromecastSourceFromEnv(streams, targetsDir),
+            castDevicesFromEnv(streams, targetsDir, File(home.dataDir, "airplay")),
             BrowserSource(browsers, streams),
         ),
         YouTubeProgress(home.watchHistory, home::signedInToYouTube),
@@ -433,11 +435,16 @@ internal suspend fun aiServe(port: Int, out: (String) -> Unit): Int {
 private const val AI_READ_TIMEOUT_S = 330L
 private const val STATE_SWEEP_MS = 60_000L
 
-private fun chromecastSourceFromEnv(streams: PiStreams, targetsDir: File) = ChromecastSource(
-    knownCastsFrom(System.getenv("TOTUM_CAST_TARGETS")),
+private fun castDevicesFromEnv(streams: PiStreams, targetsDir: File, airplayDir: File) = CastDeviceSource(
+    knownDevicesFrom(
+        knownCastsFrom(System.getenv("TOTUM_CAST_TARGETS")),
+        knownCastsFrom(System.getenv("TOTUM_AIRPLAY_TARGETS")),
+        knownCastsFrom(System.getenv("TOTUM_DLNA_TARGETS")),
+        System.getenv("TOTUM_CAST_PROTOCOL_FIRST"),
+    ),
     streams,
     System.getenv("TOTUM_WAKE_BROADCAST").orEmpty().split(','),
-    targetsDir,
+    CastPlaces(targetsDir, airplayDir),
 )
 
 internal fun browserAddressOf(castBase: String?): String? =

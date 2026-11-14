@@ -1,22 +1,16 @@
 package com.dewijones92.totum.cli.serve.cast
 
-import com.dewijones92.totum.cli.serve.targets.FoundTarget
 import com.dewijones92.totum.cli.serve.targets.PlayRequest
-import com.dewijones92.totum.cli.serve.targets.TargetKit
 import com.dewijones92.totum.cli.serve.targets.TargetLink
 import com.dewijones92.totum.cli.serve.targets.TargetPlayer
-import com.dewijones92.totum.cli.serve.targets.TargetSource
 import com.dewijones92.totum.cli.serve.targets.withoutApiKeys
 import com.dewijones92.totum.common.Diag
-import com.dewijones92.totum.data.targets.Target
-import com.dewijones92.totum.data.targets.TargetKind
 import com.dewijones92.totum.data.targets.TargetPower
 import com.dewijones92.totum.data.targets.TargetTrouble
 import com.dewijones92.totum.data.targets.TroubleKind
+import com.dewijones92.totum.playback.cast.CastFormat
 import com.dewijones92.totum.playback.cast.CastItem
-import com.dewijones92.totum.playback.cast.Http
 import com.dewijones92.totum.playback.cast.LocalManifests
-import java.io.File
 import kotlin.concurrent.thread
 
 internal class ChromecastPlayer(
@@ -73,10 +67,12 @@ internal class ChromecastPlayer(
         val wanted = request.cast ?: CastItem(request.title, request.url, listening = !request.picture)
         liveNow = LocalManifests.isLive(wanted.uri)
         val item = wanted.copy(mediaId = "$label|${wanted.mediaId}", skipsSilence = request.sound.skipSilence)
-        val manifest = if (streams.available) streams.urlFor(tv, item, request.sound) else null
+        val format = control.format
+        val manifest = if (streams.available) streams.urlFor(tv, item, request.sound, format) else null
         if (manifest != null) {
             mediaId = item.mediaId
-            control.load(manifest, Http.MPD, request.title, request.startAtMs)
+            soundOnlyNote(request, format)
+            control.load(manifest, format.mime, request.title, request.startAtMs)
             watchTheCutEnd(item.mediaId)
         } else {
             val url = streams.givenAsItIs(label, request.url)
@@ -92,6 +88,22 @@ internal class ChromecastPlayer(
             Diag.log("cast-target", "$label: ${request.title} loaded as it comes (${hostOrPath(url)})")
             control.load(url, contentTypeOf(request.url, request.picture, false), request.title, request.startAtMs)
         }
+    }
+
+    private fun soundOnlyNote(request: PlayRequest, format: CastFormat) {
+        if (format == CastFormat.DASH || !request.picture || !hasAPicture(request)) return
+        tv.notice = "🔈 $label plays the sound of this over ${format.name}; there is no picture yet"
+        Diag.log(
+            "cast-target",
+            "$label: ${request.title} has a picture, but ${format.name} carries sound only; ${tv.notice}"
+        )
+    }
+
+    private fun hasAPicture(request: PlayRequest): Boolean {
+        val cast = request.cast
+        val extension = request.url.substringBefore('?').substringAfterLast('.', "").lowercase()
+        return cast?.ladder?.isNotEmpty() == true || cast?.separateAudioUrl != null ||
+            extension in VIDEO_EXTENSIONS || request.url.contains("mime=video")
     }
 
     private fun watchTheCutEnd(id: String) {
@@ -166,6 +178,7 @@ internal class ChromecastPlayer(
     private companion object {
         const val MICROS_PER_MS = 1_000L
         const val SLACK_US = 300_000L
+        val VIDEO_EXTENSIONS = setOf("mp4", "m4v", "mkv", "webm", "mov", "avi", "ts")
     }
 }
 
@@ -244,47 +257,4 @@ internal fun knownCastsFrom(spec: String?): List<KnownCasts> = spec.orEmpty().sp
         }
     }
     KnownCasts(name, where, mac)
-}
-
-internal class ChromecastSource(
-    private val known: List<KnownCasts>,
-    private val streams: PiStreams,
-    private val extraBroadcasts: List<String> = emptyList(),
-    private val handbackDir: java.io.File? = null,
-) : TargetSource {
-
-    override suspend fun find(fresh: Boolean): List<FoundTarget> = known.map { cast ->
-        val kind = if (cast.name.contains("chromecast", ignoreCase = true)) TargetKind.CHROMECAST else TargetKind.TV
-        val id = cast.name.lowercase().replace(Regex("[^a-z0-9]+"), "-").trim('-')
-        FoundTarget(Target(id, cast.name, kind)) {
-            val control = PyCastControl(
-                cast.host,
-                cast.name,
-                handbackFile = handbackDir?.let { File(it.apply { mkdirs() }, "handback-$id.json") },
-            )
-            val wake = wakeFor(cast)
-            TargetKit(ChromecastPlayer(cast.name, control, streams, wake), CastLink(cast.host, control, wake))
-        }
-    }.also {
-        Diag.log(
-            "cast-target",
-            "configured ${it.size} cast target(s): " +
-                known.joinToString { cast -> "${cast.name}=${cast.host}${wakeNote(cast)}" },
-        )
-    }
-
-    private fun wakeNote(cast: KnownCasts): String = cast.mac?.let { " (wake $it)" }.orEmpty()
-
-    private fun wakeFor(cast: KnownCasts): TvWake? {
-        val mac = cast.mac?.let(WakeOnLan::parseMac) ?: return null
-        val broadcasts = WakeOnLan.broadcastsFor(cast.host, extraBroadcasts)
-        return TvWake(
-            label = cast.name,
-            mac = mac,
-            broadcasts = broadcasts,
-            host = cast.host,
-            sender = UdpWakeSender(),
-            answers = ReceiverProbe(cast.host)::answers,
-        ).also { it.watch() }
-    }
 }

@@ -2,6 +2,7 @@ package com.dewijones92.totum.cli.serve.cast
 
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.domain.CastScreen
+import com.dewijones92.totum.playback.cast.CastFormat
 import kotlinx.coroutines.delay
 import java.io.BufferedWriter
 import java.io.IOException
@@ -22,6 +23,7 @@ internal interface CastControl {
     val model: String? get() = null
     val screen: CastScreen? get() = null
     val keepsAddressesPrivate: Boolean get() = false
+    val format: CastFormat get() = CastFormat.DASH
 }
 
 @Suppress("TooManyFunctions")
@@ -31,7 +33,9 @@ internal class PyCastControl(
     private val python: String = System.getenv("TOTUM_PYTHON") ?: "python3",
     private val helper: String = System.getenv("TOTUM_CAST_HELPER") ?: "/opt/totum/chromecast_helper.py",
     private val clock: () -> Long = System::currentTimeMillis,
-    private val handbackFile: java.io.File? = null,
+    private val stateFile: java.io.File? = null,
+    override val format: CastFormat = CastFormat.DASH,
+    private val kind: String = "Chromecast",
 ) : CastControl {
 
     override var onEnded: (failed: Boolean) -> Unit = {}
@@ -63,7 +67,7 @@ internal class PyCastControl(
         ready = false
         problem = null
         return try {
-            val command = listOfNotNull(python, helper, host, handbackFile?.path)
+            val command = listOfNotNull(python, helper, host, stateFile?.path)
             val started = ProcessBuilder(command).redirectError(ProcessBuilder.Redirect.INHERIT).start()
             process = started
             writer = started.outputStream.bufferedWriter()
@@ -72,7 +76,7 @@ internal class PyCastControl(
             writer
         } catch (e: IOException) {
             Diag.warn("cast-target", "$label: helper could not start ($python $helper)", e)
-            problem = "the Chromecast helper could not start: ${e.message}"
+            problem = "the $kind helper could not start: ${e.message}"
             null
         }
     }
