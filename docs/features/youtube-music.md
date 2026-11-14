@@ -163,16 +163,16 @@ page as before. A queued or playing song stores one artist, so its credits are a
 of …" and logged `nav artists of <id> …`. Tests: `MusicPageParserTest` (two-artist byline, derived from the real radio
 fixture).
 
-## 🧭 Discover (2026-11-13)
+## 🔭 Discover (2026-11-13)
 
 Dewi: Radio and Mix play the same sort of thing, so make "another mode that is a bit more varied and daring" and
 put it beside them. [ADR 167](../adr/0167-discover-a-bolder-radio-that-walks-the-related-artist-graph.md).
 
-- **Where**: "🧭 Discover from this" in the song menu (and so the player's), 🧭 Discover on the album page and
+- **Where**: "🔭 Discover from this" in the song menu (and so the player's), 🔭 Discover on the album page and
   beside Mix on the artist page, in the tile menus of album, artist, all-songs and radio pins (a Discover tile
-  restarts it), and "🧭 Discover from these" in the multi-select bar.
-- **What it does**: a station inside `MusicRadio` ("🧭 Discover from <seed>" queue group, endless, songs marked
-  "🧭 Discover"). Each song comes from an artist one hop, then one or two, from the seed on YouTube Music's
+  restarts it), and "🔭 Discover from these" in the multi-select bar.
+- **What it does**: a station inside `MusicRadio` ("🔭 Discover from <seed>" queue group, endless, songs marked
+  "🔭 Discover"). Each song comes from an artist one hop, then one or two, from the seed on YouTube Music's
   similar-artists lists; a random one of that artist's top five. It skips artists played or liked recently (play
   history, music listens in 14 days, stars, Recently), never plays an artist twice in a row, prefers artists you do
   not follow, and re-centres on the last artist when the range runs dry.

@@ -1,5 +1,6 @@
 package com.dewijones92.totum.pins
 
+import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.data.backup.BackupItem
 import com.dewijones92.totum.data.backup.titleOf
@@ -15,6 +16,8 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.decodeFromJsonElement
+import kotlinx.serialization.json.jsonArray
 
 @Serializable
 sealed interface Pin {
@@ -169,8 +172,23 @@ internal object PinCodec {
 
     fun encode(pins: List<Pin>): String = json.encodeToString(list, pins)
 
-    fun decode(text: String): List<Pin> = json.decodeFromString(list, text)
+    fun decode(text: String): List<Pin> {
+        val elements = json.parseToJsonElement(text).jsonArray
+        return elements.mapIndexedNotNull { index, element ->
+            runCatching { json.decodeFromJsonElement(Pin.serializer(), element) }
+                .onFailure {
+                    Diag.warn(
+                        "pin",
+                        "pin #${index + 1} of ${elements.size} skipped, this build cannot read it: " +
+                            it.message?.take(MESSAGE_CHARS),
+                    )
+                }
+                .getOrNull()
+        }
+    }
 }
+
+private const val MESSAGE_CHARS = 160
 
 private const val ITEM_PREFIX = "item:"
 

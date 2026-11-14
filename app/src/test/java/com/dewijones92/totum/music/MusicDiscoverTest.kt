@@ -103,17 +103,14 @@ class MusicDiscoverTest {
         )
         val recent = RecentActions()
         val operations = Operations()
-        val engine = Discover(
-            catalogue,
-            DiscoverTasteSource(
-                history = { emptyList() },
-                starred = { emptyList() },
-                listens = { emptyList() },
-                recentActions = { emptyList() },
-                followed = { FollowedArtists() },
-            ),
-            random = Random(11),
+        val tasteSource = DiscoverTasteSource(
+            history = { emptyList() },
+            starred = { emptyList() },
+            listens = { emptyList() },
+            recentActions = { emptyList() },
+            followed = { FollowedArtists() },
         )
+        val engine = Discover(catalogue, tasteSource, random = Random(11))
         val radio = MusicRadio(catalogue, queue, work, recent, discover = engine, operations = operations)
 
         fun authors(): List<String> = queue.state.value.entries.filter { it.group?.id == radio.activeGroupId }
@@ -129,7 +126,7 @@ class MusicDiscoverTest {
 
         assertTrue(started)
         val group = rig.queue.state.value.entries.first().group
-        assertEquals("🧭 Discover from Seed song", group?.title)
+        assertEquals("🔭 Discover from Seed song", group?.title)
         assertTrue(group!!.id.startsWith(DISCOVER_GROUP_PREFIX))
         val pin = rig.recent.recent.value.single() as Pin.Discover
         assertEquals("discover:S", pin.key)
@@ -213,6 +210,102 @@ class MusicDiscoverTest {
         assertTrue(rig.queue.state.value.entries.isEmpty())
         assertEquals(listOf<OperationEnd>(OperationEnd.Nothing), ended)
         assertTrue(rig.recent.recent.value.isEmpty())
+        watcher.cancel()
+        rig.work.cancel()
+    }
+
+    @Test
+    fun `a Discover carries on after the app restarts, from its saved artist, still topping itself up`() = runTest {
+        val file = kotlin.io.path.createTempFile("radio", ".txt").toFile().apply { delete() }
+        val rig = Rig(this, catalogue(*wide))
+        val first = MusicRadio(rig.catalogue, rig.queue, rig.work, rig.recent, file, discover = rig.engine)
+        first.startDiscover(DiscoverSeed("Seed", artistId = "S", artistName = "Artist S"))
+        advanceUntilIdle()
+        val queuedBefore = rig.queue.state.value.entries.size
+        val saved = file.readLines()
+
+        val again = MusicRadio(
+            rig.catalogue,
+            rig.queue,
+            rig.work,
+            rig.recent,
+            file,
+            discover = Discover(rig.catalogue, rig.tasteSource, random = Random(5)),
+        )
+        advanceUntilIdle()
+
+        assertEquals("discover", saved[7])
+        assertEquals("S", saved[8])
+        assertEquals("Artist S", saved[9])
+        assertEquals("radio:discover:S", again.activeGroupId)
+        assertTrue(again.describe(), again.isActive)
+        rig.queue.jumpTo(rig.queue.state.value.entries.size - 1)
+        advanceUntilIdle()
+        assertTrue("it topped up after the restart", rig.queue.state.value.entries.size > queuedBefore)
+        val authors = rig.queue.state.value.entries.map { it.item.item.author.orEmpty() }
+        authors.zipWithNext().forEach { (a, b) -> assertTrue("$a twice in a row in $authors", a != b) }
+        rig.work.cancel()
+    }
+
+    @Test
+    fun `a saved Discover with no discover engine here is dropped, not restored as a radio`() = runTest {
+        val file = kotlin.io.path.createTempFile("radio", ".txt").toFile().apply { delete() }
+        val rig = Rig(this, catalogue(*wide))
+        val first = MusicRadio(rig.catalogue, rig.queue, rig.work, rig.recent, file, discover = rig.engine)
+        first.startDiscover(DiscoverSeed("Seed", artistId = "S", artistName = "Artist S"))
+        advanceUntilIdle()
+
+        val without = MusicRadio(rig.catalogue, rig.queue, rig.work, rig.recent, file)
+        advanceUntilIdle()
+
+        assertFalse(without.isActive)
+        rig.work.cancel()
+    }
+
+    @Test
+    fun `YouTube Music not answering is a failure after one polite retry, never nothing found`() = runTest {
+        val rig = Rig(this, catalogue(*wide))
+        rig.catalogue.failNextArtistRequests = 100
+        val ended = mutableListOf<OperationEnd>()
+        val watcher = launchEnded(rig, ended)
+
+        val started = rig.radio.startDiscover(DiscoverSeed("Seed", artistId = "S", artistName = "Artist S"))
+        advanceUntilIdle()
+
+        assertFalse(started)
+        assertTrue(rig.queue.state.value.entries.isEmpty())
+        val end = ended.single()
+        assertTrue("ended as $end", end is OperationEnd.Failed && "reach" in end.why)
+        assertEquals("the seed page asked once, then once more", listOf("S", "S"), rig.catalogue.artistRequests)
+        assertTrue(rig.recent.recent.value.isEmpty())
+        watcher.cancel()
+        rig.work.cancel()
+    }
+
+    @Test
+    fun `one dropped request is retried and the Discover then starts`() = runTest {
+        val rig = Rig(this, catalogue(*wide))
+        rig.catalogue.failNextArtistRequests = 1
+
+        val started = rig.radio.startDiscover(DiscoverSeed("Seed", artistId = "S", artistName = "Artist S"))
+        advanceUntilIdle()
+
+        assertTrue(started)
+        assertTrue(rig.queue.state.value.entries.isNotEmpty())
+        rig.work.cancel()
+    }
+
+    @Test
+    fun `a seed that cannot be looked up is a failure too`() = runTest {
+        val rig = Rig(this, catalogue(*wide))
+        val ended = mutableListOf<OperationEnd>()
+        val watcher = launchEnded(rig, ended)
+
+        val started = rig.radio.startDiscover(DiscoverSeed("Gone", albumId = "MPREb_missing"))
+        advanceUntilIdle()
+
+        assertFalse(started)
+        assertTrue("ended as ${ended.single()}", ended.single() is OperationEnd.Failed)
         watcher.cancel()
         rig.work.cancel()
     }

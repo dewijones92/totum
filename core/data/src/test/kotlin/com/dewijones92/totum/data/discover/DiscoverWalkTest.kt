@@ -209,8 +209,32 @@ class DiscoverWalkTest {
         val retried = walk.step(pages = 2, graph::page, DiscoverTaste.NOTHING)
 
         assertFalse(failed.dry)
+        assertEquals("a failed seed page is reported, not read as nothing found", "503", failed.failure)
         assertEquals(1, failed.pagesAsked)
         assertEquals(listOf("A"), retried.artists())
+    }
+
+    @Test
+    fun `a step whose every page fails reports the failure rather than an empty range`() = runBlocking {
+        val graph = Graph(Graph.Node("S", listOf("A", "B")), Graph.Node("A", emptyList()), Graph.Node("B", emptyList()))
+        graph.failing += setOf("A", "B")
+
+        val step = walk().step(pages = 2, graph::page, DiscoverTaste.NOTHING)
+
+        assertTrue(step.picks.isEmpty())
+        assertEquals("503", step.failure)
+        assertFalse("not dry: the artists exist, YouTube just did not answer", step.dry)
+    }
+
+    @Test
+    fun `a step that finds songs reports no failure, and an empty range is dry not failed`() = runBlocking {
+        val graph = Graph(Graph.Node("S", listOf("A")), Graph.Node("A", emptyList()))
+        val ok = walk().step(pages = 2, graph::page, DiscoverTaste.NOTHING)
+        val empty = walk().step(pages = 2, Graph(Graph.Node("S", emptyList()))::page, DiscoverTaste.NOTHING)
+
+        assertEquals(null, ok.failure)
+        assertEquals(null, empty.failure)
+        assertTrue(empty.dry)
     }
 
     @Test

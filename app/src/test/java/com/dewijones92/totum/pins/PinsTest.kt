@@ -90,6 +90,27 @@ class PinsTest {
     }
 
     @Test
+    fun `a pin this build cannot read is skipped and the rest are kept`() {
+        val album = """{"kind":"album","browseId":"MPREb_x","title":"Guitar Recital","artUrl":null}"""
+        val future = """{"kind":"from-a-newer-build","what":"unknown"}"""
+        val broken = """{"kind":"artist","name":"missing the other fields"}"""
+        val artist = """{"kind":"artist","browseId":null,"name":"Pablo","artUrl":null,"radioPlaylistId":"RDEM"}"""
+
+        val read = PinCodec.decode("[$album,$future,$broken,$artist]")
+
+        assertEquals(
+            listOf(Pin.Album("MPREb_x", "Guitar Recital", null), Pin.Artist(null, "Pablo", null, "RDEM")),
+            read,
+        )
+    }
+
+    @Test
+    fun `a list that is not a list at all is still an error the callers already handle`() {
+        val failed = runCatching { PinCodec.decode("not json") }.isFailure
+        assertTrue(failed)
+    }
+
+    @Test
     fun `a pinned item comes back as the same playable item`() {
         val back = (PinCodec.decode(PinCodec.encode(listOf(Pin.of(trainVideo)))).single() as Pin.Item).playable()
 

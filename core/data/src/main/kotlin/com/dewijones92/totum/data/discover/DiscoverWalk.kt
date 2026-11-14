@@ -8,7 +8,12 @@ import kotlin.random.Random
 
 public data class DiscoverPick(val song: MusicSong, val artist: DiscoverArtist, val hop: Int)
 
-public data class DiscoverStep(val picks: List<DiscoverPick>, val pagesAsked: Int, val dry: Boolean)
+public data class DiscoverStep(
+    val picks: List<DiscoverPick>,
+    val pagesAsked: Int,
+    val dry: Boolean,
+    val failure: String? = null,
+)
 
 @Suppress("TooManyFunctions")
 public class DiscoverWalk(
@@ -30,6 +35,7 @@ public class DiscoverWalk(
     private var productiveSteps = 0
     private var recentres = 0
     private var recentredThisStep = false
+    private var failureThisStep: String? = null
 
     public val steps: Int get() = productiveSteps
 
@@ -48,9 +54,10 @@ public class DiscoverWalk(
     ): DiscoverStep {
         val limit = if (productiveSteps == 0) FIRST_HOP_LIMIT else MAX_HOP
         var asked = 0
+        failureThisStep = null
         if (!seeded) {
             asked++
-            if (!readSeed(page)) return DiscoverStep(emptyList(), asked, dry = false)
+            if (!readSeed(page)) return DiscoverStep(emptyList(), asked, dry = false, failure = failureThisStep)
         }
         val picks = mutableListOf<DiscoverPick>()
         var fetched = 0
@@ -70,14 +77,15 @@ public class DiscoverWalk(
             }
         }
         if (picks.isNotEmpty()) productiveSteps++
-        val dry = picks.isEmpty() && ranOut
+        val failure = failureThisStep.takeIf { picks.isEmpty() }
+        val dry = picks.isEmpty() && ranOut && failure == null
         Diag.log(
             TAG,
             "\"$label\" step: ${picks.size} song(s) from $asked page(s) asked (at most $pages, plus the seed's " +
                 "the first time), hop limit $limit, $productiveSteps productive step(s), " +
-                "${frontier.size} artist(s) known, dry=$dry",
+                "${frontier.size} artist(s) known, dry=$dry" + (failure?.let { ", failure=$it" } ?: ""),
         )
-        return DiscoverStep(picks, asked, dry)
+        return DiscoverStep(picks, asked, dry, failure)
     }
 
     private fun chooseOrRecentre(limit: Int, taste: DiscoverTaste): Candidate? {
@@ -90,6 +98,7 @@ public class DiscoverWalk(
     private suspend fun readSeed(page: suspend (String) -> MusicResult<MusicArtist>): Boolean {
         return when (val result = page(seed.id)) {
             is MusicResult.Failure -> {
+                failureThisStep = result.detail
                 Diag.warn(TAG, "\"$label\": the seed's page ${seed.id} failed (${result.detail}); will try again")
                 false
             }
@@ -114,6 +123,7 @@ public class DiscoverWalk(
         val artist = choice.artist
         val result = when (val answer = page(artist.id)) {
             is MusicResult.Failure -> {
+                failureThisStep = answer.detail
                 spent[artist.id] = "its page failed (${answer.detail})"
                 Diag.warn(
                     TAG,

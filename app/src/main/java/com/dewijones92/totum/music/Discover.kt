@@ -49,15 +49,25 @@ class Discover(
 ) {
     private val pages = ArtistPages(catalogue, clock)
 
-    suspend fun resolve(seed: DiscoverSeed): DiscoverArtist? {
-        val artist = fromArtist(seed) ?: fromAlbum(seed) ?: fromSong(seed) ?: fromName(seed)
+    sealed interface Resolved {
+        data class Found(val artist: DiscoverArtist) : Resolved
+        data object NotFound : Resolved
+        data class Unreachable(val why: String) : Resolved
+    }
+
+    suspend fun resolve(seed: DiscoverSeed): Resolved {
+        val resolved = fromArtist(seed) ?: fromAlbum(seed) ?: fromSong(seed) ?: fromName(seed) ?: Resolved.NotFound
         Diag.log(
             TAG,
             "seed \"${seed.title}\" [artist=${seed.artistId ?: "-"} album=${seed.albumId ?: "-"} " +
                 "song=${seed.songId ?: "-"} name=${seed.artistName ?: "-"}] -> " +
-                (artist?.let { "starts from ${it.name} (${it.id})" } ?: "no artist found to start from"),
+                when (resolved) {
+                    is Resolved.Found -> "starts from ${resolved.artist.name} (${resolved.artist.id})"
+                    Resolved.NotFound -> "no artist found to start from"
+                    is Resolved.Unreachable -> "could not look the seed up: ${resolved.why}"
+                },
         )
-        return artist
+        return resolved
     }
 
     fun walkFrom(
@@ -76,25 +86,35 @@ class Discover(
             onPick = onPick,
         )
 
-    private fun fromArtist(seed: DiscoverSeed): DiscoverArtist? =
-        seed.artistId?.let { DiscoverArtist(it, seed.artistName ?: seed.title) }
+    private fun fromArtist(seed: DiscoverSeed): Resolved? =
+        seed.artistId?.let { Resolved.Found(DiscoverArtist(it, seed.artistName ?: seed.title)) }
 
-    private suspend fun fromAlbum(seed: DiscoverSeed): DiscoverArtist? {
-        val album = (seed.albumId?.let { catalogue.album(it) } as? MusicResult.Success)?.value ?: return null
+    private suspend fun fromAlbum(seed: DiscoverSeed): Resolved? {
+        val albumId = seed.albumId ?: return null
+        val album = when (val result = catalogue.album(albumId)) {
+            is MusicResult.Failure -> return Resolved.Unreachable(result.detail)
+            is MusicResult.Success -> result.value
+        }
         val id = album.artistBrowseId ?: return null
-        return DiscoverArtist(id, album.artist ?: seed.artistName ?: seed.title)
+        return Resolved.Found(DiscoverArtist(id, album.artist ?: seed.artistName ?: seed.title))
     }
 
-    private suspend fun fromSong(seed: DiscoverSeed): DiscoverArtist? {
+    private suspend fun fromSong(seed: DiscoverSeed): Resolved? {
         val id = seed.songId ?: return null
-        val batch = (catalogue.radio(RadioSeed.forSong(id)) as? MusicResult.Success)?.value ?: return null
+        val batch = when (val result = catalogue.radio(RadioSeed.forSong(id))) {
+            is MusicResult.Failure -> return Resolved.Unreachable(result.detail)
+            is MusicResult.Success -> result.value
+        }
         val credit = batch.songs.firstOrNull { it.videoId == id }?.artists?.firstOrNull() ?: return null
-        return DiscoverArtist(credit.browseId, credit.name)
+        return Resolved.Found(DiscoverArtist(credit.browseId, credit.name))
     }
 
-    private suspend fun fromName(seed: DiscoverSeed): DiscoverArtist? {
+    private suspend fun fromName(seed: DiscoverSeed): Resolved? {
         val name = seed.artistName ?: return null
-        return catalogue.artistIdNamed(name)?.let { DiscoverArtist(it, name) }
+        return when (val result = catalogue.artistLookup(name)) {
+            is MusicResult.Failure -> Resolved.Unreachable(result.detail)
+            is MusicResult.Success -> result.value?.let { Resolved.Found(DiscoverArtist(it, name)) }
+        }
     }
 
     private companion object {
@@ -102,12 +122,24 @@ class Discover(
     }
 }
 
-suspend fun YouTubeMusicCatalogue.artistIdNamed(name: String, limit: Int = ARTIST_SEARCH_LIMIT): String? {
-    val found = (artists(name, limit = limit) as? MusicResult.Success)?.value?.items.orEmpty()
+suspend fun YouTubeMusicCatalogue.artistLookup(
+    name: String,
+    limit: Int = ARTIST_SEARCH_LIMIT,
+): MusicResult<String?> {
+    val found = when (val result = artists(name, limit = limit)) {
+        is MusicResult.Failure -> {
+            Diag.warn("music", "artist \"$name\" has no id and the search failed: ${result.detail}")
+            return MusicResult.Failure(result.detail)
+        }
+        is MusicResult.Success -> result.value.items
+    }
     val exact = found.firstOrNull { it.name.equals(name, ignoreCase = true) }
     Diag.log("music", "artist \"$name\" has no id; search found ${found.size}, exact=${exact?.browseId ?: "none"}")
-    return exact?.browseId
+    return MusicResult.Success(exact?.browseId)
 }
+
+suspend fun YouTubeMusicCatalogue.artistIdNamed(name: String, limit: Int = ARTIST_SEARCH_LIMIT): String? =
+    (artistLookup(name, limit) as? MusicResult.Success)?.value
 
 private const val ARTIST_SEARCH_LIMIT = 5
 

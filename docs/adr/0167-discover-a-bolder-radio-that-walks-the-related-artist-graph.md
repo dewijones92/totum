@@ -23,11 +23,13 @@ browse ids) and the artist's top songs, so a far-ranging mode needs no new endpo
 
 ## Decision
 
-- **🧭 Discover** is a second kind of station inside `MusicRadio`, not a second engine. A station gains an
+- **🔭 Discover** is a second kind of station inside `MusicRadio`, not a second engine. A station gains an
   optional `DiscoverWalk`; the queue observation, the group, the "ahead" trigger, away-from-the-group pause, save
-  and restore are Radio's. The group is `radio:discover:<artist id>` titled "🧭 Discover from <seed>", so it is
-  endless, shuffles, repeats and takes part in music ⇄ talk like Radio. Its songs play marked "🧭 Discover"
+  and restore are Radio's. The group is `radio:discover:<artist id>` titled "🔭 Discover from <seed>", so it is
+  endless, shuffles, repeats and takes part in music ⇄ talk like Radio. Its songs play marked "🔭 Discover"
   where a radio's say "♾️ Endless radio", and its header says what it does.
+- **Its own emoji**: 🔭 and the `TravelExplore` icon. 🧭 and the compass already mean Explore (the player toggle,
+  "Explore on", "Explore picked it"), so Discover does not borrow them.
 - **Seed**: a song, an album or an artist, resolved to the artist the walk starts from (a song's channel id, else
   its credits; an album's artist id; an artist's own id, else a search by name). The seed's own songs are not
   offered; the first pick is already one hop away.
@@ -50,18 +52,25 @@ browse ids) and the artist's top songs, so a far-ranging mode needs no new endpo
   refill pauses 1.5 s between steps and stops after three. Nothing fans out.
 - **Visibility**: `OperationKind.DISCOVER` shows "🧭 Finding music near <seed>" in the progress strip with a
   running count while the first batch is built, then "🧭 … 2 songs to start, more as you listen". When nothing is
-  found it ends "📭 Couldn't find anything new near <seed>" and queues nothing.
+  found it ends "📭 Couldn't find anything new near <seed>" and queues nothing. A page or lookup that failed is not
+  "nothing found": the walk reports the failure, Discover tries once more after three seconds (through the gate), and if
+  YouTube Music still does not answer the operation ends "❌ … couldn't reach YouTube Music (<reason>)" with the reason
+  logged. A top-up that fails logs it and tries again on the next change.
 - **Recently and pins**: `Pin.Discover(artistId, artistName, title)` is recorded when a Discover starts and
   replays through `PinPlayer`; it is pinnable and gets a home-screen icon like every pin.
 - **Where the button is**: the song menu (so the player's too), the album page, the artist page beside Mix, the
   tile menus of albums, artists, "all songs" and radio pins (a Discover tile restarts it), and the multi-select
-  bar's "🧭 Discover from these" (which starts from the first usable song; a several-artist seed is not built).
+  bar's "🔭 Discover from these" (which starts from the first usable song; a several-artist seed is not built).
 - **Logging**: every pick under `[discover]` (chosen artist, hop, which artist it came via, the song, how many of
   its top songs were usable), every skipped candidate with its reason, each step's pages asked and hop limit, the
   taste counts, the seed's resolution, cache hits and misses.
 
 ## Consequences
 
+- Pins are now decoded one by one: a pin this build cannot read (a kind from a newer build, a broken entry) is
+  skipped and logged under `[pin]`, and the rest of the list is kept. Before, one unknown pin lost the whole
+  Pins and Recently list, which an older build or a second phone restoring the shared backup would have met on the
+  first `discover` pin.
 - Discover and Radio share state: starting one replaces the other; the saved station file carries a kind and the
   seed artist (old files, without them, restore as radios).
 - It cannot say why an artist is "near" beyond YouTube Music's own similar-artists list; a seed artist with no

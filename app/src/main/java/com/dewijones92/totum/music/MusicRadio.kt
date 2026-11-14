@@ -176,29 +176,60 @@ class MusicRadio(
             Diag.log("discover", "\"${seed.title}\" is already being found; ignoring a second tap")
             return false
         }
-        var found = 0
+        var started = false
         operations.tracking(key, OperationKind.DISCOVER, seed.title) { progress ->
-            found = beginDiscover(engine, seed, progress)
-            if (found > 0) OperationEnd.Done(found) else OperationEnd.Nothing
+            when (val begun = beginDiscover(engine, seed, progress)) {
+                is DiscoverStart.Started -> OperationEnd.Done(begun.count).also { started = true }
+                DiscoverStart.NoneFound -> OperationEnd.Nothing
+                is DiscoverStart.Unreachable -> OperationEnd.Failed("couldn't reach YouTube Music (${begun.why})")
+            }
         }
-        return found > 0
+        return started
     }
 
-    private suspend fun beginDiscover(engine: Discover, seed: DiscoverSeed, progress: Operations.Progress?): Int {
-        val artist = engine.resolve(seed) ?: return 0
+    private sealed interface DiscoverStart {
+        data class Started(val count: Int) : DiscoverStart
+        data object NoneFound : DiscoverStart
+        data class Unreachable(val why: String) : DiscoverStart
+    }
+
+    private suspend fun beginDiscover(
+        engine: Discover,
+        seed: DiscoverSeed,
+        progress: Operations.Progress?,
+    ): DiscoverStart {
+        var resolved = engine.resolve(seed)
+        if (resolved is Discover.Resolved.Unreachable) {
+            Diag.warn("discover", "\"${seed.title}\": could not look the seed up (${resolved.why}); trying once more")
+            delay(DISCOVER_RETRY_PAUSE_MS)
+            resolved = engine.resolve(seed)
+        }
+        val artist = when (resolved) {
+            is Discover.Resolved.Found -> resolved.artist
+            Discover.Resolved.NotFound -> return DiscoverStart.NoneFound
+            is Discover.Resolved.Unreachable -> return DiscoverStart.Unreachable(resolved.why)
+        }
         val group = QueueGroup(
             id = "$DISCOVER_GROUP_PREFIX${artist.id}",
             title = "$DISCOVER_MARK from ${seed.title}",
         )
         val walk = engine.walkFrom(artist, seed.title)
         var found = 0
-        val step = engine.step(walk, DiscoverWalk.PAGES_PER_TOP_UP) { progress?.report(found = ++found) }
+        var step = engine.step(walk, DiscoverWalk.PAGES_PER_TOP_UP) { progress?.report(found = ++found) }
+        if (step.picks.isEmpty() && step.failure != null) {
+            Diag.warn(
+                "discover",
+                "\"${group.title}\": YouTube Music did not answer (${step.failure}); trying once more",
+            )
+            delay(DISCOVER_RETRY_PAUSE_MS)
+            step = engine.step(walk, DiscoverWalk.PAGES_PER_TOP_UP) { progress?.report(found = ++found) }
+        }
         if (step.picks.isEmpty()) {
             Diag.warn(
                 "discover",
-                "\"${group.title}\": nothing found near ${artist.name} (dry=${step.dry}); nothing queued"
+                "\"${group.title}\": nothing queued near ${artist.name} (dry=${step.dry}, failure=${step.failure})",
             )
-            return 0
+            return step.failure?.let { DiscoverStart.Unreachable(it) } ?: DiscoverStart.NoneFound
         }
         val songs = step.picks.map { it.song }
         fetching?.cancel()
@@ -221,7 +252,7 @@ class MusicRadio(
             Pin.Discover(artist.id, artist.name, seed.title, songs.firstOrNull()?.thumbnailUrl?.value),
             from = "discover",
         )
-        return songs.size
+        return DiscoverStart.Started(songs.size)
     }
 
     private fun onQueueChanged(snapshot: QueueSnapshot) {
@@ -295,6 +326,7 @@ class MusicRadio(
         Diag.log(
             "discover",
             "\"${from.group.title}\": +$added of ${songs.size} from ${step.pagesAsked} page(s) asked" +
+                (step.failure?.let { "; couldn't reach YouTube Music ($it), will try again" } ?: "") +
                 if (step.dry) "; nothing more in range, so no more top-ups until it is restarted" else "",
         )
         val stillShort = ahead + added <= TOP_UP_WHEN_LEFT
@@ -429,13 +461,14 @@ class MusicRadio(
         const val MAX_EMPTY_ATTEMPTS = 3
         const val MAX_DISCOVER_ATTEMPTS = 3
         const val DISCOVER_PACE_MS = 1_500L
+        const val DISCOVER_RETRY_PAUSE_MS = 3_000L
         const val DISCOVER_KIND = "discover"
     }
 }
 
 const val RADIO_GROUP_PREFIX: String = "radio:"
 const val DISCOVER_GROUP_PREFIX: String = "radio:discover:"
-const val DISCOVER_MARK: String = "🧭 Discover"
+const val DISCOVER_MARK: String = "🔭 Discover"
 private const val MIX_SEEDS = 10
 
 private enum class Saved {

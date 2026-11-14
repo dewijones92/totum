@@ -56,8 +56,15 @@ public class FakeYouTubeMusicCatalogue(
 
     public val artistRequests: MutableList<String> = mutableListOf()
 
+    /** The next this-many artist requests fail, as a dropped connection would. */
+    public var failNextArtistRequests: Int = 0
+
     override suspend fun artist(browseId: String): MusicResult<MusicArtist> {
         artistRequests += browseId
+        if (failNextArtistRequests > 0) {
+            failNextArtistRequests--
+            return MusicResult.Failure("unreachable")
+        }
         return artistsById[browseId]?.let { MusicResult.Success(it) } ?: MusicResult.Failure("no artist $browseId")
     }
 
