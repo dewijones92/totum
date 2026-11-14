@@ -1,7 +1,5 @@
 package com.dewijones92.totum.live
 
-import android.content.Context
-import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.common.youTubeWatchUrl
@@ -21,12 +19,12 @@ import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentHashMap
 
 class LiveStartWatcher(
-    private val context: Context,
     private val scope: CoroutineScope,
     private val lives: LiveStates,
     private val check: suspend (HttpUrl) -> LiveCheck,
     private val operations: Operations,
     private val notices: LiveNotices,
+    private val subjectFor: (String) -> String,
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
     private val waiting = ConcurrentHashMap<String, Boolean>()
@@ -58,7 +56,7 @@ class LiveStartWatcher(
         }
         scope.launch {
             try {
-                val subject = context.getString(R.string.live_wait_subject, title)
+                val subject = subjectFor(title)
                 operations.tracking("live-wait:$videoId", OperationKind.TASK, subject) { _ ->
                     waitUntilLive(videoId, title, watchUrl)
                 }

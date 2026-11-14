@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.StatFs
 import androidx.core.os.LocaleListCompat
 import com.dewijones92.totum.BuildConfig
+import com.dewijones92.totum.R
 import com.dewijones92.totum.account.SharedPrefsTokenStore
 import com.dewijones92.totum.ai.AiFeatures
 import com.dewijones92.totum.ai.aiFeaturesOf
@@ -2233,12 +2234,12 @@ private fun pinPlayerOf(c: DefaultAppContainer): PinPlayer = PinPlayer(
 
 private fun followLiveStarts(c: DefaultAppContainer, context: Context) {
     LiveStartWatcher(
-        context,
         c.applicationScope,
         c.liveStates,
         check = c.videoResolver::liveCheck,
         operations = c.operations,
         notices = LiveNotifier(context),
+        subjectFor = { title -> context.getString(R.string.live_wait_subject, title) },
     ).follow(c.playbackQueue.refusedTaps)
 }
 
