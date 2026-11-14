@@ -3,8 +3,11 @@
 # phone's own queue, history, playlists, groups and settings.
 #
 #   tools/emulator/load-state.sh                 fetch the newest dump from the Pi (read-only ssh) and load it
+#   tools/emulator/load-state.sh <report-id>     fetch the dump that came with that report (triage.sh state) and load it
 #   tools/emulator/load-state.sh <dump.json.gz>  load a dump you already have
 #   LOAD_STATE_APK=<apk> tools/emulator/load-state.sh ...   install that debug build first (adb install -r)
+#
+# A report's dump is kept only while the report is unconsidered (ADR 159), so load it before judging the report.
 #
 # Uses the app's own backup restore (merge: nothing on the emulator is removed, the queue is replaced) through the
 # debug-only StateDebugReceiver, so no database is written by hand. The YouTube sign-in is checked before and after
@@ -37,8 +40,13 @@ if [ -z "$dump" ]; then
   host=$(pi)
   [ -n "$host" ] || die "no Pi address: set CRASHLOG_PI"
   say "fetching the newest state dump from the Pi (read-only)"
-  ssh "$host" 'f=$(ls -t /home/pi/crashlog-data/states/*.json.gz 2>/dev/null | head -1); [ -n "$f" ] && cat "$f"' \
+  ssh "$host" 'f=$(ls -t /home/pi/crashlog-data/states/*.json.gz /home/pi/crashlog-data/states/linked/*.json.gz 2>/dev/null | head -1); [ -n "$f" ] && cat "$f"' \
     > "$work/dump.json.gz" || die "the Pi has no state dump yet (nothing under crashlog-data/states)"
+  dump=$work/dump.json.gz
+elif [ ! -e "$dump" ] && [[ $dump =~ ^[0-9]{8}T[0-9]{6}-[0-9a-f]{8}$ ]]; then
+  say "fetching the state dump of report $dump from the Pi (read-only)"
+  "$HERE/../crashlog-server/triage.sh" state "$dump" "$work/dump.json.gz" >/dev/null \
+    || die "no state dump for report $dump (the message above says whether it is considered, which deletes the dump)"
   dump=$work/dump.json.gz
 fi
 [ -s "$dump" ] || die "$dump is empty or missing"

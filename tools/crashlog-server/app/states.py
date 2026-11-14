@@ -1,8 +1,12 @@
 """Whole-app state dumps from the phone, kept apart from the reports.
 
-A report is kept until somebody has considered it. A state dump is a photograph of the app at one
-moment, big and quickly stale, so only the newest few are kept (CRASHLOG_KEEP_STATES, default 5).
-Nothing here imports the web framework, so the rules can be tested without it.
+A dump that arrives with a report id is LINKED to that report (`<states>/linked/<report id>.json.gz`) and
+kept for as long as the report is unconsidered; the caller deletes it with `release` the moment the report
+is considered, and `enforce_budget` is the safety cap on what unconsidered reports may hold in total
+(CRASHLOG_MAX_UNCONSIDERED_STATE_MB, default 1024). A dump with no report id (an older phone, or "Send my
+state" on its own) is UNLINKED: a photograph with nothing to be judged against, so only the newest few are
+kept (CRASHLOG_KEEP_STATES, default 5). Nothing here imports the web framework, so the rules can be tested
+without it, and nothing here knows what "considered" means: that lives next to the findings.
 """
 
 from __future__ import annotations
@@ -12,7 +16,7 @@ import io
 import json
 import os
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -20,7 +24,10 @@ KIND = "totum-state-dump"
 KEEP = int(os.environ.get("CRASHLOG_KEEP_STATES", "5"))
 MAX_BYTES = int(os.environ.get("CRASHLOG_MAX_STATE_MB", "32")) * 1024 * 1024
 MAX_UNPACKED = 8 * MAX_BYTES
+BUDGET_BYTES = int(os.environ.get("CRASHLOG_MAX_UNCONSIDERED_STATE_MB", "1024")) * 1024 * 1024
 SUFFIX = ".json.gz"
+LINKED = "linked"
+REPORT_ID = re.compile(r"^\d{8}T\d{6}-[0-9a-f]{8}$")
 _NAME = re.compile(r"^(\d{8}T\d{6})(\d{6})Z-([^-]+)-(.+)\.json\.gz$")
 
 
@@ -90,24 +97,107 @@ def prune(directory: Path, keep: int) -> list[Path]:
     return gone
 
 
+def valid_report_id(text: Any) -> bool:
+    return isinstance(text, str) and REPORT_ID.fullmatch(text) is not None
+
+
+def linked_directory(directory: Path) -> Path:
+    return directory / LINKED
+
+
+def report_id_of(path: Path) -> str:
+    return path.name[: -len(SUFFIX)]
+
+
+def save_linked(
+    directory: Path,
+    report_id: str,
+    body: bytes,
+    max_bytes: int = MAX_BYTES,
+    max_unpacked: int = MAX_UNPACKED,
+) -> tuple[Path, bool]:
+    if not valid_report_id(report_id):
+        raise Refused("a report id is the server's own shape, like 20261114T090000-0a1b2c3d")
+    _read(body, max_bytes, max_unpacked)
+    folder = linked_directory(directory)
+    folder.mkdir(parents=True, exist_ok=True)
+    target = folder / f"{report_id}{SUFFIX}"
+    if target.exists():
+        return target, False
+    partial = folder / (target.name + ".partial")
+    partial.write_bytes(body)
+    os.replace(partial, target)
+    return target, True
+
+
+def linked_files(directory: Path) -> list[Path]:
+    folder = linked_directory(directory)
+    if not folder.is_dir():
+        return []
+    return sorted(folder.glob(f"*{SUFFIX}"), key=lambda path: (_received(path), path.name))
+
+
+def linked_path(directory: Path, report_id: str) -> Path | None:
+    if not valid_report_id(report_id):
+        return None
+    path = linked_directory(directory) / f"{report_id}{SUFFIX}"
+    return path if path.is_file() else None
+
+
+def release(directory: Path, report_id: str) -> int | None:
+    path = linked_path(directory, report_id)
+    if path is None:
+        return None
+    freed = path.stat().st_size
+    path.unlink(missing_ok=True)
+    return freed
+
+
+def linked_bytes(directory: Path) -> int:
+    return sum(path.stat().st_size for path in linked_files(directory))
+
+
+def enforce_budget(directory: Path, budget_bytes: int) -> list[Path]:
+    files = linked_files(directory)
+    held = sum(path.stat().st_size for path in files)
+    dropped = []
+    while held > budget_bytes and len(files) > 1:
+        oldest = files.pop(0)
+        held -= oldest.stat().st_size
+        oldest.unlink(missing_ok=True)
+        dropped.append(oldest)
+    return dropped
+
+
+def _received(path: Path) -> float:
+    match = _NAME.match(path.name)
+    if match and path.parent.name != LINKED:
+        return datetime.strptime(match.group(1) + match.group(2), "%Y%m%dT%H%M%S%f").replace(tzinfo=timezone.utc).timestamp()
+    return path.stat().st_mtime
+
+
+def _everything(directory: Path) -> list[Path]:
+    return sorted(_files(directory) + linked_files(directory), key=lambda path: (_received(path), path.name), reverse=True)
+
+
 def latest(directory: Path) -> Path | None:
-    files = _files(directory)
+    files = _everything(directory)
     return files[0] if files else None
 
 
 def listing(directory: Path) -> list[dict[str, Any]]:
     rows = []
-    for path in _files(directory):
+    for path in _everything(directory):
         match = _NAME.match(path.name)
+        linked = path.parent.name == LINKED
         rows.append(
             {
                 "name": path.name,
                 "bytes": path.stat().st_size,
-                "received": (
-                    datetime.strptime(match.group(1), "%Y%m%dT%H%M%S").isoformat() + "Z" if match else None
-                ),
-                "install": match.group(3) if match else None,
-                "appVersion": match.group(4) if match else None,
+                "received": datetime.fromtimestamp(_received(path), timezone.utc).strftime("%Y-%m-%dT%H:%M:%S") + "Z",
+                "report": report_id_of(path) if linked else None,
+                "install": None if linked else (match.group(3) if match else None),
+                "appVersion": None if linked else (match.group(4) if match else None),
             }
         )
     return rows

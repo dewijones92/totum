@@ -1,5 +1,6 @@
 import gzip
 import json
+import os
 import sys
 import tempfile
 import unittest
@@ -111,6 +112,90 @@ class StatesTest(unittest.TestCase):
         self.assertEqual(self.states.resolve(), saved.resolve().parent)
         self.assertNotIn("/", saved.name)
         self.assertNotIn("..", saved.name.replace(".json.gz", "").replace("0.1", ""))
+
+
+class LinkedStatesTest(unittest.TestCase):
+    def setUp(self):
+        self.states = Path(tempfile.mkdtemp()) / "states"
+        self.start = datetime(2026, 11, 14, 9, 0, 0, tzinfo=timezone.utc)
+
+    def link(self, report: str, body: bytes | None = None):
+        return states.save_linked(self.states, report, body if body is not None else dump())
+
+    def test_a_linked_dump_is_stored_whole_under_its_report_id_and_apart_from_the_unlinked(self):
+        body = dump("0.1.930")
+
+        saved, created = self.link("20261114T090000-0a1b2c3d", body)
+
+        self.assertTrue(created)
+        self.assertEqual("20261114T090000-0a1b2c3d.json.gz", saved.name)
+        self.assertEqual(body, saved.read_bytes())
+        self.assertEqual(self.states / "linked", saved.parent)
+        self.assertEqual([], list(self.states.glob("*.json.gz")))
+
+    def test_a_second_dump_for_the_same_report_changes_nothing(self):
+        first = dump("0.1.1")
+        self.link("20261114T090000-0a1b2c3d", first)
+
+        saved, created = self.link("20261114T090000-0a1b2c3d", dump("0.1.2"))
+
+        self.assertFalse(created)
+        self.assertEqual(first, saved.read_bytes())
+
+    def test_the_unlinked_newest_five_never_touch_a_linked_dump(self):
+        saved, _ = self.link("20261114T090000-0a1b2c3d")
+        for minute in range(9):
+            states.save(self.states, dump(), self.start + timedelta(minutes=minute), 5)
+
+        self.assertTrue(saved.exists())
+        self.assertEqual(5, len(list(self.states.glob("*.json.gz"))))
+
+    def test_a_report_id_that_is_not_the_servers_own_shape_is_refused_before_anything_is_written(self):
+        for bad in ("../x", "r-fixed", "20261114T090000-0A1B2C3D", "20261114T090000-0a1b2c3d/x", ""):
+            with self.assertRaises(states.Refused, msg=bad):
+                self.link(bad)
+        self.assertFalse(self.states.exists())
+
+    def test_a_linked_upload_is_checked_like_any_other_dump(self):
+        with self.assertRaises(states.Refused):
+            self.link("20261114T090000-0a1b2c3d", b"not gzip")
+        self.assertEqual([], list(states.linked_directory(self.states).glob("*")))
+
+    def test_releasing_deletes_the_dump_and_says_how_big_it_was(self):
+        body = dump()
+        self.link("20261114T090000-0a1b2c3d", body)
+
+        freed = states.release(self.states, "20261114T090000-0a1b2c3d")
+
+        self.assertEqual(len(body), freed)
+        self.assertIsNone(states.linked_path(self.states, "20261114T090000-0a1b2c3d"))
+        self.assertIsNone(states.release(self.states, "20261114T090000-0a1b2c3d"))
+
+    def test_the_budget_drops_the_oldest_first_and_keeps_the_newest_even_when_it_alone_is_over(self):
+        ids = [f"20261114T09000{n}-0a1b2c3d" for n in range(3)]
+        paths = []
+        for n, report in enumerate(ids):
+            saved, _ = self.link(report, dump(extra={"pad": os.urandom(400).hex()}))
+            os.utime(saved, (1000 + n, 1000 + n))
+            paths.append(saved)
+        newest_two = paths[1].stat().st_size + paths[2].stat().st_size
+
+        dropped = states.enforce_budget(self.states, newest_two)
+        self.assertEqual([paths[0].name], [p.name for p in dropped])
+
+        dropped = states.enforce_budget(self.states, 1)
+        self.assertEqual([paths[1].name], [p.name for p in dropped])
+        self.assertTrue(paths[2].exists())
+
+    def test_the_listing_names_the_report_of_a_linked_dump_and_the_latest_is_the_newest_of_both_kinds(self):
+        states.save(self.states, dump("0.1.old"), self.start)
+        saved, _ = self.link("20261114T090000-0a1b2c3d", dump("0.1.new"))
+        os.utime(saved, (self.start.timestamp() + 60, self.start.timestamp() + 60))
+
+        rows = states.listing(self.states)
+
+        self.assertEqual(["20261114T090000-0a1b2c3d", None], [r["report"] for r in rows])
+        self.assertEqual(saved, states.latest(self.states))
 
 
 if __name__ == "__main__":

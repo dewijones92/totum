@@ -14,15 +14,18 @@ internal class ReportSink(
     private val client: OkHttpClient,
     private val endpoint: () -> String? = HomeServerAuth::reportEndpoint,
 ) {
-    fun post(body: String, what: String): Boolean = send(body.toRequestBody(JSON), what, "")
+    fun post(body: String, what: String): Boolean = postReport(body, what).accepted
 
-    fun postState(gzipped: ByteArray, what: String): Boolean = send(gzipped.toRequestBody(GZIP), what, STATE_PATH)
+    fun postReport(body: String, what: String): SinkReply = send(body.toRequestBody(JSON), what, "", null)
 
-    private fun send(body: RequestBody, what: String, path: String): Boolean {
+    fun postState(gzipped: ByteArray, what: String, reportId: String?): SinkReply =
+        send(gzipped.toRequestBody(GZIP), what, STATE_PATH, reportId)
+
+    private fun send(body: RequestBody, what: String, path: String, reportId: String?): SinkReply {
         val url = endpoint()?.let { it + path }?.toHttpUrlOrNull()
         if (url == null) {
             Diag.log("diagnostics", "$what not posted: no home server is set up, so there is no sink to post to")
-            return false
+            return SinkReply.NOT_POSTED
         }
         val headers = HomeServerAuth.headersFor(url.host)
         if (headers.isEmpty()) {
@@ -30,26 +33,47 @@ internal class ReportSink(
                 "diagnostics",
                 "$what not posted: ${url.host} is not the configured home server's sink, or this phone has no token",
             )
-            return false
+            return SinkReply.NOT_POSTED
         }
         val request = Request.Builder().url(url)
             .apply { headers.forEach { (name, value) -> header(name, value) } }
+            .apply { reportId?.let { header(REPORT_ID_HEADER, it) } }
             .post(body)
             .build()
         return try {
             client.newCall(request).execute().use { response ->
                 Diag.log("diagnostics", "$what -> ${url.host} HTTP ${response.code}")
-                response.isSuccessful
+                SinkReply(response.code, response.peekBody(MAX_REPLY_BYTES).string())
             }
         } catch (e: IOException) {
             Diag.warn("diagnostics", "$what post to ${url.host} failed", e)
-            false
+            SinkReply.NOT_POSTED
         }
     }
 
-    private companion object {
-        val JSON = "application/json".toMediaType()
-        val GZIP = "application/gzip".toMediaType()
-        const val STATE_PATH = "/state"
+    companion object {
+        const val REPORT_ID_HEADER = "X-Totum-Report-Id"
+        private val JSON = "application/json".toMediaType()
+        private val GZIP = "application/gzip".toMediaType()
+        private const val STATE_PATH = "/state"
+        private const val MAX_REPLY_BYTES = 512L
+    }
+}
+
+internal data class SinkReply(val code: Int?, val body: String?) {
+    val accepted: Boolean get() = code != null && code in HTTP_OK_RANGE
+
+    val retryable: Boolean
+        get() = code == null || code >= HTTP_SERVER_ERROR || code == HTTP_REQUEST_TIMEOUT || code == HTTP_TOO_MANY_REQUESTS
+
+    fun reportId(): String? = body?.let { REPORT_ID_IN_REPLY.find(it)?.groupValues?.get(1) }
+
+    companion object {
+        val NOT_POSTED = SinkReply(null, null)
+        private val HTTP_OK_RANGE = 200..299
+        private const val HTTP_SERVER_ERROR = 500
+        private const val HTTP_REQUEST_TIMEOUT = 408
+        private const val HTTP_TOO_MANY_REQUESTS = 429
+        private val REPORT_ID_IN_REPLY = Regex("\"id\"\\s*:\\s*\"(\\d{8}T\\d{6}-[0-9a-f]{8})\"")
     }
 }

@@ -32,7 +32,10 @@ internal object DiagnosticsStore {
     /** Keeps the newest; a device offline for weeks shouldn't hoard reports forever. */
     private fun prune(context: Context) {
         val files = pending(context)
-        files.take((files.size - MAX_PENDING).coerceAtLeast(0)).forEach { it.delete() }
+        files.take((files.size - MAX_PENDING).coerceAtLeast(0)).forEach {
+            it.delete()
+            ReportReceipt(it).delete()
+        }
     }
 }
 

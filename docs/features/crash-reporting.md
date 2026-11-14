@@ -3,7 +3,7 @@ title: Crash and diagnostics reporting
 kind: feature
 status: shipped
 area: infrastructure
-updated: 2026-11-13
+updated: 2026-11-14
 ---
 
 # Crash reporting
@@ -246,9 +246,25 @@ report row offers GitHub) and "📤 Send my state to Claude" (signed in only).
 
 A crash or diagnostics report that the Pi accepts is followed by one gzipped **state dump** (`StateDump` in `:core:data`: the
 backup with the live queue, the Ask snapshot, every SharedPreferences file but the credential ones, all through the one
-redactor) to `POST /ingest/state`. The crashlog server keeps the newest five apart from the reports.
-`tools/emulator/load-state.sh` restores one into `totum-api35` through the debug-only `StateDebugReceiver`; the same receiver
-has `DEBUG_CRASH` (shows the crash screen) and `DEBUG_DUMP_STATE`.
+redactor) to `POST /ingest/state`. `tools/emulator/load-state.sh` restores one into `totum-api35` through the debug-only
+`StateDebugReceiver`; the same receiver has `DEBUG_CRASH` (shows the crash screen) and `DEBUG_DUMP_STATE`.
+
+### The state belongs to its report (2026-11-14)
+
+The dump is posted with the report's id (`X-Totum-Report-Id`, the id the sink returned) and the crashlog server keeps it
+**for as long as that report is unconsidered**, deleting it the moment the report has a verdict (the ✅ in
+`tools/crashlog-server/triage.sh considered`, which marks a report that still has its dump with 📦). Fetch one with
+`triage.sh state <report id>` or load it into the emulator with `tools/emulator/load-state.sh <report id>`. A safety cap
+(`CRASHLOG_MAX_UNCONSIDERED_STATE_MB`, 1024) drops the oldest with a `BUDGET EXCEEDED` log line. A dump with no report id
+(an older phone, or "📤 Send my state to Claude" on its own) is still kept apart, newest five.
+
+On the phone, the report and its state stay pending together: once the sink accepts the report the phone keeps it with a
+`.receipt` (the id and the number of state attempts) until the state is accepted. A failed state is retried at the next
+upload run, sending only the state, never the report again, up to five attempts; a refusal a retry cannot fix (HTTP 4xx, 413
+included) or a dump over 31 MB is not retried. Every outcome is a `diagnostics` line with the report id and the HTTP code
+(`state for report <id> failed (HTTP 503); kept pending …`, `… refused with HTTP 413 (state too large), not retried`,
+`giving up on the state for report <id> after 5 attempts …`, `state too large, N bytes against the limit …, not sent`).
+[ADR 159](../adr/0159-a-crash-screen-and-a-state-dump-for-every-report.md)'s amendment has the rules and the deploy order.
 
 ## A note on log volume
 

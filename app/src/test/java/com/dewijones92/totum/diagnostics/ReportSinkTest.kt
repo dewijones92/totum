@@ -86,4 +86,68 @@ class ReportSinkTest {
         assertFalse(ReportSink(OkHttpClient()).post("{}", "diagnostics"))
         assertEquals(0, server.requestCount)
     }
+
+    @Test
+    fun `a report that is accepted hands back the sink's reply, id included`() {
+        HomeServerAuth.use({ "totum.home.test" }, { "device-token" }, { server.hostName })
+        server.enqueue(MockResponse.Builder().code(202).body("""{"id":"20261114T120000-abcd1234"}""").build())
+
+        val reply = sink { server.url("/ingest").toString() }.postReport("{}", "diagnostics")
+
+        assertTrue(reply.accepted)
+        assertEquals(202, reply.code)
+        assertEquals("20261114T120000-abcd1234", reply.reportId())
+    }
+
+    @Test
+    fun `a reply that is not a report id reads as none`() {
+        assertNull(SinkReply(202, "").reportId())
+        assertNull(SinkReply(202, null).reportId())
+        assertNull(SinkReply(202, """{"id":"../../etc"}""").reportId())
+        assertNull(SinkReply(202, "not json").reportId())
+    }
+
+    @Test
+    fun `a refusal says whether a retry could help`() {
+        assertTrue(SinkReply(null, null).retryable)
+        assertTrue(SinkReply(503, null).retryable)
+        assertTrue(SinkReply(429, null).retryable)
+        assertTrue(SinkReply(408, null).retryable)
+        assertFalse(SinkReply(413, null).retryable)
+        assertFalse(SinkReply(400, null).retryable)
+        assertFalse(SinkReply(404, null).retryable)
+        assertFalse(SinkReply(202, null).retryable)
+    }
+
+    @Test
+    fun `a state names its report in a header when it has one, and sends no header when it has not`() {
+        HomeServerAuth.use({ "totum.home.test" }, { "device-token" }, { server.hostName })
+        server.enqueue(MockResponse.Builder().code(202).build())
+        server.enqueue(MockResponse.Builder().code(202).build())
+        val state = sink { server.url("/ingest").toString() }
+
+        state.postState(byteArrayOf(0x1f, 0x8b.toByte()), "state", "20261114T120000-abcd1234")
+        state.postState(byteArrayOf(0x1f, 0x8b.toByte()), "state", null)
+
+        assertEquals("20261114T120000-abcd1234", server.takeRequest().headers[ReportSink.REPORT_ID_HEADER])
+        assertNull(server.takeRequest().headers[ReportSink.REPORT_ID_HEADER])
+    }
+
+    @Test
+    fun `a state that is refused hands back its code`() {
+        HomeServerAuth.use({ "totum.home.test" }, { "device-token" }, { server.hostName })
+        server.enqueue(MockResponse.Builder().code(413).build())
+
+        val reply = sink { server.url("/ingest").toString() }.postState(byteArrayOf(1), "state", null)
+
+        assertFalse(reply.accepted)
+        assertEquals(413, reply.code)
+    }
+
+    @Test
+    fun `a state that cannot be posted has no code at all`() {
+        HomeServerAuth.use({ null }, { "device-token" })
+
+        assertNull(ReportSink(OkHttpClient()).postState(byteArrayOf(1), "state", null).code)
+    }
 }

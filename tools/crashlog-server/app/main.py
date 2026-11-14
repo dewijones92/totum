@@ -45,6 +45,9 @@ MAX_BODY_BYTES = 8 * 1024 * 1024
 # Oldest reports are pruned past this so the Pi's disk can't fill.
 MAX_TOTAL_MB = int(os.environ.get("CRASHLOG_MAX_TOTAL_MB", "512"))
 
+STATE_REPORT_HEADER = "x-totum-report-id"
+STATE_BUDGET_BYTES = states.BUDGET_BYTES
+
 TEMPLATES = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 
 app = FastAPI(title="Totum crash log", docs_url="/api/docs", redoc_url=None)
@@ -391,26 +394,142 @@ async def ingest(request: Request) -> JSONResponse:
         )
         connection.commit()
     _prune()
+    _sweep_states("a report arrived")
     # The app must never block or retry on our response body; a bare id is plenty.
     return JSONResponse({"id": report_id}, status_code=202)
 
 
 @app.post("/ingest/state")
-async def ingest_state(request: Request) -> JSONResponse:
-    """Accept a whole-app state dump. Kept apart from reports; only the newest few survive."""
+async def ingest_state(request: Request, report: str | None = Query(default=None)) -> JSONResponse:
+    """Accept a whole-app state dump: linked to its report when it carries a report id, else the newest few are kept."""
     body = await request.body()
+    report_id = (request.headers.get(STATE_REPORT_HEADER) or report or "").strip() or None
+    if report_id is not None:
+        return _ingest_linked_state(report_id, body)
     try:
         saved = states.save(STATES_DIR, body, datetime.now(timezone.utc))
     except states.Refused as refusal:
         print(f"dewidebug state: refused {len(body)} bytes: {refusal}", flush=True)
         return JSONResponse({"refused": str(refusal)}, status_code=400)
-    print(f"dewidebug state: kept {saved.name} ({len(body)} bytes); {len(states.listing(STATES_DIR))} held", flush=True)
+    print(
+        f"dewidebug state: kept {saved.name} ({len(body)} bytes) with no report id; "
+        f"{len(states.listing(STATES_DIR))} held",
+        flush=True,
+    )
     return JSONResponse({"state": saved.name}, status_code=202)
+
+
+def _ingest_linked_state(report_id: str, body: bytes) -> JSONResponse:
+    if not states.valid_report_id(report_id):
+        print(f"dewidebug state: refused {len(body)} bytes: {report_id[:40]!r} is not a report id", flush=True)
+        return JSONResponse({"refused": "not a report id"}, status_code=400)
+    with closing(_connect()) as connection:
+        row = connection.execute("SELECT * FROM reports WHERE id = ?", (report_id,)).fetchone()
+        if row is None:
+            print(f"dewidebug state: refused {len(body)} bytes for {report_id}: no such report", flush=True)
+            return JSONResponse({"refused": "no such report"}, status_code=404)
+        findings = _findings(connection, report_id)
+        if _considered(row, findings):
+            print(
+                f"dewidebug state: discarded {len(body)} bytes for {report_id}: the report is already considered "
+                f"({row['state']}, {len(findings)} finding(s)), so its dump is not kept",
+                flush=True,
+            )
+            return JSONResponse(
+                {"report": report_id, "kept": False, "discarded": "report already considered"}, status_code=202
+            )
+    try:
+        saved, created = states.save_linked(STATES_DIR, report_id, body)
+    except states.Refused as refusal:
+        print(f"dewidebug state: refused {len(body)} bytes for {report_id}: {refusal}", flush=True)
+        return JSONResponse({"refused": str(refusal)}, status_code=400)
+    if not created:
+        print(
+            f"dewidebug state: {report_id} already has its dump; this {len(body)} byte upload was not stored",
+            flush=True,
+        )
+        return JSONResponse({"state": saved.name, "report": report_id, "duplicate": True}, status_code=200)
+    print(
+        f"dewidebug state: kept {saved.name} ({len(body)} bytes) for unconsidered report {report_id}; "
+        f"{len(states.linked_files(STATES_DIR))} linked dump(s), {states.linked_bytes(STATES_DIR)} bytes held",
+        flush=True,
+    )
+    _enforce_state_budget()
+    return JSONResponse({"state": saved.name, "report": report_id}, status_code=202)
+
+
+def _enforce_state_budget() -> None:
+    held = states.linked_bytes(STATES_DIR)
+    for path in states.enforce_budget(STATES_DIR, STATE_BUDGET_BYTES):
+        print(
+            f"dewidebug state: BUDGET EXCEEDED: {held} bytes of dumps for unconsidered reports against a budget of "
+            f"{STATE_BUDGET_BYTES}; dropped the oldest, {path.name}, whose report is still unconsidered. "
+            f"Consider the reports (triage.sh) or raise CRASHLOG_MAX_UNCONSIDERED_STATE_MB",
+            flush=True,
+        )
+
+
+def _state_verdict(connection: sqlite3.Connection, report_id: str) -> str | None:
+    row = connection.execute("SELECT * FROM reports WHERE id = ?", (report_id,)).fetchone()
+    if row is None:
+        return "its report no longer exists"
+    findings = _findings(connection, report_id)
+    if _considered(row, findings):
+        return f"its report is considered (state {row['state']}, {len(findings)} finding(s))"
+    return None
+
+
+def _sweep_states(why: str) -> None:
+    with closing(_connect()) as connection:
+        for path in states.linked_files(STATES_DIR):
+            report_id = states.report_id_of(path)
+            reason = _state_verdict(connection, report_id)
+            if reason is None:
+                continue
+            freed = states.release(STATES_DIR, report_id)
+            print(f"dewidebug state: deleted linked dump {path.name} ({freed} bytes): {reason} [{why}]", flush=True)
+
+
+def _state_rows() -> list[dict[str, Any]]:
+    rows = states.listing(STATES_DIR)
+    with closing(_connect()) as connection:
+        for row in rows:
+            if row["report"] is None:
+                continue
+            report = connection.execute(
+                "SELECT app_version, install_id FROM reports WHERE id = ?", (row["report"],)
+            ).fetchone()
+            if report is not None:
+                row["appVersion"] = report["app_version"]
+                row["install"] = (report["install_id"] or "")[:8] or None
+    return rows
 
 
 @app.get("/api/states")
 def api_states() -> JSONResponse:
-    return JSONResponse(states.listing(STATES_DIR))
+    return JSONResponse(_state_rows())
+
+
+@app.get("/api/report/{report_id}/state", response_model=None)
+def api_report_state(report_id: str) -> Response:
+    path = states.linked_path(STATES_DIR, report_id)
+    if path is not None:
+        return Response(
+            path.read_bytes(),
+            media_type="application/gzip",
+            headers={"Content-Disposition": f'attachment; filename="{path.name}"'},
+        )
+    with closing(_connect()) as connection:
+        row = connection.execute("SELECT * FROM reports WHERE id = ?", (report_id,)).fetchone()
+        if row is None:
+            return JSONResponse({"error": "no such report"}, status_code=404)
+        considered = _considered(row, _findings(connection, report_id))
+    why = (
+        "the report is considered, so its dump was deleted (or it never had one)"
+        if considered
+        else "none held: it never arrived, or was dropped for the size budget"
+    )
+    return JSONResponse({"error": f"no state dump for this report: {why}", "considered": considered}, status_code=404)
 
 
 @app.get("/state/latest", response_model=None)
@@ -465,6 +584,7 @@ def api_triage(
         connection.commit()
     if not updated:
         return JSONResponse({"error": "no such report"}, status_code=404)
+    _sweep_states(f"report {report_id} triaged as {state}")
     return JSONResponse({"id": report_id, "state": state, "fixed_in": fixed_in, "note": note})
 
 
@@ -485,6 +605,7 @@ def api_triage_signature(
             (state, fixed_in, note, datetime.now(timezone.utc).isoformat(), exception),
         ).rowcount
         connection.commit()
+    _sweep_states(f"{updated} report(s) of {exception} triaged as {state}")
     return JSONResponse({"exception": exception, "state": state, "updated": updated})
 
 
@@ -547,6 +668,7 @@ def api_add_finding(
         _summarise(connection, report_id)
         connection.commit()
         finding = connection.execute("SELECT * FROM findings WHERE id = ?", (finding_id,)).fetchone()
+    _sweep_states(f"finding added to {report_id} as {state}")
     return JSONResponse(dict(finding), status_code=201)
 
 
@@ -578,6 +700,7 @@ def api_update_finding(
         _summarise(connection, existing["report_id"])
         connection.commit()
         finding = connection.execute("SELECT * FROM findings WHERE id = ?", (finding_id,)).fetchone()
+    _sweep_states(f"finding {finding_id} of {existing['report_id']} set to {state}")
     return JSONResponse(dict(finding))
 
 
@@ -610,6 +733,7 @@ def api_considered(since: str = Query(default="", description="received_at >= th
         out = []
         for row in rows:
             findings = _findings(connection, row["id"])
+            dump = states.linked_path(STATES_DIR, row["id"])
             out.append(
                 {
                     "id": row["id"],
@@ -617,6 +741,8 @@ def api_considered(since: str = Query(default="", description="received_at >= th
                     "app_version": row["app_version"],
                     "state": row["state"],
                     "considered": _considered(row, findings),
+                    "has_state": dump is not None,
+                    "state_bytes": dump.stat().st_size if dump is not None else None,
                     "note": row["note"],
                     "findings": findings,
                 }
@@ -766,3 +892,6 @@ def latest() -> PlainTextResponse:
         pretty = raw
     header = f"# {row['id']}  {row['received_at']}  {row['app_version']} @ {row['git_commit']}\n\n"
     return PlainTextResponse(header + pretty)
+
+
+_sweep_states("start-up")
