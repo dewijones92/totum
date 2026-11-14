@@ -7,6 +7,12 @@ priority: high
 updated: 2026-11-13
 ---
 
+> **Follow-ups done 2026-11-13 ([ADR 170](../adr/0170-a-browser-is-a-target-the-pi-plays-to-found-by-opening-its-address.md)):** a device
+> switched on by hand now says "🔌 Off · switch it on by hand" (`TargetState.switchedOnByHand`, Pi-side power from the Bluetooth
+> sink, no wake sent on a pick); one rule for a device's colour on every surface (`TargetColours.of`), with the one real gap fixed
+> (a device first met in a queue answer was unpainted until the next read); the Browser target is built and slots in as this page said it
+> would. The open points below are otherwise unchanged.
+
 # ▶️ Play on… on every play and queue action
 
 Dewi, 2026-11-13: *"Device picker on every play/queue action, one-tap default to the current device; each device a

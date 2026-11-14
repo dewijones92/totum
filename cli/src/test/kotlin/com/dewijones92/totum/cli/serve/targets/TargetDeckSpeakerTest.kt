@@ -4,6 +4,7 @@ import com.dewijones92.totum.data.targets.KeepAwake
 import com.dewijones92.totum.data.targets.QueueMode
 import com.dewijones92.totum.data.targets.TargetAction
 import com.dewijones92.totum.data.targets.TargetControl
+import com.dewijones92.totum.data.targets.TargetPower
 import com.dewijones92.totum.data.targets.TargetQueueRequest
 import com.dewijones92.totum.data.targets.VolumeMode
 import kotlinx.coroutines.CoroutineScope
@@ -43,6 +44,17 @@ class TargetDeckSpeakerTest {
         override suspend fun beat(busy: Boolean): Boolean {
             beats += busy
             return checks
+        }
+    }
+
+    private class ByHandLink(var seen: TargetPower?) : TargetLink {
+        var looks = 0
+        override suspend fun connect(): String? = "sink"
+        override suspend fun release() = Unit
+        override val switchedOnByHand: Boolean get() = true
+        override val power: TargetPower? get() = seen
+        override suspend fun look() {
+            looks++
         }
     }
 
@@ -112,6 +124,38 @@ class TargetDeckSpeakerTest {
             assertEquals(22, deck.state().volume)
             assertTrue("the level is read after the link comes up", volume.refreshes >= 1)
         }
+
+    @Test
+    fun `a speaker switched on by hand says so, and is off while its link says it is off`() = runBlocking {
+        val byHand = ByHandLink(TargetPower.ASLEEP)
+        val deck = TargetDeck(speaker("mic"), player, byHand, sounds, dir.resolve("mic.json"))
+
+        val off = deck.state()
+        byHand.seen = TargetPower.ON
+
+        assertTrue(off.switchedOnByHand)
+        assertEquals(TargetPower.ASLEEP, off.power)
+        assertEquals(TargetPower.ON, deck.state().power)
+    }
+
+    @Test
+    fun `a speaker the Pi links itself is never flagged, and its power stays what the player says`() = runBlocking {
+        val state = deck().state()
+
+        assertEquals(false, state.switchedOnByHand)
+        assertEquals(TargetPower.ON, state.power)
+    }
+
+    @Test
+    fun `the deck's regular beat has the link look again, so the power is not a stale guess`() = runBlocking {
+        val byHand = ByHandLink(TargetPower.ON)
+        val deck = TargetDeck(speaker("mic"), player, byHand, sounds, dir.resolve("mic.json"))
+
+        deck.keepAwake()
+        deck.keepAwake()
+
+        assertEquals(2, byHand.looks)
+    }
 
     @Test
     fun `the keep-awake state is part of the target's state, and absent when it is not kept`() = runBlocking {

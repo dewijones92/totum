@@ -5,6 +5,8 @@ import com.dewijones92.totum.cli.serve.ai.AiServer
 import com.dewijones92.totum.cli.serve.ai.ClaudeCodeCompleter
 import com.dewijones92.totum.cli.serve.ai.RemoteCompleter
 import com.dewijones92.totum.cli.serve.ai.UsageLog
+import com.dewijones92.totum.cli.serve.cast.BrowserScreens
+import com.dewijones92.totum.cli.serve.cast.BrowserSource
 import com.dewijones92.totum.cli.serve.cast.ChromecastSource
 import com.dewijones92.totum.cli.serve.cast.PiStreams
 import com.dewijones92.totum.cli.serve.cast.YtDlpLiveHls
@@ -276,6 +278,8 @@ internal suspend fun serveAsk(port: Int, out: (String) -> Unit, polite: Politene
         ),
     )
     val keepAwake = keepAwakeFromEnv()
+    val browsers = BrowserScreens()
+    val browserPage = streams.serveScreens(browsers.link)
     val targets = TargetDecks(
         targetsDir,
         this,
@@ -288,19 +292,17 @@ internal suspend fun serveAsk(port: Int, out: (String) -> Unit, polite: Politene
         ),
         listOf(
             SpeakerSource(shell, targetsDir, streams::locally, switchedOnByHandFromEnv(), keepAwake),
-            ChromecastSource(
-                knownCastsFrom(System.getenv("TOTUM_CAST_TARGETS")),
-                streams,
-                System.getenv("TOTUM_WAKE_BROADCAST").orEmpty().split(','),
-                targetsDir,
-            ),
+            chromecastSourceFromEnv(streams, targetsDir),
+            BrowserSource(browsers, streams),
         ),
         YouTubeProgress(home.watchHistory, home::signedInToYouTube),
         ownerId = home::youTubeOwnerId,
         warmDecks = keepAwake.any,
     )
+    browsers.keepWatching(this, targets::sourcesChanged)
     val states = AskStates().also { sweepEvery(it) }
-    val targetRoutes = TargetRoutes(targets)
+    val browserAddress = browserAddressOf(System.getenv("TOTUM_CAST_BASE")).takeIf { browserPage }
+    val targetRoutes = TargetRoutes(targets, browserAddress = { browserAddress })
     val routes = listOfNotNull(
         targetRoutes,
         jellyfin?.let { JellyfinRoutes(JellyfinBrowse(it)) } ?: JellyfinNotSetUp(),
@@ -429,6 +431,16 @@ internal suspend fun aiServe(port: Int, out: (String) -> Unit): Int {
 
 private const val AI_READ_TIMEOUT_S = 330L
 private const val STATE_SWEEP_MS = 60_000L
+
+private fun chromecastSourceFromEnv(streams: PiStreams, targetsDir: File) = ChromecastSource(
+    knownCastsFrom(System.getenv("TOTUM_CAST_TARGETS")),
+    streams,
+    System.getenv("TOTUM_WAKE_BROADCAST").orEmpty().split(','),
+    targetsDir,
+)
+
+internal fun browserAddressOf(castBase: String?): String? =
+    castBase?.trim()?.takeIf { it.isNotEmpty() }?.removePrefix("http://")?.trimEnd('/')
 private const val AI_HEALTH_TIMEOUT_S = 5L
 
 internal fun sidecars(files: List<String>, out: (String) -> Unit): Int {

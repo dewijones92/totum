@@ -9,6 +9,8 @@ updated: 2026-11-13
 
 - Status: Accepted
 - Date: 2026-11-13
+- Amended by: [ADR 170](0170-a-browser-is-a-target-the-pi-plays-to-found-by-opening-its-address.md) (the Browser target slots in
+  as this ADR said it would; a device switched on by hand is worded as such; one rule for a device's colour)
 - Amends: [ADR 152](0152-a-target-is-anything-the-pi-plays-to-and-each-has-its-own-queue.md) (the choice of device no
   longer ends with the Queue tab; "looking at a target" and "where plays go" become one remembered choice)
 

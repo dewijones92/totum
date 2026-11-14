@@ -29,6 +29,8 @@ import com.dewijones92.totum.theme.TotumTheme
 import com.dewijones92.totum.ui.common.DEVICE_MARK_TAG
 import com.dewijones92.totum.ui.common.DeviceMarkBadge
 import com.dewijones92.totum.ui.common.LocalDeviceMarks
+import com.dewijones92.totum.ui.queue.ADD_BROWSER_HOW_TAG
+import com.dewijones92.totum.ui.queue.ADD_BROWSER_TAG
 import com.dewijones92.totum.ui.queue.PLAY_ON_OPTION_PREFIX
 import com.dewijones92.totum.ui.queue.PLAY_ON_ROW_TAG
 import com.dewijones92.totum.ui.queue.PlayOnRow
@@ -52,9 +54,9 @@ class PlayOnPickerTest {
     @After
     fun stop() = scope.cancel()
 
-    private class Pi(var targets: List<TargetState>) : TargetsApi {
+    private class Pi(var targets: List<TargetState>, var address: String? = null) : TargetsApi {
         val controlled = mutableListOf<Pair<String, TargetControl>>()
-        override suspend fun targets() = HomeAnswer.Ok(TargetsAnswer(targets))
+        override suspend fun targets() = HomeAnswer.Ok(TargetsAnswer(targets, address))
         override suspend fun queue(id: String, request: TargetQueueRequest): HomeAnswer<TargetState> =
             HomeAnswer.No("unused")
         override suspend fun control(id: String, control: TargetControl): HomeAnswer<TargetState> {
@@ -98,6 +100,58 @@ class PlayOnPickerTest {
         assertEquals("lg-tv", store.load())
         assertEquals("lg-tv" to TargetAction.WAKE, pi.controlled.first().let { it.first to it.second.action })
         compose.onNodeWithText("📺 LG TV 💤 ▾").assertIsDisplayed()
+    }
+
+    @Test
+    fun aDeviceSwitchedOnByHandSaysSoAndASleepingTvSaysPickingWakesIt() {
+        val mic = TargetState(
+            Target("mic", "Soundmic", TargetKind.SPEAKER),
+            power = TargetPower.ASLEEP,
+            switchedOnByHand = true,
+        )
+        pi.targets = listOf(asleepTv, mic)
+        val repo = repository()
+        show(repo)
+        compose.waitUntil(WAIT_MS) { compose.onAllNodesWithTag(PLAY_ON_ROW_TAG).fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("📱 This phone ▾").performClick()
+
+        compose.onNodeWithText("🔌 Off · switch it on by hand").assertIsDisplayed()
+        compose.onNodeWithText("💤 Off · picking it switches it on").assertIsDisplayed()
+        TestShots.take("picker-by-hand-hint")
+        compose.onNodeWithTag(PLAY_ON_OPTION_PREFIX + "mic").performClick()
+        compose.waitForIdle()
+
+        assertEquals("mic", repo.selected.value)
+        assertEquals(0, pi.controlled.size)
+    }
+
+    @Test
+    fun theAddressToTypeIntoABrowserIsOneTapAwayEvenWithNoDeviceListed() {
+        pi.targets = emptyList()
+        pi.address = "192.168.0.5:8771"
+        val repo = repository()
+        show(repo)
+        compose.waitUntil(WAIT_MS) { compose.onAllNodesWithTag(PLAY_ON_ROW_TAG).fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("📱 This phone ▾").performClick()
+
+        compose.onNodeWithTag(ADD_BROWSER_TAG).assertIsDisplayed()
+        assertEquals(0, compose.onAllNodesWithTag(ADD_BROWSER_HOW_TAG).fetchSemanticsNodes().size)
+        compose.onNodeWithTag(ADD_BROWSER_TAG).performClick()
+
+        compose.onNodeWithTag(ADD_BROWSER_HOW_TAG).assertIsDisplayed()
+        compose.onNodeWithText("192.168.0.5:8771", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("📋 Copy address").assertIsDisplayed()
+        TestShots.take("picker-add-a-browser")
+    }
+
+    @Test
+    fun withNoDevicesAndNoAddressThereIsNoRowAtAll() {
+        pi.targets = emptyList()
+        val repo = repository()
+        show(repo)
+        Thread.sleep(SETTLE_MS)
+
+        assertEquals(0, compose.onAllNodesWithTag(PLAY_ON_ROW_TAG).fetchSemanticsNodes().size)
     }
 
     @Test

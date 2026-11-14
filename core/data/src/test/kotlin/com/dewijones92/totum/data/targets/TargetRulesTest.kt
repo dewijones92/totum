@@ -91,6 +91,15 @@ class TargetRulesTest {
     }
 
     @Test
+    fun `every surface asks the same question, and a device with no colour yet is the phone's`() {
+        val painted = mapOf("tv" to TargetColours.palette[2])
+
+        assertEquals(TargetColours.palette[2], TargetColours.of(painted, "tv"))
+        assertEquals(TargetColours.PHONE, TargetColours.of(painted, "bar"))
+        assertEquals(TargetColours.PHONE, TargetColours.of(emptyMap(), TargetColours.PHONE_ID))
+    }
+
+    @Test
     fun `an edited colour is kept and not given to anyone else`() {
         val bar = Target("bar", "Soundbar")
         val edited = mapOf("bar" to TargetColours.palette[3])

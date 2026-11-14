@@ -31,7 +31,7 @@ object DeviceMarkRules {
     private fun markOf(target: Target, colours: Map<String, Long>): DeviceMark = DeviceMark(
         target.id,
         "${target.kind.label.substringBefore(' ')} ${target.label}",
-        colours[target.id] ?: TargetColours.PHONE,
+        TargetColours.of(colours, target.id),
     )
 }
 

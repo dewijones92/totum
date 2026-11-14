@@ -86,7 +86,7 @@ fun RemoteQueue(targets: TargetsRepository, id: String, modifier: Modifier = Mod
     val states by targets.targets.collectAsStateWithLifecycle()
     val colours by targets.colours.collectAsStateWithLifecycle()
     val state = states.firstOrNull { it.target.id == id }
-    val colour = (colours[id] ?: TargetColours.PHONE).asColour()
+    val colour = TargetColours.of(colours, id).asColour()
     if (state == null) {
         EmptyState(
             icon = Icons.AutoMirrored.Filled.QueueMusic,
@@ -193,8 +193,12 @@ private fun RemoteTrouble(targets: TargetsRepository, state: TargetState) {
 private fun RemotePower(targets: TargetsRepository, state: TargetState) {
     when (state.power) {
         TargetPower.ON -> Unit
-        TargetPower.ASLEEP -> TextButton(onClick = { targets.command(state.target.id, TargetAction.WAKE) }) {
-            Text(stringResource(R.string.target_asleep_wake))
+        TargetPower.ASLEEP -> if (state.switchedOnByHand) {
+            Text(stringResource(R.string.target_asleep_by_hand, state.target.label))
+        } else {
+            TextButton(onClick = { targets.command(state.target.id, TargetAction.WAKE) }) {
+                Text(stringResource(R.string.target_asleep_wake))
+            }
         }
         TargetPower.WAKING -> Text(stringResource(R.string.target_waking, state.target.label))
     }

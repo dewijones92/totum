@@ -110,7 +110,7 @@ reach, so nothing below has run against a real device.
 
 ### Left (nothing half-wired; each is absent, not stubbed)
 
-PC browsers as targets (`TargetKind.BROWSER` exists, nothing registers one); Home Assistant's brown noise and jazz through
+PC browsers as targets (built 2026-11-13, [ADR 170](../adr/0170-a-browser-is-a-target-the-pi-plays-to-found-by-opening-its-address.md): the Pi serves the receiver page at its cast address and a browser that opens it is a target; the remote case is documented, not built); Home Assistant's brown noise and jazz through
 Totum (a `dot-files` and HA change: make `hermes-audio-ctl` call `POST /targets/queue?id=<speaker>`); the mini-player pill
 and per-target notification; "Play on…" as a long press on every play button (the selected chip decides today); processing
 (the DASH path of ADR 68 on the Pi is built, ADR 156); playback speed, subtitles,

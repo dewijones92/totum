@@ -29,11 +29,18 @@ public data class Screen(
     val height: Int? = null,
 )
 
+public enum class ScreenHost(public val word: String) {
+    PHONE("phone"),
+    PI("pi"),
+}
+
+@Suppress("TooManyFunctions")
 public class ScreenLink(
-    private val key: String,
+    private val key: String?,
     private val page: () -> ByteArray,
     private val clock: () -> Long = System::currentTimeMillis,
     private val pollWaitMs: Long = POLL_WAIT_MS,
+    private val host: ScreenHost = ScreenHost.PHONE,
 ) {
     private val lock = ReentrantLock()
     private val arrived = lock.newCondition()
@@ -61,6 +68,10 @@ public class ScreenLink(
         clock() - it.seenAtMs < GONE_AFTER_MS
     }.sortedBy { it.name }
 
+    public fun screen(id: String): Screen? = screens[id]
+
+    public fun heardWithin(id: String, ms: Long): Boolean = screens[id]?.let { clock() - it.seenAtMs < ms } == true
+
     public fun send(screenId: String, command: String): Long = lock.withLock {
         val number = ++numbered
         val queue = sent.getOrPut(screenId) { mutableListOf() }
@@ -73,10 +84,11 @@ public class ScreenLink(
 
     public fun replyTo(request: HttpRequest): HttpReply? {
         val path = request.path.substringBefore('?').trimEnd('/')
-        if (path != "/screen" && !path.startsWith("/screen/")) return null
-        if (path == "/screen") return HttpReply.Bytes(Http.OK, "text/html; charset=utf-8", page(), NO_CACHE)
+        val pagePath = path == "/screen" || (key == null && path.isEmpty())
+        if (!pagePath && !path.startsWith("/screen/")) return null
+        if (pagePath) return HttpReply.Bytes(Http.OK, "text/html; charset=utf-8", pageForHost(), NO_CACHE)
         val query = queryOf(request.path)
-        if (query["key"] != key) {
+        if (key != null && query["key"] != key) {
             Diag.warn(TAG, "${request.from} asked for $path with the wrong key; refused")
             return json(Http.CLIENT_ERROR, """{"error":"wrong key"}""")
         }
@@ -93,16 +105,28 @@ public class ScreenLink(
     private fun hello(query: Map<String, String>, from: String): HttpReply {
         val id = query["id"]?.takeIf { it.isNotBlank() } ?: "screen-${++next}-${clock()}"
         val name = query["name"]?.take(NAME_CHARS)?.ifBlank { null } ?: "PC (browser)"
-        val known = screens.containsKey(id)
+        val before = screens[id]
+        if (before == null && !roomForAnother()) {
+            Diag.warn(TAG, "$from said hello as $id, but $MAX_SCREENS screens are already here; refused")
+            return json(Http.CLIENT_ERROR, """{"error":"too many screens"}""")
+        }
         val codecs = query["codecs"].orEmpty()
         val height = query["height"]?.toDoubleOrNull()?.toInt()
         screens[id] = Screen(id, name, clock(), codecs, height)
-        if (!known) {
-            Diag.log(TAG, "screen \"$name\" ($id) from $from said hello [codecs=$codecs height=$height]")
-            onScreensChanged(present())
+        if (before == null) {
+            Diag.log(
+                TAG,
+                "screen \"$name\" ($id) from $from said hello to the ${host.word} [codecs=$codecs height=$height]"
+            )
+        } else if (before.name != name) {
+            Diag.log(TAG, "screen $id is now called \"$name\" (was \"${before.name}\")")
         }
+        if (before == null || before.name != name) onScreensChanged(present())
         val after = lock.withLock { sent[id]?.lastOrNull()?.first ?: 0L }
-        return json(Http.OK, """{"id":${quoted(id)},"after":$after,"now":${nowJson(nowPlaying, id)}}""")
+        return json(
+            Http.OK,
+            """{"id":${quoted(id)},"after":$after,"host":${quoted(host.word)},"now":${nowJson(nowPlaying, id)}}""",
+        )
     }
 
     private fun poll(query: Map<String, String>): HttpReply {
@@ -172,6 +196,18 @@ public class ScreenLink(
         return json(Http.OK, """{"asked":true}""")
     }
 
+    private fun roomForAnother(): Boolean {
+        if (screens.size < MAX_SCREENS) return true
+        screens.values.removeAll { clock() - it.seenAtMs >= GONE_AFTER_MS }
+        return screens.size < MAX_SCREENS
+    }
+
+    private fun pageForHost(): ByteArray {
+        val bytes = page()
+        if (host == ScreenHost.PHONE) return bytes
+        return String(bytes, Charsets.UTF_8).replace(HOST_MARKER, "data-host=\"${host.word}\"").toByteArray()
+    }
+
     private fun touch(id: String) {
         screens.computeIfPresent(id) { _, screen -> screen.copy(seenAtMs = clock()) }
     }
@@ -185,6 +221,8 @@ public class ScreenLink(
         const val GONE_AFTER_MS = 60_000L
         const val KEPT_COMMANDS = 50
         const val NAME_CHARS = 40
+        const val MAX_SCREENS = 32
+        const val HOST_MARKER = "data-host=\"phone\""
         val NO_CACHE = mapOf("Cache-Control" to "no-store")
     }
 }

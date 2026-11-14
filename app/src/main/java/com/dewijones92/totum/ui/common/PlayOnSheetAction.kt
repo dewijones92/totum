@@ -20,17 +20,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dewijones92.totum.R
 import com.dewijones92.totum.data.targets.TargetColours
-import com.dewijones92.totum.data.targets.TargetPower
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.toPlayableOrNull
+import com.dewijones92.totum.ui.queue.AddBrowserEntry
+import com.dewijones92.totum.ui.queue.PLAY_ON_DOT_PREFIX
 import com.dewijones92.totum.ui.queue.PLAY_ON_OPTION_PREFIX
+import com.dewijones92.totum.ui.queue.PlayOnHintLine
+import com.dewijones92.totum.ui.queue.asColour
 import com.dewijones92.totum.ui.queue.chipLabel
 
 @Composable
@@ -39,7 +41,9 @@ internal fun PlayOnSheetAction(item: MediaItem?, onDismiss: () -> Unit) {
     val devices = actions.devices ?: return
     val options by devices.options.collectAsStateWithLifecycle()
     val colours by devices.colours.collectAsStateWithLifecycle()
-    if (item == null || options.size <= 1 || item.toPlayableOrNull() == null) return
+    val address by devices.browserAddress.collectAsStateWithLifecycle()
+    val anywhereToPlay = options.size > 1 || address != null
+    if (item == null || !anywhereToPlay || item.toPlayableOrNull() == null) return
     var open by remember(item.id) { mutableStateOf(false) }
     SheetRow(Icons.Outlined.Cast, stringResource(R.string.play_on_item), PLAY_ON_SHEET_TAG) { open = !open }
     if (open) {
@@ -60,19 +64,16 @@ internal fun PlayOnSheetAction(item: MediaItem?, onDismiss: () -> Unit) {
                         Modifier
                             .padding(end = 12.dp)
                             .size(12.dp)
-                            .background(Color((colours[option.id] ?: TargetColours.PHONE).toInt()), CircleShape),
+                            .testTag(PLAY_ON_DOT_PREFIX + option.id)
+                            .background(TargetColours.of(colours, option.id).asColour(), CircleShape),
                     )
                     Column {
                         Text(option.target.chipLabel(option.power), style = MaterialTheme.typography.bodyLarge)
-                        if (option.power == TargetPower.ASLEEP) {
-                            Text(
-                                stringResource(R.string.play_on_asleep_hint),
-                                style = MaterialTheme.typography.bodySmall,
-                            )
-                        }
+                        PlayOnHintLine(option)
                     }
                 }
             }
+            address?.let { AddBrowserEntry(it, Modifier.padding(start = 56.dp)) }
         }
     }
 }

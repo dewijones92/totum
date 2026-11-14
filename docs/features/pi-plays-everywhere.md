@@ -123,9 +123,26 @@ sound processing on the Pi). Brief: [pi-plays-everywhere.md](../todos/pi-plays-e
   target, the cut-end race, the hand-back remembered across a restart (`handback-<id>.json`),
   `TOTUM_SPEAKERS_SWITCHED_ON_BY_HAND` for speakers that must be switched on by hand.
 
+## Browsers (ADR 170)
+
+- **Open the Pi's address in any browser.** `http://<the Pi's LAN address>:8771` (the address is `TOTUM_CAST_BASE` without its
+  scheme, and the phone shows it under **🖥️ Add a browser…** in the Play on… row and every item's "📡 Play on…" list, at home, with
+  📋 Copy address). The page is the PC screen's receiver page, served by the Pi's own cast server: no key, nothing to
+  install, nothing to type but the address, so a Fire Stick's Silk with its remote will do.
+- **It is a device like any other** once it has said hello: `🖥️ Silk` (or Edge, Chrome, …) in the picker with a colour of its own, a
+  queue of its own, row badges, remote-queue controls (play, pause, seek, skip silences, boost, volume, sleep timer). It drops out of the
+  list a minute after the page is closed, and comes back with its queue when the same browser opens the page again.
+- **The Pi does the work, so the phone can be off.** The picture is relayed and the sound processed on the Pi
+  ([ADR 156](../adr/0156-one-casting-brain-the-pi-casts-with-the-phones-own-code.md)); the page plays the manifest from its own
+  origin. The page's seek bar seeks the Pi's queue.
+- **Same network as the Pi, for now.** A friend's network cannot reach the Pi's LAN address; what the remote case would need (a public
+  name in nginx, pairing so that only a browser the phone approved is a target, an uplink decision) is in the ADR. Not built.
+- **A device switched on by hand says so**: "🔌 Off · switch it on by hand" in the picker, no wake sent when it is picked,
+  `TOTUM_SPEAKERS_SWITCHED_ON_BY_HAND` on the Pi; and one colour per device on every surface (`TargetColours.of`).
+
 ## Not built (see the todo)
 
-PC browsers as targets (the picker takes any target kind that is reachable away, so a browser slots in); Home Assistant's brown noise and jazz through Totum (the Totum side is built; the dot-files adapter is in `tools/handoff/hermes-audio/`, not deployed); the mini-player pill
+A name typed into the browser page (a stored name is read, none is written); the browser page away from home; Home Assistant's brown noise and jazz through Totum (the Totum side is built; the dot-files adapter is in `tools/handoff/hermes-audio/`, not deployed); the mini-player pill
 and per-target notification; "Play on…" as a long press on every play button; skip silences on a picture (the phone does
 not either); playback speed on a target; the phone's silence mode and speech gate on a target; TV volume in the strip.
 Not seen on a real TV or speaker yet: the manifest, the relayed picture, the Pi's segments, live on a TV and on mpv.
@@ -135,6 +152,13 @@ Not seen on a real TV or speaker yet: the manifest, the relayed picture, the Pi'
 ADR 158 (2026-11-13): `TargetDeckStartTest`, `TargetRoutesSlowStartTest`, `TargetDecksTest`, `SoundFilesTest`,
 `TargetStreamsTest`, `BluezTest`, `CastBrainTest`, `CastControlTest`, `CastWireTest`, `WakeThenPlayTest` (cli),
 `TargetsRepositoryTest` (app), `chromecast_helper_test.py`, `test_audio_ctl.py`; `TargetWordsTest` (instrumented, not run).
+
+ADR 170: `ScreenOnThePiTest` (core/cast: the Pi serves the page at the bare address with its host, no key on the Pi's page and the key
+still needed on the phone's, rename and arrival tell the list, a cap on listed screens), `BrowserControlTest` (load, reports, stale
+loads, one end, seek and volume, reachability, lost), `BrowserSourceTest`, `BrowserServingTest` (the real page over a real socket, a
+browser listed at once and renamed in place), `BluezTest` and `TargetDeckSpeakerTest` (by hand), `PlayOnTest`,
+`TargetStateWireTest`, `TargetRulesTest` (core/data), `TargetsRepositoryTest`, `DeviceMarksTest`, `DeviceColourRuleTest` (app),
+instrumented `PlayOnPickerTest` and `DeviceColourSurfacesTest`.
 
 Unit (wake, hand back, live, ADR 152 amendments of 2026-11-07): `WakeOnLanTest`, `TvWakeTest`, `WakeThenPlayTest`, `YtDlpLiveHlsTest`, `LiveForSpeakersTest`, `CastWireTest`, `CastControlTest`, `ChromecastPlayerTest`, `TargetDeckTest`, `MpvPlayerTest` (cli), `TargetRulesTest` (core), `TargetsRepositoryTest`, `TargetChipLabelTest` (app), `server/totum-cli/chromecast_helper_test.py`.
 

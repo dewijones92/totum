@@ -39,6 +39,15 @@ class DeviceMarksTest {
     }
 
     @Test
+    fun `a mark, a picker dot and a chip read one colour per device through the one rule`() {
+        val marks = DeviceMarkRules.marks(mapOf("b" to lg, "c" to bar), atHome, colours, phoneItemId = "a")
+
+        assertEquals(TargetColours.of(colours, "phone"), marks.getValue("a").colour)
+        assertEquals(TargetColours.of(colours, "lg-tv"), marks.getValue("b").colour)
+        assertEquals(TargetColours.of(colours, "bar"), marks.getValue("c").colour)
+    }
+
+    @Test
     fun `a device with no colour yet gets the phone's tangerine rather than none`() {
         val marks = DeviceMarkRules.marks(mapOf("b" to lg), atHome, emptyMap(), phoneItemId = null)
 

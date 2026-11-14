@@ -1,9 +1,22 @@
 package com.dewijones92.totum.data.targets
 
-public data class PlayOnOption(val target: Target, val power: TargetPower = TargetPower.ON) {
+public data class PlayOnOption(
+    val target: Target,
+    val power: TargetPower = TargetPower.ON,
+    val switchedOnByHand: Boolean = false,
+) {
     val id: String get() = target.id
     val isPhone: Boolean get() = target.kind == TargetKind.PHONE
+    val wakesWhenPicked: Boolean get() = power == TargetPower.ASLEEP && !switchedOnByHand
+    val hint: PlayOnHint
+        get() = when {
+            power != TargetPower.ASLEEP -> PlayOnHint.NONE
+            switchedOnByHand -> PlayOnHint.SWITCH_ON_BY_HAND
+            else -> PlayOnHint.WAKES_WHEN_PICKED
+        }
 }
+
+public enum class PlayOnHint { NONE, WAKES_WHEN_PICKED, SWITCH_ON_BY_HAND }
 
 public object PlayOn {
 
@@ -11,7 +24,7 @@ public object PlayOn {
 
     public fun options(listed: List<TargetState>, atHome: Boolean): List<PlayOnOption> {
         val devices = listed.filter { atHome || it.target.kind.reachableAway }
-            .map { PlayOnOption(it.target, it.power) }
+            .map { PlayOnOption(it.target, it.power, it.switchedOnByHand) }
         return listOf(PlayOnOption(phone)) + devices
     }
 

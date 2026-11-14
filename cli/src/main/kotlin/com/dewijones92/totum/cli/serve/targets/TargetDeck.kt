@@ -47,7 +47,7 @@ import kotlin.random.Random
 
 @Suppress("TooManyFunctions")
 internal class TargetDeck(
-    private val target: Target,
+    initial: Target,
     private val player: TargetPlayer,
     private val link: TargetLink,
     private val sounds: TargetSounds,
@@ -61,6 +61,8 @@ internal class TargetDeck(
     private val keeper: TargetKeeper? = null,
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
 ) {
+    @Volatile
+    private var target: Target = initial
     private val store = DeckStore(file)
     private val lock = Mutex()
     private var queue = QueueSnapshot()
@@ -119,7 +121,8 @@ internal class TargetDeck(
         sound = sound,
         repeat = repeat,
         live = isLive(),
-        power = player.power,
+        power = link.power ?: player.power,
+        switchedOnByHand = link.switchedOnByHand,
         starting = starting,
         trouble = problem?.trouble,
         sleep = sleep.state(),
@@ -399,7 +402,14 @@ internal class TargetDeck(
         }
     }
 
+    fun relabel(now: Target) {
+        if (now.label == target.label) return
+        Diag.log("targets", "${target.id}: now called \"${now.label}\" (was \"${target.label}\")")
+        target = now
+    }
+
     suspend fun keepAwake() {
+        link.look()
         val checked = keeper?.beat(playing) ?: return
         if (checked && keeper.state == KeepAwake.KEPT) volumeControl?.refresh()
     }
@@ -640,6 +650,7 @@ internal class TargetDeck(
             keepAwake = null,
             live = false,
             power = TargetPower.ON,
+            switchedOnByHand = false,
             starting = false,
             trouble = null,
             sleep = null,

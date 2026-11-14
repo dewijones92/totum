@@ -214,6 +214,22 @@ class TargetsRepositoryTest {
     }
 
     @Test
+    fun `a device first met in an answer to a queue request is painted at once, not left in the phone's colour`() =
+        runTest {
+            api.answer = HomeAnswer.Ok(TargetsAnswer(listOf(tv)))
+            repository.refresh("test")
+            assertNull(repository.colours.value["bar"])
+
+            repository.queue("bar", TargetQueueRequest(listOf(item("a").toBackup()), QueueMode.REPLACE))
+
+            val painted = repository.colours.value
+            assertTrue("bar has a colour", "bar" in painted)
+            assertNotEquals(TargetColours.PHONE, painted.getValue("bar"))
+            assertNotEquals(painted.getValue("lg-tv"), painted.getValue("bar"))
+            assertEquals(painted, colours.load())
+        }
+
+    @Test
     fun `the device last used stays the destination from any screen, leaving the queue changes nothing`() = runTest {
         api.answer = HomeAnswer.Ok(TargetsAnswer(listOf(tv)))
         repository.refresh("test")
@@ -327,6 +343,61 @@ class TargetsRepositoryTest {
             assertNull(repository.selected.value)
             assertNull(playOn.load())
         }
+
+    @Test
+    fun `the address to type into a browser is offered at home, and not away, and gone when the Pi stops giving it`() =
+        runTest {
+            api.answer = HomeAnswer.Ok(TargetsAnswer(listOf(tv), browserAddress = "192.168.0.5:8771"))
+            repository.refresh("test")
+            assertEquals("192.168.0.5:8771", repository.browserAddress.value)
+
+            unmetered = false
+            repository.refresh("on mobile data")
+            assertNull(repository.browserAddress.value)
+
+            unmetered = true
+            repository.refresh("back on Wi-Fi")
+            assertEquals("192.168.0.5:8771", repository.browserAddress.value)
+
+            api.answer = HomeAnswer.Ok(TargetsAnswer(listOf(tv)))
+            repository.refresh("an older Pi")
+            assertNull(repository.browserAddress.value)
+        }
+
+    @Test
+    fun `a browser the Pi lists is a device like any other, with a colour of its own`() = runTest {
+        val silk = TargetState(Target("browser-fire1", "Silk", TargetKind.BROWSER))
+        api.answer = HomeAnswer.Ok(TargetsAnswer(listOf(tv, silk)))
+        repository.refresh("test")
+
+        val offered = repository.options.value.first { it.id == "browser-fire1" }
+        repository.choose(offered)
+
+        assertEquals("browser-fire1", repository.selected.value)
+        assertNotEquals(TargetColours.PHONE, repository.colours.value.getValue("browser-fire1"))
+        assertNotEquals(repository.colours.value.getValue("lg-tv"), repository.colours.value.getValue("browser-fire1"))
+        assertTrue("a browser is not woken", api.controlled.isEmpty())
+    }
+
+    @Test
+    fun `a device switched on by hand is offered as such, and picking it while off wakes nothing`() = runTest {
+        val mic = TargetState(
+            Target("mic", "Soundmic"),
+            power = TargetPower.ASLEEP,
+            switchedOnByHand = true,
+        )
+        api.answer = HomeAnswer.Ok(TargetsAnswer(listOf(tv.copy(power = TargetPower.ASLEEP), mic)))
+        repository.refresh("test")
+
+        val offered = repository.options.value.first { it.id == "mic" }
+        repository.choose(offered)
+
+        assertTrue(offered.switchedOnByHand)
+        assertFalse(repository.options.value.first { it.id == "lg-tv" }.switchedOnByHand)
+        assertTrue("no wake is sent for a speaker that comes on by hand", api.controlled.isEmpty())
+        assertEquals("mic", repository.selected.value)
+        assertEquals("mic", playOn.load())
+    }
 
     @Test
     fun `an item playing on a device is marked with that device`() = runTest {

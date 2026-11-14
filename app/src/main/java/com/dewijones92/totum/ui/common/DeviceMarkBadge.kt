@@ -14,11 +14,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.targets.DeviceMark
+import com.dewijones92.totum.ui.queue.asColour
 
 internal val LocalDeviceMarks =
     staticCompositionLocalOf<State<Map<String, DeviceMark>>> { mutableStateOf(emptyMap()) }
@@ -32,7 +32,7 @@ internal fun deviceMarkOf(id: MediaItemId): DeviceMark? {
 @Composable
 internal fun DeviceMarkBadge(id: MediaItemId, modifier: Modifier = Modifier) {
     val mark = deviceMarkOf(id) ?: return
-    val colour = Color(mark.colour.toInt())
+    val colour = mark.colour.asColour()
     Surface(
         shape = MaterialTheme.shapes.small,
         color = colour.copy(alpha = MARK_FILL),

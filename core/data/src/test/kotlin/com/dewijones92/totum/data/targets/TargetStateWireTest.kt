@@ -31,4 +31,39 @@ class TargetStateWireTest {
         assertNull(state.keepAwake)
         assertEquals(40, state.volume)
     }
+
+    @Test
+    fun `the address to open in a browser travels with the list, and an older Pi's list has none`() {
+        val answer = TargetsAnswer(listOf(TargetState(mic)), browserAddress = "192.168.0.5:8771")
+
+        val back = TargetsJson.decodeFromString(
+            TargetsAnswer.serializer(),
+            TargetsJson.encodeToString(TargetsAnswer.serializer(), answer)
+        )
+        val old = TargetsJson.decodeFromString(
+            TargetsAnswer.serializer(),
+            """{"targets":[{"target":{"id":"mic","label":"Soundmic","kind":"SPEAKER"}}]}"""
+        )
+
+        assertEquals("192.168.0.5:8771", back.browserAddress)
+        assertNull(old.browserAddress)
+        assertEquals(1, old.targets.size)
+    }
+
+    @Test
+    fun `whether a speaker is switched on by hand travels with its state, and an older Pi reads as not`() {
+        val byHand = TargetState(mic, power = TargetPower.ASLEEP, switchedOnByHand = true)
+
+        val back = TargetsJson.decodeFromString(
+            TargetState.serializer(),
+            TargetsJson.encodeToString(TargetState.serializer(), byHand)
+        )
+        val old = TargetsJson.decodeFromString(
+            TargetState.serializer(),
+            """{"target":{"id":"mic","label":"Soundmic","kind":"SPEAKER"},"power":"ASLEEP"}"""
+        )
+
+        assertEquals(true, back.switchedOnByHand)
+        assertEquals(false, old.switchedOnByHand)
+    }
 }

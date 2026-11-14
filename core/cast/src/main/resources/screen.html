@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Totum screen</title>
+<link rel="icon" href="data:,">
 <script src="https://cdn.jsdelivr.net/npm/shaka-player@4.11.0/dist/shaka-player.compiled.js"></script>
 <style>
   :root { --ink: #1a1c20; --soft: #565b64; --bg: #ffffff; --accent: #e8590c; }
@@ -34,15 +35,15 @@
   #clock { min-width: 120px; text-align: right; font-variant-numeric: tabular-nums; }
 </style>
 </head>
-<body>
+<body data-host="phone">
 <div id="wait">
   <div>
     <h1>📺 Totum on this screen</h1>
-    <p id="who">⏳ Connecting to your phone</p>
+    <p id="who">⏳ Connecting to Totum</p>
     <p id="now"></p>
     <button id="watch" hidden>▶️ Watch here</button>
-    <p>Or pick this screen in Totum's 🖥️ menu on the phone.</p>
-    <p><a id="switch" href="https://crashlog.333133333.xyz/screen?choose=1">🔀 Switch phone</a></p>
+    <p id="hint">Or pick this screen in Totum's 🖥️ menu on the phone.</p>
+    <p id="switchrow"><a id="switch" href="https://crashlog.333133333.xyz/screen?choose=1">🔀 Switch phone</a></p>
   </div>
 </div>
 <div id="stage"><video id="video" playsinline></video></div>
@@ -52,7 +53,12 @@
 <script>
 (() => {
   const key = new URLSearchParams(location.hash.slice(1)).get('key') || '';
-  const name = localStorage.getItem('totumScreenName') || 'PC (' + (navigator.userAgent.includes('Edg/') ? 'Edge' : 'browser') + ')';
+  const onPi = document.body.dataset.host === 'pi';
+  const brain = onPi ? 'Totum at home' : 'your phone';
+  const ua = navigator.userAgent;
+  const browserName = ua.includes('Silk/') ? 'Silk' : ua.includes('Edg/') ? 'Edge' : ua.includes('Firefox/') ? 'Firefox'
+    : ua.includes('Chrome/') ? 'Chrome' : ua.includes('Safari/') ? 'Safari' : 'browser';
+  const name = localStorage.getItem('totumScreenName') || (onPi ? browserName : 'PC (' + browserName + ')');
   const video = document.getElementById('video');
   const stage = document.getElementById('stage');
   const tap = document.getElementById('tap');
@@ -65,10 +71,12 @@
   let lastError = '';
   let player = null;
 
+  const STOP_SHOWN_AFTER_MS = 1500;
   const say = (text) => { status.textContent = text; };
   const nowEl = document.getElementById('now');
   const watch = document.getElementById('watch');
   function showNow(now) {
+    if (onPi) return;
     nowEl.textContent = now
       ? (now.playing ? '▶️ ' : '⏸️ ') + 'On your phone: ' + now.title + (now.by ? ' · ' + now.by : '')
       : '📭 Nothing playing on the phone. Watch here plays the queue’s current item.';
@@ -80,17 +88,17 @@
     unlock();
     watch.disabled = true;
     asked = Date.now();
-    say('⏳ Asking your phone to play here…');
+    say('⏳ Asking ' + brain + ' to play here…');
     try {
       const reply = await api('watch', { id });
       if (reply.ok) {
         say('📱 Your phone is handing over…');
       } else {
-        say('⚠️ Your phone said no (' + reply.status + '); try again');
+        say('⚠️ ' + brain + ' said no (' + reply.status + '); try again');
         watch.disabled = false;
       }
     } catch (e) {
-      say('⚠️ Cannot reach your phone: ' + e.message);
+      say('⚠️ Cannot reach ' + brain + ': ' + e.message);
       watch.disabled = false;
     }
   });
@@ -135,12 +143,12 @@
   seek.addEventListener('change', async () => {
     dragging = false;
     const pos = Number(seek.value);
-    say('⏩ Asking your phone to go to ' + mmss(pos / 1000) + '…');
+    say('⏩ Asking ' + brain + ' to go to ' + mmss(pos / 1000) + '…');
     try {
       const reply = await api('seek', { id, pos });
-      if (!reply.ok) say('⚠️ Your phone refused the seek (' + reply.status + ')');
+      if (!reply.ok) say('⚠️ ' + brain + ' refused the seek (' + reply.status + ')');
     } catch (e) {
-      say('⚠️ Cannot reach your phone to seek: ' + e.message);
+      say('⚠️ Cannot reach ' + brain + ' to seek: ' + e.message);
     }
   });
 
@@ -153,7 +161,16 @@
   }
   tap.addEventListener('click', unlock);
 
+  let stopTimer = 0;
+  function showWaiting() {
+    stage.classList.remove('on');
+    bar.classList.remove('on');
+    document.getElementById('wait').style.display = 'grid';
+    say('⏹️ Stopped');
+  }
+
   async function load(command) {
+    clearTimeout(stopTimer);
     currentLoad = command.load || 0;
     if (!player) {
       shaka.polyfill.installAll();
@@ -190,13 +207,12 @@
         if (command.lang) { player.selectTextLanguage(command.lang); player.setTextTrackVisibility(true); }
         else player.setTextTrackVisibility(false);
         return;
+      case 'volume': video.volume = Math.min(1, Math.max(0, command.level)); return;
       case 'stop':
         video.pause();
         if (player) await player.unload();
-        stage.classList.remove('on');
-        bar.classList.remove('on');
-        document.getElementById('wait').style.display = 'grid';
-        say('⏹️ Stopped');
+        clearTimeout(stopTimer);
+        stopTimer = setTimeout(showWaiting, STOP_SHOWN_AFTER_MS);
         return;
     }
   }
@@ -240,6 +256,12 @@
     localStorage.setItem('totumScreenId', id);
     greeted = true;
     document.getElementById('who').textContent = '✅ Connected as “' + name + '”';
+    if (onPi) {
+      watch.hidden = true;
+      document.getElementById('now').textContent = '';
+      document.getElementById('hint').textContent = 'In Totum, choose ▶️ Play on, then “' + name + '”.';
+      document.getElementById('switchrow').hidden = true;
+    }
     showNow(body.now);
   }
 
@@ -254,7 +276,7 @@
           try { await apply(item.command); } catch (e) { lastError = item.command.do + ': ' + e.message; }
         }
       } catch (e) {
-        document.getElementById('who').textContent = '⚠️ Cannot reach your phone; trying again…';
+        document.getElementById('who').textContent = '⚠️ Cannot reach ' + brain + '; trying again…';
         greeted = false;
         await new Promise((r) => setTimeout(r, 3000));
       }

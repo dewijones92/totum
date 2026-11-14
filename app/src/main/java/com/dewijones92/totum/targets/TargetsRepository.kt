@@ -65,6 +65,12 @@ class TargetsRepository(
 
     val atHome: StateFlow<Boolean> = homeNow.asStateFlow()
 
+    private val address = MutableStateFlow<String?>(null)
+
+    val browserAddress: StateFlow<String?> = combine(address, homeNow) { found, atHome ->
+        found.takeIf { atHome }
+    }.stateIn(scope, SharingStarted.Eagerly, null)
+
     val options: StateFlow<List<PlayOnOption>> = combine(live, homeNow) { states, atHome ->
         PlayOn.options(states, atHome)
     }.stateIn(scope, SharingStarted.Eagerly, PlayOn.options(emptyList(), false))
@@ -90,13 +96,19 @@ class TargetsRepository(
 
     fun select(id: String?, wake: Boolean = false) {
         val power = id?.let(::powerOf)
-        if (wake && id != null && power == TargetPower.ASLEEP) {
+        val offered = id?.let(::optionOf)
+        if (id != null && wake && offered?.wakesWhenPicked == true) {
             Diag.log("targets", "${targetOf(id)?.label ?: id} was picked while asleep; waking it now")
             command(id, TargetAction.WAKE)
+        } else if (wake && power == TargetPower.ASLEEP) {
+            Diag.log("targets", "${targetOf(id)?.label ?: id} was picked while off; it comes on by hand, so no wake")
         }
         if (chosen.value == id) return
         val was = chosen.value ?: "this phone"
-        Diag.log("targets", "play on ${id ?: "this phone"} (was $was), power=$power wake=$wake")
+        Diag.log(
+            "targets",
+            "play on ${id ?: "this phone"} (was $was), power=$power wake=$wake byHand=${offered?.switchedOnByHand}",
+        )
         chosen.value = id
         playOn.save(id)
         if (!troubleFromRead) trouble.value = null
@@ -148,6 +160,7 @@ class TargetsRepository(
                 failures = 0
                 if (troubleFromRead) trouble.value = null
                 live.value = answer.value.targets
+                noteAddress(answer.value.browserAddress)
                 markHome(why)
                 showWakes(answer.value.targets)
                 paint(answer.value.targets.map { it.target })
@@ -448,7 +461,19 @@ class TargetsRepository(
         }
     }
 
+    private fun noteAddress(found: String?) {
+        if (found == address.value) return
+        Diag.log(
+            "targets",
+            "the address to open in a browser to add it is now ${found ?: "none"} (was ${address.value ?: "none"})",
+        )
+        address.value = found
+    }
+
     private fun powerOf(id: String): TargetPower? = live.value.firstOrNull { it.target.id == id }?.power
+
+    private fun optionOf(id: String): PlayOnOption? =
+        PlayOn.options(live.value, homeNow.value).firstOrNull { it.id == id }
 
     private fun replace(state: TargetState) {
         live.update { all ->
@@ -458,6 +483,7 @@ class TargetsRepository(
                 all + state
             }
         }
+        paint(live.value.map { it.target })
     }
 
     private fun paint(known: List<Target>) {

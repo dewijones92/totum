@@ -57,6 +57,8 @@ public object TargetColours {
         0xFF6D4C41L,
     )
 
+    public fun of(colours: Map<String, Long>, id: String): Long = colours[id] ?: PHONE
+
     public fun assign(targets: List<Target>, remembered: Map<String, Long>): Map<String, Long> {
         val result = LinkedHashMap<String, Long>()
         result[PHONE_ID] = remembered[PHONE_ID] ?: PHONE

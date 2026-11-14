@@ -26,6 +26,8 @@ internal class TargetDecks(
     private val decks = ConcurrentHashMap<String, TargetDeck>()
     private val lock = Mutex()
     private var known: List<FoundTarget> = emptyList()
+
+    @Volatile
     private var lookedAt = 0L
 
     init {
@@ -70,6 +72,10 @@ internal class TargetDecks(
         }
     }
 
+    fun sourcesChanged() {
+        lookedAt = 0L
+    }
+
     fun startInBackground(deck: TargetDeck): Job = scope.launch {
         runCatching { deck.startPending() }.onFailure { e ->
             if (e is CancellationException) throw e
@@ -102,9 +108,15 @@ internal class TargetDecks(
         known
     }
 
-    private fun deckFor(found: FoundTarget): TargetDeck = decks.computeIfAbsent(found.target.id) {
+    private fun deckFor(found: FoundTarget): TargetDeck {
+        val deck = decks.computeIfAbsent(found.target.id) { newDeck(found) }
+        deck.relabel(found.target)
+        return deck
+    }
+
+    private fun newDeck(found: FoundTarget): TargetDeck {
         val kit = found.kit()
-        TargetDeck(
+        return TargetDeck(
             found.target,
             kit.player,
             kit.link,

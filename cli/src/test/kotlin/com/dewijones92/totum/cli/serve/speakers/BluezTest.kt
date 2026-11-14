@@ -1,5 +1,6 @@
 package com.dewijones92.totum.cli.serve.speakers
 
+import com.dewijones92.totum.data.targets.TargetPower
 import com.dewijones92.totum.data.targets.TroubleKind
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -128,5 +129,43 @@ class BluezTest {
         assertTrue(sent, "--audio-device=pulse/bluez_sink.54_15_89_76_CD_A4.a2dp_sink" in sent)
         assertTrue(sent, "--length=2" in sent)
         assertTrue(sent, sent.endsWith("av://lavfi:anullsrc=channel_layout=stereo:sample_rate=44100"))
+    }
+
+    @Test
+    fun `a speaker switched on by hand is off while it has no sink, and on once it links`() = runBlocking {
+        val shell = FakeShell()
+        val link = BluezLink("54:15:89:76:CD:A4", shell, pollMs = 0, switchedOnByHand = true)
+        assertTrue(link.switchedOnByHand)
+        assertNull("not looked at yet, so nothing is claimed", link.power)
+
+        link.look()
+        assertEquals(TargetPower.ASLEEP, link.power)
+
+        shell.sinks = "7\tbluez_sink.54_15_89_76_CD_A4.a2dp_sink\tx\n"
+        link.look()
+        assertEquals(TargetPower.ON, link.power)
+    }
+
+    @Test
+    fun `a speaker Totum can link itself never claims to be off, and does not run a shell to look`() = runBlocking {
+        val shell = FakeShell()
+        val link = BluezLink("54:15:89:76:CD:A4", shell, pollMs = 0)
+
+        link.look()
+
+        assertFalse(link.switchedOnByHand)
+        assertNull(link.power)
+        assertTrue(shell.ran.isEmpty())
+    }
+
+    @Test
+    fun `only the speakers named as switched on by hand carry the flag, by id or by name`() = runBlocking {
+        val source = SpeakerSource(FakeShell(), java.io.File("."), switchedOnByHand = setOf("living room bar"))
+        val other = SpeakerSource(FakeShell(), java.io.File("."), switchedOnByHand = setOf("54158976cda4"))
+        val none = SpeakerSource(FakeShell(), java.io.File("."))
+
+        assertTrue(source.find(false).single().kit().link.switchedOnByHand)
+        assertTrue(other.find(false).single().kit().link.switchedOnByHand)
+        assertFalse(none.find(false).single().kit().link.switchedOnByHand)
     }
 }

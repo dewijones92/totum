@@ -48,6 +48,10 @@ internal interface TargetLink {
     suspend fun release()
     val unreachable: TargetTrouble? get() = null
     val sinkWaitMs: Long get() = 0
+    val switchedOnByHand: Boolean get() = false
+    val power: TargetPower? get() = null
+
+    suspend fun look() = Unit
 }
 
 internal fun interface TargetSounds {

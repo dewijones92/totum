@@ -27,7 +27,7 @@ internal class ChromecastPlayer(
     private val watch: (check: () -> Boolean) -> Unit = ::watchWhileTrue,
 ) : TargetPlayer {
 
-    private val tv = PiCastTv(label) { control.model }
+    private val tv = PiCastTv(label, screen = { control.screen }) { control.model }
 
     private val itemLock = Any()
 

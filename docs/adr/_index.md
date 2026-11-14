@@ -180,3 +180,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 166 | [The sleep timer fades by how loud it sounds, on the phone and on a Pi target](0166-the-sleep-timer-fades-by-how-loud-it-sounds-on-the-phone-and-on-a-target.md) | Accepted |
 | 168 | [Home torrents hold together: retries are shown, the phone's address is kept, a film is its main file, a late-Tracks MKV is remuxed](0168-home-torrents-hold-together-retries-shown-main-file-first-and-a-fixed-remux.md) | Accepted |
 | 169 | [Play on… is one choice that remembers the last device, offered everywhere, with home devices always listed](0169-play-on-is-a-choice-that-remembers-the-last-device.md) | Accepted |
+| 170 | [A browser is a target the Pi plays to, found by opening the Pi's address; Play on… says how a device comes on](0170-a-browser-is-a-target-the-pi-plays-to-found-by-opening-its-address.md) | Accepted |

@@ -11,10 +11,14 @@ import com.dewijones92.totum.playback.cast.CastTvPort
 import com.dewijones92.totum.playback.cast.MediaTools
 import java.util.concurrent.ConcurrentHashMap
 
-internal class PiCastTv(val label: String, private val model: () -> String?) {
+internal class PiCastTv(
+    val label: String,
+    private val screen: () -> CastScreen? = { null },
+    private val model: () -> String?,
+) {
     @Volatile var notice: String? = null
 
-    fun asCastTv(): CastTv = CastTv(label, CastScreen.of(model()))
+    fun asCastTv(): CastTv = CastTv(label, screen() ?: CastScreen.of(model()))
 }
 
 internal class PiCastTvs : CastTvPort {

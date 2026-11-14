@@ -8,6 +8,7 @@ import com.dewijones92.totum.playback.cast.CastStreamServer
 import com.dewijones92.totum.playback.cast.CastTimeline
 import com.dewijones92.totum.playback.cast.LocalManifests
 import com.dewijones92.totum.playback.cast.MediaTools
+import com.dewijones92.totum.playback.cast.ScreenLink
 import java.util.concurrent.ConcurrentHashMap
 
 internal class PiStreams(
@@ -44,6 +45,14 @@ internal class PiStreams(
     )
 
     val available: Boolean get() = base != null
+
+    fun serveScreens(screens: ScreenLink): Boolean {
+        if (base == null) return false
+        server.screens = screens
+        val port = server.start()
+        Diag.log("cast-target", "the browser page is served at ${base.trimEnd('/')}/ (listening on $port)")
+        return true
+    }
 
     fun relayed(): Int = relay.offered()
 

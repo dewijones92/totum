@@ -1437,6 +1437,7 @@
         <item quantity="other">✅ %2$s is awake</item>
     </plurals>
     <string name="target_asleep_wake">💤 Off · tap to wake</string>
+    <string name="target_asleep_by_hand">🔌 %1$s is off · switch it on by hand</string>
     <string name="target_waking">⏰ Waking %1$s…</string>
     <string name="target_chip_phone">📱 This phone</string>
     <string name="target_chip_more">➕ Play on…</string>
@@ -1444,7 +1445,11 @@
     <string name="play_on_label">▶️ Play on</string>
     <string name="play_on_current">%1$s ▾</string>
     <string name="play_on_asleep_hint">💤 Off · picking it switches it on</string>
+    <string name="play_on_by_hand_hint">🔌 Off · switch it on by hand</string>
     <string name="play_on_item">📡 Play on…</string>
+    <string name="play_on_add_browser">🖥️ Add a browser…</string>
+    <string name="play_on_add_browser_how">🌐 On the browser, open %1$s while it is on the home Wi-Fi. It shows up here as soon as it is connected, and then you can play on it.</string>
+    <string name="play_on_copy_address">📋 Copy address</string>
     <string name="target_waiting_headline">⏳ Waiting for %1$s</string>
     <string name="target_waiting_hint">The home server has not listed it yet.</string>
     <string name="target_empty_headline">📭 Nothing queued on %1$s</string>

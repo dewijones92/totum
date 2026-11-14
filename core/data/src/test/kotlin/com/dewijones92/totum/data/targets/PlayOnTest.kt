@@ -71,6 +71,36 @@ class PlayOnTest {
     }
 
     @Test
+    fun `an option carries whether its device is switched on by hand`() {
+        val byHand = mic.copy(power = TargetPower.ASLEEP, switchedOnByHand = true)
+
+        val options = PlayOn.options(listOf(lg, byHand), atHome = true)
+
+        assertTrue(options.first { it.id == "soundmic" }.switchedOnByHand)
+        assertFalse(options.first { it.id == "lg-tv" }.switchedOnByHand)
+    }
+
+    @Test
+    fun `a switched off device says how it comes on, by a pick or by hand, and a device that is on says nothing`() {
+        val sleepingTv = PlayOnOption(lg.target, TargetPower.ASLEEP)
+        val sleepingMic = PlayOnOption(mic.target, TargetPower.ASLEEP, switchedOnByHand = true)
+        val liveMic = PlayOnOption(mic.target, TargetPower.ON, switchedOnByHand = true)
+
+        assertEquals(PlayOnHint.WAKES_WHEN_PICKED, sleepingTv.hint)
+        assertEquals(PlayOnHint.SWITCH_ON_BY_HAND, sleepingMic.hint)
+        assertEquals(PlayOnHint.NONE, liveMic.hint)
+        assertEquals(PlayOnHint.NONE, PlayOnOption(bar.target).hint)
+        assertEquals(PlayOnHint.NONE, PlayOnOption(lg.target, TargetPower.WAKING).hint)
+    }
+
+    @Test
+    fun `a device that is switched on by hand is never woken by a pick`() {
+        assertFalse(PlayOnOption(mic.target, TargetPower.ASLEEP, switchedOnByHand = true).wakesWhenPicked)
+        assertTrue(PlayOnOption(lg.target, TargetPower.ASLEEP).wakesWhenPicked)
+        assertFalse(PlayOnOption(lg.target, TargetPower.ON).wakesWhenPicked)
+    }
+
+    @Test
     fun `no last used device means this phone`() {
         val options = PlayOn.options(listOf(lg), atHome = true)
 

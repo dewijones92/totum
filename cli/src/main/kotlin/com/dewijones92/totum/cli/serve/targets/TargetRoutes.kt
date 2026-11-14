@@ -16,7 +16,10 @@ import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.builtins.serializer
 
-internal class TargetRoutes(private val decks: TargetDecks) : Routes {
+internal class TargetRoutes(
+    private val decks: TargetDecks,
+    private val browserAddress: () -> String? = { null },
+) : Routes {
 
     override fun handles(path: String): Boolean = path in PATHS
 
@@ -25,7 +28,7 @@ internal class TargetRoutes(private val decks: TargetDecks) : Routes {
             method == "GET" && path == "/targets" ->
                 exchange.reply(
                     OK,
-                    TargetsJson.encodeToString(TargetsAnswer.serializer(), TargetsAnswer(decks.all()))
+                    TargetsJson.encodeToString(TargetsAnswer.serializer(), TargetsAnswer(decks.all(), browserAddress()))
                 )
             method != "POST" -> exchange.reply(NOT_FOUND, """{"error":"no such route"}""")
             path == "/targets/queue" -> withDeck(exchange, TargetQueueRequest.serializer()) { deck, request ->

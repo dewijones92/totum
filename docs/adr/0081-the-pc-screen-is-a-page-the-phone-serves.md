@@ -72,6 +72,13 @@ content. He chose "the Pi bookmark finds the phone".
   load (`reportIsCurrent`), so the previous item's "ended" can no longer skip the new one. Tests: `ScreenReportsTest`,
   `ScreenLinkTest`.
 
+## Amended 2026-11-13: the page is shared with the Pi (ADR 170)
+
+The receiver page moved from the phone's assets to `:core:cast`'s resources (`core/cast/src/main/resources/screen.html`,
+read with `ScreenPage.bundled()`), and the Pi serves the same bytes at the bare address of its cast port, as the host of
+a browser target. The page reads `data-host` to know which host served it. See
+[ADR 170](0170-a-browser-is-a-target-the-pi-plays-to-found-by-opening-its-address.md).
+
 ## Amended 2026-10-29: Watch here, from the private area (ADR 93)
 
 The page now names what the phone is playing and has a **▶️ Watch here** button that moves playback to it (or plays

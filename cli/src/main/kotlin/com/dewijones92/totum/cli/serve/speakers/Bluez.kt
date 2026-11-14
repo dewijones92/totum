@@ -7,6 +7,7 @@ import com.dewijones92.totum.cli.serve.targets.TargetSource
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.targets.Target
 import com.dewijones92.totum.data.targets.TargetKind
+import com.dewijones92.totum.data.targets.TargetPower
 import com.dewijones92.totum.data.targets.TargetTrouble
 import com.dewijones92.totum.data.targets.TroubleKind
 import kotlinx.coroutines.delay
@@ -52,7 +53,7 @@ internal class BluezLink(
     private val shell: Shell,
     private val pollMs: Long = POLL_MS,
     private val tries: Int = TRIES,
-    private val switchedOnByHand: Boolean = false,
+    override val switchedOnByHand: Boolean = false,
     private val clock: () -> Long = System::currentTimeMillis,
     private val keepAwake: Boolean = false,
     private val mpv: String = System.getenv("TOTUM_MPV") ?: "mpv",
@@ -65,6 +66,16 @@ internal class BluezLink(
 
     @Volatile override var sinkWaitMs: Long = 0
         private set
+
+    @Volatile override var power: TargetPower? = null
+        private set
+
+    override suspend fun look() {
+        if (!switchedOnByHand) return
+        val now = if (sinkIndex() != null) TargetPower.ON else TargetPower.ASLEEP
+        if (now != power) Diag.log("speakers", "$mac is switched on by hand and now looks ${now.name}")
+        power = now
+    }
 
     override suspend fun connect(): String? {
         unreachable = null

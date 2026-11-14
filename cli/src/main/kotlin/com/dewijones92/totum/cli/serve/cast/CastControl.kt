@@ -1,6 +1,7 @@
 package com.dewijones92.totum.cli.serve.cast
 
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.domain.CastScreen
 import kotlinx.coroutines.delay
 import java.io.BufferedWriter
 import java.io.IOException
@@ -19,6 +20,7 @@ internal interface CastControl {
     var onLost: (reason: String) -> Unit
     suspend fun reachable(): Boolean
     val model: String? get() = null
+    val screen: CastScreen? get() = null
 }
 
 @Suppress("TooManyFunctions")

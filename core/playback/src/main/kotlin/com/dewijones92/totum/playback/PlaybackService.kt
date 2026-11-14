@@ -37,6 +37,7 @@ import com.dewijones92.totum.playback.cast.CastStepDownWatch
 import com.dewijones92.totum.playback.cast.CastStreams
 import com.dewijones92.totum.playback.cast.CastTv
 import com.dewijones92.totum.playback.cast.PcScreens
+import com.dewijones92.totum.playback.cast.ScreenPage
 import com.dewijones92.totum.playback.cast.ScreenSession
 import com.dewijones92.totum.playback.cast.TimeMappedCastPlayer
 import com.dewijones92.totum.playback.cast.TotumCastConverter
@@ -487,7 +488,7 @@ public class PlaybackService : MediaSessionService() {
         streams,
         castStatus,
         PcScreens.keyIn(getSharedPreferences(SCREEN_PREFS, MODE_PRIVATE)),
-        page = { assets.open(SCREEN_PAGE).use { it.readBytes() } },
+        page = ScreenPage::bundled,
         session = ScreenSession(
             phone = localPlayer,
             switchTo = ::switchTo,
@@ -722,7 +723,6 @@ internal const val ACTION_PLAY_ON_SCREEN: String = "com.dewijones92.totum.PLAY_O
 internal const val EXTRA_SCREEN_ID: String = "screen_id"
 internal const val ACTION_SCREEN_REFRESH: String = "com.dewijones92.totum.SCREEN_REFRESH"
 internal const val ACTION_SCREEN_WANTS_AN_ITEM: String = "com.dewijones92.totum.SCREEN_WANTS_AN_ITEM"
-private const val SCREEN_PAGE = "screen.html"
 private const val SCREEN_PREFS = "totum_screen"
 internal const val ACTION_SILENCE_MODE: String = "com.dewijones92.totum.SILENCE_MODE"
 internal const val EXTRA_SILENCE_MODE: String = "silence_mode"

@@ -65,14 +65,14 @@ fun TargetChips(targets: TargetsRepository, modifier: Modifier = Modifier) {
     ) {
         TargetChip(
             label = stringResource(R.string.target_chip_phone),
-            colour = (colours[TargetColours.PHONE_ID] ?: TargetColours.PHONE).asColour(),
+            colour = TargetColours.of(colours, TargetColours.PHONE_ID).asColour(),
             selected = selected == null,
             onClick = { targets.select(null) },
         )
         inUse.forEach { target ->
             TargetChip(
                 label = target.chipLabel(power[target.id] ?: TargetPower.ON),
-                colour = (colours[target.id] ?: TargetColours.PHONE).asColour(),
+                colour = TargetColours.of(colours, target.id).asColour(),
                 selected = selected == target.id,
                 onClick = { targets.select(target.id) },
             )

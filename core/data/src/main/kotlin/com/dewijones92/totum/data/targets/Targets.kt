@@ -113,6 +113,7 @@ public data class TargetState(
     val repeat: RepeatMode = RepeatMode.OFF,
     val live: Boolean = false,
     val power: TargetPower = TargetPower.ON,
+    val switchedOnByHand: Boolean = false,
     val starting: Boolean = false,
     val trouble: TargetTrouble? = null,
     val sleep: TargetSleep? = null,
@@ -121,7 +122,7 @@ public data class TargetState(
 }
 
 @Serializable
-public data class TargetsAnswer(val targets: List<TargetState>)
+public data class TargetsAnswer(val targets: List<TargetState>, val browserAddress: String? = null)
 
 @Serializable
 public enum class QueueMode { REPLACE, NEXT, END, PLAY }
