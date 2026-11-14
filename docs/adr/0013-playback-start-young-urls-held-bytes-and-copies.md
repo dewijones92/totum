@@ -2,7 +2,7 @@
 title: A fresh YouTube URL is waited for, a preloaded source is played, and a copy on disk is used first
 kind: adr
 status: accepted
-updated: 2026-10-07
+updated: 2026-11-14
 ---
 
 # 13. A fresh YouTube URL is waited for, a preloaded source is played, and a copy on disk is used first
@@ -38,6 +38,11 @@ Two reports from Dewi's Pixel 7 on 0.1.573 (the build with [ADR 12](0012-solve-y
    five fresh URLs refused at 4.85 s and 5.66 s and playing only at ~7.2 s, so every slow start paid two
    wasted retries. Each 403 line now carries the learned window, the first success per URL is logged
    (`young stream accepted at …`), and `playback.youngUrlWindow` holds it for reports.
+   Amended 2026-11-14: an acceptance only caps the wait when it is at or above the latest refusal. The
+   window varies by URL on the emulator (accepted at 1.6 s, refused up to 3.0 s in the same hour), so a
+   lone early acceptance had aimed every retry at 1.6 s and most plays paid 4-6 young 403s; with acceptances
+   all below the latest refusal the wait now aims at that refusal plus 0.3 s. No acceptances at all still
+   waits the longer of the refusal bound and 4.8 s.
 2. **The player is built through the preload manager** (`buildExoPlayer`), sharing its looper and one
    `DefaultLoadControl` with separate byte budgets for playback and `PlayerId.PRELOAD`. A nomination
    carries the video and the separate audio URL, and the service's source factory hands the held

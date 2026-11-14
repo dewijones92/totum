@@ -30,6 +30,24 @@ class TheYoungUrlWindowIsLearnedTest {
     }
 
     @Test
+    fun `an acceptance earlier than a refusal does not pull the wait under the refusals`() {
+        val window = YoungUrlWindow()
+        window.accepted(ageMs = 1_599, nowMs = now)
+        window.refused(ageMs = 686, nowMs = now)
+        window.refused(ageMs = 3_008, nowMs = now)
+        assertEquals(3_308L, window.validAfterMs(now))
+    }
+
+    @Test
+    fun `an acceptance later than every refusal still caps the wait`() {
+        val window = YoungUrlWindow()
+        window.accepted(ageMs = 1_599, nowMs = now)
+        window.refused(ageMs = 3_008, nowMs = now)
+        window.accepted(ageMs = 3_200, nowMs = now)
+        assertEquals(3_200L, window.validAfterMs(now))
+    }
+
+    @Test
     fun `an acceptance alone shortens a wait the evidence says is too long`() {
         val window = YoungUrlWindow()
         window.accepted(ageMs = 3_900, nowMs = now)

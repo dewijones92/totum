@@ -1,11 +1,11 @@
 ---
 title: The learned fresh-URL window aims at the earliest acceptance, so most plays spend 4–6 young 403s
 kind: todo
-status: open — measured on the emulator 2026-10-14; not changed (tuned for the phone, needs phone data)
+status: fixed 2026-11-14 from the emulator measurements below (offline test); phone effect on start time not yet seen
 area: playback
 priority: medium
 requested: 2026-10-14
-updated: 2026-10-14
+updated: 2026-11-14
 ---
 
 # The learned fresh-URL window aims too early
@@ -39,3 +39,17 @@ how often the phone retries early.
 
 A phone report shows how many young 403s a start pays; then either keep the minimum or aim at a
 percentile of acceptances above the latest refusal, with `TheYoungUrlWindowIsLearnedTest` updated first.
+
+## Fixed (2026-11-14)
+
+`YoungUrlWindow.validAfterMs` now ignores acceptances earlier than the latest refusal when capping the
+wait: they prove the window varies, not that it is open. With the emulator's numbers (accepted 1599 ms,
+refused up to 3008 ms) the wait is 3308 ms instead of 1599 ms, which removes the retries at ~1.6 s and
+~2.5 s that the measurement showed were refused. An acceptance at or above every refusal still caps it
+(`min(refusal + 300, acceptance)`); refusals with no acceptance at all still wait at least the 4.8 s
+default; an acceptance alone behaves as before. Tests: `TheYoungUrlWindowIsLearnedTest`, two new cases,
+seen red (`expected 3308 but was 1599`, `expected 3200 but was 1599`). ADR 13 amended.
+
+Still open and unmeasured: whether the phone starts slower. The trade-off is the one named above (fewer
+wasted requests to YouTube against up to ~1.7 s later first retry on a URL that would have accepted at
+1.6 s). `playback.youngUrlWindow` and the young-403 lines in the next phone report decide whether to revisit.

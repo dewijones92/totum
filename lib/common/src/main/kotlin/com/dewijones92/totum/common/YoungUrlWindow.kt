@@ -15,11 +15,14 @@ public class YoungUrlWindow {
     @Synchronized
     public fun validAfterMs(nowMs: Long): Long {
         forget(nowMs)
-        val atLeast = refusals.maxOfOrNull { it.ageMs }?.plus(MARGIN_MS)
-        val atMost = acceptances.minOfOrNull { it.ageMs }
+        val latestRefusal = refusals.maxOfOrNull { it.ageMs }
+        val atLeast = latestRefusal?.plus(MARGIN_MS)
+        val atMost = acceptances.filter { latestRefusal == null || it.ageMs >= latestRefusal }
+            .minOfOrNull { it.ageMs }
         val learned = when {
             atLeast == null && atMost == null -> YoungStreamUrl.VALID_AFTER_MS
-            atMost == null -> maxOf(atLeast!!, YoungStreamUrl.VALID_AFTER_MS)
+            atMost == null && acceptances.isEmpty() -> maxOf(atLeast!!, YoungStreamUrl.VALID_AFTER_MS)
+            atMost == null -> atLeast!!
             atLeast == null -> minOf(atMost, YoungStreamUrl.VALID_AFTER_MS)
             else -> minOf(atLeast, atMost)
         }
