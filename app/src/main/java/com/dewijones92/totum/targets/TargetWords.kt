@@ -29,14 +29,7 @@ internal class ContextTargetWords(private val context: Context) : TargetWords {
     ): String = when (trouble.kind) {
         TroubleKind.NOT_CONNECTED -> context.getString(R.string.target_trouble_not_connected, label)
         TroubleKind.SWITCH_ON -> context.getString(R.string.target_trouble_switch_on, label)
-        TroubleKind.SWITCHED_OFF -> context.getString(
-            when (kind) {
-                TargetKind.BROWSER -> R.string.target_trouble_closed
-                TargetKind.SPEAKER -> R.string.target_trouble_speaker_gone
-                else -> R.string.target_trouble_switched_off
-            },
-            label,
-        )
+        TroubleKind.SWITCHED_OFF -> context.getString(switchedOff(kind), label)
         TroubleKind.WONT_WAKE -> context.getString(R.string.target_trouble_wont_wake, label)
         TroubleKind.COULD_NOT_PLAY -> context.getString(
             R.string.refused_tap,
@@ -53,6 +46,12 @@ internal class ContextTargetWords(private val context: Context) : TargetWords {
             title ?: context.getString(R.string.target_trouble_that_item),
             label,
         )
+    }
+
+    private fun switchedOff(kind: TargetKind): Int = when (kind) {
+        TargetKind.BROWSER -> R.string.target_trouble_closed
+        TargetKind.SPEAKER -> R.string.target_trouble_speaker_gone
+        else -> R.string.target_trouble_switched_off
     }
 
     override fun signInAgain(): String = context.getString(R.string.target_sign_in_again)
