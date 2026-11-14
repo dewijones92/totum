@@ -11,6 +11,7 @@ updated: 2026-11-14
 - Date: 2026-11-13
 - Amended by: [ADR 170](0170-a-browser-is-a-target-the-pi-plays-to-found-by-opening-its-address.md) (the Browser target slots in
   as this ADR said it would; a device switched on by hand is worded as such; one rule for a device's colour)
+- Amended 2026-11-14: one picker per screen (the last section below)
 - Amends: [ADR 152](0152-a-target-is-anything-the-pi-plays-to-and-each-has-its-own-queue.md) (the choice of device no
   longer ends with the Queue tab; "looking at a target" and "where plays go" become one remembered choice)
 
@@ -53,7 +54,7 @@ lists every configured TV, Chromecast and paired Bluetooth speaker whether it is
   destination is this phone and the log line says why (`PlayOn.why`: "last used LG TV, but not at home, so This phone").
   The remembered id is kept, so coming home brings the default back without a tap.
 - **The picker is compact and defaults to the last device, so a play costs no extra tap.** A slim row under the header
-  on every tab ("▶️ Play on [📺 LG TV ▾]", the device's colour on its border; `PlayOnRow`, in `ShellBanners`), drawn only
+  on every tab but the Queue ("▶️ Play on [📺 LG TV ▾]", the device's colour on its border; `PlayOnRow`, in `ShellBanners`), drawn only
   while more than this phone is on offer; a tap opens the list (a dot in each device's colour, 💤 on a switched-off one),
   one more picks. Every item menu has "📡 Play on…" (the shared `ActionSheet`, so rows, the queue and the full player all
   have it): it expands the same list and plays that item on the pick, making it the new last used device. Away from home
@@ -90,3 +91,26 @@ lists every configured TV, Chromecast and paired Bluetooth speaker whether it is
 - `Target.chipLabel` is the one place a device's name and power are worded, now used by the Queue chips, the picker and
   the item menu.
 - Not run on a real TV, soundbar or the Soundmic from here: the orchestrator's real-device pass.
+
+## Amended 2026-11-14: one picker per screen
+
+Dewi's real phone (report 20261114T050301, a 5,857-item queue on a Pixel 7) showed the Queue tab with two pickers of the
+same choice stacked above its title: the shell's "▶️ Play on [📱 This phone ▾]" row and the Queue's own target chips.
+Both end in `TargetsRepository.select`, which sets the one `chosen` flow and saves it in `PlayOnStore`, so they were the
+same choice drawn twice and cost about 40 dp of a screen whose list had one row showing.
+
+- **The rule: a screen shows the device choice once.** A destination that draws its own device chips
+  (`TopLevelDestination.hasItsOwnDevicePicker`, today only the Queue) hides the shell's Play on row
+  (`ShellBanners(container, selected)`); every other tab keeps the row. The chips are preferred on the Queue because they
+  also show each device's queue. The choice is unchanged by tab: it is still the one `chosen` flow and the one store, so a
+  device picked by chip on the Queue tab is the row's device on the Videos tab and the destination of every play
+  (`TheQueueTabSpendsItsHeightOnTheListTest.theShellsDeviceRowIsDrawnOnEveryTabButTheQueueWhichHasItsOwnChips`).
+- **The chips carry what the row carried**, so hiding the row loses nothing: the ➕ Play on… menu lists every device the
+  Pi offers that has no queue, now taken from the repository's own `options` (it rebuilt each option from the target and
+  power alone, so a speaker switched on by hand showed "💤 Off · picking it switches it on" and was never woken, which
+  the hint line contradicted); picking from it is `choose`, so a sleeping device is woken at once exactly as in the row;
+  and the "🖥️ Add a browser…" entry and its address dialog are in that menu, which now shows with no device listed when
+  the Pi gives an address (the row was the only place it lived). A tap on a device's own chip still only looks and does not
+  wake, as before; a play to a sleeping device wakes it first.
+- Tests: `TargetChipsTest.pickingASleepingDeviceFromMoreWakesItAndOneSwitchedOnByHandIsNotWoken` (hint lines red on the
+  old menu) and `theAddressToTypeIntoABrowserIsUnderMoreEvenWithNoDeviceListed`.

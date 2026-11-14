@@ -4,6 +4,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.platform.app.InstrumentationRegistry
@@ -13,15 +14,20 @@ import com.dewijones92.totum.data.home.HomeAnswer
 import com.dewijones92.totum.data.home.TargetsApi
 import com.dewijones92.totum.data.targets.Requester
 import com.dewijones92.totum.data.targets.Target
+import com.dewijones92.totum.data.targets.TargetAction
 import com.dewijones92.totum.data.targets.TargetControl
 import com.dewijones92.totum.data.targets.TargetEntry
 import com.dewijones92.totum.data.targets.TargetKind
+import com.dewijones92.totum.data.targets.TargetPower
 import com.dewijones92.totum.data.targets.TargetQueueRequest
 import com.dewijones92.totum.data.targets.TargetState
 import com.dewijones92.totum.data.targets.TargetsAnswer
 import com.dewijones92.totum.targets.InMemoryTargetColours
 import com.dewijones92.totum.targets.TargetsRepository
 import com.dewijones92.totum.theme.TotumTheme
+import com.dewijones92.totum.ui.queue.ADD_BROWSER_HOW_TAG
+import com.dewijones92.totum.ui.queue.ADD_BROWSER_TAG
+import com.dewijones92.totum.ui.queue.PLAY_ON_OPTION_PREFIX
 import com.dewijones92.totum.ui.queue.TargetChips
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -45,20 +51,25 @@ class TargetChipsTest {
 
     private fun text(id: Int): String = InstrumentationRegistry.getInstrumentation().targetContext.getString(id)
 
-    private class Pi(var targets: List<TargetState>) : TargetsApi {
-        override suspend fun targets() = HomeAnswer.Ok(TargetsAnswer(targets))
+    private class Pi(var targets: List<TargetState>, var address: String? = null) : TargetsApi {
+        val controlled = mutableListOf<Pair<String, TargetAction>>()
+        override suspend fun targets() = HomeAnswer.Ok(TargetsAnswer(targets, address))
         override suspend fun queue(id: String, request: TargetQueueRequest): HomeAnswer<TargetState> =
             HomeAnswer.No("unused")
-        override suspend fun control(id: String, control: TargetControl): HomeAnswer<TargetState> =
-            HomeAnswer.No("unused")
+        override suspend fun control(id: String, control: TargetControl): HomeAnswer<TargetState> {
+            controlled += id to control.action
+            return HomeAnswer.No("unused")
+        }
     }
 
     private val queued = BackupItem("a", "feed", "Bluey", contentKind = "STANDARD", playbackType = "AUDIO")
     private val tv = TargetState(Target("lg-tv", "LG TV", TargetKind.TV), entries = listOf(TargetEntry(queued)))
     private val soundbar = TargetState(Target("bar", "Soundbar", TargetKind.SPEAKER))
 
-    private fun repository(vararg states: TargetState) = TargetsRepository(
-        Pi(states.toList()),
+    private fun repository(vararg states: TargetState) = repository(Pi(states.toList()))
+
+    private fun repository(pi: Pi) = TargetsRepository(
+        pi,
         { Requester("me", "My phone") },
         InMemoryTargetColours(),
         scope,
@@ -107,6 +118,47 @@ class TargetChipsTest {
 
         assertEquals("bar", repo.selected.value)
         compose.onNodeWithText("🔈 Soundbar").assertIsSelected()
+    }
+
+    @Test
+    fun pickingASleepingDeviceFromMoreWakesItAndOneSwitchedOnByHandIsNotWoken() {
+        val sleepingTv = TargetState(Target("lg-tv", "LG TV", TargetKind.TV), power = TargetPower.ASLEEP)
+        val mic = TargetState(
+            Target("mic", "Soundmic", TargetKind.SPEAKER),
+            power = TargetPower.ASLEEP,
+            switchedOnByHand = true,
+        )
+        val pi = Pi(listOf(sleepingTv, mic))
+        val repo = repository(pi)
+        show(repo)
+        compose.onNodeWithText(text(R.string.target_chip_more)).performClick()
+
+        compose.onNodeWithText("💤 Off · picking it switches it on").assertIsDisplayed()
+        compose.onNodeWithText("🔌 Off · switch it on by hand").assertIsDisplayed()
+        compose.onNodeWithTag(PLAY_ON_OPTION_PREFIX + "lg-tv").performClick()
+        compose.waitUntil(WAIT_MS) { pi.controlled.isNotEmpty() && repo.selected.value == "lg-tv" }
+        assertEquals(listOf("lg-tv" to TargetAction.WAKE), pi.controlled)
+
+        compose.onNodeWithText(text(R.string.target_chip_more)).performClick()
+        compose.onNodeWithTag(PLAY_ON_OPTION_PREFIX + "mic").performClick()
+        compose.waitUntil(WAIT_MS) { repo.selected.value == "mic" }
+        assertEquals(1, pi.controlled.size)
+    }
+
+    @Test
+    fun theAddressToTypeIntoABrowserIsUnderMoreEvenWithNoDeviceListed() {
+        val repo = repository(Pi(emptyList(), address = "192.168.0.5:8771"))
+        compose.setContent { TotumTheme { TargetChips(repo) } }
+        compose.waitUntil(WAIT_MS) { repo.browserAddress.value != null }
+        compose.waitForIdle()
+
+        compose.onNodeWithText(text(R.string.target_chip_phone)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.target_chip_more)).performClick()
+        compose.onNodeWithTag(ADD_BROWSER_TAG).performClick()
+        compose.waitForIdle()
+
+        compose.onNodeWithTag(ADD_BROWSER_HOW_TAG).assertIsDisplayed()
+        compose.onNodeWithText("192.168.0.5:8771", substring = true).assertIsDisplayed()
     }
 
     @Test

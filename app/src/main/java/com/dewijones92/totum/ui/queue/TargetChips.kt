@@ -25,7 +25,6 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import com.dewijones92.totum.R
-import com.dewijones92.totum.data.targets.PlayOnOption
 import com.dewijones92.totum.data.targets.Target
 import com.dewijones92.totum.data.targets.TargetColours
 import com.dewijones92.totum.data.targets.TargetPower
@@ -50,15 +49,17 @@ fun TargetChips(targets: TargetsRepository, modifier: Modifier = Modifier) {
     val states = listed.filter { state -> offered.any { it.id == state.target.id } }
     val selected by targets.selected.collectAsStateWithLifecycle()
     val colours by targets.colours.collectAsStateWithLifecycle()
+    val address by targets.browserAddress.collectAsStateWithLifecycle()
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     LaunchedEffect(targets, lifecycle) {
         lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) { targets.watchWhile() }
     }
-    if (states.isEmpty()) return
+    if (states.isEmpty() && address == null) return
     val power = states.associate { it.target.id to it.power }
     val inUse = states.filter { it.entries.isNotEmpty() || it.target.id == selected }.map { it.target }
     val idle = states.map { it.target } - inUse.toSet()
     var picking by remember { mutableStateOf(false) }
+    var adding by remember { mutableStateOf(false) }
     Row(
         modifier = modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp, vertical = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -77,7 +78,7 @@ fun TargetChips(targets: TargetsRepository, modifier: Modifier = Modifier) {
                 onClick = { targets.select(target.id) },
             )
         }
-        if (idle.isNotEmpty()) {
+        if (idle.isNotEmpty() || address != null) {
             TargetChip(
                 label = stringResource(R.string.target_chip_more),
                 colour = Color.Gray,
@@ -85,14 +86,21 @@ fun TargetChips(targets: TargetsRepository, modifier: Modifier = Modifier) {
                 onClick = { picking = true },
             )
             DropdownMenu(expanded = picking, onDismissRequest = { picking = false }) {
-                val idleOptions = idle.map { PlayOnOption(it, power[it.id] ?: TargetPower.ON) }
-                PlayOnMenuItems(idleOptions, colours, selected) {
+                val idleIds = idle.map { it.id }.toSet()
+                PlayOnMenuItems(offered.filter { it.id in idleIds }, colours, selected) {
                     picking = false
-                    targets.select(it.target.id)
+                    targets.choose(it)
+                }
+                address?.let {
+                    AddBrowserEntry({
+                        picking = false
+                        adding = true
+                    })
                 }
             }
         }
     }
+    address?.takeIf { adding }?.let { AddBrowserDialog(it) { adding = false } }
 }
 
 @Composable

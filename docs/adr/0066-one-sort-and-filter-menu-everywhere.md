@@ -2,7 +2,7 @@
 title: One sort and filter menu everywhere; a queue sort changes the play order
 kind: adr
 status: accepted
-updated: 2026-11-07
+updated: 2026-11-14
 ---
 
 # 66. One sort and filter menu everywhere; a queue sort changes the play order
@@ -81,3 +81,32 @@ What was learned, so it is not tried again blind:
   idle at exactly 1080x1920@480** (the main thread was in `waitForIdle`, frame after frame; it passed at 1080x1880 and with
   the old header). The header's height is constant across its collapse (measured), so the cause is not
   `CollapsingTitle`; it was not found. Whoever shrinks the header again must run that test at 1920 first.
+
+## Recorded 2026-11-14: the header stops spending a line on search and a row on a second picker
+
+Dewi's real phone (report 20261114T050301, 5,857 items, Pixel 7) showed half a row of list under a header of: the shell's
+Play on row, the target chips, the title and its buttons, a second line of buttons, the 🔍 on a line of its own and the
+offline banner. Nothing above was moved into the list, so every hard constraint of the section above still holds (the
+header stays pinned outside the list, the reorder library's edge scroll is untouched).
+
+- **The shell's Play on row is not drawn on the Queue tab** (the chips are the same choice; see
+  [ADR 169](0169-play-on-is-a-choice-that-remembers-the-last-device.md), "one picker per screen"): 40 dp.
+- **The shell's actions travel together.** `TitleAndActions` puts casting, ✨ Ask and 🔍 Search in one `Row` inside the
+  `FlowRow`, so wrapping can never leave Search alone on a line, on any screen. This is the structural guarantee; the Queue
+  also needed it to fit.
+- **Clear all has compact padding** (6 dp each side, was 12): at 411 dp the second line was 387 dp of 383 dp with Search on
+  it, so the line broke by 4 dp. A narrower or larger-font screen still wraps, with Ask and Search together.
+- **No new control, no overflow, no label shared**: nothing was moved into a ⋮ (the 2026-11-07 attempt), so the
+  "More options" clash cannot recur.
+- Measured on `totum-api35` with the fake container, a 14-row queue with a group, music and talk, and three devices:
+
+| Geometry | Header above the list before | After | List top (dp) | Gain |
+|---|---|---|---|---|
+| 1080x2400 @ 420 (411x914 dp) | picker row, chips, 3 button lines | chips, 2 button lines | 351 -> 251 | 100 dp |
+| 1080x1920 @ 480 (360x640 dp) | picker row, chips, 4 lines (Search alone on the last) | chips, 3 lines (Ask and Search together) | 336 -> 284 | 52 dp |
+
+- Tests: `TheQueueTabSpendsItsHeightOnTheListTest` (the row is on the other tabs and not the Queue and the choice survives the
+  move between them; Search never alone on a line and two lines at 411 dp; both red on the old header: row count 1 and "search is
+  alone on its line"). `TheQueueTitleIsNeverSqueezedTest`, `AScreenTitleNeverBreaksAWordTest` and `QueueTitleSettlesAtAnyHeightTest`
+  unchanged and green.
+

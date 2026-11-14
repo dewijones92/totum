@@ -3,6 +3,7 @@ package com.dewijones92.totum.ui.common
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
@@ -35,9 +36,11 @@ internal fun TitleAndActions(
     ) {
         title(Modifier.weight(1f).widthIn(min = titleWidth))
         actions()
-        CastingAction()
-        AskAction()
-        SearchAction()
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            CastingAction()
+            AskAction()
+            SearchAction()
+        }
     }
 }
 

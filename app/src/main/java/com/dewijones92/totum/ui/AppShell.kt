@@ -191,7 +191,7 @@ private fun ShellScaffold(
 ) {
     CompositionLocalProvider(LocalAnimationsHidden provides coveredByPlayer) {
         Scaffold(
-            topBar = { ShellBanners(container) },
+            topBar = { ShellBanners(container, selected) },
             snackbarHost = { snackbar?.let { SnackbarHost(it) } },
             bottomBar = {
                 BottomBar(

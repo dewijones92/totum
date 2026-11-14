@@ -24,6 +24,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dewijones92.totum.R
 import com.dewijones92.totum.data.update.UpdateStatus
 import com.dewijones92.totum.di.AppContainer
+import com.dewijones92.totum.navigation.TopLevelDestination
 import com.dewijones92.totum.polite.Politeness
 import com.dewijones92.totum.ui.queue.PlayOnRow
 import kotlinx.coroutines.delay
@@ -76,7 +77,7 @@ const val POLITE_BANNER_TAG = "polite-banner"
 private const val REFRESH_MS = 15_000L
 
 @Composable
-fun ShellBanners(container: AppContainer) {
+fun ShellBanners(container: AppContainer, selected: TopLevelDestination) {
     val update by container.appUpdate.status.collectAsStateWithLifecycle()
     val signedIn by container.accountSubscriptions.signedIn.collectAsStateWithLifecycle()
     val all by container.operations.running.collectAsStateWithLifecycle()
@@ -93,6 +94,8 @@ fun ShellBanners(container: AppContainer) {
         PoliteBanner(container.polite, signedIn, padStatusBar = first && running.isEmpty())
         val aboveIsEmpty = running.isEmpty() && !container.polite.bannerUp()
         HomeProblemsBanner(homeProblems, padStatusBar = first && aboveIsEmpty)
-        PlayOnRow(container.targets, padStatusBar = first && aboveIsEmpty && homeProblems.isEmpty())
+        if (!selected.hasItsOwnDevicePicker) {
+            PlayOnRow(container.targets, padStatusBar = first && aboveIsEmpty && homeProblems.isEmpty())
+        }
     }
 }

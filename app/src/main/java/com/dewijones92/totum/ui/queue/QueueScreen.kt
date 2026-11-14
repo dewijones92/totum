@@ -3,6 +3,7 @@ package com.dewijones92.totum.ui.queue
 import android.content.Context
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -635,7 +636,9 @@ private fun QueueHeader(
         ExploreToggle("queue header")
         onShuffle?.let { QueueShuffleButton(it, onShuffleGroups) }
         if (count > 0) {
-            TextButton(onClick = onClear) { Text(stringResource(R.string.queue_clear_all)) }
+            TextButton(onClick = onClear, contentPadding = ClearAllPadding) {
+                Text(stringResource(R.string.queue_clear_all))
+            }
         }
     }
 }
@@ -692,6 +695,7 @@ private fun NowPlayingLabel(progressState: State<Float?>, isPlaying: Boolean) {
 }
 
 private val PROGRESS_HEIGHT = 2.dp
+private val ClearAllPadding = PaddingValues(horizontal = 6.dp, vertical = 8.dp)
 private const val DRAG_ELEVATION = 12f
 private const val QUEUE_TOP_KEY = "queue-top"
 private const val DRAG_SCALE = 1.02f

@@ -4,7 +4,7 @@ kind: todo
 status: built 2026-11-13 (unit tests green; instrumented tests written and compiled; nothing run on a real TV, soundbar or the Soundmic)
 batch: B (2026-11), P4
 priority: high
-updated: 2026-11-13
+updated: 2026-11-14
 ---
 
 > **Follow-ups done 2026-11-13 ([ADR 170](../adr/0170-a-browser-is-a-target-the-pi-plays-to-found-by-opening-its-address.md)):** a device

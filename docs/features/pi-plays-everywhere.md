@@ -16,7 +16,7 @@ sound processing on the Pi). Brief: [pi-plays-everywhere.md](../todos/pi-plays-e
 ## What it does
 
 - **Queue tab, chips on top.** 📱 This phone, then a chip for each target that has a queue (coloured, with its kind's
-  emoji: 🔈 speaker, 📺 TV or Chromecast, 🖥️ browser), and ➕ Play on… for targets with nothing queued. The chips show
+  emoji: 🔈 speaker, 📺 TV or Chromecast, 🖥️ browser), and ➕ Play on… for targets with nothing queued (a sleeping one is woken when picked, and 🖥️ Add a browser… is in it). The chips show
   once the home server lists at least one target.
 - **A target's queue is the same list.** The same `MediaItemRow`, group headings, jump (tap), remove (menu) as the
   phone's own queue; above it what plays, the position, ⏮ ⏯ ⏭ ⏹️, a volume slider, ✂️ Skip silences and 🔊 Boost (the
@@ -96,7 +96,8 @@ sound processing on the Pi). Brief: [pi-plays-everywhere.md](../todos/pi-plays-e
   The last used device is where every play, add, play next and shuffle all goes, from any tab, until another is picked; it
   is kept across restarts and no longer ends with the Queue tab. At home (the home server answered, and an unmetered
   connection) every device the Pi lists is offered, switched off ones with 💤; away from home only this phone is. A slim
-  "▶️ Play on [device ▾]" row under every tab's header shows and changes it, every item menu has "📡 Play on…" to play
+  "▶️ Play on [device ▾]" row under every tab's header but the Queue's (which has the chips, the same choice: one picker per
+  screen) shows and changes it, every item menu has "📡 Play on…" to play
   that item on a pick, and picking a switched-off device wakes it at once (a play to a sleeping one wakes it as before).
   The device's colour is on the item wherever it is playing (a "📺 LG TV" badge on rows, the queue, the mini player and the
   full player). Peek stays on the phone; the phone's own notification is not recoloured.

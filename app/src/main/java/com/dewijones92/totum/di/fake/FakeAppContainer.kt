@@ -179,6 +179,7 @@ class FakeAppContainer(
     },
     /** Null by default: previews and most tests have no home server, which is the common case. */
     override val torrentSearchSource: SearchSource? = null,
+    private val targetsApi: com.dewijones92.totum.data.home.TargetsApi? = null,
     override val askService: AskService? = null,
     override val aiFeatures: AiFeatures = AiFeatures.fake(applicationScope),
     override val askCopies: AskCopies = AskCopies({ emptyList() }),
@@ -337,7 +338,7 @@ class FakeAppContainer(
     }
     override val targets: com.dewijones92.totum.targets.TargetsRepository by lazy {
         com.dewijones92.totum.targets.TargetsRepository(
-            null,
+            targetsApi,
             { com.dewijones92.totum.data.targets.Requester("fake", "Fake phone") },
             com.dewijones92.totum.targets.InMemoryTargetColours(),
             applicationScope,

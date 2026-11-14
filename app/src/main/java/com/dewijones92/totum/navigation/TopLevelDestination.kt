@@ -51,5 +51,7 @@ enum class TopLevelDestination(
         labelRes = R.string.destination_library,
         selectedIcon = Icons.Filled.CollectionsBookmark,
         unselectedIcon = Icons.Outlined.CollectionsBookmark,
-    ),
+    );
+
+    val hasItsOwnDevicePicker: Boolean get() = this == Queue
 }
