@@ -64,7 +64,8 @@ internal data class SinkReply(val code: Int?, val body: String?) {
     val accepted: Boolean get() = code != null && code in HTTP_OK_RANGE
 
     val retryable: Boolean
-        get() = code == null || code >= HTTP_SERVER_ERROR || code == HTTP_REQUEST_TIMEOUT || code == HTTP_TOO_MANY_REQUESTS
+        get() = code == null || code >= HTTP_SERVER_ERROR ||
+            code == HTTP_REQUEST_TIMEOUT || code == HTTP_TOO_MANY_REQUESTS
 
     fun reportId(): String? = body?.let { REPORT_ID_IN_REPLY.find(it)?.groupValues?.get(1) }
 

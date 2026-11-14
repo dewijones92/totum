@@ -87,7 +87,7 @@ class DiagnosticsUploaderTest {
     )
 
     @Test
-    fun `a signed-in phone with the setting on sends the report, then its state linked to that report, and keeps nothing`() =
+    fun `a signed-in phone sends the report, then its state linked to that report, and keeps nothing`() =
         runBlocking {
             acceptReport()
             answer(202)
@@ -216,7 +216,7 @@ class DiagnosticsUploaderTest {
     }
 
     @Test
-    fun `a dump that cannot be gathered keeps the report pending and the next run sends the state alone`() = runBlocking {
+    fun `a dump that cannot be gathered keeps the report pending, then the state goes alone`() = runBlocking {
         acceptReport()
         val file = report("diagnostics")
 
@@ -234,7 +234,7 @@ class DiagnosticsUploaderTest {
     }
 
     @Test
-    fun `two reports in one run each bring a state linked to their own id, and the dump is gathered once`() = runBlocking {
+    fun `two reports in one run each bring a state linked to their own id, from one dump`() = runBlocking {
         acceptReport("20261114T120000-aaaaaaaa")
         answer(202)
         acceptReport("20261114T120001-bbbbbbbb")
@@ -293,7 +293,9 @@ class DiagnosticsUploaderTest {
         assertFalse(file.exists())
         assertNull(receipt(file))
         assertTrue(
-            logged.any { "giving up" in it && REPORT_ID in it && "${DiagnosticsUploader.MAX_STATE_ATTEMPTS} attempts" in it },
+            logged.any {
+                "giving up" in it && REPORT_ID in it && "${DiagnosticsUploader.MAX_STATE_ATTEMPTS} attempts" in it
+            },
         )
         assertEquals(1 + DiagnosticsUploader.MAX_STATE_ATTEMPTS, server.requestCount)
     }
