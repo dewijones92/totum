@@ -1,7 +1,7 @@
 ---
 title: 📺 Cast to Apple TV (AirPlay) and DLNA players too
 kind: todo
-status: built 2026-11-14 (ADR 174), sound only; real-device tests owed
+status: built 2026-11-14 (ADR 174 sound, ADR 175 picture and Kodi control); real-device tests owed
 priority: medium
 updated: 2026-11-14
 ---
@@ -44,9 +44,10 @@ Owed, in order:
 
 1. **Real-device runs**: pair the LG (`totum airplay-pair "LG TV"`), play, pause, seek, stop; Kodi over DLNA. The LG may
    refuse audio-only HLS (`supportsUIForAudioOnlyContent` is false).
-2. **The picture** over HLS (a byte-range video playlist from the layouts DASH already uses); today a picture item plays its
-   sound and the notice says so.
+2. **The picture** over HLS: built ([ADR 175](../adr/0175-dlna-airplay-and-kodi-carry-the-picture-over-the-one-stream-servers-hls.md)),
+   proven against ffmpeg's HLS demuxer, gmrender-resurrect and two stand-ins; unproven on the real LG and Kodi.
 3. **AirPlay inside `bin_private`**: if the LG stalls at start, the sender address given for AirPlay 2 timing is the
    container's; host networking or a published timing port is the fix.
-4. **A Kodi JSON-RPC control** if DLNA proves flaky on the Fire Stick (one more `CastControl`, credentials from a file).
+4. **A Kodi JSON-RPC control**: built (ADR 175), `TOTUM_KODI_TARGETS` plus `TOTUM_KODI_CREDENTIALS`; the real Fire Stick was
+   not running when it was built, so its add-on list and a real `Player.Open` are unread.
 5. A volume for AirPlay (URL playback has none; RAOP has).

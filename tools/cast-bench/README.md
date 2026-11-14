@@ -48,3 +48,20 @@ or unicast to one host).
   `zeroconf`) is an AirPlay v1 receiver that answers `/play`, `/playback-info`, `/rate`, `/scrub` and `/stop`, fetches the
   playlist and segments it is given and plays nothing. pyatv's unicast scan finds it (mDNS is not answered on 127.0.0.1).
   It models the endpoints from pyatv's client code, not from a real receiver.
+
+## Picture over HLS, and Kodi (ADR 175), silent
+
+- `serve-ranges.py <dir> [--port N]` serves a folder with byte ranges (the brain probes and relays a film at an address by range).
+- **Kodi**: `kodi-standin/standin.py --credentials <file of user=/password= lines> [--port 8081] [--adaptive]` answers Kodi's
+  JSON-RPC (`JSONRPC.Version`, `Addons.GetAddons`, `Application.GetProperties`/`SetVolume`, `Player.Open`, `PlayPause`, `Seek`,
+  `Stop`, `GetActivePlayers`, `GetProperties`) with Basic auth read from the file at each call, and plays what it is opened with
+  by decoding it into a null sink with ffmpeg, **the same HLS demuxer Kodi uses**, in real time. It logs the streams it found
+  (video codec and size, audio codec): that line is the proof a picture and sound arrived. It is a stand-in, not Kodi.
+  `TOTUM_KODI_TARGETS=Kodi=127.0.0.1:8081 TOTUM_KODI_CREDENTIALS=<the same file>`.
+- **DLNA with video**: the gmrender container above already has `--gstout-videosink fakesink`, so GStreamer decodes the picture
+  and nothing is shown.
+- **AirPlay**: `airplay-standin/standin.py --decode` follows a master playlist (the picture and the sound rendition, init
+  segments and byte ranges included), and with `--decode` also decodes the whole stream with ffmpeg and reports the streams.
+- `targets-e2e.py --target <id> --video-url <address the Pi can read> --duration-ms <n>` queues a video instead of the tone and
+  runs the same play, pause, play, seek, stop drive.
+

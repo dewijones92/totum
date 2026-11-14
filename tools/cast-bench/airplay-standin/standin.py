@@ -2,7 +2,10 @@
 import argparse
 import asyncio
 import plistlib
+import re
+import shutil
 import socket
+import subprocess
 import sys
 import time
 import urllib.request
@@ -25,6 +28,7 @@ class Playback:
         self.since = time.monotonic()
         self.segments = 0
         self.task = None
+        self.decode = False
 
     def now(self):
         if self.rate:
@@ -38,9 +42,53 @@ class Playback:
         self.since = time.monotonic()
 
 
-def fetch(url):
-    with urllib.request.urlopen(url, timeout=30) as reply:
+def fetch(url, byterange=None):
+    request = urllib.request.Request(url)
+    if byterange:
+        length, offset = byterange.split("@")
+        request.add_header("Range", "bytes=%d-%d" % (int(offset), int(offset) + int(length) - 1))
+    with urllib.request.urlopen(request, timeout=30) as reply:
         return reply.read()
+
+
+def attributes(line):
+    return dict(re.findall(r'([A-Z-]+)=("[^"]*"|[^,]*)', line.split(":", 1)[1]))
+
+
+def media_playlist(lines):
+    init, segments, pending, duration = None, [], None, None
+    for line in lines:
+        if line.startswith("#EXT-X-MAP:"):
+            found = attributes(line)
+            init = (found["URI"].strip('"'), found.get("BYTERANGE", "").strip('"') or None)
+        elif line.startswith("#EXTINF:"):
+            duration = float(line.split(":")[1].split(",")[0])
+        elif line.startswith("#EXT-X-BYTERANGE:"):
+            pending = line.split(":")[1]
+        elif line and not line.startswith("#"):
+            segments.append((line, duration, pending))
+            pending = None
+    return init, segments
+
+
+def decode_check(url):
+    if not shutil.which("ffmpeg"):
+        return
+    run = subprocess.run(
+        ["ffmpeg", "-v", "error", "-i", url, "-map", "0", "-f", "null", "-progress", "pipe:1", "-nostats", "-"],
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    frames = [line.split("=")[1] for line in run.stdout.splitlines() if line.startswith("frame=")]
+    log("decode check: ffmpeg exit %d, %s video frame(s) decoded, errors: %s" % (run.returncode, frames[-1] if frames else "0", run.stderr.strip()[:300] or "none"))
+    probe = subprocess.run(
+        ["ffprobe", "-v", "error", "-show_entries", "stream=codec_type,codec_name,width,height", "-of", "csv=p=0", url],
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    log("streams the receiver would find: %s" % probe.stdout.strip().replace("\n", " | "))
 
 
 async def consume(state):
@@ -50,24 +98,43 @@ async def consume(state):
     log("fetched the playlist (%d bytes) from %s" % (len(playlist), url))
     base = url.rsplit("/", 1)[0] + "/"
     lines = playlist.splitlines()
-    init = next(line.split('URI="')[1].rstrip('"') for line in lines if line.startswith("#EXT-X-MAP"))
-    pieces = (await loop.run_in_executor(None, fetch, base + init))[4:8]
-    log("fetched the init segment %s, box %r" % (init, pieces))
-    durations = [float(line.split(":")[1].rstrip(",")) for line in lines if line.startswith("#EXTINF")]
-    names = [line for line in lines if line and not line.startswith("#")]
-    state.duration = sum(durations)
+    tracks = []
+    if "#EXT-X-STREAM-INF" in playlist:
+        variant = next(i for i, line in enumerate(lines) if line.startswith("#EXT-X-STREAM-INF"))
+        info = attributes(lines[variant])
+        log("master playlist: a picture (%s, %s) and a sound rendition" % (info.get("RESOLUTION"), info.get("CODECS")))
+        tracks.append(("picture", lines[variant + 1]))
+        for line in lines:
+            if line.startswith("#EXT-X-MEDIA:") and "URI" in line:
+                tracks.append(("sound", attributes(line)["URI"].strip('"')))
+        if state.decode:
+            await loop.run_in_executor(None, decode_check, url)
+    else:
+        tracks.append(("sound", None))
+    loaded = []
+    for label, relative in tracks:
+        text = playlist if relative is None else (await loop.run_in_executor(None, fetch, base + relative)).decode()
+        init, segments = media_playlist(text.splitlines())
+        head = (await loop.run_in_executor(None, fetch, base + init[0], init[1]))[4:8]
+        log("%s: fetched the init segment %s (%s), box %r" % (label, init[0], init[1] or "whole", head))
+        starts, at = [], 0.0
+        for _, duration, _ in segments:
+            starts.append(at)
+            at += duration
+        loaded.append((label, segments, starts, at))
+    state.duration = max(total for _, _, _, total in loaded)
     state.set(rate=1.0)
-    starts = [sum(durations[:i]) for i in range(len(durations))]
     fetched = set()
     while state.url == url:
         here = state.now()
-        for i, name in enumerate(names):
-            if i in fetched or starts[i] > here + 8:
-                continue
-            body = await loop.run_in_executor(None, fetch, base + name)
-            fetched.add(i)
-            state.segments += 1
-            log("segment %d fetched (%d bytes, box %r) at position %.1fs" % (i, len(body), body[4:8], here))
+        for label, segments, starts, _ in loaded:
+            for i, (name, _, byterange) in enumerate(segments):
+                if (label, i) in fetched or starts[i] > here + 8:
+                    continue
+                body = await loop.run_in_executor(None, fetch, base + name, byterange)
+                fetched.add((label, i))
+                state.segments += 1
+                log("%s segment %d fetched (%d bytes, box %r) at position %.1fs" % (label, i, len(body), body[4:8], here))
         if here >= state.duration:
             log("reached the end at %.1fs" % here)
             state.duration = None
@@ -156,8 +223,12 @@ async def serve(routes, reader, writer):
         writer.close()
 
 
+DECODE = False
+
+
 async def main(port, name, address):
     state = Playback()
+    state.decode = DECODE
     routes = build(state)
     await asyncio.start_server(lambda r, w: serve(routes, r, w), "0.0.0.0", port)
     zeroconf = AsyncZeroconf(ip_version=IPVersion.V4Only)
@@ -185,5 +256,7 @@ if __name__ == "__main__":
     parser.add_argument("--port", type=int, default=7011)
     parser.add_argument("--name", default="Totum-AirPlay-Standin")
     parser.add_argument("--address", required=True, help="a local non-loopback address: mDNS is not answered on 127.0.0.1")
+    parser.add_argument("--decode", action="store_true", help="also decode a master playlist whole with ffmpeg and say what it found")
     arguments = parser.parse_args()
+    DECODE = arguments.decode
     asyncio.run(main(arguments.port, arguments.name, arguments.address))
