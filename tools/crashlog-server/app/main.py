@@ -31,6 +31,7 @@ from fastapi import FastAPI, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 
+import attachments
 import states
 
 DATA_DIR = Path(os.environ.get("CRASHLOG_DATA", "/data"))
@@ -99,6 +100,8 @@ def _init_storage() -> None:
             ("fixed_in", "TEXT"),
             ("note", "TEXT"),
             ("triaged_at", "TEXT"),
+            ("screenshot_count", "INTEGER"),
+            ("has_note", "INTEGER"),
         ):
             if column not in existing:
                 connection.execute(f"ALTER TABLE reports ADD COLUMN {column} {ddl}")
@@ -372,8 +375,8 @@ async def ingest(request: Request) -> JSONResponse:
             """
             INSERT INTO reports (id, received_at, path, kind, app_version, git_commit,
                                  exception, message, device, android, install_id,
-                                 event_count, bytes, parsed)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                                 event_count, bytes, parsed, screenshot_count, has_note)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             """,
             (
                 report_id,
@@ -390,6 +393,8 @@ async def ingest(request: Request) -> JSONResponse:
                 len(events) if isinstance(events, list) else None,
                 len(body),
                 1 if parsed is not None else 0,
+                len(attachments.of(parsed)),
+                1 if attachments.note_of(parsed) else 0,
             ),
         )
         connection.commit()
@@ -743,11 +748,81 @@ def api_considered(since: str = Query(default="", description="received_at >= th
                     "considered": _considered(row, findings),
                     "has_state": dump is not None,
                     "state_bytes": dump.stat().st_size if dump is not None else None,
+                    "screenshots": row["screenshot_count"] or 0,
+                    "has_note": bool(row["has_note"]),
                     "note": row["note"],
                     "findings": findings,
                 }
             )
     return JSONResponse({"reports": out, "unconsidered": sum(not r["considered"] for r in out)})
+
+
+def _backfill_report_facts() -> None:
+    with closing(_connect()) as connection:
+        rows = connection.execute(
+            "SELECT id, path FROM reports WHERE screenshot_count IS NULL OR has_note IS NULL"
+        ).fetchall()
+        for row in rows:
+            payload = _read_payload(row["path"])
+            connection.execute(
+                "UPDATE reports SET screenshot_count = ?, has_note = ? WHERE id = ?",
+                (len(attachments.of(payload)), 1 if attachments.note_of(payload) else 0, row["id"]),
+            )
+        connection.commit()
+    if rows:
+        print(f"dewidebug report: counted the screenshots and note of {len(rows)} report(s) stored before they were recorded", flush=True)
+
+
+def _read_payload(path: str) -> Any:
+    try:
+        return json.loads(Path(path).read_text(encoding="utf-8", errors="replace"))
+    except (OSError, ValueError):
+        return None
+
+
+@app.get("/api/report/{report_id}/brief")
+def api_report_brief(report_id: str) -> JSONResponse:
+    with closing(_connect()) as connection:
+        row = connection.execute("SELECT * FROM reports WHERE id = ?", (report_id,)).fetchone()
+        if row is None:
+            return JSONResponse({"error": "no such report"}, status_code=404)
+        findings = _findings(connection, report_id)
+    payload = _read_payload(row["path"])
+    dump = states.linked_path(STATES_DIR, report_id)
+    return JSONResponse(
+        {
+            "id": report_id,
+            "kind": row["kind"],
+            "received_at": row["received_at"],
+            "app_version": row["app_version"],
+            "git_commit": row["git_commit"],
+            "device": row["device"],
+            "android": row["android"],
+            "exception": row["exception"],
+            "message": row["message"],
+            "note": attachments.note_of(payload),
+            "screenshots": [
+                {"n": n, "name": s["name"], "width": s["width"], "height": s["height"], "bytes": len(s["data"])}
+                for n, s in enumerate(attachments.of(payload), start=1)
+            ],
+            "has_state": dump is not None,
+            "state_bytes": dump.stat().st_size if dump is not None else None,
+            "considered": _considered(row, findings),
+            "findings": len(findings),
+        }
+    )
+
+
+@app.get("/api/report/{report_id}/screenshot/{number}", response_model=None)
+def api_report_screenshot(report_id: str, number: int) -> Response:
+    with closing(_connect()) as connection:
+        row = connection.execute("SELECT path FROM reports WHERE id = ?", (report_id,)).fetchone()
+    if row is None:
+        return JSONResponse({"error": "no such report"}, status_code=404)
+    found = attachments.of(_read_payload(row["path"]))
+    if not 1 <= number <= len(found):
+        return JSONResponse({"error": f"this report has {len(found)} screenshot(s)"}, status_code=404)
+    return Response(found[number - 1]["data"], media_type="image/jpeg")
 
 
 @app.get("/api/unread")
@@ -894,4 +969,5 @@ def latest() -> PlainTextResponse:
     return PlainTextResponse(header + pretty)
 
 
+_backfill_report_facts()
 _sweep_states("start-up")

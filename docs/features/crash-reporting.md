@@ -254,7 +254,7 @@ redactor) to `POST /ingest/state`. `tools/emulator/load-state.sh` restores one i
 The dump is posted with the report's id (`X-Totum-Report-Id`, the id the sink returned) and the crashlog server keeps it
 **for as long as that report is unconsidered**, deleting it the moment the report has a verdict (the ✅ in
 `tools/crashlog-server/triage.sh considered`, which marks a report that still has its dump with 📦). Fetch one with
-`triage.sh state <report id>` or load it into the emulator with `tools/emulator/load-state.sh <report id>`. A safety cap
+`triage.sh show <report id>` (the note, key facts, the screenshots saved to a folder, and where the dump is; `considered` also shows 📷 N screenshots and 📝 when the reporter wrote a note), `triage.sh state <report id>` or load it into the emulator with `tools/emulator/load-state.sh <report id>`. A safety cap
 (`CRASHLOG_MAX_UNCONSIDERED_STATE_MB`, 1024) drops the oldest with a `BUDGET EXCEEDED` log line. A dump with no report id
 (an older phone, or "📤 Send my state to Claude" on its own) is still kept apart, newest five.
 

@@ -108,7 +108,8 @@ read its report was the state of exactly the problem still to be diagnosed.
   five. Dumps already on the Pi's disk are exactly that kind, so they are left as they are and still listed.
 - **Reading them.** `triage.sh considered` marks a report that still has its dump with 📦; `triage.sh state <report id>` (or
   `GET /api/report/<id>/state`) fetches it, and says whether the report is considered when there is none; `load-state.sh
-  <report id>` loads it into the emulator; `/api/states` lists both kinds; `/state/latest` is the newest of either.
+  <report id>` loads it into the emulator; `triage.sh show <report id>` prints the reporter's note and key facts, saves the
+  report's screenshots (`considered` marks them 📷 N and a note 📝) and says whether the dump is held; `/api/states` lists both kinds; `/state/latest` is the newest of either.
 - **Deploy order.** Crashlog server first, then the app: a new phone against the old server sends the header, which the old
   server ignores, so the dump is kept as an unlinked one; an old phone against the new server is the unlinked case. Nothing
   in nginx changes (the header is forwarded by default and the 32 MB `/ingest/state` limit already covers the size).
@@ -136,7 +137,7 @@ id, nothing is sent twice, two reports in one run each get their own state from 
 logged with its code, five failures give up loudly, a dump over the limit is not posted, a reply with no id sends an unlinked
 state, an unreadable receipt never reposts the report), `ReportReceiptTest`, `ReportSinkTest`, `CrashRecordsTest` (7), and the server's `test_states.py` (12,
 20 since the amendment) and `test_state_endpoint.py` (5, in a `python:3.14-slim` container with the pinned requirements and httpx:
-30 tests, all green; the amendment adds `test_report_states.py` (21) and 8 linked-dump tests in `test_states.py`, 59 in all, run
+30 tests, all green; the amendment adds `test_report_states.py` (21) and 8 linked-dump tests in `test_states.py` and `test_report_brief.py` (12: screenshots, note, brief), 71 in all, run
 in a venv with the pinned requirements and httpx). On the emulator: a real uncaught exception via `DEBUG_CRASH` wrote the record and the next launch showed the
 screen (screenshot checked, Continue cleared it); the GitHub preview shows the trace; a real dump was built and checked for
 tokens; `load-state.sh` loaded a modified dump (a playlist the emulator lacked, a three-item queue, a changed setting),

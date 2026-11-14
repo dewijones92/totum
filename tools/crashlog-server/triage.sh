@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Flag the findings in Totum's crash/diagnostics reports, from the laptop, over ssh to the Pi.
 #
-#   triage.sh considered [since]                       reports since a date (default: 7 days ago), considered or not; 📦 = its state dump is still held
+#   triage.sh considered [since]                       reports since a date (default: 7 days ago), considered or not;
+#                                                      📦 state dump still held, 📷 N screenshots, 📝 the reporter wrote a note
+#   triage.sh show <report-id> [out-dir]               the note and key facts, screenshots saved to out-dir (default ./<report-id>), where the state dump is
 #   triage.sh findings <report-id>                     one report's findings
 #   triage.sh state <report-id> [file]                 the report's state dump, gzipped (default ./<report-id>.json.gz)
 #   triage.sh add <report-id> <state> <title> [fixed_in] [note]
@@ -38,7 +40,10 @@ data = json.load(sys.stdin)
 for r in data["reports"]:
     mark = "✅" if r["considered"] else "⬜"
     box = "📦" if r.get("has_state") else "  "
-    print("{} {} {}  {:11} {:10} {}".format(mark, box, r["id"], r["kind"] or "?", r["app_version"] or "?", r["state"]))
+    shots = "📷 {}".format(r["screenshots"]) if r.get("screenshots") else "    "
+    note = "📝" if r.get("has_note") else "  "
+    print("{} {} {} {} {}  {:11} {:10} {}".format(
+        mark, box, shots, note, r["id"], r["kind"] or "?", r["app_version"] or "?", r["state"]))
     for f in r["findings"]:
         version = " " + f["fixed_in"] if f["fixed_in"] else ""
         print("     #{} {}{}: {}".format(f["id"], f["state"], version, f["title"]))
@@ -55,6 +60,34 @@ case "${1:-}" in
   findings)
     call GET "/api/report/${2:?report id}/findings"
     echo
+    ;;
+  show)
+    id=${2:?report id}
+    out=${3:-./$id}
+    brief=$(call GET "/api/report/$id/brief")
+    printf '%s' "$brief" | python3 -c '
+import json, sys
+b = json.load(sys.stdin)
+if "error" in b:
+    sys.exit("triage: " + b["error"])
+print("{} {}  {} {}  {} / Android {}".format("✅" if b["considered"] else "⬜", b["id"], b["kind"] or "?", b["app_version"] or "?", b["device"] or "?", b["android"] or "?"))
+print("received {}  commit {}".format(b["received_at"][:19], (b["git_commit"] or "?")[:8]))
+if b["exception"] or b["message"]:
+    print("{}: {}".format(b["exception"] or "message", (b["message"] or "").splitlines()[0] if b["message"] else ""))
+print("📝 " + (b["note"] if b["note"] else "(no note)"))
+print("📷 {} screenshot(s)".format(len(b["screenshots"])))
+if b["has_state"]:
+    print("📦 state dump held, {} bytes: triage.sh state {}  or  tools/emulator/load-state.sh {}".format(b["state_bytes"], b["id"], b["id"]))
+else:
+    print("no state dump held (it was deleted when the report was considered, was dropped for the size budget, or never arrived)" if b["considered"] else "no state dump held (it never arrived, or was dropped for the size budget)")
+print("{} finding(s); triage.sh findings {}".format(b["findings"], b["id"]))
+'
+    mkdir -p "$out"
+    for n in $(printf '%s' "$brief" | python3 -c 'import json, sys; print(*[s["n"] for s in json.load(sys.stdin).get("screenshots", [])])'); do
+      name=$(printf '%s' "$brief" | python3 -c 'import json, sys; print(next(s["name"] for s in json.load(sys.stdin)["screenshots"] if s["n"] == int(sys.argv[1])))' "$n")
+      call GET "/api/report/$id/screenshot/$n" > "$out/$name"
+      echo "   $out/$name ($(wc -c < "$out/$name") bytes)"
+    done
     ;;
   state)
     id=${2:?report id}
@@ -83,7 +116,7 @@ case "${1:-}" in
     echo
     ;;
   *)
-    sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'
     exit 2
     ;;
 esac

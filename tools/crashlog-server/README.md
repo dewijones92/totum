@@ -20,6 +20,8 @@ container on the Pi, reached through the existing nginx at
 |---|---|
 | `POST /ingest` | What the app posts to. **Unauthenticated** (see below). Returns `202` with an id |
 | `POST /ingest/state` | A whole-app **state dump** (gzipped JSON) from a signed-in phone. With `X-Totum-Report-Id` (or `?report=`) it is linked to that report and kept while the report is unconsidered; with none, only the newest 5 such are kept (see below). `202` with its file name (`202` and discarded for an already-considered report, `200` when the report already has its dump), `400` when it is not a dump or the id is malformed, `404` for a report the server never had |
+| `GET /api/report/{id}/brief` | A report's note, key facts, its screenshots (number, name, size), whether its state dump is held, and whether it is considered |
+| `GET /api/report/{id}/screenshot/{n}` | Screenshot `n` (1-based) as the JPEG that was attached; `404` past the last |
 | `GET /api/report/{id}/state` | The state dump that came with a report, gzipped, as a download; `404` with the reason (considered, so deleted, or never held) when there is none |
 | `GET /api/states` | The held state dumps, newest first (name, bytes, when, `report` id or null, install, app version) |
 | `GET /state/latest` | The newest state dump of either kind, gzipped, as a download |
@@ -34,7 +36,7 @@ container on the Pi, reached through the existing nginx at
 | `POST /api/report/{id}/findings` | Add one **finding** to a report: `title`, `state`, `fixed_in`, `note` |
 | `POST /api/finding/{fid}` | Re-judge a finding; fields left out are kept |
 | `GET /api/report/{id}/findings` | A report's findings and whether it counts as **considered** |
-| `GET /api/considered?since=YYYY-MM-DD` | Every report since a date, considered or not, with its findings and `has_state` / `state_bytes` (whether its state dump is still held) |
+| `GET /api/considered?since=YYYY-MM-DD` | Every report since a date, considered or not, with its findings, `has_state` / `state_bytes` (whether its state dump is still held), `screenshots` (how many) and `has_note` (the reporter wrote one) |
 | `GET /healthz` | Liveness |
 
 ## State dumps: the app's whole state, kept while its report is unconsidered
@@ -219,7 +221,8 @@ The report's `note` becomes a one-line summary of its findings.
 From the laptop, `tools/crashlog-server/triage.sh` does all of it over ssh:
 
 ```bash
-tools/crashlog-server/triage.sh considered 2026-10-01   # ✅/⬜ per report, with its findings
+tools/crashlog-server/triage.sh considered 2026-10-01   # ✅/⬜ per report, 📦 dump held, 📷 N screenshots, 📝 note, with its findings
+tools/crashlog-server/triage.sh show <report> [dir]      # the note, key facts, screenshots saved to dir, where the state dump is
 tools/crashlog-server/triage.sh add <report> fixed "no summons after a 2nd Restart" v0.1.556
 tools/crashlog-server/triage.sh set <finding-id> noise
 ```
