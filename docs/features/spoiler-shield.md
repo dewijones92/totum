@@ -3,7 +3,7 @@ title: Spoiler shield
 kind: feature
 status: built 2026-11-07, Batch A (JVM tests written 2026-11-07; not yet seen on a device)
 area: ai/video
-updated: 2026-11-07
+updated: 2026-11-14
 ---
 
 # 🙈 Spoiler shield
@@ -53,7 +53,10 @@ word. A post-tournament video (a champions' dinner) tells you the tournament is 
 
 ## Diagnostics
 
-`dewidebug`-style lines under `spoiler`: each item's first sighting (its channel id and whether it is shown plain or
-hidden, and why), every batch asked, every answer with what the model said, what the rules decided and why, failures and
-the retry time, channel switches and reveals. On the Pi, `[spoiler]` lines with the same decision per title and the
+`dewidebug`-style lines under `spoiler`, counted not per row (2026-11-14: 989 of 1,400 events in a report were
+"shown plain" lines, 542 in one second at start-up, and `spoiler` is a kept tag, so they also crowded out every other
+kept tag): one `faces:` line per 2 s window with the count of new items by outcome (shown plain and why, hidden,
+safe title) and the first three as examples, every batch asked (first three ids), one `verdicts:` line per answer
+(kept, rewritten, replaced by the neutral title, no verdict), a line of its own for each title where the rules
+overrode the model, failures and the retry time, channel switches and reveals. On the Pi, `[spoiler]` lines with the same decision per title and the
 `ai-task` job lines.

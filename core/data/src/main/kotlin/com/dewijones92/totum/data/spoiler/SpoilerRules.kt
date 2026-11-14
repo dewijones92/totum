@@ -14,7 +14,12 @@ public data class SpoilerVerdict(val id: String, val spoils: Boolean, val safeTi
 @Serializable
 public data class SpoilerAnswer(val verdicts: List<SpoilerVerdict>)
 
-public data class SafeTitle(val title: String, val spoils: Boolean, val why: String)
+public data class SafeTitle(
+    val title: String,
+    val spoils: Boolean,
+    val why: String,
+    val overridesModel: Boolean = false,
+)
 
 public object SpoilerRules {
     public const val NEUTRAL: String = "🙈 Title hidden"
@@ -52,11 +57,11 @@ public object SpoilerRules {
         val clean = proposed?.trim().orEmpty().takeIf { it.isNotEmpty() }
         return when {
             spoils == false && !rule -> SafeTitle(original, false, "kept: no result in it")
-            clean == null -> SafeTitle(NEUTRAL, true, "no rewrite offered (rule hit: $rule, model said $spoils)")
-            reveals(clean) -> SafeTitle(NEUTRAL, true, "rewrite still names a result: ${matchesIn(clean)}")
-            !sharesAWord(original, clean) -> SafeTitle(NEUTRAL, true, "rewrite shares no word with the title")
-            clean.length > original.length + EXTRA -> SafeTitle(NEUTRAL, true, "rewrite is longer than the title")
-            else -> SafeTitle(clean, true, "rewritten (rule hit: $rule, model said $spoils)")
+            clean == null -> SafeTitle(NEUTRAL, true, "no rewrite offered (rule hit: $rule, model said $spoils)", true)
+            reveals(clean) -> SafeTitle(NEUTRAL, true, "rewrite still names a result: ${matchesIn(clean)}", true)
+            !sharesAWord(original, clean) -> SafeTitle(NEUTRAL, true, "rewrite shares no word with the title", true)
+            clean.length > original.length + EXTRA -> SafeTitle(NEUTRAL, true, "rewrite is longer than the title", true)
+            else -> SafeTitle(clean, true, "rewritten (rule hit: $rule, model said $spoils)", spoils == false)
         }
     }
 

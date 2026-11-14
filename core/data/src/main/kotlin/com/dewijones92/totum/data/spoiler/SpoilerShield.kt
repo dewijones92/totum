@@ -76,6 +76,7 @@ public class SpoilerShield(
     private val scope: CoroutineScope,
     private val clock: () -> Long = System::currentTimeMillis,
     private val debounceMs: Long = DEBOUNCE_MS,
+    private val noteWindowMs: Long = NOTE_WINDOW_MS,
 ) : ItemShield {
     private val _state = MutableStateFlow(store.load())
     public val state: StateFlow<ShieldState> = _state.asStateFlow()
@@ -86,6 +87,9 @@ public class SpoilerShield(
     private val retryAfter = HashMap<String, Long>()
     private val flushScheduled = AtomicBoolean(false)
     private val noted = ConcurrentHashMap.newKeySet<String>()
+    private val faceCounts = LinkedHashMap<String, Int>()
+    private val faceExamples = ArrayList<String>()
+    private val faceSummaryScheduled = AtomicBoolean(false)
 
     override fun face(item: MediaItem): ItemFace {
         val snapshot = _state.value
@@ -142,9 +146,36 @@ public class SpoilerShield(
     }
 
     private fun note(id: String, what: String, item: MediaItem) {
-        if (noted.add("$id|$what")) {
-            Diag.log(TAG, "item $id by \"${item.author}\" shown $what [channelId=${item.sourceUrl?.youTubeChannelId}]")
+        if (!noted.add("$id|$what")) return
+        synchronized(lock) {
+            faceCounts.merge(what, 1, Int::plus)
+            if (faceExamples.size < EXAMPLES) {
+                faceExamples += "$id by \"${item.author}\" shown $what [channelId=${item.sourceUrl?.youTubeChannelId}]"
+            }
         }
+        if (faceSummaryScheduled.compareAndSet(false, true)) {
+            scope.launch {
+                delay(noteWindowMs)
+                faceSummaryScheduled.set(false)
+                logFaces()
+            }
+        }
+    }
+
+    private fun logFaces() {
+        val (counts, examples) = synchronized(lock) {
+            val taken = faceCounts.toMap() to faceExamples.toList()
+            faceCounts.clear()
+            faceExamples.clear()
+            taken
+        }
+        if (counts.isEmpty()) return
+        Diag.log(
+            TAG,
+            "faces: ${counts.values.sum()} new item(s) in ${noteWindowMs}ms: " +
+                counts.entries.joinToString("; ") { "${it.key} x${it.value}" } +
+                "; first: ${examples.joinToString(", ")}",
+        )
     }
 
     private fun change(why: String, edit: (ShieldState) -> ShieldState) {
@@ -187,7 +218,10 @@ public class SpoilerShield(
             taken
         }
         if (batch.isEmpty()) return
-        Diag.log(TAG, "asking for safe titles of ${batch.size} item(s): ${batch.joinToString { it.id }}")
+        Diag.log(
+            TAG,
+            "asking for safe titles of ${batch.size} item(s), first: ${batch.take(EXAMPLES).joinToString { it.id }}",
+        )
         when (val outcome = check(batch)) {
             is AskOutcome.Answered -> settle(batch, outcome.value)
             is AskOutcome.Failed -> giveBackLater(batch, outcome.reason)
@@ -200,6 +234,9 @@ public class SpoilerShield(
         val byId = answer.verdicts.associateBy { it.id }
         val settled = mutableMapOf<String, StoredTitle>()
         val missing = mutableListOf<String>()
+        var kept = 0
+        var rewritten = 0
+        var neutral = 0
         batch.forEach { query ->
             val verdict = byId[query.id]
             if (verdict == null) {
@@ -207,9 +244,21 @@ public class SpoilerShield(
             } else {
                 val decided = SpoilerRules.decide(query.title, verdict.spoils, verdict.safeTitle)
                 settled[query.id] = StoredTitle(decided.title, decided.spoils, now)
-                Diag.log(TAG, "item ${query.id}: ${decided.why}; shown as \"${decided.title}\"")
+                when {
+                    decided.title == SpoilerRules.NEUTRAL -> neutral++
+                    decided.spoils -> rewritten++
+                    else -> kept++
+                }
+                if (decided.overridesModel) {
+                    Diag.log(TAG, "item ${query.id}: ${decided.why}; shown as \"${decided.title}\"")
+                }
             }
         }
+        Diag.log(
+            TAG,
+            "verdicts: ${batch.size - missing.size} of ${batch.size} answered: kept $kept, rewritten $rewritten, " +
+                "replaced by the neutral title $neutral, no verdict ${missing.size}",
+        )
         synchronized(lock) {
             batch.forEach { inFlight -= it.id }
             missing.forEach { retryAfter[it] = now + RETRY_MS }
@@ -239,6 +288,8 @@ public class SpoilerShield(
 
     public companion object {
         private const val DEBOUNCE_MS = 400L
+        private const val NOTE_WINDOW_MS = 2_000L
+        private const val EXAMPLES = 3
         private const val BATCH = 25
         private const val RETRY_MS = 10 * 60_000L
         private const val MINUTE = 60_000L
