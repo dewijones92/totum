@@ -86,6 +86,13 @@ the laptop:
   (`note`: URL playback has no volume of its own, the TV's volume is the TV's), so `volumePercent` is null and the fade has
   nothing to move on an AirPlay device (the sleep timer still pauses at its end). The DLNA control never raises a device
   above the level it was at.
+- **No address that carries a key is ever handed to these devices.** `CastControl.keepsAddressesPrivate` (ADR 170's
+  rule for browsers) is true for `DlnaControl` and for the AirPlay control, so when no stream could be built and the item's
+  own address carries `api_key=` (a Jellyfin stream), the item fails with a reason rather than the device being given the
+  key; a merged device answers for the protocol in use. The playlist address the Pi hands them is its own random
+  per-offer path and carries no secret.
+- **No new `TroubleKind` and no new wire value** for these devices' wording: their notices are plain text in the target's
+  `problem` (an unknown enum value would break an old phone's decoding, ADR 158).
 - **Work does not grow with the queue** (Dewi's real queues hold thousands of items). A control receives one item at a time
   from the deck; `DlnaControl` makes exactly three actions per item (`Stop`, `SetAVTransportURI`, `Play`) and reads nothing
   ahead (`SetNextAVTransportURI` is not used), and the stream server keeps at most six sessions. A test sends 300 items and

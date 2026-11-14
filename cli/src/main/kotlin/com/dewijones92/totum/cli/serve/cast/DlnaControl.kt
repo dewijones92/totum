@@ -16,6 +16,8 @@ internal class DlnaControl(
 
     override val format: CastFormat get() = CastFormat.HLS
 
+    override val keepsAddressesPrivate: Boolean get() = true
+
     override var onEnded: (failed: Boolean) -> Unit = {}
 
     override var onLost: (reason: String) -> Unit = {}

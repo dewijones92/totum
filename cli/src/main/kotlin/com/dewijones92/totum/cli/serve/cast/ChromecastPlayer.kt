@@ -80,7 +80,7 @@ internal class ChromecastPlayer(
                 Diag.warn(
                     "cast-target",
                     "$label: no manifest could be built for ${request.title} and its own address carries a key " +
-                        "(${hostOrPath(url)}); not handing it to a browser",
+                        "(${hostOrPath(url)}); not handing it to a device that must not hold keys",
                 )
                 error("no stream could be built for $label, and the item's own address carries a key")
             }

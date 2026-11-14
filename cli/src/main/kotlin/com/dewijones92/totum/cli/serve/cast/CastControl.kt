@@ -36,6 +36,7 @@ internal class PyCastControl(
     private val stateFile: java.io.File? = null,
     override val format: CastFormat = CastFormat.DASH,
     private val kind: String = "Chromecast",
+    override val keepsAddressesPrivate: Boolean = false,
 ) : CastControl {
 
     override var onEnded: (failed: Boolean) -> Unit = {}

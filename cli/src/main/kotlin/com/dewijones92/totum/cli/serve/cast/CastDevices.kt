@@ -106,6 +106,7 @@ internal class FirstReachableControl(
         }
 
     override val format: CastFormat get() = current.format
+    override val keepsAddressesPrivate: Boolean get() = current.keepsAddressesPrivate
     override val model: String? get() = current.model
     override val screen: CastScreen? get() = current.screen
 
@@ -180,7 +181,7 @@ internal class CastDeviceSource(
         )
     }
 
-    private fun controlFor(device: KnownDevice, protocol: CastProtocol): CastControl {
+    internal fun controlFor(device: KnownDevice, protocol: CastProtocol): CastControl {
         val address = device.addresses.getValue(protocol).host
         return when (protocol) {
             CastProtocol.CHROMECAST -> PyCastControl(
@@ -195,6 +196,7 @@ internal class CastDeviceSource(
                 stateFile = places.credentialsOf(device.id)?.also { it.parentFile?.mkdirs() },
                 format = CastFormat.HLS,
                 kind = "AirPlay",
+                keepsAddressesPrivate = true,
             )
             CastProtocol.DLNA -> DlnaControl(address, device.name)
         }

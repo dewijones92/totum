@@ -102,6 +102,29 @@ class CastDevicesTest {
             assertTrue(File(tmp, "airplay").isDirectory)
         }
 
+    @Test
+    fun `a DLNA or AirPlay device is never handed an address that carries a key, a Chromecast keeps its rule`() =
+        runBlocking {
+            val device = devices(
+                cast = "TV=1.1.1.1",
+                airplay = "TV=1.1.1.1",
+                dlna = "TV=http://1.1.1.1:1/d.xml"
+            ).single()
+            val source = CastDeviceSource(listOf(device), streams())
+
+            assertFalse(source.controlFor(device, CastProtocol.CHROMECAST).keepsAddressesPrivate)
+            assertTrue(source.controlFor(device, CastProtocol.AIRPLAY).keepsAddressesPrivate)
+            assertTrue(source.controlFor(device, CastProtocol.DLNA).keepsAddressesPrivate)
+            val both = FirstReachableControl(
+                "TV",
+                listOf(
+                    CastProtocol.CHROMECAST to Stub(true, CastFormat.DASH),
+                    CastProtocol.DLNA to Stub(true, CastFormat.HLS)
+                )
+            )
+            assertFalse(both.keepsAddressesPrivate)
+        }
+
     private class Stub(
         var answers: Boolean,
         override val format: CastFormat,
