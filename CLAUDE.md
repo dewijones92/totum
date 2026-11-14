@@ -661,6 +661,13 @@ differently from an anonymous one — which cannot be tested on a signed-out dev
        each; never facts the code can answer.
      - **Write it down:** one `docs/todos/<item>.md` per item with its decision, evidence and reuse; an overview doc
        with the phases, their order and what was declined; the session's task file, so it survives a context reset.
+  - **Dewi's real app state is a lens on everything** (Dewi, 2026-11-14: *"I want my app state to be one of the lens that we
+    do everything as this is real world usage"*). The newest state dump (Settings → send my state, or every report; the Pi keeps
+    five, ADR 159) is copied to `~/claude-tasks/state-dumps/` (600, redacted, never committed or sent anywhere). Refining reads it
+    for the real shapes and sizes (on 2026-11-14: 5,857 queue items, 1,623 subscriptions, 509 downloads, 1,207 progress records);
+    every builder brief names it and asks how the change behaves at that scale and with those contents; every batch ends with a
+    pass on the emulator loaded with it (`tools/emulator/load-state.sh`), after the clean soak, looking at the changed screens and
+    timing what scales with it (opening the queue, start-up, search, groups).
   2. **Each feature ships on its own** so Dewi can try it on his phone: tests (a bug fix's test seen red first), docs
      and ADRs in the same change, preflight and `./gradlew detekt` across all modules until clean, the changed
      tests run, a look at the changed screen on the emulator, then push and watch CI on the commit to its end (the
