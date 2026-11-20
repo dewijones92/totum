@@ -79,7 +79,11 @@ internal fun LazyListScope.tabFooter(info: SearchTabInfo?, view: SearchTabView) 
                 when (info.tab) {
                     SearchTab.YOURS -> stringResource(R.string.search_tab_empty_yours, view.query)
                     SearchTab.BBC -> stringResource(R.string.search_tab_empty_bbc, view.query)
-                    else -> stringResource(R.string.search_tab_empty, stringResource(info.tab.label).lowercase(), view.query)
+                    else -> stringResource(
+                        R.string.search_tab_empty,
+                        stringResource(info.tab.label).lowercase(),
+                        view.query
+                    )
                 },
             )
         }
