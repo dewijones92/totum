@@ -276,6 +276,16 @@
                 <action android:name="android.service.quicksettings.action.QS_TILE" />
             </intent-filter>
         </service>
+        <service
+            android:name=".diagnostics.SendStateTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_send_state"
+            android:label="@string/send_state_tile_label"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
         <activity
             android:name=".diagnostics.CrashActivity"
             android:exported="false"

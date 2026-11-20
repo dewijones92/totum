@@ -1,6 +1,7 @@
 package com.dewijones92.totum.cli.serve
 
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.common.ReportRedactor
 import com.dewijones92.totum.data.ask.AskAnswer
 import com.dewijones92.totum.data.ask.AskKind
 import com.dewijones92.totum.data.ask.AskRequest
@@ -17,24 +18,34 @@ internal sealed interface AskPlan {
     data object Web : AskPlan
     data class App(val question: String, val note: String? = null) : AskPlan
     data class Both(val appQuestion: String, val webQuestion: String) : AskPlan
+    data class Chain(val appQuestion: String, val webQuestion: String) : AskPlan
 }
 
 internal object AskRouting {
 
-    const val DEPENDENT_NOTE =
-        "ℹ️ The web part of that needs facts from your own data. I keep your data away from the web, so I " +
-            "answered only the part about your app; ask the web part again with the details typed in."
+    const val MAX_FROM_APP_CHARS = 1_500
+
+    private val handedOn = ReportRedactor()
 
     const val NO_SNAPSHOT_NOTE = "ℹ️ Your app's data was not available this time, so only the web part was answered."
 
     fun plan(decision: RouteDecision, hasState: Boolean, latest: String): AskPlan = when {
         decision.route == AskSource.WEB -> AskPlan.Web
         decision.route == AskSource.APP -> AskPlan.App(latest)
-        decision.webNeedsAppData -> AskPlan.App(decision.appQuestion.ifBlank { latest }, DEPENDENT_NOTE)
+        decision.webNeedsAppData && !hasState -> AskPlan.Web
+        decision.webNeedsAppData && decision.webQuestion.isNotBlank() ->
+            AskPlan.Chain(decision.appQuestion.ifBlank { latest }, decision.webQuestion)
+        decision.webNeedsAppData -> AskPlan.App(decision.appQuestion.ifBlank { latest })
         !hasState -> AskPlan.Web
         decision.appQuestion.isBlank() -> AskPlan.Web
         decision.webQuestion.isBlank() -> AskPlan.App(decision.appQuestion)
         else -> AskPlan.Both(decision.appQuestion, decision.webQuestion)
+    }
+
+    fun handedToWeb(appReply: String): String {
+        val scrubbed = handedOn.redact(appReply).trim()
+        if (scrubbed.length <= MAX_FROM_APP_CHARS) return scrubbed
+        return scrubbed.take(MAX_FROM_APP_CHARS).trimEnd() + "…"
     }
 
     fun forWeb(earlier: List<AskTurn>): List<AskTurn> = earlier.map { turn ->
@@ -92,6 +103,7 @@ internal class RoutedAsk(
             AskPlan.Web -> webOnly(request, trace, noSnapshot = state == null && decision.route != AskSource.WEB)
             is AskPlan.App -> appOnly(request, plan, requireNotNull(state), trace)
             is AskPlan.Both -> both(request, plan, requireNotNull(state), trace)
+            is AskPlan.Chain -> chained(request, plan, requireNotNull(state), trace)
         }
     }
 
@@ -140,24 +152,58 @@ internal class RoutedAsk(
             val web = async {
                 runCatching { timed { brain.suggest(webRequest(request, plan.webQuestion, withTaste = false)) } }
             }
-            val (appResult, webResult) = app.await() to web.await()
-            val appAnswer = appResult.getOrNull()
-            val webAnswer = webResult.getOrNull()
-            if (appAnswer == null && webAnswer == null) throw BrainFailure(failureOf(appResult) ?: "no answer")
-            val parts = listOfNotNull(
-                appAnswer?.value?.reply?.let { "🗂️ $it" }
-                    ?: "⚠️ The part about your app failed: ${failureOf(appResult)}",
-                webAnswer?.value?.reply?.let { "🌐 $it" } ?: "⚠️ The web part failed: ${failureOf(webResult)}",
-            )
-            AskAnswer(
-                suggestions = appAnswer?.value?.suggestions.orEmpty() + webAnswer?.value?.suggestions.orEmpty(),
-                reply = parts.joinToString("\n\n"),
-                source = AskSource.BOTH,
-                trace = appAnswer?.value?.trace
-                    ?.copy(webMs = webAnswer?.elapsed, note = "answered as two separate calls")
-                    ?: trace.copy(webMs = webAnswer?.elapsed),
-            )
+            joined(app.await(), web.await(), trace, "answered as two separate calls")
         }
+
+    private suspend fun chained(
+        request: AskRequest,
+        plan: AskPlan.Chain,
+        state: StoredState,
+        trace: AskTrace,
+    ): AskAnswer {
+        val app = runCatching { timed { appOnly(request, AskPlan.App(plan.appQuestion), state, trace) } }
+        val handed = app.getOrNull()?.value?.reply?.let(AskRouting::handedToWeb).orEmpty()
+        Diag.log(
+            "ask",
+            "chained: the app half ${if (app.isSuccess) "answered" else "failed (${failureOf(app)})"}; handing " +
+                "${handed.length} chars of its answer text to the web half with ${request.have.size} owned title(s) " +
+                "and the taste summary; the snapshot, its card ids and the earlier app replies are not handed on",
+        )
+        val web = runCatching {
+            timed {
+                brain.suggest(webRequest(request, plan.webQuestion, withTaste = true).copy(fromApp = handed))
+            }
+        }
+        val note = if (handed.isEmpty()) {
+            "the app half failed, so the web half ran without its answer"
+        } else {
+            "answered by the app half, then the web half with its answer"
+        }
+        return joined(app, web, trace, note)
+    }
+
+    private fun joined(
+        appResult: Result<Timed<AskAnswer>>,
+        webResult: Result<Timed<AskAnswer>>,
+        trace: AskTrace,
+        note: String,
+    ): AskAnswer {
+        val appAnswer = appResult.getOrNull()
+        val webAnswer = webResult.getOrNull()
+        if (appAnswer == null && webAnswer == null) throw BrainFailure(failureOf(appResult) ?: "no answer")
+        val parts = listOfNotNull(
+            appAnswer?.value?.reply?.let { "🗂️ $it" }
+                ?: "⚠️ The part about your app failed: ${failureOf(appResult)}",
+            webAnswer?.value?.reply?.let { "🌐 $it" } ?: "⚠️ The web part failed: ${failureOf(webResult)}",
+        )
+        return AskAnswer(
+            suggestions = appAnswer?.value?.suggestions.orEmpty() + webAnswer?.value?.suggestions.orEmpty(),
+            reply = parts.joinToString("\n\n"),
+            source = AskSource.BOTH,
+            trace = appAnswer?.value?.trace?.copy(webMs = webAnswer?.elapsed, note = note)
+                ?: trace.copy(webMs = webAnswer?.elapsed, note = note),
+        )
+    }
 
     private class Timed<T>(val value: T, val elapsed: Long)
 

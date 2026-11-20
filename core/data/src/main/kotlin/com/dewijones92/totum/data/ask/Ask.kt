@@ -2,6 +2,7 @@ package com.dewijones92.totum.data.ask
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 import kotlinx.serialization.json.Json
 
 @Serializable
@@ -91,6 +92,7 @@ public data class AskRequest(
     val have: List<String> = emptyList(),
     val taste: Taste = Taste(),
     val stateId: String? = null,
+    @Transient val fromApp: String = "",
 ) {
     init {
         require(turns.isNotEmpty()) { "an ask needs a request" }

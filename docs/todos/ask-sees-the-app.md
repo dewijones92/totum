@@ -49,7 +49,7 @@ questions through stdin to `claude -p` (always `< /dev/null`).
 
 One chat with a Haiku router; a fresh gzipped snapshot before every ask, held 10 minutes in the Pi's memory; an app
 question runs `Bash(jq:*)` alone on that snapshot, in a private temp directory in the AI service; "both" is two
-separate calls (or app only with a note); the answer is text plus cards of the phone's own items. Dry runs with the
+separate calls (or, when the web half needs facts from the app, the app half first and the web half handed its answer text, 2026-11-20); the answer is text plus cards of the phone's own items. Dry runs with the
 real model against Dewi's real backup are recorded in the ADR.
 
 Reuse: `BackupService.create` for the file's own sections (queue groups, downloads, stats, trail and the event log

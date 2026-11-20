@@ -258,6 +258,19 @@ The dump is posted with the report's id (`X-Totum-Report-Id`, the id the sink re
 (`CRASHLOG_MAX_UNCONSIDERED_STATE_MB`, 1024) drops the oldest with a `BUDGET EXCEEDED` log line. A dump with no report id
 (an older phone, or "📤 Send my state to Claude" on its own) is still kept apart, newest five.
 
+### A fresh state dump on demand, before every big batch (2026-11-20)
+
+A Quick Settings tile **📦 Send my state** (`SendStateTileService`) sends one state dump to the Pi now, through the same
+path as Settings → "📤 Send my state to Claude": both call `AppContainer.sendMyState` (`diagnostics/SendMyState.kt`), which
+runs `HomeReports.sendState` as a tracked task in the progress strip and turns the `StateSend` outcome into one message
+(`StateSend.message`), so the two cannot word a result differently. The tile shows ⏳ while it sends, ignores a second tap
+until it is done, and ends with a toast and its subtitle: "✅ State sent to your Pi (N KB)", or, when the phone is not signed
+in to the home server, "⚠️ Not signed in to your home server, so nothing was sent." Log lines (`diagnostics`): `dewidebug send
+my state asked for from <where>` and `… from <where> ended: <outcome>`. `tools/state/pull-state.sh` then copies the Pi's newest
+dump (read-only ssh) into `~/claude-tasks/state-dumps/` with mode 600 and prints its file name, app version, when it was taken
+and its age, warning on stderr when it is older than 3 days (`STATE_MAX_AGE_DAYS`), and skipping dumps from debug builds (`0.1.0-dev`, the emulator); it never prints anything from inside the dump.
+ADR 159's amendment of 2026-11-20 records the decision.
+
 `triage.sh considered` with no date lists every unconsidered report whatever its age plus the last 7 days of considered ones, and its footer always gives the server-wide unconsidered count with a `🚨` line when a date window hides one (2026-11-20: a 7-day default had hidden five reports from 14 October for five weeks).
 
 On the phone, the report and its state stay pending together: once the sink accepts the report the phone keeps it with a
