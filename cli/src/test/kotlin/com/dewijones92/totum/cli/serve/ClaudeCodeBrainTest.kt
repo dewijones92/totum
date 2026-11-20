@@ -123,6 +123,26 @@ class ClaudeCodeBrainTest {
     }
 
     @Test
+    fun `the starred and liked titles reach the web call, and what the app said is marked as data`() {
+        val text = Prompts.suggestMessage(
+            AskRequest(
+                listOf(AskTurn("films like what I have starred")),
+                taste = Taste(starred = listOf("Threads 1984"), liked = listOf("A liked video")),
+                fromApp = "You watched The Matrix",
+            ),
+        )
+        assertTrue("Items they starred: Threads 1984" in text)
+        assertTrue("Videos they liked: A liked video" in text)
+        assertTrue("From their own app: You watched The Matrix" in text)
+    }
+
+    @Test
+    fun `no line about their own app appears when there is nothing from it`() {
+        val text = Prompts.suggestMessage(AskRequest(listOf(AskTurn("a film"))))
+        assertTrue("From their own app" !in text)
+    }
+
+    @Test
     fun `the answer may be music, a radio or the latest from a channel, with a reply`() = runTest {
         val music = """{"reply":"Funk it is","suggestions":[""" + listOf(
             pick("radio", "Happy funk", "September Earth Wind & Fire; Dean Town Vulfpeck"),

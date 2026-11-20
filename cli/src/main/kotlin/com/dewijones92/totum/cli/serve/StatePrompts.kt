@@ -21,13 +21,19 @@ internal object StatePrompts {
         - app: the message asks about what is in their app or what happened in it ("how many unfinished videos are
           in my queue", "what did I listen to last night", "why didn't that video carry on", "which downloads are
           biggest", "what have I starred", "which settings might surprise me").
-        - web: they want something found, suggested, downloaded or looked up, or ask a fact about the world.
-        - both: the message asks two separate things, one about their own data and one that needs the web. Then give
-          appQuestion and webQuestion as two complete questions that each make sense on their own, in the person's
-          words. Set webNeedsAppData to true when the web question cannot be answered without facts that only their
-          data holds (for example "find a film like the one I watched last night"): such a question is never joined
-          up, because their data must not travel to the web helper. A web question that is only on the same topic
-          ("recommend a bee documentary") does not need their data: write it as its own question and set it false.
+        - web: they want something found, suggested, downloaded or looked up, or ask a fact about the world. That
+          includes anything "like" or "based on" what they watch, listen to, follow or have starred ("films I might
+          like based on what I've seen", "something like my favourite channels", "new releases for me"): the web
+          helper already has a summary of their taste, so these never need the app helper.
+        - both: the message asks about one specific thing in their own data and also for something from the web. Then
+          give appQuestion and webQuestion as two complete questions that each make sense on their own, in the
+          person's words. Set webNeedsAppData to true only when the web question turns on one specific item or fact
+          that only their data holds and a summary of their taste cannot give: "find a film like the one I watched
+          last night", "is there a sequel to the last thing I finished", "new releases that I have not watched yet".
+          Then the app helper answers first and its answer is handed to the web helper, so write appQuestion to ask
+          for exactly the facts the web question needs (titles, years, channels) and webQuestion as the web part. A
+          web question that is only on the same topic or the same taste ("recommend a bee documentary", "films I
+          might like") does not need their data: write it as its own question and set webNeedsAppData to false.
 
         When one message both asks about their own data and asks for something from the web (find, recommend, news, a
         fact), choose both even if the data part may turn up nothing; never drop the web part.
