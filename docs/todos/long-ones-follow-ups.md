@@ -17,6 +17,6 @@ Built in [ADR 185](../adr/0185-long-ones-are-built-from-what-is-cached-and-fill-
   refill needs its own design (a WorkManager window is 10 minutes). Dewi's call.
 - [ ] **Two vetoable calls**, both recommendations in the ADR: podcasts are included under the same per-source cap; the page does
   not obey ADR 19's dopamine-fast gate. Either is a one-line change.
-- [ ] **Check on the phone:** the first open on a real account (how many asks it makes, the megabytes, how many it takes to
-  find 12), and whether the anonymous `player` answers there (the bot check) or `lengthCheck` reports "unknown".
+- [ ] **Check on the phone:** the emulator on the real account answered every ask (32 in 11.5 s); the phone's home IP is the one
+  YouTube bot-blocked in October, so see whether `lengthCheck` reports "unknown" there (`[longones]` lines, `polite.botRefusals`).
 - [ ] **An instrumented test of the tile and page** over a fake container with a stubbed `LongOnes`.

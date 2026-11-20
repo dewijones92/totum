@@ -23,7 +23,7 @@ Three facts shaped the design, all checked on 2026-11-20:
 - **The WEB `next` call that dates a video (ADR 94, `PublishDays`) does not say its own length either.** Probed with a
   public video: 466 KB, and every `lengthText` in it belongs to a *related* video.
 - **The ANDROID `player` call does** (`videoDetails.lengthSeconds`, `isLiveContent`), and a refused video (age gate,
-  members) still carries its `videoDetails`. One probe answered 195 KB, so it is not free: ~100 of them is ~20 MB.
+  members) still carries its `videoDetails`. Probes answered 93 to 195 KB (a finished video 93 KB, a live one 142 KB), so it is not free: ~100 of them is ~10 to 20 MB.
 
 Dewi's real state (the 20 Nov dump, read for shape only): 1,622 followed channels and **1 followed podcast**; of 1,336 queued
 ordinary YouTube videos with a known length, 460 were over 20 minutes. His queue is a biased sample, so that 34% is a ceiling on
@@ -85,6 +85,12 @@ the same sort-and-filter sheet as every other list header (ADR 66).
 launch, "✅ N ready". It does no work to say so: it reads the last built list.
 
 ## Consequences
+
+- **Seen on `totum-api35`, signed in as Dewi, 20 Nov 2026** (build 319244f1, the channel check 243 of 1,622 channels in): the first
+  refresh took **11.5 s** (pool 243 uploads, 2 live ones left out by the registry, **32 asks: 30 lengths, 2 "live now"**, 16 too
+  short, **12 of 12 chosen**, 0 held back by the cap); each ask took 110 ms to 2.7 s through the gate. Every refresh after it asked
+  nothing and took 223 to 506 ms. A 9-hour "practice cam" that had ended is listed as an ordinary video, as decided; the two
+  streams still on were left out. No YouTube refusal or bot check showed.
 
 - **At Dewi's scale** (1,623 subscriptions): opening the page reads the table, the feed cache and one podcast's episodes (a few
   thousand rows, no network) and publishes within the time of one Room read; look-ups then run for at most 40 asks (~8 MB at the

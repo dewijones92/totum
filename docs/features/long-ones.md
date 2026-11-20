@@ -2,7 +2,7 @@
 title: Long ones: unwatched videos over 20 minutes from what you follow
 kind: feature
 area: library
-status: built 2026-11-20 (unit tests green where listed; not yet seen on a phone)
+status: built 2026-11-20 (unit tests green; seen on totum-api35 with the real account, not yet on a phone)
 updated: 2026-11-20
 ---
 
@@ -48,10 +48,21 @@ Follow-ups: [todos/long-ones-follow-ups](../todos/long-ones-follow-ups.md).
 (`length of <id>: …s via … in Nms`, or why not and for how long it is set aside), and one `refresh (why): …` summary with the
 counts and the time. Report vitals `longones.lastRefresh` and `longones.chosen`. Tile and page taps are logged.
 
+## Seen on the emulator (20 Nov 2026, `totum-api35`, signed in as Dewi, build 319244f1)
+
+- First refresh, with 243 of the 1,622 channels checked: pool 243, **32 asks in 11.5 s** (30 lengths, 2 "live now"), 16 too short,
+  **12 of 12 chosen**. Every refresh after asked nothing and took 223 to 506 ms (`[longones] refresh (…)` lines).
+- The tile reads "✅ 12 ready" and wraps cleanly at **320x640@160** (the CI geometry) and 1080x2400@420; the page's rows are the
+  ordinary rows, with lengths on the thumbnails and the "✅ subscribed" mark. At 320x640 the header title wraps over three lines
+  beside its three icons (the sort, filter and refresh buttons and the cast button take the width), the same as other list
+  headers; nothing is cut.
+- A 9-hour "practice cam" stream that had ended is listed as an ordinary video; the two streams still on were left out.
+- Screenshots (scratch, not kept in the repo): `library-tile.png`, `long-ones-page.png`, `long-ones-320x640.png`,
+  `tile-320-step2.png` under the session scratchpad `longones/` folder.
+
 ## Tests
 
-See [the tests index](../tests/_index.md), 2026-11-20 entry. Nothing here is covered by an instrumented test yet, and nothing has
-been seen on a phone.
+See [the tests index](../tests/_index.md), 2026-11-20 entry. Nothing here is covered by an instrumented test yet.
 
 ## Known limits
 
