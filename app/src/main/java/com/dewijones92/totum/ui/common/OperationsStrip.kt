@@ -174,6 +174,7 @@ fun rememberLongRunning(all: List<Operation>, clock: () -> Long = System::curren
 internal fun shownAt(all: List<Operation>, nowMs: Long): List<Operation> =
     all.filter { nowMs - it.startedAtMs >= SHOW_AFTER_MS }
 
+@Suppress("CyclomaticComplexMethod")
 @Composable
 private fun titleOf(operation: Operation): String = when (operation.kind) {
     OperationKind.SHUFFLE_ARTIST -> stringResource(R.string.ops_shuffle_artist, operation.subject)
