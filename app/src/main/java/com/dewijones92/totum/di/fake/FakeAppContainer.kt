@@ -261,6 +261,13 @@ class FakeAppContainer(
     override val playbackQueue: PlaybackQueue =
         PlaybackQueue(playbackController, videoPlaybackLauncher, CoroutineScope(SupervisorJob()), queueStore),
     override val jellyfin: com.dewijones92.totum.data.home.JellyfinApi? = null,
+    override val phoneMedia: com.dewijones92.totum.phonemedia.PhoneMediaServices =
+        com.dewijones92.totum.phonemedia.PhoneMediaServices.inMemory(
+            device = com.dewijones92.totum.data.phone.InMemoryPhoneMedia(),
+            imports = com.dewijones92.totum.data.phone.ImportedPhoneMedia(
+                java.nio.file.Files.createTempDirectory("totum-fake-phone-media").toFile(),
+            ),
+        ),
     override val localPlaylistStore: LocalPlaylistStore = InMemoryLocalPlaylistStore(),
     override val appPreferences: AppPreferences = InMemoryAppPreferences(),
     override val youTubeAccount: YouTubeAccount = YouTubeAccount(FakeYouTubeAuth(), InMemoryTokenStore()),

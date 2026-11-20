@@ -81,6 +81,18 @@ public class FakePlaybackController(override val player: Player? = null) : Playb
         screenRequests += screenId
     }
 
+    public val shownOnScreens: MutableList<Triple<String, String, String>> = CopyOnWriteArrayList()
+
+    override fun showPictureOnScreen(screenId: String, picturePath: String, title: String) {
+        shownOnScreens += Triple(screenId, picturePath, title)
+    }
+
+    public val clearedScreens: MutableList<String> = CopyOnWriteArrayList()
+
+    override fun clearScreen(screenId: String) {
+        clearedScreens += screenId
+    }
+
     private val _streamFailures = MutableSharedFlow<StreamFailure>(extraBufferCapacity = 1)
     override val streamFailures: Flow<StreamFailure> = _streamFailures.asSharedFlow()
 

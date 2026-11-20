@@ -124,6 +124,7 @@ private val STREAMING_HOSTS = listOf("youtube.com", "youtu.be")
  * nothing to play.
  */
 public fun MediaItem.toPlayableOrNull(): PlayableItem? {
+    phonePlayableOrNull()?.let { return it }
     val url = mediaUrl ?: return null
     return PlayableItem(this, if (pillar == MediaKind.VIDEO) PlayHandle.Video(url) else PlayHandle.Podcast())
 }

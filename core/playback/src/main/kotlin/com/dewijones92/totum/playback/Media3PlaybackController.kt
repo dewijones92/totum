@@ -128,6 +128,26 @@ public class Media3PlaybackController(
         }
     }
 
+    override fun showPictureOnScreen(screenId: String, picturePath: String, title: String) {
+        Diag.log("screen", "show a picture on screen $screenId: $title")
+        withController {
+            it.sendCustomCommand(
+                SessionCommand(ACTION_SHOW_PICTURE_ON_SCREEN, Bundle.EMPTY),
+                bundleOf(EXTRA_SCREEN_ID to screenId, EXTRA_PICTURE_PATH to picturePath, EXTRA_PICTURE_TITLE to title)
+            )
+        }
+    }
+
+    override fun clearScreen(screenId: String) {
+        Diag.log("screen", "clear screen $screenId")
+        withController {
+            it.sendCustomCommand(
+                SessionCommand(ACTION_CLEAR_SCREEN, Bundle.EMPTY),
+                bundleOf(EXTRA_SCREEN_ID to screenId)
+            )
+        }
+    }
+
     override val streamFailures: Flow<StreamFailure> = _streamFailures.asSharedFlow()
 
     override val events: Flow<PlaybackEvent> = _events.asSharedFlow()

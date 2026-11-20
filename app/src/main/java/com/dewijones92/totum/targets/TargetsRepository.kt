@@ -23,6 +23,7 @@ import com.dewijones92.totum.data.targets.TargetState
 import com.dewijones92.totum.domain.ItemShields
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayableItem
+import com.dewijones92.totum.domain.isOnThisPhone
 import com.dewijones92.totum.operations.OperationEnd
 import com.dewijones92.totum.operations.OperationKind
 import com.dewijones92.totum.operations.Operations
@@ -301,6 +302,15 @@ class TargetsRepository(
             return false
         }
         val label = targetOf(id)?.label ?: id
+        val onlyHere = items.filter { it.item.isOnThisPhone }
+        if (onlyHere.isNotEmpty()) {
+            Diag.log(
+                "targets",
+                "not redirecting ${items.size} item(s) to $label: ${onlyHere.size} are files on this phone " +
+                    "(${onlyHere.first().item.id.value}) that $label cannot reach, so they play on this phone",
+            )
+            return false
+        }
         if (items.isEmpty()) return true
         Diag.log("targets", "redirecting $mode of ${items.size} to $label (the one being looked at)")
         scope.launch {

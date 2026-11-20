@@ -65,6 +65,7 @@ import com.dewijones92.totum.data.importexport.SubscriptionImportParser
 import com.dewijones92.totum.data.net.OkHttpTextFetcher
 import com.dewijones92.totum.data.notforme.FileNotForMeStore
 import com.dewijones92.totum.data.notforme.NotForMe
+import com.dewijones92.totum.data.phone.google.GooglePhotosConfig
 import com.dewijones92.totum.data.playlist.LocalPlaylistStore
 import com.dewijones92.totum.data.podcast.DefaultPodcastRepository
 import com.dewijones92.totum.data.podcast.PodcastRepository
@@ -243,6 +244,7 @@ import com.dewijones92.totum.notifications.DownloadNotifier
 import com.dewijones92.totum.notifications.SharedPrefsSeenItemsTracker
 import com.dewijones92.totum.notifications.YouTubeSubscriptionItemsSource
 import com.dewijones92.totum.operations.Operations
+import com.dewijones92.totum.phonemedia.PhoneMediaServices
 import com.dewijones92.totum.phoneuse.AndroidPhoneUsePorts
 import com.dewijones92.totum.phoneuse.PhoneUse
 import com.dewijones92.totum.phoneuse.PhoneUseContext
@@ -437,6 +439,7 @@ interface AppContainer {
     val deviceMarks: DeviceMarks
     val sendToTarget: SendToTarget
     val jellyfin: JellyfinApi?
+    val phoneMedia: PhoneMediaServices
     val trail: TrailNavigation
     val askCopies: AskCopies
     val askStateSource: AskStateSource?
@@ -961,6 +964,16 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         appPreferences.settings.value.homeServerBase.takeIf { it.isNotBlank() }?.let { base ->
             JellyfinClient(httpClient, "https://totum.$base/fetch", { appPreferences.settings.value.homeServerToken })
         }
+    }
+
+    override val phoneMedia: PhoneMediaServices by lazy {
+        PhoneMediaServices.build(
+            context,
+            httpClient,
+            operations,
+            applicationScope,
+            GooglePhotosConfig(BuildConfig.GOOGLE_PHOTOS_CLIENT_ID, BuildConfig.GOOGLE_PHOTOS_CLIENT_SECRET),
+        )
     }
 
     override val sendToTarget: SendToTarget by lazy {

@@ -23,9 +23,13 @@ import com.dewijones92.totum.data.targets.TargetsAnswer
 import com.dewijones92.totum.data.targets.TroubleKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
+import com.dewijones92.totum.domain.PhoneMediaEntry
+import com.dewijones92.totum.domain.PhoneMediaIds
+import com.dewijones92.totum.domain.PhoneMediaKind
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
+import com.dewijones92.totum.domain.toPlayableOrNull
 import com.dewijones92.totum.operations.Ended
 import com.dewijones92.totum.operations.OperationEnd
 import com.dewijones92.totum.operations.OperationKind
@@ -183,6 +187,25 @@ class TargetsRepositoryTest {
         assertEquals("b", request.startItemId)
         assertEquals(Requester("me", "My phone"), request.from)
         assertEquals(item("a").toBackup(), request.items.first())
+    }
+
+    @Test
+    fun `a file on this phone is never sent to a selected target, which cannot reach it`() = runTest {
+        api.answer = HomeAnswer.Ok(TargetsAnswer(listOf(tv)))
+        repository.refresh("test")
+        repository.select("lg-tv")
+        val onPhone = PhoneMediaEntry(
+            kind = PhoneMediaKind.VIDEO,
+            key = PhoneMediaIds.keyOf("42", "/storage/emulated/0/Movies/a.mp4"),
+            title = "a",
+            path = "/storage/emulated/0/Movies/a.mp4",
+            uri = "content://media/external/video/media/42",
+        ).toPlayableOrNull()!!
+
+        val taken = repository.take(listOf(item("a"), onPhone), QueueMode.PLAY, null, null)
+
+        assertFalse(taken)
+        assertTrue(api.queued.isEmpty())
     }
 
     @Test

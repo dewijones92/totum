@@ -7,6 +7,8 @@ public enum class Picture { YES, NO, UNKNOWN }
 public val MediaItem.picture: Picture
     get() = when {
         pillar == MediaKind.VIDEO || isJellyfin -> Picture.YES
+        phoneMediaKind == PhoneMediaKind.VIDEO -> Picture.YES
+        phoneMediaKind == PhoneMediaKind.AUDIO -> Picture.NO
         else -> mediaUrl?.let(::pictureAt) ?: Picture.UNKNOWN
     }
 

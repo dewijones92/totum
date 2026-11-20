@@ -11,6 +11,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 
 | Item | Area | Priority | Status |
 |---|---|---|---|
+| [📱 On this phone follow-ups](phone-media-follow-ups.md) | library | medium | open 2026-11-14 (Show on the TV, phone files to the Pi, search hits) |
 | [Batch A, November 2026: the plan and its order](batch-a-2026-11.md) | batch | high | decided 2026-11-06 |
 | [Consistency leftovers (ADR 108)](consistency-leftovers.md) | ui | medium | swept 2026-11-13: 3 fixed, 8 open |
 | [🎥 Totum recorder](totum-recorder.md) | app | medium | built 2026-11-06, Batch A (tests written 2026-11-07: the pure rules and the stores; not run on a device) |

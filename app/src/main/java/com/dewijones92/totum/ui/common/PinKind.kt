@@ -23,5 +23,6 @@ private fun itemKindWords(shown: Shown): Int = when (shown) {
     Shown.PODCAST -> R.string.pin_kind_episode
     Shown.TORRENT -> R.string.pin_kind_torrent
     Shown.JELLYFIN -> R.string.pin_kind_video
+    Shown.PHONE -> R.string.pin_kind_item
     Shown.MUSIC -> R.string.pin_kind_song
 }

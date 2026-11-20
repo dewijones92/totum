@@ -15,8 +15,11 @@ public object LocalRanges {
         }
     }
 
-    public fun reply(file: File, range: String?): HttpReply {
-        val type = if (file.extension == "mp4") "video/mp4" else "video/webm"
+    public fun reply(
+        file: File,
+        range: String?,
+        type: String = if (file.extension == "mp4") "video/mp4" else "video/webm",
+    ): HttpReply {
         return replyFor(file.length(), range, type) { first, length ->
             Bounded(FileInputStream(file).apply { skip(first) }, length)
         }

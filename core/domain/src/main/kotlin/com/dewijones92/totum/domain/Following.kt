@@ -68,6 +68,7 @@ public class FollowedSources(
             item.contentKind == MediaContentKind.AUDIOBOOK -> "book chapters: a book has nothing to follow"
             item.sourceId == TorrentIds.SOURCE -> "torrent files: they came from no channel or show"
             item.isJellyfin -> "Jellyfin films and episodes: they came from no channel or show"
+            item.isOnThisPhone -> "files on this phone: they came from no channel or show"
             else -> null
         }
     }

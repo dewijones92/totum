@@ -4,6 +4,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.OndemandVideo
+import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.Podcasts
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.dewijones92.totum.R
@@ -13,6 +14,7 @@ import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.isJellyfin
+import com.dewijones92.totum.domain.isOnThisPhone
 import com.dewijones92.totum.domain.isTorrent
 
 enum class Shown(val icon: ImageVector, val label: Int, val maker: String) {
@@ -20,6 +22,7 @@ enum class Shown(val icon: ImageVector, val label: Int, val maker: String) {
     PODCAST(Icons.Filled.Podcasts, R.string.pillar_podcast, FactEmoji.PODCAST),
     TORRENT(Icons.Filled.Movie, R.string.pillar_torrent, FactEmoji.TORRENT),
     JELLYFIN(Icons.Filled.OndemandVideo, R.string.pillar_jellyfin, FactEmoji.CHANNEL),
+    PHONE(Icons.Filled.PhoneAndroid, R.string.pillar_phone, FactEmoji.CHANNEL),
     MUSIC(Icons.Filled.MusicNote, R.string.destination_music, FactEmoji.ARTIST),
 }
 
@@ -28,7 +31,8 @@ fun shownAs(item: MediaItem, pillar: MediaKind): Shown = shownAs(
     pillar,
     item.contentKind,
     item.isTorrent,
-    item.isJellyfin
+    item.isJellyfin,
+    item.isOnThisPhone,
 )
 
 fun shownAs(
@@ -37,10 +41,12 @@ fun shownAs(
     kind: MediaContentKind,
     torrent: Boolean = id.isTorrent,
     jellyfin: Boolean = id.value.startsWith(JellyfinIds.PREFIX),
+    phone: Boolean = id.isOnThisPhone,
 ): Shown = when {
     kind == MediaContentKind.MUSIC -> Shown.MUSIC
     torrent -> Shown.TORRENT
     jellyfin -> Shown.JELLYFIN
+    phone -> Shown.PHONE
     pillar == MediaKind.VIDEO -> Shown.VIDEO
     else -> Shown.PODCAST
 }

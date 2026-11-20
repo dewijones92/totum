@@ -196,3 +196,9 @@ Recorded exception from the Play on… pass ([ADR 169](0169-play-on-is-a-choice-
 - **Peek stays on this phone whatever device is remembered.** Peek plays one item without touching the queue and opens the
   phone's own full player; a remote device has neither a queue to leave alone nor a player to open (the same reason as the
   Shorts reel). "📡 Play on…" in the item menu is the way to play one item on a device.
+
+Recorded exception from On this phone ([ADR 176](0176-on-this-phone-is-a-source-behind-the-one-player.md), 2026-11-14):
+
+- **A file on the phone has no Download, no Add to group, no "📡 Play on…" and no Send to…** It is already on the phone, it came
+  from no channel or show, and the Pi's targets cannot reach a file only the phone holds (a note on the page says so);
+  `TargetsRepository.take` keeps any batch containing one on the phone. Casting from the phone itself is unchanged.

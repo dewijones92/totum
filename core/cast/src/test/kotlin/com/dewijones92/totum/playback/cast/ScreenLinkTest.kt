@@ -56,6 +56,18 @@ class ScreenLinkTest {
     }
 
     @Test
+    fun `a picture to show reaches the screen as a show command naming where to fetch it and what it is`() {
+        get("/screen/hello?key=k3y&name=PC&id=pc1")
+
+        link.send("pc1", showPictureCommand("http://phone:8770/p/ab12/picture.jpg", "Beach \"day\""))
+
+        val polled = get("/screen/poll?key=k3y&id=pc1&after=0").text()
+        assertTrue(polled, polled.contains(""""do":"show""""))
+        assertTrue(polled, polled.contains(""""url":"http://phone:8770/p/ab12/picture.jpg""""))
+        assertTrue(polled, polled.contains("""Beach \"day\""""))
+    }
+
+    @Test
     fun `a state report reaches the player`() {
         get("/screen/hello?key=k3y&name=PC&id=pc1")
 

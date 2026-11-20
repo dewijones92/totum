@@ -27,6 +27,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dewijones92.totum.R
 import com.dewijones92.totum.data.targets.TargetColours
 import com.dewijones92.totum.domain.MediaItem
+import com.dewijones92.totum.domain.isOnThisPhone
 import com.dewijones92.totum.domain.toPlayableOrNull
 import com.dewijones92.totum.ui.queue.AddBrowserDialog
 import com.dewijones92.totum.ui.queue.AddBrowserEntry
@@ -46,7 +47,7 @@ internal fun PlayOnSheetAction(item: MediaItem?, onDismiss: () -> Unit) {
     val address by devices.browserAddress.collectAsStateWithLifecycle()
     val unreachable by devices.homeUnreachable.collectAsStateWithLifecycle()
     val anywhereToPlay = options.size > 1 || address != null
-    if (item == null || item.toPlayableOrNull() == null) return
+    if (item == null || item.toPlayableOrNull() == null || item.isOnThisPhone) return
     if (!anywhereToPlay) {
         if (unreachable) {
             SheetRow(Icons.Outlined.Cast, stringResource(R.string.play_on_home_unreachable), PLAY_ON_UNREACHABLE_TAG) {}

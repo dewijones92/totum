@@ -51,6 +51,7 @@ import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.PlayState
+import com.dewijones92.totum.domain.isOnThisPhone
 import com.dewijones92.totum.domain.offersDownloadChoice
 import com.dewijones92.totum.domain.offersListenAndWatch
 import com.dewijones92.totum.domain.withArtworkFrom
@@ -101,8 +102,10 @@ fun MediaItemRow(
      * (Related, Notifications, Search). Full media, as a screen's own Download tap fetches; the
      * action sheet's "Download video" covers upgrading an audio-only copy.
      */
-    onDownload: (() -> Unit)? = LocalItemActions.current.bind { chooseDownload(item, pillar, askAnyway = false) },
-    onDeleteDownload: (() -> Unit)? = LocalItemActions.current.bind { deleteDownload(item.id) },
+    onDownload: (() -> Unit)? = LocalItemActions.current.takeUnless { item.isOnThisPhone }
+        .bind { chooseDownload(item, pillar, askAnyway = false) },
+    onDeleteDownload: (() -> Unit)? = LocalItemActions.current.takeUnless { item.isOnThisPhone }
+        .bind { deleteDownload(item.id) },
     /** Defaults to the app-wide offline state, so no screen has to plumb it. */
     downloadState: DownloadState = downloadStateOf(item.id),
     // Everything an item can do defaults to the app-wide capability. A screen has to work
@@ -124,7 +127,8 @@ fun MediaItemRow(
      * automatically): the tick already means "offline", so without this there'd be no
      * way left to ask for the picture too.
      */
-    onDownloadVideo: (() -> Unit)? = LocalItemActions.current.takeIf { item.offersDownloadChoice(pillar) }
+    onDownloadVideo: (() -> Unit)? = LocalItemActions.current
+        .takeIf { item.offersDownloadChoice(pillar) && !item.isOnThisPhone }
         .bind { chooseDownload(item, pillar, askAnyway = false, videoOnly = true) },
     /** Switches between listening and watching (and sets the mode); anything with a picture. */
     onSwitchMode: (() -> Unit)? =
@@ -184,8 +188,8 @@ fun MediaItemRow(
             .rowCard(tint.orSelected(id), MaterialTheme.shapes.large, cardInset)
             .selectableClicks(
                 id = id,
-                enabled = item.mediaUrl != null || hasMenu,
-                onClick = { if (item.mediaUrl != null) onPlay() },
+                enabled = item.mediaUrl != null || item.isOnThisPhone || hasMenu,
+                onClick = { if (item.mediaUrl != null || item.isOnThisPhone) onPlay() },
                 onLongClick = if (hasMenu) ({ showSheet = true }) else null,
             )
             // Tighter vertically than horizontally: 16dp all round made every row a third taller
