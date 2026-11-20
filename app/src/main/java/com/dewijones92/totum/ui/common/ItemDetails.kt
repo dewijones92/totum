@@ -35,6 +35,7 @@ fun itemDetails(
         item.publisher?.let { "${FactEmoji.PUBLISHER} $it" },
         item.album?.title?.let { "${FactEmoji.ALBUM} $it" },
         publishedLine(item, now, zone),
+        iPlayerAvailability(item, now, zone),
         item.duration?.let { "⏱️ ${formatLength(it.inWholeSeconds)}" },
         item.viewsText?.let { "${FactEmoji.VIEWS} $it" },
         "🎞️ ${liveTag?.let(::liveKindName) ?: kindName(item.contentKind)}" +

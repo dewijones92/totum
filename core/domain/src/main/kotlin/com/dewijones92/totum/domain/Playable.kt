@@ -25,6 +25,8 @@ public sealed interface PlayHandle {
         public val audioUrl: HttpUrl? = null,
     ) : PlayHandle
 
+    public data class External(public val url: HttpUrl) : PlayHandle
+
     /**
      * What to call this handle in a log line.
      *
@@ -40,6 +42,7 @@ public sealed interface PlayHandle {
             is Video -> "Video"
             is LocalVideo -> "LocalVideo"
             is Podcast -> if (localPath != null) "PodcastFile" else "Podcast"
+            is External -> "External"
         }
 
     /**
@@ -71,7 +74,7 @@ public sealed interface PlayHandle {
     public val pillar: MediaKind
         get() = when (this) {
             is Video, is LocalVideo -> MediaKind.VIDEO
-            is Podcast -> MediaKind.PODCAST
+            is Podcast, is External -> MediaKind.PODCAST
         }
 }
 
@@ -94,7 +97,11 @@ public data class PlayableItem(
      * answer — and having it in one place is what stops callers inventing their own.
      */
     public val fetchUrl: HttpUrl?
-        get() = (handle as? PlayHandle.Video)?.watchUrl ?: item.mediaUrl
+        get() = when (handle) {
+            is PlayHandle.External -> null
+            is PlayHandle.Video -> handle.watchUrl
+            is PlayHandle.LocalVideo, is PlayHandle.Podcast -> item.mediaUrl
+        }
 
     public val pillar: MediaKind
         get() = if (item.pillar == MediaKind.VIDEO) MediaKind.VIDEO else handle.pillar
@@ -126,6 +133,7 @@ private val STREAMING_HOSTS = listOf("youtube.com", "youtu.be")
 public fun MediaItem.toPlayableOrNull(): PlayableItem? {
     phonePlayableOrNull()?.let { return it }
     val url = mediaUrl ?: return null
+    iPlayerUrl?.let { return PlayableItem(this, PlayHandle.External(it)) }
     return PlayableItem(this, if (pillar == MediaKind.VIDEO) PlayHandle.Video(url) else PlayHandle.Podcast())
 }
 
@@ -152,6 +160,7 @@ public fun PlayHandle.persisted(): Pair<String, String?> = when (this) {
     // are encoded into it rather than migrated, because the alternative is a database change
     // across four tables for a field only torrents use — and because an old row, which is a
     // bare path, still reads correctly below.
+    is PlayHandle.External -> PERSISTED_EXTERNAL to url.value
     is PlayHandle.Podcast -> PERSISTED_PODCAST to listOfNotNull(
         localPath?.let { "$PATH_FIELD$it" },
         audioUrl?.let { "$AUDIO_FIELD${it.value}" },
@@ -162,6 +171,7 @@ public fun PlayHandle.persisted(): Pair<String, String?> = when (this) {
 public fun playHandleFrom(type: String, handle: String?): PlayHandle? = when (type) {
     PERSISTED_VIDEO -> handle?.let(HttpUrl::parse)?.let(PlayHandle::Video)
     PERSISTED_LOCAL_VIDEO -> handle?.let(PlayHandle::LocalVideo)
+    PERSISTED_EXTERNAL -> handle?.let(HttpUrl::parse)?.let(PlayHandle::External)
     // Legacy rows are a bare local path with no field prefix, so anything without one is read
     // exactly as it always was. Losing this would empty the localPath of every already-queued
     // download and re-fetch the lot.
@@ -190,3 +200,4 @@ private const val AUDIO_FIELD = "audio="
 private const val PERSISTED_VIDEO = "VIDEO"
 private const val PERSISTED_LOCAL_VIDEO = "LOCAL_VIDEO"
 private const val PERSISTED_PODCAST = "PODCAST"
+private const val PERSISTED_EXTERNAL = "EXTERNAL"

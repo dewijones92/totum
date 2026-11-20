@@ -114,6 +114,23 @@ class DownloadsMigrationTest {
         )
     }
 
+    @Test
+    fun anEpisodeStoredBeforeV29HasNoAvailabilityDateRatherThanAnInventedOne() {
+        val db = openAtV13()
+        db.execSQL(
+            "INSERT INTO podcast_episodes (id, feedId, title, author, publishedAtEpochMs, durationSeconds, " +
+                "description, thumbnailUrl, mediaUrl, chapters) VALUES ('ep-old', 'feed-1', 'Old', 'Show', " +
+                "NULL, NULL, NULL, NULL, 'https://cdn.example/old.mp3', NULL)",
+        )
+
+        migrate(db)
+
+        assertEquals(
+            listOf(listOf<String?>(null)),
+            db.rows("SELECT availableUntilEpochMs FROM podcast_episodes WHERE id = 'ep-old'"),
+        )
+    }
+
     /** The publisher must not become a second copy of the show's own name. */
     @Test
     fun aQueuedEpisodeWhoseAuthorWasTheShowGetsNoPublisher() {
