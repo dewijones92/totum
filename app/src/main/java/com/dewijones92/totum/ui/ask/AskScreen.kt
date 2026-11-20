@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -135,16 +134,6 @@ fun AskScreen(container: AppContainer, onBack: () -> Unit, modifier: Modifier = 
                 Text(stringResource(R.string.ask_unavailable), modifier = Modifier.padding(16.dp))
                 return@Column
             }
-            if (state.turns.isEmpty() && state.recent.isNotEmpty()) {
-                EarlierChats(state.recent, onOpen = viewModel::open, onForget = forgetWithUndo)
-            }
-            if (state.turns.isEmpty()) {
-                RecentSearchChips(
-                    recents,
-                    onPick = { viewModel.ask(it, "recent") },
-                    modifier = Modifier.padding(top = 8.dp)
-                )
-            }
             val hitRow = rememberAskHitRow(container, search)
             val listState = rememberLazyListState()
             LaunchedEffect(state.turns.size) {
@@ -154,18 +143,51 @@ fun AskScreen(container: AppContainer, onBack: () -> Unit, modifier: Modifier = 
                     )
                 }
             }
-            LazyColumn(Modifier.weight(1f).fillMaxWidth(), state = listState) {
-                state.turns.forEach { turn ->
-                    item { TurnHeader(turn) }
-                    items(turn.cards) { card ->
-                        SuggestionCard(card, turn.stage, onAllCopies = { allCopies(card) }, row = hitRow) {
-                            KindBody(card, container, hitRow)
+            if (state.turns.isEmpty()) {
+                NewChatStart(
+                    state,
+                    recents,
+                    onOpen = viewModel::open,
+                    onForget = forgetWithUndo,
+                    onAsk = { viewModel.ask(it, "recent") },
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                )
+            } else {
+                LazyColumn(Modifier.weight(1f).fillMaxWidth(), state = listState) {
+                    state.turns.forEach { turn ->
+                        item { TurnHeader(turn) }
+                        items(turn.cards) { card ->
+                            SuggestionCard(card, turn.stage, onAllCopies = { allCopies(card) }, row = hitRow) {
+                                KindBody(card, container, hitRow)
+                            }
                         }
                     }
                 }
             }
             AskInput(state, recents) { text, from -> viewModel.ask(text, from) }
         }
+    }
+}
+
+@Composable
+private fun NewChatStart(
+    state: AskViewModel.UiState,
+    recents: RecentSearches?,
+    onOpen: (String) -> Unit,
+    onForget: (String) -> Unit,
+    onAsk: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    LaunchedEffect(state.recent.size, recents?.recent?.size) {
+        Diag.log(
+            "ask",
+            "new chat: ${state.recent.size} earlier chat(s) and ${recents?.recent?.size ?: 0} recent search(es) " +
+                "share one scrolling region above the input, so the input always has its place",
+        )
+    }
+    Column(modifier.verticalScroll(rememberScrollState())) {
+        if (state.recent.isNotEmpty()) EarlierChats(state.recent, onOpen = onOpen, onForget = onForget)
+        RecentSearchChips(recents, onPick = onAsk, modifier = Modifier.padding(top = 8.dp))
     }
 }
 
@@ -188,9 +210,7 @@ private fun EarlierChats(chats: List<SavedChat>, onOpen: (String) -> Unit, onFor
         labelled.keys.toList(),
         onPick = { label -> labelled[label]?.let { onOpen(it.id) } },
         onRemove = { label -> labelled[label]?.let { onForget(it.id) } },
-        modifier = Modifier.padding(vertical = 8.dp)
-            .heightIn(max = EARLIER_CHATS_MAX_HEIGHT.dp)
-            .verticalScroll(rememberScrollState()),
+        modifier = Modifier.padding(vertical = 8.dp),
     )
     if (!showAll && chats.size > EARLIER_CHATS_SHOWN) {
         TextButton(onClick = { showAll = true }, modifier = Modifier.padding(horizontal = 8.dp)) {
@@ -482,7 +502,6 @@ private fun rememberSpeech(onHeard: (String) -> Unit): (() -> Unit)? {
 }
 
 private const val EARLIER_CHATS_SHOWN = 3
-private const val EARLIER_CHATS_MAX_HEIGHT = 240
 
 private val BUSY = setOf(
     AskViewModel.Stage.PACKING,
