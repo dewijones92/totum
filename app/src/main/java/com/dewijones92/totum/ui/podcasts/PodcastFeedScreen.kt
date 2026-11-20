@@ -24,6 +24,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.audiobook.ArchiveBooks
+import com.dewijones92.totum.data.bbc.BbcProgrammes
 import com.dewijones92.totum.data.podcast.PreviewResult
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.DownloadState
@@ -123,6 +124,7 @@ fun PodcastFeedScreen(
     val shape = rememberListShape("podcast page ${source.id.value}")
     val episodes = page.episodes.filteredByProgress(settings.mediaFilter).shapedBy(shape) { it }
     val book = rememberIsBook(source)
+    val bbc = BbcProgrammes.isProgramme(source.feedUrl)
 
     Surface(modifier = modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
@@ -136,12 +138,14 @@ fun PodcastFeedScreen(
                     FilterToggle(listFilter, episodes.size)
                     ShapeControl(shape)
                     PinToggle(Pin.of(page.source))
-                    InboxToggle(page.source, page.subscribed)
-                    ShuffleAllAction(
-                        container.shuffleAll,
-                        container.applicationScope,
-                        ShuffleTarget(singleSourceKey(source), page.source.title, listOf(page.source)),
-                    )
+                    if (!bbc) {
+                        InboxToggle(page.source, page.subscribed)
+                        ShuffleAllAction(
+                            container.shuffleAll,
+                            container.applicationScope,
+                            ShuffleTarget(singleSourceKey(source), page.source.title, listOf(page.source)),
+                        )
+                    }
                 },
                 onToggleSubscribed = {
                     if (page.subscribed) {

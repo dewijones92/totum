@@ -30,7 +30,7 @@ class PreloadOnWifiOnlyTest {
         if (metered) return
         val url = when (val handle = item.handle) {
             is PlayHandle.Podcast -> if (handle.localPath != null) null else handle.audioUrl ?: item.item.mediaUrl
-            is PlayHandle.LocalVideo -> null
+            is PlayHandle.LocalVideo, is PlayHandle.External -> null
             is PlayHandle.Video -> null
         } ?: return
         controller.preloadNext(MediaItemId("nominated"), url)

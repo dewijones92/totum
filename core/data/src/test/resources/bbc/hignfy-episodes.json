@@ -1,0 +1,183 @@
+{
+  "version": "1.0",
+  "schema": "/ibl/v1/schema/ibl.json",
+  "programme_episodes": {
+    "page": 1,
+    "per_page": 50,
+    "count": 4,
+    "elements": [
+      {
+        "id": "m0033v6x",
+        "type": "episode",
+        "title": "Have I Got News for You",
+        "subtitle": "Series 72: Episode 6",
+        "images": {
+          "type": "image",
+          "standard": "https://ichef.bbci.co.uk/images/ic/{recipe}/p0plmvkr.jpg"
+        },
+        "synopses": {
+          "large": "Steph McGovern hosts, with guest panellists journalist Helen Lewis and comedian and actor John Tothill joining team captains Ian Hislop and Paul Merton as they delve into the news.",
+          "small": "Steph McGovern is the host, with guest panellists Helen Lewis and John Tothill.",
+          "medium": "Steph McGovern hosts, with guest panellists Helen Lewis and John Tothill joining team captains Ian Hislop and Paul Merton as they delve into the news.",
+          "editorial": "6/10 With Steph McGovern nosing at the news with Helen Lewis and John Tothill"
+        },
+        "status": "available",
+        "release_date_time": "2026-11-06T00:00:00.000Z",
+        "versions": [
+          {
+            "id": "m0033v6w",
+            "kind": "original",
+            "type": "version",
+            "duration": {
+              "text": "34 mins",
+              "value": "PT33M57.162666S"
+            },
+            "availability": {
+              "end": "2027-12-22T00:45:00Z",
+              "start": "2026-11-06T22:00:30Z",
+              "remaining": {
+                "text": "Available for over a year"
+              }
+            },
+            "first_broadcast_date_time": "2026-11-06T21:25:00.000Z"
+          }
+        ]
+      },
+      {
+        "id": "m0033jsv",
+        "type": "episode",
+        "title": "Have I Got News for You",
+        "subtitle": "Series 72: Episode 5",
+        "images": {
+          "type": "image",
+          "standard": "https://ichef.bbci.co.uk/images/ic/{recipe}/p0pkhlb5.jpg"
+        },
+        "synopses": {
+          "small": "Victoria Coren Mitchell hosts, with guest panellists Julian Clary and Ava Santina Evans.",
+          "medium": "Victoria Coren Mitchell hosts, with guests comedian and actor Julian Clary and political correspondent Ava Santina Evans joining team captains Ian Hislop and Paul Merton as they delve into the news.",
+          "editorial": "5/10 Victoria Coren Mitchell muses on the news with Julian Clary and Ava Santina Evans"
+        },
+        "status": "available",
+        "release_date_time": "2026-10-30T00:00:00.000Z",
+        "versions": [
+          {
+            "id": "m0033jst",
+            "kind": "original",
+            "type": "version",
+            "duration": {
+              "text": "29 mins",
+              "value": "PT29M6.944S"
+            },
+            "availability": {
+              "end": "2027-12-22T00:45:00Z",
+              "start": "2026-10-30T20:01:01Z",
+              "remaining": {
+                "text": "Available for over a year"
+              }
+            },
+            "first_broadcast_date_time": "2026-10-30T19:30:00.000Z"
+          }
+        ]
+      },
+      {
+        "id": "m002n2bm",
+        "type": "episode",
+        "title": "Have I Got News for You",
+        "subtitle": "Series 70: Episode 9",
+        "images": {
+          "type": "image",
+          "standard": "https://ichef.bbci.co.uk/images/ic/{recipe}/p0mlv0rv.jpg"
+        },
+        "synopses": {
+          "large": "Professor Hannah Fry is host, with guest panellists the Rev Richard Coles and comedian Finlay Christie joining team captains Paul Merton and Ian Hislop as they delve into the news.",
+          "small": "Hannah Fry is host with guest panellists the Rev Richard Coles and Finlay Christie.",
+          "medium": "Professor Hannah Fry is host, with guest panellists the Rev Richard Coles and comedian Finlay Christie joining team captains Paul Merton and Ian Hislop.",
+          "editorial": "9/10 Professor Hannah Fry hosts, as Rev Richard Coles and Finlay Christie join the panel"
+        },
+        "status": "available",
+        "release_date_time": "2025-12-05T00:00:00.000Z",
+        "versions": [
+          {
+            "id": "m002pbwl",
+            "kind": "legal",
+            "type": "version",
+            "duration": {
+              "text": "33 mins",
+              "value": "PT33M19.040S"
+            },
+            "availability": {
+              "end": "2026-12-04T21:00:00Z",
+              "start": "2025-12-08T13:55:15Z",
+              "remaining": {
+                "text": "Available for 14 days"
+              }
+            },
+            "first_broadcast_date_time": "2025-12-05T00:00:00.000Z"
+          }
+        ]
+      },
+      {
+        "id": "m001rbkp",
+        "type": "episode",
+        "title": "Have I Got News for You",
+        "subtitle": "Series 66: Episode 2",
+        "images": {
+          "type": "image",
+          "standard": "https://ichef.bbci.co.uk/images/ic/{recipe}/p0glczb7.jpg"
+        },
+        "synopses": {
+          "large": "Alexander Armstrong is host, with guest panellists actor and comedian Miles Jupp and journalist Olivia Utley joining team captains Paul Merton and Ian Hislop as they delve into the news.",
+          "small": "Alexander Armstrong is host, with guest panellists Miles Jupp and Olivia Utley.",
+          "medium": "Alexander Armstrong is host, with guest panellists actor and comedian Miles Jupp and journalist Olivia Utley joining team captains Paul Merton and Ian Hislop.",
+          "editorial": "2/10 Alexander Armstrong hosts, as Miles Jupp and Olivia Utley delve into the news"
+        },
+        "status": "available",
+        "release_date_time": "2023-10-13T00:00:00.000Z",
+        "versions": [
+          {
+            "id": "m001rbkh",
+            "kind": "original",
+            "type": "version",
+            "duration": {
+              "text": "29 mins",
+              "value": "PT29M18.640S"
+            },
+            "availability": {
+              "end": "2026-12-22T06:00:00Z",
+              "start": "2024-12-22T21:00:00Z",
+              "remaining": {
+                "text": "Available for 1 month"
+              }
+            },
+            "first_broadcast_date_time": "2023-10-13T20:00:00.000Z"
+          }
+        ]
+      }
+    ],
+    "programme": {
+      "id": "b006mkw3",
+      "type": "programme",
+      "title": "Have I Got News for You",
+      "images": {
+        "type": "image",
+        "standard": "https://ichef.bbci.co.uk/images/ic/{recipe}/p0n8hrph.jpg"
+      },
+      "synopses": {
+        "small": "Comedy quiz show that grills celebrity contestants on the week's top stories and news.",
+        "medium": "Ian Hislop, Paul Merton and a who's who of hosts welcome a gaggle of guest panellists to find the funny in the week's big stories."
+      },
+      "master_brand": {
+        "id": "bbc_one",
+        "titles": {
+          "large": "BBC One",
+          "small": "BBC One",
+          "medium": "BBC One"
+        },
+        "attribution": "bbc_one"
+      },
+      "labels": {
+        "category": "Comedy"
+      }
+    }
+  }
+}

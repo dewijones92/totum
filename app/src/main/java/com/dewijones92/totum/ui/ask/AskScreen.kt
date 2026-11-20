@@ -58,6 +58,7 @@ import com.dewijones92.totum.data.ask.AskKind
 import com.dewijones92.totum.data.ask.AskSource
 import com.dewijones92.totum.data.ask.SavedChat
 import com.dewijones92.totum.data.search.SearchHit
+import com.dewijones92.totum.data.search.asPodcast
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.titleOf
@@ -286,6 +287,13 @@ private fun rememberAskHitRow(container: AppContainer, search: SearchViewModel):
                 subscribed = hit.feedUrl.value in searchState.subscribedFeeds,
                 onSubscribe = { search.subscribe(hit) },
             )
+            is SearchHit.Programme -> hit.asPodcast().let { podcast ->
+                PodcastHitRow(
+                    hit = podcast,
+                    subscribed = hit.feedUrl.value in searchState.subscribedFeeds,
+                    onSubscribe = { search.subscribe(podcast) },
+                )
+            }
             is SearchHit.Book -> BookHitRow(hit = hit, onPlay = { search.playBook(hit, hit.title) })
             is SearchHit.Song -> SongHitRow(
                 hit = hit,

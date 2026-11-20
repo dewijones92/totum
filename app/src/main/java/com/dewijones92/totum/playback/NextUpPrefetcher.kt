@@ -77,7 +77,7 @@ internal class NextUpPrefetcher(
      */
     private fun worthPreparing(next: PlayableItem): Boolean = when (val handle = next.handle) {
         is PlayHandle.Video -> true
-        is PlayHandle.LocalVideo -> false
+        is PlayHandle.LocalVideo, is PlayHandle.External -> false
         // Only a torrent carries one, and it is the expensive case: the home server has to seek
         // to the file and remux its audio before a single segment exists.
         is PlayHandle.Podcast -> handle.audioUrl != null

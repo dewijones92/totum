@@ -4,6 +4,7 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.data.podcast.fake.FakePodcastRepository
+import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.Subscription
@@ -61,6 +62,17 @@ class RoomSubscriptionStoreTest {
         assertTrue(podcasts.contains(podcastSource.id))
         assertEquals(listOf(podcastSub), podcasts.observeSubscriptions().first())
         assertEquals(listOf(episode), podcasts.observeItems().first())
+    }
+
+    @Test
+    fun anEpisodeKeepsWhenItStopsBeingAvailable() = runTest {
+        val expiring = episode.copy(availableUntil = Instant.parse("2026-12-04T21:00:00Z"))
+        podcasts.saveSource(podcastSub, listOf(expiring, episode.copy(id = MediaItemId("no-end"))))
+
+        val read = podcasts.observeItems().first().associateBy { it.id }
+
+        assertEquals(Instant.parse("2026-12-04T21:00:00Z"), read.getValue(expiring.id).availableUntil)
+        assertEquals(null, read.getValue(MediaItemId("no-end")).availableUntil)
     }
 
     /**

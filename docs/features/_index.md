@@ -1,7 +1,7 @@
 ---
 title: Features
 kind: index
-updated: 2026-11-14
+updated: 2026-11-20
 ---
 
 # Features
@@ -58,6 +58,7 @@ alone until they need more.
 | ✨ Ask: say what you want, Haiku picks, the app finds the copies, you confirm; or ask about your own queue, history, downloads and stats | search | built — live on the Pi; phone checks owed | [ask.md](ask.md) |
 | 🏠 Downloads at home: the Pi downloads anything, plays from home, copies to the phone on Wi-Fi | downloads | built — proven end to end 2026-10-31; 2026-11-13 fixes not run against the live TorrServer | [downloads-at-home.md](downloads-at-home.md) |
 | Audiobooks: free books (LibriVox, Internet Archive) and audiobook torrents, chapters in order with resume | search | shipped | [audiobooks.md](audiobooks.md) |
+| 📺 BBC programmes: follow a programme, see 🆕 episodes with when they leave iPlayer, tap to open in the iPlayer app (else the browser) | search | built 2026-11-20; iPlayer app route not seen on a device | [bbc-programmes.md](bbc-programmes.md) |
 | [Daily alarms](daily-alarms.md) — asked each weekday morning, rung full screen (pickup 17:30 first) | side-quest | built 2026-10-07, ships off | — |
 | 🔕 Work apps quiet hours: groups of apps (Work: Slack, Outlook, Teams; others) each snoozed outside their own hours, one status line on the alarm board, a notification at each change | side-quest | built 2026-11-06 (groups and change notifications too), ships off, tests written 2026-11-07 | [work-apps-quiet-hours.md](work-apps-quiet-hours.md) |
 | 🌙 Bedtime sleep timer: the sleep timer arms itself at night (stop after the current item), and every sleep timer fades out | player | built 2026-11-06, ships off, tests written 2026-11-07 (ADR 133) | [bedtime-sleep-timer.md](bedtime-sleep-timer.md) |

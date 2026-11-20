@@ -83,6 +83,8 @@ public sealed interface PlayRoute {
         public val viaAudioOnlyUrl: Boolean,
     ) : PlayRoute
 
+    public data class External(public val playable: PlayableItem, public val url: HttpUrl) : PlayRoute
+
     public data class Refused(public val reason: Refusal) : PlayRoute
 }
 
@@ -98,6 +100,15 @@ public fun PlayableItem.routeNow(
     audioPreferred: Boolean,
     streamRefused: Boolean = false,
     atHome: HomeCopy? = null,
+): PlayRoute = (handle as? PlayHandle.External)?.let { PlayRoute.External(this, it.url) }
+    ?: routeHere(onDisk, offline, audioPreferred, streamRefused, atHome)
+
+private fun PlayableItem.routeHere(
+    onDisk: LocalCopy?,
+    offline: Boolean,
+    audioPreferred: Boolean,
+    streamRefused: Boolean,
+    atHome: HomeCopy?,
 ): PlayRoute {
     // A handle may already point at a file (Library plays these); the store answers for
     // everything else, because a handle is fixed when the item is queued and the download
@@ -162,7 +173,7 @@ private fun PlayHandle.ownCopy(): LocalCopy? = when (this) {
     is PlayHandle.LocalVideo -> LocalCopy(localPath, audioOnly = false)
     // A podcast file is the whole thing; there is no fuller version to prefer over it.
     is PlayHandle.Podcast -> localPath?.let { LocalCopy(it, audioOnly = false) }
-    is PlayHandle.Video -> null
+    is PlayHandle.Video, is PlayHandle.External -> null
 }
 
 /**

@@ -1,5 +1,6 @@
 package com.dewijones92.totum.data.importexport
 
+import com.dewijones92.totum.data.bbc.BbcProgrammes
 import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.domain.youTubeChannelId
 
@@ -26,7 +27,8 @@ public class OpmlExporter {
     }
 
     private fun outlineFor(source: MediaSource): String? = when (source) {
-        is MediaSource.PodcastFeed -> outline(source.title, source.feedUrl.value, source.websiteUrl?.value)
+        is MediaSource.PodcastFeed -> source.takeUnless { BbcProgrammes.isProgramme(it.feedUrl) }
+            ?.let { outline(it.title, it.feedUrl.value, it.websiteUrl?.value) }
         is MediaSource.VideoChannel -> {
             val channelId = source.youTubeChannelId
             channelId?.let {
