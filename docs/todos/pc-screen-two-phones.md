@@ -4,7 +4,7 @@ kind: todo
 status: built; tests written
 batch: A (2026-11)
 priority: high
-updated: 2026-11-14
+updated: 2026-11-20
 ---
 
 # The PC screen knows both phones
@@ -32,3 +32,10 @@ two idle, stale only, `choose`), chooser escaping of model and title, the 8-phon
 ## Tests written 2026-11-14
 
 `tests/test_screen_phones.py` (the decision table, ordering, escaping, the eight-phone cap, legacy and unknown ids, text cleaning) and `ScreenAnnouncerStateTest`. The Python tests import the web framework through `main`, which is not on this laptop: they were run with the framework stubbed out.
+
+## Fixed 2026-11-20: the relay address was refused with a 400
+
+A phone on the tunnel announces `https://<home server>/cast/screen#key=…` (ADR 170's relay); the server accepted only
+`http://<home IP>:<port>/screen#key=…`, so it answered `400` every 30 minutes. It now accepts the relay form on the hosts in
+`CRASHLOG_SCREEN_RELAY_HOSTS` (default `totum.333133333.xyz`). Needs a rebuild of the crash-log container on the Pi. ADR 81
+(amended).

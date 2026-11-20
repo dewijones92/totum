@@ -54,6 +54,23 @@ class ScreenTest(unittest.TestCase):
     def test_wireguard_addresses_are_accepted(self):
         self.assertTrue(main.remember_screen({"kind": "screen", "url": "http://10.13.14.5:8765/screen#key=k1x2y3z4"}))
 
+    def test_the_relay_address_a_phone_on_the_tunnel_announces_is_kept(self):
+        relay = "https://totum.333133333.xyz/cast/screen#key=abc12345"
+
+        self.assertTrue(main.remember_screen({"kind": "screen", "url": relay}))
+
+        self.assertEqual(relay, main.screen_target())
+
+    def test_a_relay_address_on_another_host_or_path_is_refused(self):
+        for wrong in (
+            "https://evil.example/cast/screen#key=abc12345",
+            "https://totum.333133333.xyz.evil.example/cast/screen#key=abc12345",
+            "https://totum.333133333.xyz/other/screen#key=abc12345",
+            "https://totum.333133333.xyz/cast/screen#key=abc&x=<b>",
+            "http://totum.333133333.xyz/cast/screen#key=abc12345",
+        ):
+            self.assertFalse(main.remember_screen({"kind": "screen", "url": wrong}), wrong)
+
 
 if __name__ == "__main__":
     unittest.main()

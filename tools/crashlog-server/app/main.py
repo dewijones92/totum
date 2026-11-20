@@ -170,6 +170,12 @@ SCREEN_FILE = DATA_DIR / "screen.json"
 SCREENS_FILE = DATA_DIR / "screens.json"
 SCREEN_NETWORKS = [ipaddress.ip_network(n) for n in ("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "100.64.0.0/10")]
 SCREEN_URL = re.compile(r"http://(\d{1,3}(?:\.\d{1,3}){3}):\d{1,5}/screen#key=[0-9a-z]{8,64}")
+SCREEN_RELAY_URL = re.compile(r"https://([a-z0-9.-]+)/cast/screen#key=[0-9a-z]{8,64}")
+SCREEN_RELAY_HOSTS = {
+    host.strip().lower()
+    for host in os.environ.get("CRASHLOG_SCREEN_RELAY_HOSTS", "totum.333133333.xyz").split(",")
+    if host.strip()
+}
 SCREEN_INSTALL_ID = re.compile(r"[0-9a-fA-F-]{8,64}")
 SCREEN_FRESH_MINUTES = int(os.environ.get("CRASHLOG_SCREEN_FRESH_MINUTES", "75"))
 SCREEN_MAX_PHONES = 8
@@ -185,6 +191,9 @@ def _screen_text(value: Any, limit: int) -> str | None:
 
 
 def _screen_home_address(url: Any) -> bool:
+    relay = SCREEN_RELAY_URL.fullmatch(url) if isinstance(url, str) else None
+    if relay is not None:
+        return relay.group(1) in SCREEN_RELAY_HOSTS
     shape = SCREEN_URL.fullmatch(url) if isinstance(url, str) else None
     if shape is None:
         return False
@@ -218,7 +227,7 @@ def _read_phones() -> dict[str, dict[str, Any]]:
 
 
 def remember_screen(parsed: Any) -> bool:
-    """Keep where one phone serves its PC screen page; only a home or WireGuard address is accepted."""
+    """Keep where one phone serves its PC screen page; only a home or WireGuard address, or the Pi's own relay of one, is accepted."""
     url = parsed.get("url") if isinstance(parsed, dict) else None
     if not _screen_home_address(url):
         print(f"dewidebug screen: refused an announce, url shape or address not accepted ({str(url)[:80]!r})", flush=True)

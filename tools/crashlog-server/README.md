@@ -92,7 +92,7 @@ The server keeps `screens.json` in the data directory, one entry per install id,
   plays and when it was heard, stale ones marked 💤;
 - nothing known → "No phone yet".
 
-Only `http://<10/8, 172.16/12, 192.168/16 or 100.64/10 address>:<port>/screen#key=…` is accepted (anything else is `400`),
+Only `http://<10/8, 172.16/12, 192.168/16 or 100.64/10 address>:<port>/screen#key=…` or the relay form a phone on the home tunnel announces, `https://<a host in CRASHLOG_SCREEN_RELAY_HOSTS, default totum.333133333.xyz>/cast/screen#key=…` ([ADR 170](../../docs/adr/0170-a-browser-is-a-target-the-pi-plays-to-found-by-opening-its-address.md)'s relay), is accepted (anything else is `400`; until 2026-11-20 the relay form was refused, so a phone on the tunnel got a `400` every 30 minutes),
 at most 8 phones are kept (oldest forgotten), and model and title are escaped on the way out. An announce with no install
 id (an older app build) is kept as one phone called `unknown`; a single-phone `screen.json` from before is read as `legacy`
 until a real announce replaces it. Every announce, refusal and `/screen` decision is logged as `dewidebug screen:`.
