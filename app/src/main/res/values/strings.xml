@@ -1515,7 +1515,6 @@
     <string name="target_status_paused">⏸️ Paused</string>
     <string name="target_status_starting">⏳ Starting…</string>
     <string name="target_bar_line">%1$s · %2$s</string>
-    <string name="target_bar_open">Open the remote for %1$s</string>
     <string name="target_bar_starting">Starting</string>
     <string name="target_volume_percent">%1$d%%</string>
     <string name="target_volume_label_speaker">Speaker</string>
@@ -1528,8 +1527,6 @@
     <string name="target_volume_why_unknown">🔈 Nothing has said what the volume is yet. Move the slider to set it.</string>
     <string name="target_volume_why_ok">OK</string>
     <string name="target_more_devices">More devices</string>
-    <string name="target_elapsed">Elapsed</string>
-    <string name="target_total">Total</string>
     <string name="target_previous">Previous</string>
     <string name="target_next">Next</string>
     <string name="target_play">Play</string>
