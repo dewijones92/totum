@@ -50,6 +50,7 @@ import com.dewijones92.totum.data.download.HomeCopyFirst
 import com.dewijones92.totum.data.download.HttpDownloadStrategy
 import com.dewijones92.totum.data.download.LockingDownloadManager
 import com.dewijones92.totum.data.download.SkipSegmentsOnDisk
+import com.dewijones92.totum.data.download.TeeDownloadStrategy
 import com.dewijones92.totum.data.feed.FeedCache
 import com.dewijones92.totum.data.group.ChannelSourceItems
 import com.dewijones92.totum.data.group.GroupFeed
@@ -153,6 +154,7 @@ import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayReason
 import com.dewijones92.totum.domain.PlayState
 import com.dewijones92.totum.domain.PlayableItem
+import com.dewijones92.totum.domain.PlayerSpot
 import com.dewijones92.totum.domain.ReconciledAccountProgress
 import com.dewijones92.totum.domain.RepeatMode
 import com.dewijones92.totum.domain.SourceGroup
@@ -274,6 +276,7 @@ import com.dewijones92.totum.playback.NextUpPrefetcher
 import com.dewijones92.totum.playback.PlaybackController
 import com.dewijones92.totum.playback.PlaybackProgressStore
 import com.dewijones92.totum.playback.PlaybackSpeedStore
+import com.dewijones92.totum.playback.PlaybackTee
 import com.dewijones92.totum.playback.SharedPrefsPlaybackSpeedStore
 import com.dewijones92.totum.playback.SleepTimer
 import com.dewijones92.totum.playback.StallWatchdog
@@ -1167,17 +1170,20 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             downloadDir = downloadDir,
             store = RoomDownloadStore(database.downloadDao()),
             // Videos resolve+merge through the engine (bundled ffmpeg); podcast enclosures are a plain HTTP fetch.
-            strategy = HomeCopyFirst(
-                atHome = { item -> homeDownloads.atHome(item) },
-                http = HttpDownloadStrategy(transferClient),
-                next = videoAndPodcastDownloads(
-                    engine = ytDlpEngine,
-                    preferredAudioLanguages = streamChoices::preferredAudioLanguages,
-                    resolver = videoResolver,
-                    transferClient = transferClient,
-                    sabr = AndroidSabrRoute,
-                    codecs = phoneCodecs,
+            strategy = TeeDownloadStrategy(
+                fallback = HomeCopyFirst(
+                    atHome = { item -> homeDownloads.atHome(item) },
+                    http = HttpDownloadStrategy(transferClient),
+                    next = videoAndPodcastDownloads(
+                        engine = ytDlpEngine,
+                        preferredAudioLanguages = streamChoices::preferredAudioLanguages,
+                        resolver = videoResolver,
+                        transferClient = transferClient,
+                        sabr = AndroidSabrRoute,
+                        codecs = phoneCodecs,
+                    ),
                 ),
+                tee = PlaybackTee,
             ),
             scope = applicationScope,
             onDownloaded = { item -> skipSegmentsOnDisk.refresh(item.item.id) },
@@ -2361,6 +2367,11 @@ private fun startHomeAhead(c: DefaultAppContainer) {
 }
 
 private fun startQueueAutoDownloader(c: DefaultAppContainer) {
+    PlaybackTee.attach { id ->
+        c.playbackController.state.value?.takeIf { it.itemId.value == id }?.let {
+            PlayerSpot(it.positionMs, it.durationMs, playing = it.wantsToPlay && !it.hasEnded)
+        }
+    }
     QueueAutoDownloader(
         queue = c.playbackQueue.state,
         downloads = c.downloadManager,
@@ -2376,6 +2387,9 @@ private fun startQueueAutoDownloader(c: DefaultAppContainer) {
         // arose — a Ms Rachel video 52 minutes in, first in a 47-item queue, with no download
         // event at all while the pass ground through a 403ing podcast ahead of it.
         playingNow = { c.playbackQueue.nowPlaying.value?.item?.id },
+        heldWhileStreaming = combine(c.playbackQueue.streamingNow, PlaybackTee.teeableNow) { streaming, teeable ->
+            streaming?.takeUnless { it.value in teeable }
+        }.distinctUntilChanged(),
         groupAllows = c.groupDownloads::allows,
         atHome = { c.homeDownloads.atHome(it) != null },
         groupChoicesChanged = c.groupDownloads.choices,

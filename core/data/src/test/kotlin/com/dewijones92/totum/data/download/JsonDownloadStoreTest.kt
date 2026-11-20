@@ -57,4 +57,42 @@ class JsonDownloadStoreTest {
         file.writeText("not json")
         assertTrue(JsonDownloadStore(file).observeRecords().first().isEmpty())
     }
+
+    @Test
+    fun `a write that fails leaves memory where the disk is and tells the caller`() = runTest {
+        val blocker = File(dir, "not-a-folder").apply { writeText("a file where a folder should be") }
+        val store = JsonDownloadStore(File(blocker, "downloads.json"))
+
+        val failure = runCatching {
+            store.put(
+                item,
+                DownloadState.Downloaded("/d/a.media"),
+                audioOnly = true
+            )
+        }.exceptionOrNull()
+
+        assertTrue("the caller is told: $failure", failure != null)
+        assertEquals(DownloadState.NotDownloaded, store.get(MediaItemId("ep-1")))
+        assertTrue(store.observeRecords().first().isEmpty())
+    }
+
+    @Test
+    fun `a failed write does not stop the next one from landing`() = runTest {
+        val store = JsonDownloadStore(file)
+        store.put(item, DownloadState.Downloading(10, 100), audioOnly = false)
+        file.delete()
+        file.mkdirs()
+        File(file, "in-the-way").writeText("a folder with something in it cannot be replaced by a file")
+        runCatching { store.put(item, DownloadState.Downloaded("/d/a.media"), audioOnly = false) }
+        assertEquals(
+            "the failed change was not published",
+            DownloadState.Downloading(10, 100),
+            store.get(MediaItemId("ep-1"))
+        )
+
+        file.deleteRecursively()
+        store.put(item, DownloadState.Downloaded("/d/a.media"), audioOnly = false)
+
+        assertEquals(DownloadState.Downloaded("/d/a.media"), JsonDownloadStore(file).get(MediaItemId("ep-1")))
+    }
 }

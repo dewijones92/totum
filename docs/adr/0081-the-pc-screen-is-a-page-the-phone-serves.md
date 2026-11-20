@@ -2,7 +2,7 @@
 title: The PC screen is a page the phone serves, found through a Pi bookmark
 kind: adr
 status: accepted
-updated: 2026-10-29
+updated: 2026-11-20
 ---
 
 # 81. The PC screen is a page the phone serves, found through a Pi bookmark
@@ -95,3 +95,14 @@ The page gets a seek bar with the time (shown on mouse movement), which asks the
 (`/screen/seek?key&id&pos`, the same key and hello as the other calls); the phone seeks that screen's own player in the
 page's time. A slider was the coordinator's call. Stale reports are counted and logged once per pair of loads, and ten in a
 row make the phone send the current load again once.
+
+
+## Amended 2026-11-20: the announce accepts the tunnel relay's address
+
+A phone on the home tunnel serves its page through the Pi's relay ([ADR 170](0170-a-browser-is-a-target-the-pi-plays-to-found-by-opening-its-address.md):
+`CastAddress.relayFor`), so its page address is `https://<home server>/cast/screen#key=…`, which the crash-log server
+refused with a `400` every 30 minutes (report 20261120T200136: `diagnostics PC screen address -> crashlog.… HTTP 400`, then
+*could not tell the Pi where this phone's PC screen page is*). The phone was right and the server's shape check was too
+narrow: it now also accepts `https://<a host in CRASHLOG_SCREEN_RELAY_HOSTS, default totum.333133333.xyz>/cast/screen#key=…`
+(exact host, exact path, same key shape), so the bookmark's redirect still cannot be pointed anywhere else.
+`tests/test_screen.py` has the accepted and refused cases. The Pi's crash-log container needs a rebuild to take it.

@@ -13,8 +13,10 @@
 # Prints the file's name, the app version it came from and its age, never anything from inside it.
 set -euo pipefail
 
+. "$(dirname "$0")/lib.sh"
+
 HOST=${STATE_PI:-pi@192.168.0.19}
-REMOTE_DIR=${STATE_REMOTE_DIR:-/home/pi/crashlog-data/states}
+REMOTE_DIR=${STATE_REMOTE_DIR:-$STATE_REMOTE_DIR_DEFAULT}
 OUT=${STATE_DUMPS_DIR:-$HOME/claude-tasks/state-dumps}
 MAX_AGE_DAYS=${STATE_MAX_AGE_DAYS:-3}
 
@@ -28,7 +30,7 @@ chmod 700 "$OUT"
 SSH=(ssh -o BatchMode=yes -o ConnectTimeout=10 "$HOST")
 
 say "asking $HOST for its newest state dump under $REMOTE_DIR (read-only)"
-newest=$("${SSH[@]}" "ls -t $REMOTE_DIR/*.json.gz $REMOTE_DIR/linked/*.json.gz 2>/dev/null | grep -v -e '-0.1.0-dev.json.gz' | head -1") \
+newest=$("${SSH[@]}" "$(state_newest_command "$REMOTE_DIR")") \
   || die "could not reach $HOST over ssh"
 [ -n "$newest" ] || die "the Pi holds no state dump under $REMOTE_DIR; take one on the phone first (tile: Send my state)"
 name=$(basename "$newest")

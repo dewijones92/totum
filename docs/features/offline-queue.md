@@ -3,7 +3,7 @@ title: Offline queue
 kind: feature
 status: shipped
 area: downloads
-updated: 2026-11-06
+updated: 2026-11-20
 ---
 
 # Offline queue
@@ -20,6 +20,14 @@ it to work offline … I expect the gui / labels etc to be very very clear"*.
 the local file — decided by `routeNow` in `:core:domain`, **for both pillars** — so a downloaded
 item never touches the network. Nothing is deleted automatically: leaving the queue keeps the
 file, and it is removed from Library like any other download.
+
+**One fetch per item (2026-11-20, [ADR 186](../adr/0186-one-fetch-per-item-a-playing-stream-is-its-own-download.md)).**
+The playing item is not fetched beside its own stream. A YouTube audio stream playing through the playback cache is its own
+download: the audio is completed from the cache's bytes (only the ranges the player did not read are fetched) and copied out,
+with no player swap. An item that streams and cannot be teed is left alone until it pauses, ends or another item takes over,
+and is then fetched if it is still queued. A finished download never replaces a healthy stream: the switch waits for a pause, a
+stall or a seek. The log says which (`tee`, `download`, `playback` lines) and the completion line gives the network bytes as a
+multiple of the file.
 
 **Audio only, video on request.** Small, quick, and it matches how a queue is used. A full video
 stays a deliberate per-item choice from the row menu.
