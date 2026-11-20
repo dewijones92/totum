@@ -63,15 +63,16 @@ class LongOnesTest {
     )
 
     private fun longOnes(rules: LongOnesRules = LongOnesRules(), budget: Int = 40) = LongOnes(
-        pool = { pool },
-        playStates = { played },
-        withoutNotForMe = { items -> items.filter { it.id.value !in suppressed } },
-        liveNow = { it.id.value in liveIds },
-        freeLength = { storeKnows[it.id.value] },
-        lengths = lengths(),
+        LongOnesSources(
+            pool = { pool },
+            playStates = { played },
+            withoutNotForMe = { items -> items.filter { it.id.value !in suppressed } },
+            liveNow = { it.id.value in liveIds },
+            freeLength = { storeKnows[it.id.value] },
+        ),
+        lengths(),
         unmetered = { onWifi },
-        rules = rules,
-        lookupBudget = budget,
+        limits = LongOnesLimits(rules = rules, lookupBudget = budget),
     )
 
     private fun known(seconds: Long) = LengthCheck.Known(seconds, wasLive = false, via = "test")
@@ -290,12 +291,17 @@ class LongOnesTest {
         pool = LongOnesPool(emptyList(), emptyList(), emptyList())
         val gate = CompletableDeferred<Unit>()
         val slow = LongOnes(
-            pool = { gate.await(); pool },
-            playStates = { played },
-            withoutNotForMe = { it },
-            liveNow = { false },
-            freeLength = { null },
-            lengths = lengths(),
+            LongOnesSources(
+                pool = {
+                    gate.await()
+                    pool
+                },
+                playStates = { played },
+                withoutNotForMe = { it },
+                liveNow = { false },
+                freeLength = { null },
+            ),
+            lengths(),
             unmetered = { true },
         )
 

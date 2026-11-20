@@ -49,12 +49,9 @@ public fun pickLongOnes(
         considered++
         val source = item.longOnesSource()
         val held = taken[source] ?: 0
-        if (held >= rules.perSource) {
-            heldBack++
-            continue
-        }
-        val length = lengthOf(item)
+        val length = if (held >= rules.perSource) null else lengthOf(item)
         when {
+            held >= rules.perSource -> heldBack++
             length == null -> unknown += item
             length < rules.minimum -> tooShort++
             else -> {

@@ -62,6 +62,7 @@ fun interface PlayerStreams {
 }
 
 /** [PlayerStreams] over our own InnerTube client. */
+@Suppress("TooManyFunctions")
 class InnerTubePlayerStreams(
     private val innerTube: InnerTubeClient,
     /**

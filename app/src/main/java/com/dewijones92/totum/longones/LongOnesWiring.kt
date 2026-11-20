@@ -7,9 +7,9 @@ import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayState
 import com.dewijones92.totum.domain.youTubeChannelId
+import com.dewijones92.totum.innertube.feeds.AccountFeed
 import com.dewijones92.totum.ui.videos.FeedChoice
 import com.dewijones92.totum.ui.videos.cacheKey
-import com.dewijones92.totum.innertube.feeds.AccountFeed
 import com.dewijones92.totum.video.LengthCheck
 import com.dewijones92.totum.video.LiveTag
 import com.dewijones92.totum.video.liveTagOf
@@ -27,9 +27,9 @@ fun longOnesOf(
     playStates: () -> Map<MediaItemId, PlayState>,
 ): LongOnes {
     val lengths = VideoLengths(File(filesDir, "video_lengths.json"), ask = { item -> askLength(c, item) })
-    return LongOnes(
+    val sources = LongOnesSources(
         pool = { longOnesPoolOf(c) },
-        playStates = playStates,
+        playStates = { playStates() },
         withoutNotForMe = { items -> c.notForMe.without(items, "long ones") },
         liveNow = { item ->
             when (liveTagOf(item.contentKind, c.liveStates.of(item.id.value))) {
@@ -38,9 +38,8 @@ fun longOnesOf(
             }
         },
         freeLength = { item -> freeLength(c, item) },
-        lengths = lengths,
-        unmetered = unmetered,
     )
+    return LongOnes(sources, lengths, unmetered)
 }
 
 private suspend fun askLength(c: AppContainer, item: MediaItem): LengthCheck {

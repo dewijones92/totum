@@ -35,7 +35,10 @@ class VideoLengthsTest {
 
     private fun lengths(file: File = File(folder.root, "lengths.json")) = VideoLengths(
         file,
-        ask = { asked += it.id.value; answer },
+        ask = {
+            asked += it.id.value
+            answer
+        },
         now = { clock },
     )
 

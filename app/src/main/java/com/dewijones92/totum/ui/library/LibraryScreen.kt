@@ -83,9 +83,9 @@ import com.dewijones92.totum.ui.common.rowCard
 import com.dewijones92.totum.ui.common.rowFacts
 import com.dewijones92.totum.ui.common.transferText
 import com.dewijones92.totum.ui.group.GroupScreen
-import com.dewijones92.totum.ui.longones.LongOnesScreen
 import com.dewijones92.totum.ui.history.PlayHistoryScreen
 import com.dewijones92.totum.ui.kidtv.KidTvScreen
+import com.dewijones92.totum.ui.longones.LongOnesScreen
 import com.dewijones92.totum.ui.playlist.LocalPlaylistDetailScreen
 import com.dewijones92.totum.ui.playlist.LocalPlaylistsScreen
 import com.dewijones92.totum.ui.playlist.rememberPlaylistAdder

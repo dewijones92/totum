@@ -45,17 +45,25 @@ sealed interface LongOnesRun {
     data class Done(val chosen: Int, val lookedUp: Int, val elapsedMs: Long) : LongOnesRun
 }
 
+class LongOnesSources(
+    val pool: suspend () -> LongOnesPool,
+    val playStates: suspend () -> Map<MediaItemId, PlayState>,
+    val withoutNotForMe: (List<MediaItem>) -> List<MediaItem>,
+    val liveNow: (MediaItem) -> Boolean,
+    val freeLength: suspend (MediaItem) -> Duration?,
+)
+
+data class LongOnesLimits(
+    val rules: LongOnesRules = LongOnesRules(),
+    val lookupBudget: Int = LOOKUP_BUDGET,
+    val inFlight: Int = IN_FLIGHT,
+)
+
 class LongOnes(
-    private val pool: suspend () -> LongOnesPool,
-    private val playStates: suspend () -> Map<MediaItemId, PlayState>,
-    private val withoutNotForMe: (List<MediaItem>) -> List<MediaItem>,
-    private val liveNow: (MediaItem) -> Boolean,
-    private val freeLength: suspend (MediaItem) -> Duration?,
+    private val sources: LongOnesSources,
     private val lengths: VideoLengths,
     private val unmetered: () -> Boolean,
-    private val rules: LongOnesRules = LongOnesRules(),
-    private val lookupBudget: Int = LOOKUP_BUDGET,
-    private val inFlight: Int = IN_FLIGHT,
+    private val limits: LongOnesLimits = LongOnesLimits(),
     private val now: () -> Long = System::currentTimeMillis,
 ) {
     private val running = Mutex()
@@ -77,61 +85,74 @@ class LongOnes(
 
     private class Eligible(val items: List<MediaItem>, val played: Int, val notForMe: Int, val live: Int)
 
+    private class Round(val eligible: List<MediaItem>, val known: HashMap<MediaItemId, Duration>) {
+        var pick = LongOnesPick(emptyList(), emptyList(), 0, 0, 0)
+        val tried = mutableSetOf<MediaItemId>()
+        val outcomes = Outcomes()
+        var wifi = false
+
+        fun waiting(): Int = pick.unknownLength.count { it.id !in tried }
+    }
+
     private suspend fun build(why: String, lookUp: Boolean): LongOnesRun.Done {
         val started = now()
-        val gathered = pool()
+        val gathered = sources.pool()
         val left = eligible(gathered.merged())
-        val eligible = left.items
         lengths.keep(
             gathered.feed.filter { it.contentKind.keepsItsLength() }
                 .mapNotNull { item -> item.duration?.let { item.id.value to it } }.toMap(),
         )
-        val known = HashMap<MediaItemId, Duration>()
-        eligible.forEach { item -> lengthOf(item)?.let { known[item.id] = it } }
-        var pick = pickLongOnes(eligible, { known[it.id] }, rules)
-        publish(pick.chosen, pick.unknownLength.size, wifi = false)
-        val tried = mutableSetOf<MediaItemId>()
-        val outcomes = Outcomes()
-        var wifi = false
-        while (lookUp && outcomes.asked < lookupBudget) {
-            val room = minOf(inFlight, lookupBudget - outcomes.asked)
-            val batch = pick.unknownLength.filter { it.id !in tried }.take(room)
-            if (batch.isEmpty()) break
-            if (!unmetered()) {
-                wifi = true
-                Diag.log(TAG, "dewidebug refresh ($why): ${pick.unknownLength.size} length(s) wait for Wi-Fi")
-                break
-            }
-            val answers = withContext(PoliteGate.background()) {
-                coroutineScope { batch.map { item -> async { item to lengths.lookUp(item) } }.awaitAll() }
-            }
-            answers.forEach { (item, looked) ->
-                tried += item.id
-                outcomes.note(looked)
-                if (looked is VideoLengths.Looked.Known) known[item.id] = looked.length
-            }
-            pick = pickLongOnes(eligible, { known[it.id] }, rules)
-            publish(pick.chosen, pick.unknownLength.count { it.id !in tried }, wifi = false)
+        val round = Round(left.items, HashMap())
+        left.items.forEach { item -> lengthOf(item)?.let { round.known[item.id] = it } }
+        repick(round)
+        publish(round)
+        while (lookUp && round.outcomes.asked < limits.lookupBudget && lookUpBatch(why, round)) {
+            publish(round)
         }
-        publish(pick.chosen, pick.unknownLength.count { it.id !in tried }, wifi)
+        publish(round)
         val elapsed = now() - started
-        log(why, gathered, left, known.size, outcomes, pick, wifi, elapsed)
-        return LongOnesRun.Done(pick.chosen.size, outcomes.asked, elapsed)
+        log(why, Facts(gathered, left, round, elapsed))
+        return LongOnesRun.Done(round.pick.chosen.size, round.outcomes.asked, elapsed)
+    }
+
+    private fun repick(round: Round) {
+        round.pick = pickLongOnes(round.eligible, { round.known[it.id] }, limits.rules)
+    }
+
+    private suspend fun lookUpBatch(why: String, round: Round): Boolean {
+        val room = minOf(limits.inFlight, limits.lookupBudget - round.outcomes.asked)
+        val batch = round.pick.unknownLength.filter { it.id !in round.tried }.take(room)
+        if (batch.isNotEmpty() && !unmetered()) {
+            round.wifi = true
+            Diag.log(TAG, "dewidebug refresh ($why): ${round.waiting()} length(s) wait for Wi-Fi")
+            return false
+        }
+        if (batch.isEmpty()) return false
+        val answers = withContext(PoliteGate.background()) {
+            coroutineScope { batch.map { item -> async { item to lengths.lookUp(item) } }.awaitAll() }
+        }
+        answers.forEach { (item, looked) ->
+            round.tried += item.id
+            round.outcomes.note(looked)
+            if (looked is VideoLengths.Looked.Known) round.known[item.id] = looked.length
+        }
+        repick(round)
+        return true
     }
 
     private suspend fun eligible(all: List<MediaItem>): Eligible {
-        val played = playStates()
+        val played = sources.playStates()
         val unplayed = all.filter { it.id !in played }
-        val kept = withoutNotForMe(unplayed)
-        val unlive = kept.filterNot(liveNow)
+        val kept = sources.withoutNotForMe(unplayed)
+        val unlive = kept.filterNot(sources.liveNow)
         return Eligible(unlive, all.size - unplayed.size, unplayed.size - kept.size, kept.size - unlive.size)
     }
 
     private suspend fun lengthOf(item: MediaItem): Duration? =
-        item.duration?.takeIf { it.isPositive() } ?: lengths.cached(item.id.value) ?: freeLength(item)
+        item.duration?.takeIf { it.isPositive() } ?: lengths.cached(item.id.value) ?: sources.freeLength(item)
 
-    private fun publish(chosen: List<MediaItem>, waiting: Int, wifi: Boolean) {
-        _state.value = LongOnesState(chosen, waiting, wifi, now())
+    private fun publish(round: Round) {
+        _state.value = LongOnesState(round.pick.chosen, round.waiting(), round.wifi, now())
     }
 
     private class Outcomes {
@@ -160,23 +181,22 @@ class LongOnes(
         }
     }
 
-    private fun log(
-        why: String,
-        gathered: LongOnesPool,
-        eligible: Eligible,
-        knownLengths: Int,
-        outcomes: Outcomes,
-        pick: LongOnesPick,
-        wifi: Boolean,
-        elapsedMs: Long,
-    ) {
+    private class Facts(val gathered: LongOnesPool, val eligible: Eligible, val round: Round, val elapsedMs: Long)
+
+    private fun log(why: String, facts: Facts) {
+        val gathered = facts.gathered
+        val eligible = facts.eligible
+        val round = facts.round
+        val outcomes = round.outcomes
+        val pick = round.pick
         val line = "refresh ($why): pool=${gathered.all.size} (uploads=${gathered.uploads.size} " +
             "feed=${gathered.feed.size} episodes=${gathered.episodes.size}) eligible=${eligible.items.size} " +
             "(left out: played=${eligible.played} notForMe=${eligible.notForMe} liveNow=${eligible.live}) " +
-            "lengthsKnown=$knownLengths askedYouTube=${outcomes.asked} (known=${outcomes.known} " +
+            "lengthsKnown=${round.known.size} askedYouTube=${outcomes.asked} (known=${outcomes.known} " +
             "liveOrUpcoming=${outcomes.live} none=${outcomes.none} unknown=${outcomes.unknown}) " +
-            "chosen=${pick.chosen.size}/${rules.limit} tooShort=${pick.tooShort} heldBackByTheCap=${pick.heldBack} " +
-            "lengthsStillUnknown=${pick.unknownLength.size} waitingForWifi=$wifi in ${elapsedMs}ms"
+            "chosen=${pick.chosen.size}/${limits.rules.limit} tooShort=${pick.tooShort} " +
+            "heldBackByTheCap=${pick.heldBack} lengthsStillUnknown=${round.waiting()} " +
+            "waitingForWifi=${round.wifi} in ${facts.elapsedMs}ms"
         Diag.log(TAG, "dewidebug $line")
         Vitals.set("longones.lastRefresh", "${java.time.Instant.ofEpochMilli(now())} $line")
         Vitals.set("longones.chosen", pick.chosen.joinToString(" | ") { "${it.id.value}@${it.duration}" })
@@ -184,10 +204,8 @@ class LongOnes(
 
     private fun MediaContentKind.keepsItsLength(): Boolean =
         this == MediaContentKind.STANDARD || this == MediaContentKind.WAS_LIVE
-
-    private companion object {
-        const val TAG = "longones"
-        const val LOOKUP_BUDGET = 40
-        const val IN_FLIGHT = 4
-    }
 }
+
+private const val TAG = "longones"
+private const val LOOKUP_BUDGET = 40
+private const val IN_FLIGHT = 4
