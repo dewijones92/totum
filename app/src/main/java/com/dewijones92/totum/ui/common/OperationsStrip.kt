@@ -191,6 +191,7 @@ private fun titleOf(operation: Operation): String = when (operation.kind) {
     OperationKind.SEND_TO_TARGET -> stringResource(R.string.ops_send_to_target, operation.subject)
     OperationKind.WAKE_TARGET -> stringResource(R.string.ops_wake_target, operation.subject)
     OperationKind.IMPORT_PHOTOS -> stringResource(R.string.ops_import_photos, operation.subject)
+    OperationKind.START_TARGET_APP -> stringResource(R.string.ops_start_target_app, operation.subject)
 }
 
 @Composable
@@ -260,6 +261,7 @@ private fun doneText(kind: OperationKind, partial: Boolean): Int = when (kind) {
     OperationKind.SEND_TO_TARGET -> R.plurals.ops_send_done
     OperationKind.WAKE_TARGET -> R.plurals.ops_wake_done
     OperationKind.IMPORT_PHOTOS -> R.plurals.ops_import_photos_done
+    OperationKind.START_TARGET_APP -> R.plurals.ops_start_app_done
 }
 
 private const val SHOW_AFTER_MS = 1_000L

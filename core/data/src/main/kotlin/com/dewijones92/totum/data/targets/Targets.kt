@@ -56,6 +56,7 @@ public data class TargetSleepAsk(
     val fadeSeconds: Int = SleepFade.DEFAULT_LENGTH.inWholeSeconds.toInt(),
     val itemIds: List<String> = emptyList(),
     val title: String? = null,
+    val switchOff: Boolean = false,
 )
 
 @Serializable
@@ -66,6 +67,7 @@ public data class TargetSleep(
     val title: String? = null,
     val fadeSeconds: Int = 0,
     val fading: Boolean = false,
+    val switchesOff: Boolean = false,
 )
 
 @Serializable
@@ -117,6 +119,9 @@ public data class TargetState(
     val starting: Boolean = false,
     val trouble: TargetTrouble? = null,
     val sleep: TargetSleep? = null,
+    val startsApp: Boolean = false,
+    val canSwitchOff: Boolean = false,
+    val powerNote: String? = null,
 ) {
     val current: TargetEntry? get() = entries.getOrNull(at)
 }
@@ -159,6 +164,7 @@ public enum class TargetAction {
     REPEAT,
     WAKE,
     SLEEP,
+    SWITCH_OFF,
 }
 
 @Serializable

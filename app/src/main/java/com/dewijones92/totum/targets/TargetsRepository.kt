@@ -433,14 +433,20 @@ class TargetsRepository(
 
     fun command(id: String, action: TargetAction) = act(id, TargetControl(action))
 
-    fun startSleep(id: String, duration: Duration) = sleep(
+    fun startSleep(id: String, duration: Duration, switchOff: Boolean = false) = sleep(
         id,
-        TargetSleepAsk(SleepKind.AFTER_TIME, duration.inWholeSeconds.toInt(), fadeSeconds()),
+        TargetSleepAsk(SleepKind.AFTER_TIME, duration.inWholeSeconds.toInt(), fadeSeconds(), switchOff = switchOff),
     )
 
-    fun sleepAfterItems(id: String, itemIds: List<String>, title: String?) = sleep(
+    fun sleepAfterItems(id: String, itemIds: List<String>, title: String?, switchOff: Boolean = false) = sleep(
         id,
-        TargetSleepAsk(SleepKind.AFTER_ITEMS, fadeSeconds = fadeSeconds(), itemIds = itemIds, title = title),
+        TargetSleepAsk(
+            SleepKind.AFTER_ITEMS,
+            fadeSeconds = fadeSeconds(),
+            itemIds = itemIds,
+            title = title,
+            switchOff = switchOff,
+        ),
     )
 
     fun cancelSleep(id: String) = sleep(id, TargetSleepAsk(SleepKind.OFF))
@@ -451,7 +457,7 @@ class TargetsRepository(
         Diag.log(
             "targets",
             "$id: sleep timer ${ask.kind} seconds=${ask.seconds} fade=${ask.fadeSeconds}s items=${ask.itemIds.size} " +
-                "chosen on the phone, sent to the Pi",
+                "switchOff=${ask.switchOff} chosen on the phone, sent to the Pi",
         )
         act(id, TargetControl(TargetAction.SLEEP, sleep = ask))
     }
@@ -479,10 +485,11 @@ class TargetsRepository(
         val shown = operations ?: return
         states.filter { it.power == TargetPower.WAKING && waking.add(it.target.id) }.forEach { state ->
             val id = state.target.id
-            Diag.log("targets", "${state.target.label} is waking; showing it on the progress strip")
+            val kind = if (state.startsApp) OperationKind.START_TARGET_APP else OperationKind.WAKE_TARGET
+            Diag.log("targets", "${state.target.label} is coming on ($kind); showing it on the progress strip")
             scope.launch {
                 try {
-                    shown.track("wake:$id", OperationKind.WAKE_TARGET, state.target.label) { awaitWake(id) }
+                    shown.track("wake:$id", kind, state.target.label) { awaitWake(id) }
                 } finally {
                     waking.remove(id)
                 }
