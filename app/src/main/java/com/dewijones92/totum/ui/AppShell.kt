@@ -23,6 +23,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -130,11 +131,12 @@ fun AppShell(
     AnswerOpenPlayerRequests(openPlayerRequest, controller, openPlayer)
     LaunchedEffect(openMusicPage) { openMusicPage?.let(tabs::open) }
     val castContext = LocalContext.current
+    val castResources = LocalResources.current
     LaunchedEffect(Unit) {
         CastTarget.silentStarts.collect { start ->
             offers.offer(
-                castContext.getString(R.string.cast_start_silent, start.device),
-                castContext.getString(R.string.cast_start_retry),
+                castResources.getString(R.string.cast_start_silent, start.device),
+                castResources.getString(R.string.cast_start_retry),
                 "cast",
                 SnackbarDuration.Long,
             ) { CastTarget.retry(castContext, start) }
