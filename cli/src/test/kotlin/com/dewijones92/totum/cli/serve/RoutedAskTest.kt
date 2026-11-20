@@ -27,7 +27,9 @@ class RoutedAskTest {
         val webCalls = mutableListOf<AskRequest>()
         val appCalls = mutableListOf<Pair<String, List<AskTurn>>>()
         var appFails = false
+        var appText = "you have 3"
         var routed = 0
+        val order = mutableListOf<String>()
 
         override suspend fun route(turns: List<AskTurn>): RouteDecision {
             routed++
@@ -36,6 +38,7 @@ class RoutedAskTest {
 
         override suspend fun suggest(request: AskRequest): AskAnswer {
             webCalls += request
+            order += "web"
             return AskAnswer(
                 listOf(Suggestion(AskKind.FILM, "Zog", 2018, "dragons", "Zog 2018")),
                 "web says zog",
@@ -44,9 +47,10 @@ class RoutedAskTest {
 
         override suspend fun answerFromApp(question: String, earlier: List<AskTurn>, state: StoredState): AppReply {
             appCalls += question to earlier
+            order += "app"
             if (appFails) throw BrainFailure("jq fell over")
             return AppReply(
-                "you have 3",
+                appText,
                 listOf(AppCard("Unplayed", "three of them", listOf("v1", "ghost", "v2"))),
                 toolCalls = 4,
                 denied = 1,
@@ -140,14 +144,68 @@ class RoutedAskTest {
     }
 
     @Test
-    fun `a web part that needs the app's data is not answered and the reply says why`() = runBlocking {
+    fun `a web part that needs the app's data runs after the app part and is handed its answer`() = runBlocking {
         states.put("snapshot-0001", envelope)
         val brain = brain(AskSource.BOTH, appQ = "what did I play last?", webQ = "a film like it", needs = true)
         val answer = RoutedAsk(brain, states).answer(asking(AskTurn("find a film like the last thing I played")))
-        assertTrue(brain.webCalls.isEmpty())
-        assertEquals(AskSource.APP, answer.source)
-        assertTrue(answer.reply.contains(AskRouting.DEPENDENT_NOTE))
+        assertEquals(listOf("app", "web"), brain.order)
         assertEquals("what did I play last?", brain.appCalls.single().first)
+        val web = brain.webCalls.single()
+        assertEquals("a film like it", web.turns.last().request)
+        assertEquals("you have 3", web.fromApp)
+        assertEquals(listOf("My Channel"), web.taste.channels)
+        assertEquals(listOf("a title I own"), web.have)
+        assertEquals(AskSource.BOTH, answer.source)
+        assertTrue(answer.reply.startsWith("🗂️ you have 3"))
+        assertTrue(answer.reply.contains("🌐 web says zog"))
+        assertEquals(listOf(AskKind.APP, AskKind.FILM), answer.suggestions.map { it.kind })
+        assertEquals("answered by the app half, then the web half with its answer", answer.trace?.note)
+    }
+
+    @Test
+    fun `the web half is given the app's answer text and nothing else from the snapshot`() = runBlocking {
+        states.put("snapshot-0001", envelope)
+        val brain = brain(AskSource.BOTH, appQ = "a", webQ = "b", needs = true)
+        RoutedAsk(brain, states).answer(asking(AskTurn("q")))
+        val web = brain.webCalls.single()
+        assertEquals("you have 3", web.fromApp)
+        assertFalse(web.toString().contains("Unplayed"))
+        assertFalse(web.toString().contains("v1"))
+    }
+
+    @Test
+    fun `what the app said is scrubbed and cut before the web half sees it`() = runBlocking {
+        states.put("snapshot-0001", envelope)
+        val brain = brain(AskSource.BOTH, appQ = "a", webQ = "b", needs = true)
+        brain.appText = "You played https://feeds.example.org/private/KEY123456/feed.xml by person@example.com " +
+            "and " + "word ".repeat(AskRouting.MAX_FROM_APP_CHARS)
+        RoutedAsk(brain, states).answer(asking(AskTurn("q")))
+        val handed = brain.webCalls.single().fromApp
+        assertFalse(handed.contains("KEY123456"))
+        assertFalse(handed.contains("person@example.com"))
+        assertTrue(handed.startsWith("You played"))
+        assertTrue("cut to ${handed.length}", handed.length <= AskRouting.MAX_FROM_APP_CHARS + 1)
+    }
+
+    @Test
+    fun `when the app half fails the web half still runs, without a context, and the reply says so`() = runBlocking {
+        states.put("snapshot-0001", envelope)
+        val brain = brain(AskSource.BOTH, appQ = "a", webQ = "b", needs = true).also { it.appFails = true }
+        val answer = RoutedAsk(brain, states).answer(asking(AskTurn("q")))
+        assertEquals("", brain.webCalls.single().fromApp)
+        assertEquals(listOf("My Channel"), brain.webCalls.single().taste.channels)
+        assertTrue(answer.reply.contains("⚠️ The part about your app failed: jq fell over"))
+        assertTrue(answer.reply.contains("🌐 web says zog"))
+    }
+
+    @Test
+    fun `a chained ask with the snapshot gone answers from the web and says the app part was skipped`() = runBlocking {
+        val brain = brain(AskSource.BOTH, appQ = "a", webQ = "b", needs = true)
+        val answer = RoutedAsk(brain, states).answer(asking(AskTurn("q"), id = "gone-snapshot"))
+        assertEquals(AskSource.WEB, answer.source)
+        assertTrue(answer.reply.contains(AskRouting.NO_SNAPSHOT_NOTE))
+        assertTrue(brain.appCalls.isEmpty())
+        assertEquals("", brain.webCalls.single().fromApp)
     }
 
     @Test
@@ -204,9 +262,12 @@ class RoutedAskTest {
             plan(RouteDecision(AskSource.BOTH, "a", "b", false, "")),
         )
         assertEquals(
-            AskPlan.App("a", AskRouting.DEPENDENT_NOTE),
+            AskPlan.Chain("a", "b"),
             plan(RouteDecision(AskSource.BOTH, "a", "b", true, "")),
         )
+        assertEquals(AskPlan.App("a"), plan(RouteDecision(AskSource.BOTH, "a", "", true, "")))
+        assertEquals(AskPlan.App("latest"), plan(RouteDecision(AskSource.BOTH, "", "", true, "")))
+        assertEquals(AskPlan.Web, plan(RouteDecision(AskSource.BOTH, "a", "b", true, ""), hasState = false))
         assertEquals(AskPlan.Web, plan(RouteDecision(AskSource.BOTH, "a", "b", false, ""), hasState = false))
         assertEquals(AskPlan.Web, plan(RouteDecision(AskSource.BOTH, "", "b", false, "")))
         assertEquals(AskPlan.App("a"), plan(RouteDecision(AskSource.BOTH, "a", "", false, "")))

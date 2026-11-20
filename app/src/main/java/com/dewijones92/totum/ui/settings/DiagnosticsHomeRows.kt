@@ -17,21 +17,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
-import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.di.AppContainer
-import com.dewijones92.totum.diagnostics.StateSend
-import com.dewijones92.totum.operations.OperationEnd
-import com.dewijones92.totum.operations.OperationKind
-import com.dewijones92.totum.operations.tracking
+import com.dewijones92.totum.diagnostics.message
+import com.dewijones92.totum.diagnostics.sendMyState
 import com.dewijones92.totum.settings.AppPreferences
 import kotlinx.coroutines.launch
-import kotlin.coroutines.resume
-import kotlin.coroutines.suspendCoroutine
-
-private const val SEND_STATE_KEY = "send-state"
-private const val BYTES_PER_KB = 1024
-
-private fun Int.inKb(): Int = (this / BYTES_PER_KB).coerceAtLeast(1)
 
 @Composable
 internal fun SendReportsHomeRow(container: AppContainer, settings: AppPreferences.Settings) {
@@ -48,11 +38,6 @@ internal fun SendStateRow(container: AppContainer) {
     var sending by rememberSaveable { mutableStateOf(false) }
     var result by rememberSaveable { mutableStateOf<String?>(null) }
     val sendingLabel = stringResource(R.string.settings_send_state_sending)
-    val sentFormat = R.string.settings_send_state_sent
-    val noSignIn = stringResource(R.string.settings_send_state_no_sign_in)
-    val notGathered = stringResource(R.string.settings_send_state_not_gathered)
-    val refused = stringResource(R.string.settings_send_state_refused)
-    val testRun = stringResource(R.string.settings_send_state_test_run)
     val resources = androidx.compose.ui.platform.LocalResources.current
 
     Row(
@@ -62,23 +47,8 @@ internal fun SendStateRow(container: AppContainer) {
             .clickable(enabled = !sending) {
                 sending = true
                 result = null
-                Diag.log("diagnostics", "Send my state to Claude tapped")
                 container.applicationScope.launch {
-                    var outcome: StateSend = StateSend.NotGathered
-                    container.operations.tracking(SEND_STATE_KEY, OperationKind.TASK, sendingLabel) {
-                        outcome = suspendCoroutine { next -> container.homeReports.sendState { next.resume(it) } }
-                        when (val done = outcome) {
-                            is StateSend.Sent -> OperationEnd.Done(1)
-                            else -> OperationEnd.Failed(done.toString())
-                        }
-                    }
-                    result = when (val done = outcome) {
-                        is StateSend.Sent -> resources.getString(sentFormat, done.bytes.inKb())
-                        StateSend.NotSignedIn -> noSignIn
-                        StateSend.NotGathered -> notGathered
-                        StateSend.Refused -> refused
-                        StateSend.TestRun -> testRun
-                    }
+                    result = container.sendMyState(resources, "Settings").message(resources)
                     sending = false
                 }
             }

@@ -3,7 +3,7 @@ title: ✨ Ask (a chat that finds anything to play or download, knowing your tas
 kind: feature
 status: built — live on the Pi, unit-tested, dry-run against real Haiku; checks on a phone still owed (see the todos)
 area: search
-updated: 2026-11-14
+updated: 2026-11-20
 ---
 
 # ✨ Ask
@@ -53,11 +53,16 @@ Chats are kept: Ask reopens the last one, and "🕘 Earlier chats" offers the ot
 with "Show all" to expand in place. ➕ New chat is always in the header (disabled while Ask is busy). Reopening a
 chat searches its turns again in one job that New chat or opening another chat cancels.
 
+A new chat (no turns yet) puts "🕘 Earlier chats" and the recent-search chips in **one scrolling region** above the
+input, so the input keeps its place on a small window (2026-11-20: on v0.1.924 many chats plus many recents measured
+first and left the input a sliver behind the mini player; a window of 320x560 dp with 30 of each is now a test). Once a
+chat has turns the cards scroll above the input as before.
+
 ## Asking about your own app (2026-11-07)
 
 The same chat answers questions about what is in the app ("which unfinished videos from my tennis group are in the
 queue", "why didn't that video carry on", "what have I starred", "which settings might surprise me"). A Haiku router on
-the Pi decides per message: **app** (jq on a snapshot), **web** (the picks above) or **both** (two separate calls). The
+the Pi decides per message: **app** (jq on a snapshot), **web** (the picks above) or **both** (two separate calls, or, when the web half turns on one item or fact from your data, the app half first and then the web half handed that answer's text). The
 phone gathers a fresh snapshot before every ask (📦), sends it gzipped (📤), and an app answer says "🗂️ Answered from
 your app's own data" and carries cards of your own items with ▶️ Play all / ➕ Queue all; Ask never acts by itself.
 If the snapshot cannot be gathered or sent the ask still goes, web only, and says so. ADR 140.
@@ -67,8 +72,13 @@ If the snapshot cannot be gathered or sent the ask still goes, web only, and say
   host and token, and again on the Pi.
 - Pi: `RoutedAsk`, `AskStates` (10 minutes, in memory), `PUT /ask-state`, `StatePrompts`; the AI service runs the
   `ask-state` call with `Bash(jq:*)` in a private temp directory.
-- Dry runs: `totum ask-state-check <backup.json> "question" "+follow-up"` runs the whole path through a local AI
-  service against a backup file.
+- Dry runs: `totum ask-state-check <backup.json | state-dump.json.gz> "question" "+follow-up"` runs the whole path through a
+  local AI service against a backup file or, since 2026-11-20, a state dump from `tools/state/pull-state.sh` (the dump's
+  own Ask snapshot, with its taste and owned titles sent to the web half as the phone does). It runs in one process on a
+  random port, so no old server can answer for it.
+- Chained asks (2026-11-20, ADR 140): `RoutedAsk` runs the app half, scrubs its answer text (`ReportRedactor`) and cuts it at
+  1,500 characters, and gives that to the web half as `AskRequest.fromApp` (a field that never crosses the wire) with the
+  taste and owned titles. The snapshot, card ids and earlier app replies never reach the web call.
 
 ## Tools
 

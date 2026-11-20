@@ -10,6 +10,7 @@ import com.dewijones92.totum.data.torrent.TorrentPlayables
 import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -17,6 +18,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.io.File
+import java.io.IOException
 import java.net.URLDecoder
 import java.util.concurrent.ConcurrentHashMap
 
@@ -52,8 +54,11 @@ internal class HomeFiling(
             val path = (record.state as? DownloadState.Downloaded)?.localPath ?: return@forEach
             val here = File(downloadDir, File(path).name)
             if (!File(path).isFile && here.isFile) {
-                store.relocate(record.item.item.id, here.path)
-                Diag.log("filing", "record ${record.item.item.id.value} pointed at $path; it is at ${here.path}")
+                val id = record.item.item.id.value
+                attempt("pointing record $id at ${here.path}, where it is now, not $path") {
+                    store.relocate(record.item.item.id, here.path)
+                    Diag.log("filing", "record $id pointed at $path; it is at ${here.path}")
+                }
             }
         }
     }
@@ -72,11 +77,23 @@ internal class HomeFiling(
             val name = if (torrent) torrentFileName(item) else "${item.item.title}.${file.extension}"
             val from = if (torrent) item.item.author else "$YOUTUBE_FROM ${item.item.author ?: "unknown"}"
             scope.launch {
-                filing.withLock {
-                    val outcome = filer.file(file, name, from)
-                    if (outcome is LibraryFiler.Outcome.Moved) store.relocate(item.item.id, outcome.file.path)
+                attempt("filing ${item.item.id.value} as $name") {
+                    filing.withLock {
+                        val outcome = filer.file(file, name, from)
+                        if (outcome is LibraryFiler.Outcome.Moved) store.relocate(item.item.id, outcome.file.path)
+                    }
                 }
             }
+        }
+    }
+
+    private suspend fun attempt(what: String, action: suspend () -> Unit) {
+        try {
+            action()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failed: IOException) {
+            Diag.warn("filing", "$what failed, so filing carries on with the next one", failed)
         }
     }
 }
