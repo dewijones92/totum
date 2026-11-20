@@ -141,6 +141,7 @@ PYTHON_TEST_GLOBS = [
     "tools/ci/*_test.py",
     "**/src/test/python/*_test.py",
     "server/*/*_test.py",
+    "tools/handoff/*/test_*.py",
 ]
 
 

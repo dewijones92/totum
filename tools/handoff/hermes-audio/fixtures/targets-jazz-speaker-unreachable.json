@@ -1,0 +1,102 @@
+{
+    "targets": [
+        {
+            "target": {
+                "id": "54158976cda4",
+                "label": "LG S65Q soundbar",
+                "kind": "SPEAKER"
+            },
+            "entries": [],
+            "at": -1,
+            "playing": false,
+            "positionMs": 0,
+            "durationMs": null,
+            "volume": null,
+            "volumeMode": null,
+            "keepAwake": null,
+            "linked": false,
+            "problem": null,
+            "sound": {
+                "skipSilence": false,
+                "boost": "OFF"
+            },
+            "repeat": "OFF",
+            "live": false,
+            "power": "ON",
+            "switchedOnByHand": false,
+            "starting": false,
+            "trouble": null,
+            "sleep": null,
+            "startsApp": false,
+            "canSwitchOff": false,
+            "powerNote": null,
+            "plays": "ANYTHING"
+        },
+        {
+            "target": {
+                "id": "f44efd21926d",
+                "label": "dprofy Soundmic",
+                "kind": "SPEAKER"
+            },
+            "entries": [
+                {
+                    "item": {
+                        "itemId": "Dx5qFachd3A",
+                        "sourceId": "hermes-audio-stations",
+                        "title": "Jazz station",
+                        "author": null,
+                        "thumbnailUrl": null,
+                        "mediaUrl": "https://www.youtube.com/watch?v=Dx5qFachd3A",
+                        "contentKind": "LIVE",
+                        "playbackType": "VIDEO",
+                        "handle": "https://www.youtube.com/watch?v=Dx5qFachd3A",
+                        "durationMs": null,
+                        "sourceUrl": null,
+                        "membersOnly": false,
+                        "publisher": null,
+                        "albumId": null,
+                        "albumTitle": null,
+                        "publishedAtMs": null,
+                        "publishedText": null,
+                        "viewsText": null
+                    },
+                    "groupId": null,
+                    "groupTitle": null,
+                    "addedBy": "🏠 Home Assistant",
+                    "reportsToYouTube": false,
+                    "loop": false
+                }
+            ],
+            "at": 0,
+            "playing": false,
+            "positionMs": 1000,
+            "durationMs": null,
+            "volume": null,
+            "volumeMode": null,
+            "keepAwake": null,
+            "linked": false,
+            "problem": "📶 Couldn't reach dprofy Soundmic: it isn't connected (off or out of range)",
+            "sound": {
+                "skipSilence": false,
+                "boost": "OFF"
+            },
+            "repeat": "OFF",
+            "live": true,
+            "power": "ON",
+            "switchedOnByHand": false,
+            "starting": false,
+            "trouble": {
+                "kind": "NOT_CONNECTED",
+                "itemId": null,
+                "reason": null,
+                "untilMs": null
+            },
+            "sleep": null,
+            "startsApp": false,
+            "canSwitchOff": false,
+            "powerNote": null,
+            "plays": "ANYTHING"
+        }
+    ],
+    "browserAddress": null
+}

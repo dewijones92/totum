@@ -195,3 +195,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 184 | [BBC programmes are followable sources whose episodes open in iPlayer](0184-bbc-programmes-are-followable-sources-that-open-in-iplayer.md) | Accepted |
 | 185 | [Long ones are built from what is cached, and fill in lengths lazily](0185-long-ones-are-built-from-what-is-cached-and-fill-in-lengths-lazily.md) | Accepted |
 | 186 | [One fetch per item: a playing stream is its own download, and nothing swaps a healthy stream for a file](0186-one-fetch-per-item-a-playing-stream-is-its-own-download.md) | Accepted |
+| 187 | [A running Jellyfin app is a target the Pi drives by item id, and it takes only Jellyfin items](0187-a-running-jellyfin-app-is-a-target-the-pi-drives-by-item-id.md) | Accepted |

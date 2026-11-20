@@ -1,0 +1,45 @@
+[
+  {
+    "PlayState": {
+      "PositionTicks": 6085000000,
+      "CanSeek": true,
+      "IsPaused": false,
+      "IsMuted": false,
+      "VolumeLevel": 40,
+      "PlayMethod": "DirectPlay",
+      "RepeatMode": "RepeatNone",
+      "PlaybackOrder": "Default"
+    },
+    "Capabilities": {
+      "PlayableMediaTypes": ["Audio", "Video"],
+      "SupportedCommands": ["SetVolume", "DisplayContent", "PlayMediaSource", "SetRepeatMode"],
+      "SupportsMediaControl": true,
+      "SupportsPersistentIdentifier": false
+    },
+    "RemoteEndPoint": "192.0.2.20",
+    "PlayableMediaTypes": ["Audio", "Video"],
+    "Id": "00000000000000000000000000001002",
+    "UserId": "00000000000000000000000000003001",
+    "UserName": "test-user",
+    "Client": "Jellyfin Android TV",
+    "LastActivityDate": "2026-01-01T00:00:00.0000000Z",
+    "LastPlaybackCheckIn": "2026-01-01T00:00:00.0000000Z",
+    "DeviceName": "Test TV",
+    "DeviceId": "00000000000000000000000000002002",
+    "NowPlayingItem": {
+      "Name": "A Test Film",
+      "Id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "Type": "Movie",
+      "MediaType": "Video",
+      "RunTimeTicks": 102000000000
+    },
+    "ApplicationVersion": "0.0.0",
+    "IsActive": true,
+    "SupportsMediaControl": true,
+    "SupportsRemoteControl": true,
+    "NowPlayingQueue": [],
+    "HasCustomDeviceName": false,
+    "ServerId": "00000000000000000000000000004001",
+    "SupportedCommands": ["SetVolume", "DisplayContent", "PlayMediaSource", "SetRepeatMode"]
+  }
+]

@@ -16,6 +16,7 @@ import com.dewijones92.totum.data.targets.TargetAction
 import com.dewijones92.totum.data.targets.TargetColours
 import com.dewijones92.totum.data.targets.TargetControl
 import com.dewijones92.totum.data.targets.TargetEntry
+import com.dewijones92.totum.data.targets.TargetPlays
 import com.dewijones92.totum.data.targets.TargetPower
 import com.dewijones92.totum.data.targets.TargetQueueRequest
 import com.dewijones92.totum.data.targets.TargetSleepAsk
@@ -308,6 +309,16 @@ class TargetsRepository(
                 "targets",
                 "not redirecting ${items.size} item(s) to $label: ${onlyHere.size} are files on this phone " +
                     "(${onlyHere.first().item.id.value}) that $label cannot reach, so they play on this phone",
+            )
+            return false
+        }
+        val plays = live.value.firstOrNull { it.target.id == id }?.plays ?: TargetPlays.ANYTHING
+        val refused = items.firstNotNullOfOrNull { item -> plays.refusal(item)?.let { item to it } }
+        if (refused != null) {
+            Diag.log(
+                "targets",
+                "not redirecting ${items.size} item(s) to $label: ${refused.first.item.id.value} is refused " +
+                    "(${refused.second}), so they play on this phone",
             )
             return false
         }

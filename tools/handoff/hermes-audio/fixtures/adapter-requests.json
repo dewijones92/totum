@@ -1,0 +1,70 @@
+{
+  "brown-noise": {
+    "path": "/targets/queue?id=54158976cda4",
+    "body": {
+      "items": [
+        {
+          "itemId": "sound:brown-noise",
+          "sourceId": "hermes-audio",
+          "title": "Brown noise",
+          "contentKind": "MUSIC",
+          "playbackType": "PODCAST",
+          "handle": "path=file:///sounds/brown-noise.opus"
+        }
+      ],
+      "mode": "PLAY",
+      "loop": true,
+      "from": {
+        "id": "home-assistant",
+        "label": "🏠 Home Assistant"
+      },
+      "understandsStarting": true
+    }
+  },
+  "jazz": {
+    "path": "/targets/queue?id=f44efd21926d",
+    "body": {
+      "items": [
+        {
+          "itemId": "Dx5qFachd3A",
+          "sourceId": "hermes-audio-stations",
+          "title": "Jazz station",
+          "contentKind": "LIVE",
+          "playbackType": "VIDEO",
+          "handle": "https://www.youtube.com/watch?v=Dx5qFachd3A",
+          "mediaUrl": "https://www.youtube.com/watch?v=Dx5qFachd3A"
+        }
+      ],
+      "mode": "PLAY",
+      "loop": false,
+      "from": {
+        "id": "home-assistant",
+        "label": "🏠 Home Assistant"
+      },
+      "understandsStarting": true
+    }
+  },
+  "show": {
+    "path": "/targets/queue?id=54158976cda4",
+    "body": {
+      "items": [
+        {
+          "itemId": "abc123abc12",
+          "sourceId": "msrachel",
+          "title": "Episode 4",
+          "contentKind": "STANDARD",
+          "playbackType": "VIDEO",
+          "handle": "https://www.youtube.com/watch?v=abc123abc12",
+          "mediaUrl": "https://www.youtube.com/watch?v=abc123abc12"
+        }
+      ],
+      "mode": "PLAY",
+      "loop": false,
+      "from": {
+        "id": "home-assistant",
+        "label": "🏠 Home Assistant"
+      },
+      "understandsStarting": true
+    }
+  }
+}

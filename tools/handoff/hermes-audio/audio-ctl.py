@@ -54,7 +54,7 @@ def show_item(show):
 
 
 def queue_request(item, loop):
-    return {"items": [item], "mode": "PLAY", "loop": loop, "from": REQUESTER}
+    return {"items": [item], "mode": "PLAY", "loop": loop, "from": REQUESTER, "understandsStarting": True}
 
 
 def control(action, **fields):

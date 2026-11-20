@@ -215,3 +215,20 @@ first run on the LG `StreamRelayTest` (cli), `ChunkedUpstreamTest`, `LocalRanges
 volume tests in `TargetDeckTest`, `ChromecastPlayerTest`, `MpvPlayerTest`, `CastControlTest`, `CastWireTest`; and from ADR 155 `TargetRepeatTest` (core), `SoundFilesTest` and the repeat, problem and requester cases of `TargetDeckTest`, `TargetRoutesTest`, `TargetStreamsTest`, `MpvPlayerTest` (cli). Owed: see the todo.
 
 From ADR 156: `CastBrainTest` (a normal video loads exactly the manifest the phone builds, picture relayed by range, sound-only, live on a TV and on a speaker, cut position and end, the wire), `FfmpegAudioEngineTest` (segments, seeks, cuts, stale stop, length, silent frame, ADTS), `PiCastTvsTest`, and the `streamFor` cases of `TargetStreamsTest` (cli); `EmbeddedSubtitlesTest` moved to `:core:cast`. The phone's `CastStreams` is covered by the same core tests and by its instrumented tests, not run in this change.
+
+## A running Jellyfin app is a target (ADR 187, built 2026-11-20)
+
+`TOTUM_JELLYFIN_CLIENTS=<label>=<device name contains or device id>[;...]` makes each named Jellyfin client (the Fire Stick's
+app, the LG's, a web client) a TV-kind target, listed whether or not the app is open: `ON` while Jellyfin lists a
+controllable session for it, `ASLEEP` with "🔌 Jellyfin is closed · open it by hand" otherwise. The Pi hands the app the item id
+(`PlayNow` with the start position) through Jellyfin's Sessions API and watches the session through the shared `RendererWatch`;
+pause, resume, seek, volume and stop are the app's own commands. It plays only Jellyfin items: `TargetState.plays` says
+`JELLYFIN_ONLY`, the picker says "🎞️ Jellyfin films and episodes only", the Pi refuses anything else with a reason, and a
+batch with anything else in it plays on the phone. Not run against a real client yet; the backlog item
+[jellyfin-remote-control](../todos/jellyfin-remote-control.md) has the Pi runbook.
+
+## Home Assistant's sounds (ADRs 155, 158)
+
+The adapter that answers HA's `:8099` URLs by asking these targets has been live since 2026-11-07; its contract with `GET
+/targets` and `POST /targets/queue` is two golden fixtures checked from both sides
+([backlog item](../todos/home-assistant-sounds-through-totum.md)).

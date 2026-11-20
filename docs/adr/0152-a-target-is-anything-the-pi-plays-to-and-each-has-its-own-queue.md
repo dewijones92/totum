@@ -138,7 +138,8 @@ to send a queue to. ADR 116 had built that for speakers only, with its own wire 
 - Home Assistant's brown-noise and jazz switches (`hermes-audio-ctl`, in the Pi's `dot-files`) are still a second player
   on the same speakers; making them call `POST /targets/queue` is a dot-files change. The Totum side (repeat, files on
   the Pi, `problem`, 8770 on the loopback) is [ADR 155](0155-a-target-repeats-plays-files-on-the-pi-and-says-why-it-could-not-play.md);
-  the adapter is in `tools/handoff/hermes-audio/`, to be deployed by hand.
+  the adapter is in `tools/handoff/hermes-audio/`, deployed by hand (live since 2026-11-07, redeployed 2026-11-13; see the
+  amendment at the end of ADR 155).
 - The Pi cannot tell phones apart beyond the id a phone sends. Anyone with a home-server token can send another
   phone's id; this is a household, not a threat model, and the rule is written down so it is not mistaken for one.
 - Connecting to a target (a Chromecast helper, a Bluetooth link) happens before the deck's lock is taken, so a slow or
@@ -150,3 +151,5 @@ to send a queue to. ADR 116 had built that for speakers only, with its own wire 
   are not offered on a remote row (see [ADR 108](0108-consistent-everywhere-and-its-recorded-exceptions.md)).
 - Not built: PC browsers as targets (the `BROWSER` kind exists, nothing registers one), "Play on…" as a long press on
   every play button, and the mini-player pill and notification per target.
+- A running Jellyfin app is one more target, driven by item id through Jellyfin's Sessions API and taking only Jellyfin items
+  ([ADR 187](0187-a-running-jellyfin-app-is-a-target-the-pi-drives-by-item-id.md)).
