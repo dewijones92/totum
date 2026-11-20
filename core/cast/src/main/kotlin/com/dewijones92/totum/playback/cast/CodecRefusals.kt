@@ -52,15 +52,8 @@ public class CodecRefusals(private val store: RefusalStore? = null) {
     }
 
     @Synchronized
-    public fun forgetTentative(model: String) {
-        tentative.remove(key(model))
-    }
-
-    @Synchronized
-    public fun forgetAll() {
+    public fun forgetTentative() {
         tentative.clear()
-        confirmed.clear()
-        store?.save(emptyMap())
     }
 
     private fun key(model: String): String = model.trim().lowercase()

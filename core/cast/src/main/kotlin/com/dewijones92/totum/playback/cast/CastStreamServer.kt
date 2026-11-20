@@ -704,7 +704,7 @@ public class CastStreamServer(
     }
 
     public fun stopAll() {
-        tvs.current()?.let { refusals.forgetTentative(it.screen.model) }
+        refusals.forgetTentative()
         reach.clear()
         failures.clear()
         startWatch.clear()

@@ -59,7 +59,7 @@ class CodecRefusalsTest {
         val refusals = CodecRefusals(Store(mapOf("chromecast" to setOf(VideoCodecFamily.VP9))))
         refusals.tried("Chromecast", VideoCodecFamily.AVC)
 
-        refusals.forgetTentative("Chromecast")
+        refusals.forgetTentative()
 
         assertEquals(setOf(VideoCodecFamily.VP9), refusals.refusedFor("Chromecast"))
     }

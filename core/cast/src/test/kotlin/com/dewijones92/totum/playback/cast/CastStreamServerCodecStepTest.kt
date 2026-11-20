@@ -148,6 +148,21 @@ class CastStreamServerCodecStepTest {
     }
 
     @Test
+    fun `ending the cast drops what was only tried, even after the TV has gone from the port`() {
+        tv.screen = CastScreen("Odd TV", setOf(VideoCodecFamily.VP9, VideoCodecFamily.AVC), 1080, known = true)
+        val url = server.urlFor(item())!!
+        manifest(url)
+        get("${url.substringBeforeLast('/')}/video/r0", "bytes=0-219")
+        runStartWatch()
+        assertEquals(setOf(VideoCodecFamily.VP9), refusals.refusedFor("Odd TV"))
+
+        tv.screen = null
+        server.stopAll()
+
+        assertTrue(refusals.refusedFor("Odd TV").isEmpty())
+    }
+
+    @Test
     fun `a TV that goes on to ask for sound is left alone`() {
         tv.screen = CastScreen("Odd TV", setOf(VideoCodecFamily.VP9, VideoCodecFamily.AVC), 1080, known = true)
         val url = server.urlFor(item())!!
