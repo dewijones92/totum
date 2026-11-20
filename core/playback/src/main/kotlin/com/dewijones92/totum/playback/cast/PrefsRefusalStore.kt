@@ -1,6 +1,7 @@
 package com.dewijones92.totum.playback.cast
 
 import android.content.Context
+import androidx.core.content.edit
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.domain.VideoCodecFamily
 
@@ -16,10 +17,10 @@ internal class PrefsRefusalStore(context: Context) : RefusalStore {
     }.toMap()
 
     override fun save(refusals: Map<String, Set<VideoCodecFamily>>) {
-        prefs.edit().apply {
+        prefs.edit {
             clear()
             refusals.forEach { (model, families) -> putStringSet(model, families.map { it.name }.toSet()) }
-        }.apply()
+        }
         Diag.log("cast", "dewidebug codec refusals saved: ${refusals.mapValues { (_, v) -> v.map { it.name } }}")
     }
 
