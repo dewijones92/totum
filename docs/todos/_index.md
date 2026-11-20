@@ -33,6 +33,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [A spoiler shield for sport](tennis-spoiler-shield.md) | ai/video | medium | built 2026-11-07, Batch A (tests written 2026-11-07; device checks owed) |
 | [Jellyfin's films and series inside Totum](jellyfin-in-totum.md) | home | medium | built 2026-11-07, Batch A (tests written 2026-11-07; device checks owed) |
 | [Trip mode](trip-mode.md) | downloads | low | built 2026-11-07, Batch A (ADR 149; tests written; not run on a device) |
+| [🧘 Long ones follow-ups](long-ones-follow-ups.md) | library | medium | open 2026-11-20 (keeping the channel table fresh, the vetoable calls on podcasts and the dopamine gate, phone check) |
 | [One tap puts the kid playlist on the TV](kid-tv-button.md) | casting/kids | low | built 2026-11-07, Batch A (ADR 148; tests written; not run on a TV) |
 | [A bedtime sleep timer](bedtime-sleep-timer.md) | player | low | built 2026-11-06, Batch A (ADR 133; tests written 2026-11-07) |
 | [Ready for other people: licence and reports](publish-licence-and-reports.md) | publishing | medium | built 2026-11-07, Batch A (tests written 2026-11-07; device checks owed) |
