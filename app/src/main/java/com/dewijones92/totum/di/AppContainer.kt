@@ -544,6 +544,9 @@ interface AppContainer {
      */
     val playbackProgressStore: PlaybackProgressStore
 
+    /** Marks items played or unplayed by hand; unplayed also stops the account's position winning them back. */
+    val progressByHand: PlaybackProgressStore get() = playbackProgressStore
+
     /** Account-scoped figures already acted on; the account screen clears them on sign-out. */
     val reconciledAccountProgress: ReconciledAccountProgress
 
@@ -812,12 +815,18 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         )
     }
 
+    private val accountProgressStore: AccountPlaybackProgressStore by lazy {
+        AccountPlaybackProgressStore(playbackProgressStore, accountResumePositions)
+    }
+
+    override val progressByHand: PlaybackProgressStore get() = accountProgressStore
+
     // Resumes and deliberate seeks are account-aware. `playState` deliberately delegates to the
     // raw store — it answers "what does THIS DEVICE know", which is the question the account
     // rule is built on rather than an answer it should already contain.
     override val randomStarts: RandomStarts by lazy {
         RandomStarts.saved(
-            AccountPlaybackProgressStore(playbackProgressStore, accountResumePositions),
+            accountProgressStore,
             context,
             applicationScope
         )

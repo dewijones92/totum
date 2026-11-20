@@ -180,7 +180,7 @@ private class ContainerItemActions(
     }
 
     override fun setPlayed(id: MediaItemId, played: Boolean) {
-        scope.launch { container.playbackProgressStore.setPlayed(id, played) }
+        scope.launch { container.progressByHand.setPlayed(id, played) }
     }
 
     override fun sourceLink(item: MediaItem): (() -> Unit)? {

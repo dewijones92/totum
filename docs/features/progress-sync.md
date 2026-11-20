@@ -3,7 +3,7 @@ title: Two-way progress sync with YouTube
 kind: feature
 status: both halves shipped; the app's plays reached YouTube as fully watched until 2026-10-23, fixed
 area: video
-updated: 2026-11-06
+updated: 2026-11-20
 ---
 
 # Two-way progress sync with YouTube
@@ -260,8 +260,10 @@ the same rule. **The trade, stated:** finish something here, then watch forty mi
 TV, and the phone starts from the beginning rather than offering the forty. Two surfaces disagreeing
 about one item is the bug class this seam exists to prevent, so agreeing on a rule you can explain
 beats disagreeing on a better one — and "played here" includes reaching the end normally, not only
-marking it by hand. Marking it unplayed is the escape hatch, and it works: a finished item records
-nothing, so the account's figure gets a fresh hearing rather than a pre-set veto.
+marking it by hand. Marking it unplayed is the escape hatch. Since 2026-11-20 it also records the
+account's current figure as acted on (see "A reset sticks" below), so the account's old position
+cannot win the item back; before, a finished item recorded nothing and the account's figure got a
+fresh hearing, which is how a reset item came back at the account's old place.
 
 ### What a stuck row costs now that nothing is dropped
 
@@ -291,6 +293,23 @@ played afterwards.
 The same pass moved the old-news check **ahead** of the local-is-null case. Having no position for
 an item already resumed once means the position was taken away — marked unplayed, or played to the
 end — and an echo of the old decision must not put it back.
+
+### A reset sticks (2026-11-20)
+
+Dewi's decision, after an item he had set unplayed came back at the account's position on the next
+play. Setting an item unplayed (`setPlayed(false)`, through the one `AppContainer.setPlayed`, so the item
+menu, bulk select, the torrent menu and a group's Start again all go the same way) clears this device's
+progress, and now also reads what the account holds (`AccountResumePositions.overriddenByReset`, bounded
+like a play, skipped offline) and records that figure in `account_progress_reconciled` through
+`ReconciledAccountProgress.reconcile`. The figure is then old news (`REMOTE_IS_OLD_NEWS`), so neither the
+next tap nor the row shows it, and a remote "finished" no longer turns a reset item back into Played.
+Watching further elsewhere after the reset moves the number and still wins. The account's own copy is not
+written to: the app cannot zero it, it can only stop acting on it. If the account's history had not loaded
+and the phone is offline at the moment of the reset, nothing is recorded (the line says so) and the account's
+figure can win the item back once it is read. Logged on `yt-sync` as `marked unplayed <id>: ...` with the
+account figure and what had already been acted on (the first five of a burst in full, then one line per hundred, so a group reset
+is counted, not listed). A bulk reset of a 1,290-item group is one history read
+(cached five minutes) and one small row per item with an account position.
 
 ### Known limitation
 
