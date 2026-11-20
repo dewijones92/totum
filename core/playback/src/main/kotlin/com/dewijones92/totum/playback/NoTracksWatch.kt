@@ -31,13 +31,27 @@ internal class NoTracksWatch(
         val current = player() ?: return
         val id = current.currentMediaItem?.mediaId?.ifBlank { null } ?: return
         if (!current.currentTracks.isEmpty || current.isOnAReceiver() || reportedFor == id) return
-        later(RECHECK_MS) { confirm(id, why) }
+        val from = current.currentPosition
+        later(RECHECK_MS) { confirm(id, why, from) }
     }
 
-    private fun confirm(id: String, why: String) {
+    private fun confirm(id: String, why: String, positionAtSuspicion: Long) {
         val current = player() ?: return
         val stillIt = current.currentMediaItem?.mediaId == id && current.playbackState == Player.STATE_READY
         if (!stillIt || !current.currentTracks.isEmpty || reportedFor == id) return
+        val advancedMs = current.currentPosition - positionAtSuspicion
+        val playing = current.isPlaying && advancedMs >= ADVANCING_MS
+        val commands = runCatching { current.availableCommands.commandsOf() }.getOrElse { "unreadable" }
+        val verdict = if (playing) "it is playing, so this is not told to the user" else "told to the user"
+        Diag.log(
+            "playback",
+            "dewidebug no-tracks check on $id ($why): the controller sees isPlaying=${current.isPlaying} " +
+                "playWhenReady=${current.playWhenReady} position ${positionAtSuspicion}ms -> " +
+                "${current.currentPosition}ms (advanced ${advancedMs}ms) tracks=${current.currentTracks.groups.size} " +
+                "getTracksAvailable=${current.isCommandAvailable(Player.COMMAND_GET_TRACKS)} " +
+                "availableCommands=$commands -> $verdict",
+        )
+        if (playing) return
         reportedFor = id
         val summary = TrackSummary.of(emptyList(), current.isCurrentMediaItemSeekable)
         Diag.warn(
@@ -56,7 +70,10 @@ internal class NoTracksWatch(
         )
     }
 
+    private fun Player.Commands.commandsOf(): List<Int> = List(size()) { get(it) }
+
     private companion object {
         const val RECHECK_MS = 1_500L
+        const val ADVANCING_MS = 500L
     }
 }
