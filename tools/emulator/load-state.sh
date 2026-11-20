@@ -2,7 +2,8 @@
 # Load a state dump from the phone into the project emulator, so a report can be reproduced with the
 # phone's own queue, history, playlists, groups and settings.
 #
-#   tools/emulator/load-state.sh                 fetch the newest dump from the Pi (read-only ssh) and load it
+#   tools/emulator/load-state.sh                 fetch the newest dump from the Pi (read-only ssh) and load it;
+#                                                an emulator's own 0.1.0-dev dumps are skipped (tools/state/lib.sh)
 #   tools/emulator/load-state.sh <report-id>     fetch the dump that came with that report (triage.sh state) and load it
 #   tools/emulator/load-state.sh <dump.json.gz>  load a dump you already have
 #   LOAD_STATE_APK=<apk> tools/emulator/load-state.sh ...   install that debug build first (adb install -r)
@@ -16,6 +17,7 @@
 set -euo pipefail
 
 HERE=$(cd "$(dirname "$0")" && pwd)
+. "$HERE/../state/lib.sh"
 AVD=totum-api35
 PKG=com.dewijones92.totum
 RECEIVER=$PKG/$PKG.diagnostics.StateDebugReceiver
@@ -40,7 +42,7 @@ if [ -z "$dump" ]; then
   host=$(pi)
   [ -n "$host" ] || die "no Pi address: set CRASHLOG_PI"
   say "fetching the newest state dump from the Pi (read-only)"
-  ssh "$host" 'f=$(ls -t /home/pi/crashlog-data/states/*.json.gz /home/pi/crashlog-data/states/linked/*.json.gz 2>/dev/null | head -1); [ -n "$f" ] && cat "$f"' \
+  ssh "$host" "f=\$($(state_newest_command)); [ -n \"\$f\" ] && cat \"\$f\"" \
     > "$work/dump.json.gz" || die "the Pi has no state dump yet (nothing under crashlog-data/states)"
   dump=$work/dump.json.gz
 elif [ ! -e "$dump" ] && [[ $dump =~ ^[0-9]{8}T[0-9]{6}-[0-9a-f]{8}$ ]]; then
