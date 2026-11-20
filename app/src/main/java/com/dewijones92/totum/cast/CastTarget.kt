@@ -145,6 +145,12 @@ object CastTarget {
         }
     }
 
+    fun pretendTo(screen: CastScreen?) {
+        Diag.log("cast", "dewidebug debug: the app now treats the cast target as ${screen?.label ?: "the phone"}")
+        current.value = screen
+        deviceName.value = screen?.let { "stand-in ${it.model}" }
+    }
+
     private fun deviceOf(session: CastSession): String =
         "${session.castDevice?.friendlyName ?: "an unknown device"} (${session.castDevice?.modelName ?: "?"})"
 
