@@ -28,9 +28,6 @@ import com.dewijones92.totum.targets.TargetsRepository
 import com.dewijones92.totum.theme.TotumTheme
 import com.dewijones92.totum.ui.queue.REMOTE_ROW_TAG
 import com.dewijones92.totum.ui.queue.RemoteQueue
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -46,7 +43,7 @@ class RemoteQueueTest {
     val compose = createComposeRule()
 
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val scope = mainThreadScope()
 
     @After
     fun stop() = scope.cancel()

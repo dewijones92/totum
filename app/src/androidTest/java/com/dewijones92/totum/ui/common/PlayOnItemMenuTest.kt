@@ -29,10 +29,8 @@ import com.dewijones92.totum.targets.InMemoryPlayOn
 import com.dewijones92.totum.targets.InMemoryTargetColours
 import com.dewijones92.totum.targets.TargetsRepository
 import com.dewijones92.totum.theme.TotumTheme
+import com.dewijones92.totum.ui.mainThreadScope
 import com.dewijones92.totum.ui.queue.PLAY_ON_OPTION_PREFIX
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -46,7 +44,7 @@ class PlayOnItemMenuTest {
     val compose = createComposeRule()
 
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val scope = mainThreadScope()
 
     @After
     fun stop() = scope.cancel()
