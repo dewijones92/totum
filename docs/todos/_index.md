@@ -53,6 +53,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [The codec beside every quality; AV1 first when the hardware decodes it](codec-everywhere.md) | video | high | built 2026-11-06, Batch A (ADR 127); tests owed, not seen on a device |
 | [TV volume from the phone; the strip says what is cast](tv-volume-and-cast-strip.md) | casting | medium | built 2026-11-06, Batch A; tests owed, not seen on a device |
 | [Search results as tabs](search-results-tabs.md) | search | medium | built 2026-11-06, Batch A; tests to follow |
+| [Yours in search](search-yours.md) | search | medium | built 2026-11-20 (ADR 183), Batch C task H |
 | [Subtitles off stays off until turned on](subtitles-off-stays-off.md) | player | medium | built 2026-11-06, Batch A (ADR 123; CaptionPreferenceTest inverted and extended; the settings round trip, backup restore and a device check still owed) |
 | [A group page shows its last list while refreshing](group-page-last-list.md) | video | medium | built 2026-11-06, Batch A; tests to follow |
 | [The queue tidies itself](queue-tidy-up.md) | queue | medium | built 2026-11-06, Batch A |

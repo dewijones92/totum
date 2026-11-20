@@ -110,3 +110,10 @@ Jellyfin special case in the screen:
 - **A Jellyfin download is the whole file**, with no sound-or-video choice: [ADR 108](0108-consistent-everywhere-and-its-recorded-exceptions.md).
 - **The browse page has the shared sort and fuzzy filter** (As listed, Title, Newest, Oldest by year; the field filters
   title, series and year).
+
+## Amended 2026-11-20: the Pi searches the library
+
+`GET /jellyfin/browse?search=<term>` returns films and episodes whose name matches (Jellyfin's `SearchTerm`, 50 at most,
+term trimmed and capped at 100 characters, a blank term refused with 400) as a `JellyfinListing` with `search` set to the
+term. An older Pi ignores the parameter, so a phone treats an answer without the echo as "not searched". Used by the 📥
+Yours tab of search: [ADR 183](0183-search-shows-what-you-already-have-first.md).

@@ -120,6 +120,28 @@ Report logs on v0.1.927 showed Videos stuck at `8+` however far the list was scr
 
 Log: `[search] next page -> N returned, T total (more=…)` and `more <shelf> -> N returned, T in all`.
 
+## 📥 Yours: what you already have (2026-11-20, ADR 183)
+
+Dewi, 2026-11-20: *"I want to only see the ones I've downloaded"* (Spinal Tap II was at home and in Jellyfin, not on the
+phone). A first tab, **📥 Yours**, lists what the query matches among the phone's finished downloads (📱), the Pi's
+finished jobs (🏠) and the Jellyfin library (🎞️), each row saying where it is and playing through the queue's `routeNow`.
+
+| Piece | Where |
+|---|---|
+| The source | `YoursSearchSource` (`:core:data`): one `SearchSource` whose `updates` flow emits the phone's matches first, then each place as it answers; `YoursMerge` makes one row per thing |
+| The hit | `SearchHit.Yours(playable, places)`, `YourPlace` PHONE / HOME / JELLYFIN |
+| The Pi | `GET /jellyfin/browse?search=<term>` (films and episodes, 50 at most) echoing the term in `JellyfinListing.search`; `JellyfinApi.search` |
+| The tab and rows | `SearchTab.YOURS` first; `YoursSection.kt`; the row is `MediaItemRow` with a "📱 On this phone · 🏠 At home · 🎞️ In Jellyfin" line |
+
+- Shown as the tab on screen whenever it has matches; while it has none and is still asking it has no tab (no flicker);
+  with no matches but a note ("🏠 Home not reachable") it keeps a tab so an empty answer is not read as "not downloaded".
+- `SearchOutcome.Success` and `SearchSection.Found` carry `notes`, lines that are not results.
+- Not searched: the queue (6,033 rows on Dewi's phone) and pins; series; the Music scope.
+- Logs (`search`): `dewidebug yours "<q>": N of M download(s) match`, `… finished download(s) at home match` or why not read,
+  `… jellyfin N playable of M returned (total T)` or why not, and `… done after Tms: phone=… home=… jellyfin=… -> R row(s)`.
+- Checked on the emulator against the real Pi (not yet deployed with the route): "spinal" listed the Pi's Spinal Tap II
+  files at home with the poster, and the note "⚠️ The home server needs updating to search Jellyfin".
+
 ## Diagnostics
 
 Per section, with its own timing: `"ceuta" torrents after 8412ms -> 12`. "Search was slow" could

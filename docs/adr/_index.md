@@ -187,3 +187,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 175 | [DLNA, AirPlay and Kodi carry the picture over the one stream server's HLS, and Kodi is driven by its own JSON-RPC](0175-dlna-airplay-and-kodi-carry-the-picture-over-the-one-stream-servers-hls.md) | Accepted |
 | 176 | [📱 On this phone is one more source behind the one player, with Google Photos picked into it](0176-on-this-phone-is-a-source-behind-the-one-player.md) | Accepted |
 | 178 | [A channel's past live streams are its Live tab, found through the channel's own tab list, and shuffle all walks them](0178-a-channels-past-streams-are-its-live-tab-found-through-its-tab-list.md) | Accepted |
+| 183 | [Search shows what you already have, first, in a 📥 Yours tab: the phone's downloads, the Pi's finished downloads and the Jellyfin library, one row each](0183-search-shows-what-you-already-have-first.md) | Accepted |
