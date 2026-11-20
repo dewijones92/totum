@@ -62,6 +62,9 @@ import com.google.common.util.concurrent.ListenableFuture
 public class PlaybackService : MediaSessionService() {
 
     private var mediaSession: MediaSession? = null
+
+    @UnstableApi
+    private var remoteSession: RemoteSessionController? = null
     private val queueSkip by lazy { QueueSkipButtons(this) }
     private val switchButton by lazy { ListeningSwitchButton(this, queueSkip::buttons) }
 
@@ -130,7 +133,9 @@ public class PlaybackService : MediaSessionService() {
             ::triggerNotificationUpdate,
         ) { mediaSession?.player?.currentMediaItem?.mediaId }
         notificationProvider = contextual
-        setMediaNotificationProvider(RefusalTolerantNotificationProvider(contextual))
+        setMediaNotificationProvider(
+            RefusalTolerantNotificationProvider(RemoteTintedNotificationProvider(this, contextual)),
+        )
         // A custom audio sink whose processor chain carries the silence skipper
         // (Sonic stays for speed/pitch); skipping is off until the user turns it on.
         silenceCutter.speechWeights = { BundledSpeechModel.get() }
@@ -181,14 +186,7 @@ public class PlaybackService : MediaSessionService() {
                 }
 
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
-                    foregroundHold.playing(isPlaying)
-                    releaseCheck.removeCallbacksAndMessages(null)
-                    if (!isPlaying) {
-                        releaseCheck.postDelayed(
-                            { triggerNotificationUpdate() },
-                            foregroundHold.msUntilRelease() + RELEASE_CHECK_SLACK_MS,
-                        )
-                    }
+                    holdForeground(isPlaying)
                     Diag.log(
                         "playback",
                         "service ${if (isPlaying) "playing" else "not playing"}; in the foreground=$inForeground",
@@ -202,16 +200,23 @@ public class PlaybackService : MediaSessionService() {
         setUpCast(player)
         pictureWatch.start()
         mediaSession = MediaSession.Builder(this, currentPlayer ?: player)
-            .setBitmapLoader(
-                DataSourceBitmapLoader.Builder(this)
-                    .setDataSourceFactory(homeServerAware(DefaultDataSource.Factory(this)))
-                    .build(),
-            )
+            .setBitmapLoader(bitmapLoader())
             .setCallback(SkipSilenceCallback())
             .setMediaButtonPreferences(queueSkip.buttons())
             .apply { openAppIntent()?.let { setSessionActivity(it) } }
             .build()
+        remoteSession = RemoteSessionController(
+            service = this,
+            bitmapLoader = ::bitmapLoader,
+            openApp = ::openAppIntent,
+            playingChanged = ::holdForeground,
+        ).also { it.start() }
     }
+
+    @UnstableApi
+    private fun bitmapLoader() = DataSourceBitmapLoader.Builder(this)
+        .setDataSourceFactory(homeServerAware(DefaultDataSource.Factory(this)))
+        .build()
 
     /**
      * The one factory, shared by the player and the preloader.
@@ -667,7 +672,13 @@ public class PlaybackService : MediaSessionService() {
         )
     }
 
-    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = mediaSession
+    @UnstableApi
+    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? =
+        if (controllerInfo.connectionHints.getBoolean(RemoteSessionHost.HINT_REMOTE_SESSION)) {
+            remoteSession?.session
+        } else {
+            mediaSession
+        }
 
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
@@ -685,6 +696,18 @@ public class PlaybackService : MediaSessionService() {
 
     private val foregroundHold = ForegroundHold(FOREGROUND_AFTER_STOP_MS) { SystemClock.elapsedRealtime() }
     private val releaseCheck = Handler(Looper.getMainLooper())
+
+    @UnstableApi
+    private fun holdForeground(isPlaying: Boolean) {
+        foregroundHold.playing(isPlaying)
+        releaseCheck.removeCallbacksAndMessages(null)
+        if (!isPlaying) {
+            releaseCheck.postDelayed(
+                { triggerNotificationUpdate() },
+                foregroundHold.msUntilRelease() + RELEASE_CHECK_SLACK_MS,
+            )
+        }
+    }
 
     @UnstableApi
     private val pictureWatch = PictureWatch({ player }, { currentPlayer })
@@ -706,6 +729,8 @@ public class PlaybackService : MediaSessionService() {
         releaseCheck.removeCallbacksAndMessages(null)
         handoffTick.removeCallbacksAndMessages(null)
         silentTail.stop()
+        remoteSession?.stop()
+        remoteSession = null
         mediaSession?.release()
         player?.release()
         pictureWatch.stop()

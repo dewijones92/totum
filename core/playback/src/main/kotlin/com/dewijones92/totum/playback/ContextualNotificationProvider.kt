@@ -5,6 +5,7 @@ import android.os.Bundle
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.DefaultMediaNotificationProvider
+import androidx.media3.session.MediaSession
 import com.dewijones92.totum.common.Diag
 
 @UnstableApi
@@ -12,7 +13,12 @@ internal class ContextualNotificationProvider(
     private val context: Context,
     private val refresh: () -> Unit,
     private val currentItemId: () -> String?,
-) : DefaultMediaNotificationProvider(context) {
+) : DefaultMediaNotificationProvider(
+    context,
+    ::notificationIdOf,
+    DefaultMediaNotificationProvider.DEFAULT_CHANNEL_ID,
+    DefaultMediaNotificationProvider.DEFAULT_CHANNEL_NAME_RESOURCE_ID,
+) {
 
     @Volatile
     private var playbackContext = PlaybackContext()
@@ -29,6 +35,7 @@ internal class ContextualNotificationProvider(
 
     override fun getNotificationContentText(metadata: MediaMetadata): CharSequence? {
         val artist = super.getNotificationContentText(metadata)
+        if (metadata.extras?.containsKey(EXTRA_REMOTE_DEVICE) == true) return artist
         val badges = listOfNotNull(
             when (playbackContext.live) {
                 PlayingLive.LIVE -> context.getString(R.string.playback_notification_live)
@@ -60,3 +67,13 @@ internal class ContextualNotificationProvider(
         }
     }
 }
+
+private const val REMOTE_NOTIFICATION_ID = 1002
+
+@UnstableApi
+private fun notificationIdOf(session: MediaSession): Int =
+    if (session.id == RemoteSessionController.REMOTE_SESSION_ID) {
+        REMOTE_NOTIFICATION_ID
+    } else {
+        DefaultMediaNotificationProvider.DEFAULT_NOTIFICATION_ID
+    }

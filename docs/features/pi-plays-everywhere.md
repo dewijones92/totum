@@ -24,7 +24,20 @@ sound processing on the Pi). Brief: [pi-plays-everywhere.md](../todos/pi-plays-e
   "📋 Up next on LG TV · 54" and the queue.
 - **Chips carry a connection dot** (linked, ready, waking, reconnecting, asleep, problem), hint at more chips off the edge, wear a glyph
   per kind (📱 🔈 📺 📽️ 🖥️), and a long-press opens the colour choices (48 dp swatches).
-- Not built: lock-screen and notification controls for a device ([todo](../todos/target-bar-everywhere.md)).
+
+## The lock screen and the notification shade (ADR 188, 2026-11-20)
+
+- **A second media session beside the phone's.** While the dock bar is the device's (`barDecision`: chosen, listed, something current),
+  `PlaybackService` also holds a `totum-remote-target` session fronted by `RemoteTargetPlayer`, with its own notification (id 1002). The
+  phone's session, notification (1001), Exsurge's Live Update and the foreground rules are not touched, and the app's own controller never
+  sees it. It goes when the phone is chosen or the device has nothing left.
+- **It shows** the title and art (through the spoiler shield), `📺 LG TV · ▶️ Playing · author` as the artist line, the device's name as the
+  notification's sub-text and its colour as the notification colour, and the position moving between reads.
+- **It controls** play and pause, back 10, forward 30 and next, as the same `TargetAction`s the dock bar sends. No back or forward on a live
+  item.
+- **It reads the Pi with the screen off** every 10 s while the device plays and every 30 s while it is paused, never when the screen's own
+  read is fresh (`RemoteSessionBridge`, `TargetsRepository.refreshIfOlderThan`).
+- Tapping the card opens the app, not yet the device's remote page.
 
 ## What it does
 
@@ -115,7 +128,7 @@ sound processing on the Pi). Brief: [pi-plays-everywhere.md](../todos/pi-plays-e
   screen) shows and changes it, every item menu has "📡 Play on…" to play
   that item on a pick, and picking a switched-off device wakes it at once (a play to a sleeping one wakes it as before).
   The device's colour is on the item wherever it is playing (a "📺 LG TV" badge on rows, the queue, the mini player and the
-  full player). Peek stays on the phone; the phone's own notification is not recoloured.
+  full player). Peek stays on the phone; the phone's own notification is not recoloured (a device has its own, [ADR 188](../adr/0188-the-selected-device-is-a-second-media-session-for-the-lock-screen-and-notification.md)).
 
 ## Files
 
@@ -182,8 +195,7 @@ sound processing on the Pi). Brief: [pi-plays-everywhere.md](../todos/pi-plays-e
 
 ## Not built (see the todo)
 
-A name typed into the browser page (a stored name is read, none is written); the browser page away from home; Home Assistant's brown noise and jazz through Totum (the Totum side is built; the dot-files adapter is in `tools/handoff/hermes-audio/`, not deployed); the mini-player pill
-and per-target notification; "Play on…" as a long press on every play button; skip silences on a picture (the phone does
+A name typed into the browser page (a stored name is read, none is written); the browser page away from home; Home Assistant's brown noise and jazz through Totum (the Totum side is built; the dot-files adapter is in `tools/handoff/hermes-audio/`, not deployed); the mini-player pill; "Play on…" as a long press on every play button; skip silences on a picture (the phone does
 not either); playback speed on a target; the phone's silence mode and speech gate on a target; TV volume in the strip.
 Not seen on a real TV or speaker yet: the manifest, the relayed picture, the Pi's segments, live on a TV and on mpv.
 

@@ -42,6 +42,8 @@ import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration
 
+enum class Polled { READ, FAILED, FRESH_ENOUGH }
+
 @Suppress("TooManyFunctions")
 class TargetsRepository(
     private val client: TargetsApi?,
@@ -54,6 +56,7 @@ class TargetsRepository(
     private val sleepFade: () -> Duration = { SleepFade.DEFAULT_LENGTH },
     private val playOn: PlayOnStore = InMemoryPlayOn(),
     private val unmetered: () -> Boolean = { true },
+    private val nowMs: () -> Long = { System.nanoTime() / NANOS_PER_MILLI },
 ) : QueueDestination {
 
     val available: Boolean get() = client != null
@@ -158,8 +161,17 @@ class TargetsRepository(
         Diag.log("targets", "$id recoloured to ${colour.toString(HEX)}")
     }
 
+    private var lastReadAtMs: Long? = null
+
+    suspend fun refreshIfOlderThan(maxAgeMs: Long, why: String): Polled {
+        val age = lastReadAtMs?.let { nowMs() - it }
+        if (age != null && age < maxAgeMs) return Polled.FRESH_ENOUGH
+        return if (refresh(why)) Polled.READ else Polled.FAILED
+    }
+
     suspend fun refresh(why: String): Boolean {
         val home = client ?: return false
+        lastReadAtMs = nowMs()
         return when (val answer = home.targets()) {
             is HomeAnswer.No -> {
                 trouble.value = describe(answer)
@@ -529,6 +541,7 @@ class TargetsRepository(
         PlayOn.options(live.value, homeNow.value).firstOrNull { it.id == id }
 
     private fun replace(state: TargetState) {
+        lastReadAtMs = nowMs()
         listedAny.value = true
         live.update { all ->
             if (all.any { it.target.id == state.target.id }) {
@@ -565,6 +578,7 @@ class TargetsRepository(
         const val SIGN_IN_AGAIN = "🔑 Sign in to the home server again"
         const val STOPPED_ANSWERING = "the home server stopped answering while it started"
         const val HEX = 16
+        const val NANOS_PER_MILLI = 1_000_000L
     }
 }
 
