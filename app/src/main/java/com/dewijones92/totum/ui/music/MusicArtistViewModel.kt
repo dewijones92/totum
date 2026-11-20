@@ -15,8 +15,10 @@ import com.dewijones92.totum.innertube.music.RadioSeed
 import com.dewijones92.totum.innertube.music.YouTubeMusicCatalogue
 import com.dewijones92.totum.music.ArtistShuffle
 import com.dewijones92.totum.music.ArtistSongs
+import com.dewijones92.totum.music.DiscoverSeed
 import com.dewijones92.totum.music.MusicRadio
 import com.dewijones92.totum.music.MusicSources
+import com.dewijones92.totum.music.artistIdNamed
 import com.dewijones92.totum.music.artistShuffle
 import com.dewijones92.totum.music.toMediaItem
 import com.dewijones92.totum.music.toPlayable
@@ -90,15 +92,7 @@ class MusicArtistViewModel(
         }
     }
 
-    private suspend fun findByName(): String? {
-        val found = (catalogue.artists(page.name, limit = SEARCH_LIMIT) as? MusicResult.Success)?.value?.items.orEmpty()
-        val exact = found.firstOrNull { it.name.equals(page.name, ignoreCase = true) }
-        Diag.log(
-            "music",
-            "artist \"${page.name}\" has no id; search found ${found.size}, exact=${exact?.browseId ?: "none"}",
-        )
-        return exact?.browseId
-    }
+    private suspend fun findByName(): String? = catalogue.artistIdNamed(page.name)
 
     fun playTop(fromIndex: Int = 0) {
         val loaded = _state.value as? State.Loaded ?: return
@@ -124,6 +118,16 @@ class MusicArtistViewModel(
         }
     }
 
+    fun discover() {
+        val loaded = (_state.value as? State.Loaded)?.artist
+        val seed = DiscoverSeed(
+            title = loaded?.name ?: page.name,
+            artistId = loaded?.browseId ?: page.browseId,
+            artistName = loaded?.name ?: page.name,
+        )
+        appScope.launch { radio.startDiscover(seed) }
+    }
+
     private fun currentMix(): RadioSeed? = (_state.value as? State.Loaded)?.artist?.radio ?: page.radio
 
     private fun startStation(seed: RadioSeed?, what: String) {
@@ -133,8 +137,6 @@ class MusicArtistViewModel(
     }
 
     companion object {
-        private const val SEARCH_LIMIT = 5
-
         fun factory(container: AppContainer, page: MusicPage.Artist): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 MusicArtistViewModel(

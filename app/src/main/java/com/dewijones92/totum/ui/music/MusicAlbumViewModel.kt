@@ -18,6 +18,7 @@ import com.dewijones92.totum.domain.offlineCount
 import com.dewijones92.totum.innertube.music.MusicAlbum
 import com.dewijones92.totum.innertube.music.MusicResult
 import com.dewijones92.totum.innertube.music.YouTubeMusicCatalogue
+import com.dewijones92.totum.music.DiscoverSeed
 import com.dewijones92.totum.music.MusicRadio
 import com.dewijones92.totum.music.MusicSources
 import com.dewijones92.totum.music.toMediaItem
@@ -161,6 +162,18 @@ class MusicAlbumViewModel(
         val loaded = _state.value as? State.Loaded ?: return
         val seed = loaded.album.radio ?: return Diag.warn("music", "album \"${loaded.album.title}\" has no radio seed")
         appScope.launch { radio.start(seed, loaded.album.title) }
+    }
+
+    fun startDiscover() {
+        val loaded = _state.value as? State.Loaded ?: return
+        val album = loaded.album
+        val seed = DiscoverSeed(
+            title = album.title,
+            artistId = album.artistBrowseId,
+            artistName = album.artist,
+            albumId = album.browseId,
+        )
+        appScope.launch { radio.startDiscover(seed) }
     }
 
     private fun State.Loaded.playables(): List<PlayableItem> =

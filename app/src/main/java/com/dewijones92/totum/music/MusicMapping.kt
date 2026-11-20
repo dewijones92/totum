@@ -35,4 +35,6 @@ object MusicSources {
     fun artist(browseId: String): SourceId = SourceId("music:artist:$browseId")
 
     fun radio(playlistId: String): SourceId = SourceId("music:radio:$playlistId")
+
+    fun discover(artistId: String): SourceId = SourceId("music:discover:$artistId")
 }

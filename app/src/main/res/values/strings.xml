@@ -109,6 +109,7 @@
     <string name="queue_group_shuffle_play">Shuffle and play %1$s</string>
     <string name="queue_group_download">🎧 Download this group\'s sound for offline</string>
     <string name="queue_group_endless">♾️ Endless radio: more songs arrive as you listen</string>
+    <string name="queue_group_discover">🔭 Discover: more songs from artists near the seed arrive as you listen</string>
     <string name="queue_group_stop_download">Stop downloading this group</string>
     <string name="group_download_title">🎧 Download the sound of “%1$s” for offline?</string>
     <plurals name="group_download_body">
@@ -642,6 +643,8 @@
     <string name="music_download_album">🎧 Download the songs</string>
     <string name="music_radio">Radio</string>
     <string name="music_start_radio">Start radio</string>
+    <string name="music_discover">🔭 Discover</string>
+    <string name="music_start_discover">🔭 Discover from this</string>
     <string name="music_mix">Mix</string>
     <string name="music_could_not_load">📡 Couldn\'t load this. Check your connection and try again.</string>
     <string name="music_retry">Try again</string>
@@ -964,6 +967,7 @@
     <string name="transcript_next_match">Next match</string>
     <string name="transcript_follow">↓ Follow along</string>
     <string name="radio_from_these">📻 Radio from these</string>
+    <string name="discover_from_these">🔭 Discover from these</string>
     <string name="settings_rewind">Rewind a little after a pause</string>
     <string name="settings_rewind_summary">Talk picks up a few seconds back when you resume: 2 s after a short pause, up to 20 s after an hour or more. Never for music.</string>
     <string name="explore_on">🧭 Explore on: related videos play next, your queue waits</string>
@@ -997,6 +1001,7 @@
     <string name="pin_menu_play">Play</string>
     <string name="pin_menu_shuffle">Shuffle</string>
     <string name="pin_menu_radio">Start radio</string>
+    <string name="pin_menu_discover">🔭 Discover from this</string>
     <string name="pin_menu_go_album">Go to album</string>
     <string name="pin_menu_go_artist">Go to artist</string>
     <string name="pin_menu_go_playlist">Go to playlist</string>
@@ -1007,6 +1012,7 @@
     <string name="pin_menu_shuffle_songs">Shuffle all songs</string>
     <string name="pin_menu_artist_radio">Artist radio</string>
     <string name="pin_menu_restart_radio">Restart the radio</string>
+    <string name="pin_menu_restart_discover">🔭 Discover again</string>
     <string name="pin_menu_shuffle_again">Shuffle again</string>
     <string name="pin_menu_forget">Remove from Recently</string>
     <plurals name="album_download_confirm">
@@ -1241,6 +1247,12 @@
     <string name="screen_ready_text">📱 Open Dewi\'s Totum in your private area, then ▶️ Watch here, to watch what is playing on your PC.</string>
     <string name="ops_shuffle_artist">🔀 Shuffling all of %1$s</string>
     <string name="ops_shuffle_sources">🔀 Shuffling all of %1$s</string>
+    <string name="ops_discover">🔭 Finding music near %1$s</string>
+    <string name="ops_discover_nothing">📭 Couldn\'t find anything new near %1$s</string>
+    <plurals name="ops_discover_done">
+        <item quantity="one">🔭 %2$s: 1 song to start, more as you listen</item>
+        <item quantity="other">🔭 %2$s: %1$d songs to start, more as you listen</item>
+    </plurals>
     <plurals name="ops_found">
         <item quantity="one">🔎 1 found so far</item>
         <item quantity="other">🔎 %1$d found so far</item>
@@ -1264,6 +1276,7 @@
     <string name="pin_kind_playlist">📃 Playlist</string>
     <string name="pin_kind_artist">🎤 Artist</string>
     <string name="pin_kind_radio">📻 Radio</string>
+    <string name="pin_kind_discover">🔭 Discover</string>
     <string name="pin_kind_show">🎙️ Show</string>
     <string name="pin_kind_shuffle_all">🔀 Shuffle all</string>
     <string name="pin_kind_artist_songs">🎵 Every song</string>

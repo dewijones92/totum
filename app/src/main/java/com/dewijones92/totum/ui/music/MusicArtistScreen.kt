@@ -18,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.outlined.Radio
+import androidx.compose.material.icons.outlined.TravelExplore
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -185,6 +186,7 @@ private fun artistButtons(
             viewModel.mix()
             toast(context, context.getString(R.string.music_radio_started, artist.name))
         }.takeIf { artist.radio != null },
+        MusicButton(R.string.music_discover, Icons.Outlined.TravelExplore) { viewModel.discover() },
     )
 
 @Composable

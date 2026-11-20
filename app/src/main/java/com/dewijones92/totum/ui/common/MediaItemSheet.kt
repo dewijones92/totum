@@ -33,6 +33,7 @@ import androidx.compose.material.icons.outlined.RadioButtonUnchecked
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.SmartDisplay
 import androidx.compose.material.icons.outlined.ThumbDown
+import androidx.compose.material.icons.outlined.TravelExplore
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -129,6 +130,7 @@ internal fun ActionSheet(
             SheetAction(onRemoveFromQueue, Icons.Filled.Delete, R.string.queue_remove, onDismiss)
             SheetAction(onPeek, Icons.Outlined.Visibility, R.string.queue_peek, onDismiss)
             SheetAction(extras.onStartRadio, Icons.Outlined.Radio, R.string.music_start_radio, onDismiss)
+            SheetAction(extras.onStartDiscover, Icons.Outlined.TravelExplore, R.string.music_start_discover, onDismiss)
             StarAction(extras.item, onDismiss)
             SpoilerShieldActions(extras.item, sourcePillar, onDismiss)
             StarListAction(extras.starList, title, onDismiss)

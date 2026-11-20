@@ -80,6 +80,8 @@ internal interface ItemActions {
 internal val LocalItemActions = staticCompositionLocalOf<ItemActions?> { null }
 
 internal val LocalStartRadio = staticCompositionLocalOf<((MediaItem) -> Unit)?> { null }
+internal val LocalStartDiscover = staticCompositionLocalOf<((MediaItem) -> Unit)?> { null }
+internal val LocalStartDiscoverFrom = staticCompositionLocalOf<((List<MediaItem>) -> Unit)?> { null }
 internal val LocalStartRadioMix = staticCompositionLocalOf<((List<MediaItem>) -> Unit)?> { null }
 
 internal val LocalReadyAhead = staticCompositionLocalOf<(MediaItem) -> Unit> { {} }

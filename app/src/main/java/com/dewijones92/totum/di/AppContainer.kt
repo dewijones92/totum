@@ -236,6 +236,7 @@ import com.dewijones92.totum.music.KeptArtistSongs
 import com.dewijones92.totum.music.MusicFavourites
 import com.dewijones92.totum.music.MusicRadio
 import com.dewijones92.totum.music.artistShuffle
+import com.dewijones92.totum.music.discoverEngine
 import com.dewijones92.totum.notforme.withNotForMe
 import com.dewijones92.totum.notifications.DataSaverNotifier
 import com.dewijones92.totum.notifications.DownloadNotifier
@@ -1997,6 +1998,8 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             recentActions,
             File(context.filesDir, "radio.txt"),
             notForMe,
+            discoverEngine(),
+            operations,
         )
     }
 

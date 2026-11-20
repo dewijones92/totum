@@ -20,6 +20,7 @@ import java.util.concurrent.atomic.AtomicLong
 enum class OperationKind(val toastsResult: Boolean = true) {
     SHUFFLE_ARTIST,
     SHUFFLE_SOURCES,
+    DISCOVER,
     OPEN_PAGE(toastsResult = false),
     PREPARE_TORRENT,
     DOWNLOAD_BATCH,

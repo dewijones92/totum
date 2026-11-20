@@ -81,7 +81,7 @@ class ListeningSwitcher(
 
 val Pin.isMusic: Boolean
     get() = when (this) {
-        is Pin.Album, is Pin.Artist, is Pin.Radio, is Pin.ArtistSongs -> true
+        is Pin.Album, is Pin.Artist, is Pin.Radio, is Pin.ArtistSongs, is Pin.Discover -> true
         is Pin.Playlist -> music
         is Pin.Item -> item.contentKind == MediaContentKind.MUSIC.name
         is Pin.Show, is Pin.ShuffleAllOf -> false

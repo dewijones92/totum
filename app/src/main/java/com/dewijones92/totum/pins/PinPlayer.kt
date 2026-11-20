@@ -23,6 +23,7 @@ import com.dewijones92.totum.innertube.playlists.PlaylistVideosResult
 import com.dewijones92.totum.innertube.playlists.YouTubePlaylists
 import com.dewijones92.totum.music.ArtistShuffle
 import com.dewijones92.totum.music.ArtistSongs
+import com.dewijones92.totum.music.DiscoverSeed
 import com.dewijones92.totum.music.MusicRadio
 import com.dewijones92.totum.music.MusicSources
 import com.dewijones92.totum.music.toPlayable
@@ -59,6 +60,10 @@ class PinPlayer(
             is Pin.Radio -> started(
                 radio.start(RadioSeed(pin.videoId, pin.playlistId, pin.params), pin.title),
                 "no radio"
+            )
+            is Pin.Discover -> started(
+                radio.startDiscover(DiscoverSeed(pin.title, artistId = pin.artistId, artistName = pin.artistName)),
+                "nothing new found near ${pin.artistName}",
             )
             is Pin.Show -> playShow(pin, way, local)
             is Pin.ShuffleAllOf -> replayShuffleAll(shuffleAll, pin, local)

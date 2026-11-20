@@ -54,8 +54,19 @@ public class FakeYouTubeMusicCatalogue(
         albumsById.values.firstOrNull { it.playlistId == playlistId }?.let { MusicResult.Success(it) }
             ?: MusicResult.Failure("no album for $playlistId")
 
-    override suspend fun artist(browseId: String): MusicResult<MusicArtist> =
-        artistsById[browseId]?.let { MusicResult.Success(it) } ?: MusicResult.Failure("no artist $browseId")
+    public val artistRequests: MutableList<String> = mutableListOf()
+
+    /** The next this-many artist requests fail, as a dropped connection would. */
+    public var failNextArtistRequests: Int = 0
+
+    override suspend fun artist(browseId: String): MusicResult<MusicArtist> {
+        artistRequests += browseId
+        if (failNextArtistRequests > 0) {
+            failNextArtistRequests--
+            return MusicResult.Failure("unreachable")
+        }
+        return artistsById[browseId]?.let { MusicResult.Success(it) } ?: MusicResult.Failure("no artist $browseId")
+    }
 
     override suspend fun radio(seed: RadioSeed, continuation: String?): MusicResult<RadioBatch> {
         radioRequests += seed to continuation

@@ -9,6 +9,7 @@ enum class PinAction(@param:StringRes val label: Int) {
     PLAY_NEXT(R.string.queue_play_next),
     ADD_TO_QUEUE(R.string.queue_add),
     START_RADIO(R.string.pin_menu_radio),
+    START_DISCOVER(R.string.pin_menu_discover),
     GO_TO_ALBUM(R.string.pin_menu_go_album),
     GO_TO_ARTIST(R.string.pin_menu_go_artist),
     GO_TO_PLAYLIST(R.string.pin_menu_go_playlist),
@@ -19,6 +20,7 @@ enum class PinAction(@param:StringRes val label: Int) {
     SHUFFLE_SONGS(R.string.pin_menu_shuffle_songs),
     ARTIST_RADIO(R.string.pin_menu_artist_radio),
     RESTART_RADIO(R.string.pin_menu_restart_radio),
+    RESTART_DISCOVER(R.string.pin_menu_restart_discover),
     SHUFFLE_AGAIN(R.string.pin_menu_shuffle_again),
     TOGGLE_PIN(R.string.pin_pin),
     ADD_TO_HOME(R.string.pin_home),
@@ -35,6 +37,7 @@ fun pinMenuFor(pin: Pin, inRecent: Boolean): List<PinAction> {
             PinAction.PLAY_NEXT,
             PinAction.ADD_TO_QUEUE,
             PinAction.START_RADIO,
+            PinAction.START_DISCOVER,
             PinAction.GO_TO_ALBUM,
             PinAction.GO_TO_ARTIST,
             PinAction.SAVE_ALBUM,
@@ -49,16 +52,26 @@ fun pinMenuFor(pin: Pin, inRecent: Boolean): List<PinAction> {
         is Pin.Artist -> listOfNotNull(
             PinAction.SHUFFLE_SONGS.takeIf { pin.browseId != null },
             PinAction.ARTIST_RADIO.takeIf { pin.radioPlaylistId != null },
+            PinAction.START_DISCOVER.takeIf { pin.browseId != null },
             PinAction.GO_TO_ARTIST,
             PinAction.FOLLOW_ARTIST.takeIf { pin.browseId != null },
         )
-        is Pin.Radio -> listOfNotNull(PinAction.RESTART_RADIO, PinAction.GO_TO_SEED.takeIf { pin.videoId != null })
+        is Pin.Radio -> listOfNotNull(
+            PinAction.RESTART_RADIO,
+            PinAction.START_DISCOVER.takeIf { pin.videoId != null },
+            PinAction.GO_TO_SEED.takeIf { pin.videoId != null },
+        )
+        is Pin.Discover -> listOf(PinAction.RESTART_DISCOVER, PinAction.GO_TO_ARTIST)
         is Pin.Show -> listOf(PinAction.PLAY, PinAction.GO_TO_SOURCE)
         is Pin.ShuffleAllOf -> listOfNotNull(
             PinAction.SHUFFLE_AGAIN,
             PinAction.GO_TO_SOURCE.takeIf { pin.sources.size == 1 },
         )
-        is Pin.ArtistSongs -> listOf(PinAction.SHUFFLE_AGAIN, PinAction.GO_TO_ARTIST)
+        is Pin.ArtistSongs -> listOfNotNull(
+            PinAction.SHUFFLE_AGAIN,
+            PinAction.START_DISCOVER.takeIf { pin.artistId != null },
+            PinAction.GO_TO_ARTIST,
+        )
     }
     val replayable = pin !is Pin.Artist || pin.browseId != null || pin.radioPlaylistId != null
     val common = listOfNotNull(

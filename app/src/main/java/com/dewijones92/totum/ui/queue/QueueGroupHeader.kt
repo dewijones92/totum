@@ -33,6 +33,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
 import com.dewijones92.totum.domain.TimeLeft
+import com.dewijones92.totum.music.DISCOVER_GROUP_PREFIX
 import com.dewijones92.totum.music.RADIO_GROUP_PREFIX
 import com.dewijones92.totum.queue.GroupDestination
 import com.dewijones92.totum.ui.common.MediaSort
@@ -53,6 +54,7 @@ internal data class GroupHeaderModel(
     val timeLeft: TimeLeft? = null,
 ) {
     val endless: Boolean get() = groupId.startsWith(RADIO_GROUP_PREFIX)
+    val discover: Boolean get() = groupId.startsWith(DISCOVER_GROUP_PREFIX)
 }
 
 internal data class GroupHeaderActions(
@@ -187,7 +189,9 @@ private fun GroupTitle(model: GroupHeaderModel, modifier: Modifier) {
         }
         if (model.endless) {
             Text(
-                text = stringResource(R.string.queue_group_endless),
+                text = stringResource(
+                    if (model.discover) R.string.queue_group_discover else R.string.queue_group_endless
+                ),
                 style = MaterialTheme.typography.bodySmall,
                 color = groupInk(model, muted = true),
                 modifier = Modifier.testTag(QUEUE_GROUP_ENDLESS_TAG),
