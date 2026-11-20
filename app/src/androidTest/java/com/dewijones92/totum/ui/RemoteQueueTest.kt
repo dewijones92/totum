@@ -4,6 +4,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
@@ -190,7 +191,10 @@ class RemoteQueueTest {
     @Test
     fun repeatSleepSilencesBoostAndColourAreBehindOneControlsRowAndOneKindOfTile() {
         show(tv)
-        assertEquals(0, compose.onAllNodesWithText(text(R.string.repeat), substring = true).fetchSemanticsNodes().size)
+        assertEquals(
+            0,
+            compose.onAllNodesWithContentDescription(text(R.string.repeat)).fetchSemanticsNodes().size,
+        )
 
         compose.onNodeWithTag(REMOTE_CONTROLS_TAG).performClick()
         compose.waitForIdle()

@@ -200,20 +200,24 @@ private fun ColouredChip(
 private fun BoxScope.ScrollHints(scroll: ScrollState) {
     val fade = MaterialTheme.colorScheme.background
     if (scroll.canScrollBackward) {
-        Box(
-            Modifier.align(Alignment.CenterStart).fillMaxHeight().width(HINT_WIDTH)
-                .background(Brush.horizontalGradient(listOf(fade, Color.Transparent))),
-            contentAlignment = Alignment.CenterStart,
-        ) { Icon(Icons.Outlined.ChevronLeft, contentDescription = null, modifier = Modifier.size(HINT_ICON)) }
+        Box(Modifier.matchParentSize(), contentAlignment = Alignment.CenterStart) {
+            Box(
+                Modifier.width(HINT_WIDTH).fillMaxHeight()
+                    .background(Brush.horizontalGradient(listOf(fade, Color.Transparent))),
+                contentAlignment = Alignment.CenterStart,
+            ) { Icon(Icons.Outlined.ChevronLeft, contentDescription = null, modifier = Modifier.size(HINT_ICON)) }
+        }
     }
     if (scroll.canScrollForward) {
         val more = stringResource(R.string.target_more_devices)
-        Box(
-            Modifier.align(Alignment.CenterEnd).fillMaxHeight().width(HINT_WIDTH)
-                .background(Brush.horizontalGradient(listOf(Color.Transparent, fade)))
-                .testTag(CHIPS_MORE_TAG),
-            contentAlignment = Alignment.CenterEnd,
-        ) { Icon(Icons.Outlined.ChevronRight, contentDescription = more, modifier = Modifier.size(HINT_ICON)) }
+        Box(Modifier.matchParentSize(), contentAlignment = Alignment.CenterEnd) {
+            Box(
+                Modifier.width(HINT_WIDTH).fillMaxHeight()
+                    .background(Brush.horizontalGradient(listOf(Color.Transparent, fade)))
+                    .testTag(CHIPS_MORE_TAG),
+                contentAlignment = Alignment.CenterEnd,
+            ) { Icon(Icons.Outlined.ChevronRight, contentDescription = more, modifier = Modifier.size(HINT_ICON)) }
+        }
     }
 }
 

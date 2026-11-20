@@ -206,7 +206,11 @@ class TargetChipsTest {
         }
         show(repository(*many.toTypedArray()))
 
-        compose.onNodeWithTag(CHIPS_MORE_TAG).assertExists()
+        val hint = compose.onNodeWithTag(CHIPS_MORE_TAG).fetchSemanticsNode().boundsInRoot
+        assertTrue(
+            "the hint is ${hint.height / compose.density.density}dp tall",
+            hint.height / compose.density.density < MAX_ROW_DP
+        )
     }
 
     @Test
@@ -223,5 +227,6 @@ class TargetChipsTest {
         const val WAIT_MS = 10_000L
         const val SETTLE_MS = 500L
         const val MIN_SWATCH_DP = 48
+        const val MAX_ROW_DP = 80
     }
 }

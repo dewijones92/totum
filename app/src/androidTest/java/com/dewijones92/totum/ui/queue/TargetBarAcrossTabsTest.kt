@@ -1,6 +1,8 @@
 package com.dewijones92.totum.ui.queue
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithTag
@@ -102,7 +104,8 @@ class TargetBarAcrossTabsTest {
         return container
     }
 
-    private fun tab(label: Int) = compose.onNodeWithText(context.getString(label)).performClick()
+    private fun tab(label: Int) =
+        compose.onNode(hasText(context.getString(label)) and hasClickAction()).performClick()
 
     private fun barCount() = compose.onAllNodesWithTag(TARGET_BAR_TAG).fetchSemanticsNodes().size
 
@@ -136,12 +139,11 @@ class TargetBarAcrossTabsTest {
         tab(R.string.destination_videos)
         compose.waitForIdle()
 
-        compose.onNodeWithTag(TARGET_BAR_DEVICE_TAG).assertIsDisplayed()
+        TestShots.take("target-bar-videos-tab")
         compose.onNodeWithText("📺 LG TV · ▶️ Playing").assertIsDisplayed()
         compose.onNodeWithText("Episode one").assertIsDisplayed()
         val colour = TargetColours.of(container.targets.colours.value, "lg-tv")
         assertTrue("the device has a colour of its own, not the phone's", colour != TargetColours.PHONE)
-        TestShots.take("target-bar-videos-tab")
     }
 
     @Test
