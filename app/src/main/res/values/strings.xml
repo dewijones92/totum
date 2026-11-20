@@ -1483,6 +1483,8 @@
     <string name="play_on_asleep_hint">💤 Off · picking it switches it on</string>
     <string name="play_on_by_hand_hint">🔌 Off · switch it on by hand</string>
     <string name="play_on_starts_app_hint">💤 Not running · picking it starts it</string>
+    <string name="play_on_jellyfin_only_hint">🎞️ Jellyfin films and episodes only</string>
+    <string name="play_on_jellyfin_not_open_hint">🔌 Jellyfin is closed · open it by hand · Jellyfin films and episodes only</string>
     <string name="play_on_item">📡 Play on…</string>
     <string name="play_on_add_browser">🖥️ Add a browser…</string>
     <string name="play_on_add_browser_how">🌐 On the browser, open %1$s while it is on the home Wi-Fi. It shows up here as soon as it is connected, and then you can play on it.</string>

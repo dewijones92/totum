@@ -26,7 +26,8 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [🖥️ A browser is a Play on… target (open the Pi's address in any browser)](browser-target.md) | casting/pi | high | built 2026-11-13, Batch B P9 (home network only; away from home decided, not built; real-device checks owed) |
 | [📺 Cast to Apple TV (AirPlay) and DLNA players too](cast-to-airplay-and-dlna.md) | casting/pi | medium | built 2026-11-14 (ADRs 174 and 175, picture and a Kodi control); real LG and Kodi tests owed |
 | [⏻ Switch the LG off, put it on an input, start Kodi when Android has killed it](webos-and-kodi-power.md) | casting/pi | medium | built 2026-11-20 (ADR 177, fakes only); real LG and Fire Stick checks owed |
-| [🔊 Home Assistant's sounds play through Totum](home-assistant-sounds-through-totum.md) | casting/pi | high | Totum side built 2026-11-07 (live waits for the casting-brain move), adapter not deployed |
+| [🔊 Home Assistant's sounds play through Totum](home-assistant-sounds-through-totum.md) | casting/pi | high | adapter live since 2026-11-07, contract-tested and one change owed to the Pi 2026-11-20; no real HA-driven play seen yet; jazz source open (Dewi) |
+| [🎞️ Drive a running Jellyfin app from Totum](jellyfin-remote-control.md) | casting/pi | medium | built 2026-11-20, Batch C (ADR 187; unit tests against a fake Jellyfin; not run against a real client) |
 | [A daily 🤖 For you feed](for-you-feed.md) | ai | medium | built 2026-11-07, Batch A (tests written 2026-11-07; device checks owed) |
 | [TL;DR and chapters for long items](tldr-and-chapters.md) | ai | medium | built 2026-11-07, Batch A (tests written 2026-11-07; device checks owed) |
 | [Ask about this video](ask-about-this-video.md) | ai | medium | built 2026-11-07, Batch A (tests written 2026-11-07; device checks owed) |

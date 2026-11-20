@@ -10,6 +10,15 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 
+class JellyfinReply(val code: Int, val body: String) {
+    val ok: Boolean get() = code in OK_FROM..OK_TO
+
+    private companion object {
+        const val OK_FROM = 200
+        const val OK_TO = 299
+    }
+}
+
 class Jellyfin(
     private val http: OkHttpClient,
     private val base: String,
@@ -63,16 +72,19 @@ class Jellyfin(
 
     private fun auth(): String = "MediaBrowser Token=\"$key\""
 
-    private fun post(path: String, json: String): Boolean = runCatching {
+    fun call(path: String, json: String = "", tag: String = "jellyfin"): JellyfinReply? = runCatching {
         val request = Request.Builder().url(base.trimEnd('/') + path)
             .header("Authorization", auth())
             .post(json.toRequestBody(JSON))
             .build()
-        http.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) Diag.warn("filing", "Jellyfin $path answered ${response.code}")
-            response.isSuccessful
-        }
-    }.onFailure { Diag.warn("filing", "Jellyfin $path could not be reached", it) }.getOrDefault(false)
+        http.newCall(request).execute().use { response -> JellyfinReply(response.code, response.body.string()) }
+    }.onFailure { Diag.warn(tag, "Jellyfin $path could not be reached", it) }.getOrNull()
+
+    private fun post(path: String, json: String): Boolean {
+        val reply = call(path, json, "filing") ?: return false
+        if (!reply.ok) Diag.warn("filing", "Jellyfin $path answered ${reply.code}")
+        return reply.ok
+    }
 
     companion object {
         private val JSON = "application/json".toMediaType()

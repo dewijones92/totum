@@ -171,6 +171,8 @@ internal fun PlayOnHintLine(option: PlayOnOption) {
         PlayOnHint.WAKES_WHEN_PICKED -> R.string.play_on_asleep_hint
         PlayOnHint.STARTS_WHEN_PICKED -> R.string.play_on_starts_app_hint
         PlayOnHint.SWITCH_ON_BY_HAND -> R.string.play_on_by_hand_hint
+        PlayOnHint.JELLYFIN_ONLY -> R.string.play_on_jellyfin_only_hint
+        PlayOnHint.JELLYFIN_NOT_OPEN -> R.string.play_on_jellyfin_not_open_hint
     }
     Text(stringResource(hint), style = MaterialTheme.typography.bodySmall)
 }

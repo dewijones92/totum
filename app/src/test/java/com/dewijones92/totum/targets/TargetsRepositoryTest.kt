@@ -15,6 +15,7 @@ import com.dewijones92.totum.data.targets.TargetColours
 import com.dewijones92.totum.data.targets.TargetControl
 import com.dewijones92.totum.data.targets.TargetEntry
 import com.dewijones92.totum.data.targets.TargetKind
+import com.dewijones92.totum.data.targets.TargetPlays
 import com.dewijones92.totum.data.targets.TargetPower
 import com.dewijones92.totum.data.targets.TargetQueueRequest
 import com.dewijones92.totum.data.targets.TargetState
@@ -205,6 +206,28 @@ class TargetsRepositoryTest {
         val taken = repository.take(listOf(item("a"), onPhone), QueueMode.PLAY, null, null)
 
         assertFalse(taken)
+        assertTrue(api.queued.isEmpty())
+    }
+
+    @Test
+    fun `a Jellyfin-only target gets Jellyfin items, and anything else plays on this phone`() = runTest {
+        val jellyfinTv = TargetState(
+            Target("jellyfin-tv", "Jellyfin TV", TargetKind.TV),
+            plays = TargetPlays.JELLYFIN_ONLY,
+        )
+        api.answer = HomeAnswer.Ok(TargetsAnswer(listOf(jellyfinTv)))
+        repository.refresh("test")
+        repository.select("jellyfin-tv")
+        val film = item("jellyfin:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+
+        assertTrue(repository.take(listOf(film), QueueMode.PLAY, null, null))
+        assertEquals(listOf("jellyfin-tv"), api.queued.map { it.first })
+
+        api.queued.clear()
+        repository.refresh("the Pi's own list again")
+        assertFalse(repository.take(listOf(item("dQw4w9WgXcQ")), QueueMode.PLAY, null, null))
+        val mix = listOf(film, item("dQw4w9WgXcQ"))
+        assertFalse("a mix plays here as a whole", repository.take(mix, QueueMode.PLAY, null, null))
         assertTrue(api.queued.isEmpty())
     }
 

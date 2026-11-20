@@ -211,3 +211,11 @@ Recorded exception from On this phone ([ADR 176](0176-on-this-phone-is-a-source-
 - **A file on the phone has no Download, no Add to group, no "📡 Play on…" and no Send to…** It is already on the phone, it came
   from no channel or show, and the Pi's targets cannot reach a file only the phone holds (a note on the page says so);
   `TargetsRepository.take` keeps any batch containing one on the phone. Casting from the phone itself is unchanged.
+
+Recorded exception from Jellyfin apps as targets ([ADR 187](0187-a-running-jellyfin-app-is-a-target-the-pi-drives-by-item-id.md), 2026-11-20):
+
+- **A Jellyfin app target takes only Jellyfin films and episodes.** Jellyfin's Sessions API gives a client an item id and has no
+  parameter for an address, so a YouTube video, a podcast or a torrent file cannot be played on it. The picker says "🎞️ Jellyfin
+  films and episodes only", the Pi refuses anything else with a reason, and `TargetsRepository.take` plays a batch with anything
+  else in it on the phone. Everything else about the target (queue, volume, sleep timer, problems, colour) is the deck's, as for
+  every other target.
