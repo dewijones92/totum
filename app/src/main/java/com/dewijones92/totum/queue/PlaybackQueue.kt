@@ -42,17 +42,22 @@ import com.dewijones92.totum.domain.titleOf
 import com.dewijones92.totum.music.labelledForPlay
 import com.dewijones92.totum.playback.PlaybackController
 import com.dewijones92.totum.playback.PlaybackEvent
+import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.video.VideoPlaybackLauncher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -188,6 +193,16 @@ class PlaybackQueue(
         get() = _nowPlaying.value ?: _state.value.current?.item
 
     private val rescueIntent = RescueIntent(controller)
+
+    private val _streaming = MutableStateFlow<MediaItemId?>(null)
+
+    val streamingNow: Flow<MediaItemId?> = combine(
+        _streaming,
+        controller.state.map(::playingWantedId).distinctUntilChanged(),
+    ) { streaming, wanted -> streaming?.takeIf { it == wanted } }.distinctUntilChanged()
+
+    private fun playingWantedId(state: PlaybackState?): MediaItemId? =
+        state?.takeIf { it.wantsToPlay && !it.hasEnded }?.itemId
 
     private val mirroring = QueueMirror(scope, onQueuedByUser)
 
@@ -988,6 +1003,13 @@ class PlaybackQueue(
 
     private fun becameCurrent(queued: PlayableItem, fresh: Boolean, reason: PlayReason?) {
         plays++
+        deferredHandOver.drop()?.let {
+            Diag.log(
+                "playback",
+                "${it.id.value}: the deferred switch to its download is dropped: ${queued.item.id.value} was " +
+                    "started, and a start takes the copy on its own",
+            )
+        }
         refusals.supersededBy(queued.item.id)
         _nowPlaying.value = queued
         if (reason != null) controller.setPlayReason(queued.item.id, reason)
@@ -1153,11 +1175,14 @@ class PlaybackQueue(
     @Volatile
     private var lastRoute: Pair<MediaItemId, PlayRoute>? = null
 
+    private val deferredHandOver = DeferredHandOver()
+
     suspend fun handOverToTheDownload(itemId: MediaItemId): Boolean {
         val item = playingNow?.takeIf { it.item.id == itemId }
         val streaming = lastRoute?.let { (id, route) -> id == itemId && !route.isFromDisk() } == true
-        val positionMs = controller.state.value?.takeIf { it.itemId == itemId }?.positionMs
-        if (item == null || !streaming || positionMs == null) return false
+        val state = controller.state.value?.takeIf { it.itemId == itemId }
+        if (item == null || !streaming || state == null) return false
+        val positionMs = state.positionMs
         val now = decide(item).route
         if (!now.isFromDisk()) {
             Diag.log(
@@ -1167,11 +1192,56 @@ class PlaybackQueue(
             )
             return false
         }
-        Diag.log(
-            "playback",
-            "${itemId.value} finished downloading while streaming: switching to ${now.describe()} at ${positionMs}ms",
-        )
-        return rescueIntent.keeping(itemId, "hand over to the download") { play(item, positionMs, retry = true) }
+        if (DeferredHandOver.isHealthy(state)) {
+            deferredHandOver.defer(itemId, positionMs)
+            Diag.log(
+                "playback",
+                "${itemId.value} finished downloading while streaming healthily at ${positionMs}ms " +
+                    "(buffered ${state.bufferedPositionMs - positionMs}ms ahead): the switch to ${now.describe()} " +
+                    "waits for a pause, a stall or a seek, because swapping now stops the sound for about a second",
+            )
+            return false
+        }
+        return swapToTheDownload(item, now, positionMs, "it is not playing steadily")
+    }
+
+    suspend fun handOverAtABreak(state: PlaybackState?): Boolean =
+        when (val verdict = deferredHandOver.judge(state)) {
+            DeferredHandOver.Verdict.Wait -> false
+            is DeferredHandOver.Verdict.Drop -> {
+                Diag.log(
+                    "playback",
+                    "${verdict.pending.id.value}: the deferred switch to its download is dropped: ${verdict.reason}",
+                )
+                false
+            }
+            is DeferredHandOver.Verdict.SwapNow -> swapAtABreak(verdict)
+        }
+
+    private suspend fun swapAtABreak(verdict: DeferredHandOver.Verdict.SwapNow): Boolean {
+        val id = verdict.pending.id
+        val item = playingNow?.takeIf { it.item.id == id } ?: return false
+        val now = decide(item).route
+        if (!now.isFromDisk()) {
+            Diag.log(
+                "playback",
+                "${id.value}: the deferred switch to its download no longer applies: it would be ${now.describe()}",
+            )
+            return false
+        }
+        val waited = verdict.positionMs - verdict.pending.deferredAtMs
+        return swapToTheDownload(item, now, verdict.positionMs, "${verdict.trigger}, ${waited}ms after it finished")
+    }
+
+    fun watchForHandOverBreaks() {
+        scope.launch { controller.state.collect { handOverAtABreak(it) } }
+    }
+
+    private suspend fun swapToTheDownload(item: PlayableItem, now: PlayRoute, positionMs: Long, why: String): Boolean {
+        val id = item.item.id
+        deferredHandOver.drop()
+        Diag.log("playback", "${id.value} switching to ${now.describe()} at ${positionMs}ms: $why")
+        return rescueIntent.keeping(id, "hand over to the download") { play(item, positionMs, retry = true) }
     }
 
     private fun refreshSkips(id: MediaItemId) {
@@ -1244,6 +1314,7 @@ class PlaybackQueue(
         Diag.log("playback", routeLine)
         recentRoutes.remember(routeLine)
         lastRoute = queued.item.id to route
+        _streaming.value = queued.item.id.takeIf { route is PlayRoute.VideoStream || route is PlayRoute.AudioStream }
         return when (route) {
             is PlayRoute.File -> {
                 val audioOnly = route.audioOnly

@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
@@ -70,6 +71,14 @@ class QueueAutoDownloader(
      * immediate value: what is playing is what the rescue ladder falls back to when the stream stalls.
      */
     private val playingNow: () -> MediaItemId? = { null },
+    /**
+     * The item that is playing from a stream whose bytes cannot become its copy.
+     *
+     * Fetching it by itself while it streams downloads the same audio twice (report 20261120T200136:
+     * the playing item's 3.6 MB audio fetched beside its own stream, then a swap that stopped the
+     * sound for 1.3 s). It is left alone until it pauses or stops, and fetched then if still queued.
+     */
+    private val heldWhileStreaming: Flow<MediaItemId?> = flowOf(null),
     private val groupAllows: (String) -> Boolean = { true },
     private val atHome: (PlayableItem) -> Boolean = { false },
     private val groupChoicesChanged: Flow<Any?> = emptyFlow(),
@@ -93,6 +102,11 @@ class QueueAutoDownloader(
      */
     private val attempts = ConcurrentHashMap<MediaItemId, Int>()
 
+    @Volatile
+    private var streaming: MediaItemId? = null
+
+    private var lastHeldWhileStreaming: MediaItemId? = null
+
     fun start() {
         scope.launch {
             // collectLatest, not collect: a pass over a long queue can take many minutes, and
@@ -101,8 +115,14 @@ class QueueAutoDownloader(
             // one moment the ordering matters. Cancelling a pass loses nothing: the downloads
             // themselves live in the manager's own scope and carry on, and the next pass skips
             // whatever is already in flight.
-            combine(queue, groupChoicesChanged.onStart { emit(null) }) { snapshot, _ -> snapshot }
-                .collectLatest { snapshot -> pass(snapshot) }
+            combine(
+                queue,
+                groupChoicesChanged.onStart { emit(null) },
+                heldWhileStreaming,
+            ) { snapshot, _, held ->
+                streaming = held
+                snapshot
+            }.collectLatest { snapshot -> pass(snapshot) }
         }
     }
 
@@ -298,6 +318,17 @@ class QueueAutoDownloader(
         // A local file is already the point of this; nothing to fetch.
         entry.item.handle is PlayHandle.LocalVideo -> ""
         state is DownloadState.Downloaded || state is DownloadState.Downloading -> ""
+        entry.item.item.id == streaming -> {
+            if (lastHeldWhileStreaming != streaming) {
+                lastHeldWhileStreaming = streaming
+                Diag.log(
+                    "download",
+                    "dewidebug not fetching \"${entry.item.item.title}\" while it streams: its audio would cross " +
+                        "the network twice; it is fetched once it pauses or stops, if it is still queued",
+                )
+            }
+            ""
+        }
         atHome(entry.item) -> "it is finished at home; the queue plays it from there and never copies it by itself"
         // Said once per item, and worth saying: silence here would read as a broken auto-download.
         entry.group?.let { !groupAllows(it.id) } == true ->

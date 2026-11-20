@@ -2,7 +2,7 @@
 title: A fresh YouTube URL is waited for, a preloaded source is played, and a copy on disk is used first
 kind: adr
 status: accepted
-updated: 2026-11-14
+updated: 2026-11-20
 ---
 
 # 13. A fresh YouTube URL is waited for, a preloaded source is played, and a copy on disk is used first
@@ -50,6 +50,10 @@ Two reports from Dewi's Pixel 7 on 0.1.573 (the build with [ADR 12](0012-solve-y
 3. **A replay whose route is a copy on disk plays the copy without extracting first.**
 4. **When the streaming item finishes downloading, playback moves to the copy at the same position**,
    if `routeNow` would choose it (so an audio-only copy does not replace a picture being watched).
+   Amended 2026-11-20 ([ADR 186](0186-one-fetch-per-item-a-playing-stream-is-its-own-download.md)): not while the stream
+   plays steadily. Swapping stopped the sound for 1.3 s on a stream that needed no replacing (report 20261120T200136), so the
+   switch now waits for a pause, a stall or a seek (`DeferredHandOver`), and the download of a playing YouTube audio stream
+   is made from the bytes the player already fetched, so there is rarely a copy to swap in.
 5. **The last six route decisions, with their times and inputs, are kept in `playback.recentRoutes`**,
    so a report sent hours later can say why an item streamed.
 

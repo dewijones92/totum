@@ -2,7 +2,7 @@
 title: A playback cache under every stream, so going back plays from the disk
 kind: adr
 status: accepted
-updated: 2026-10-22
+updated: 2026-11-20
 ---
 
 # 72. A playback cache under every stream
@@ -54,3 +54,8 @@ ahead of the playhead, so any step back went to the network again.
   YouTube sees fewer requests.
 - "Cyan behind" is played-this-session, an approximation of what the cache holds: it does not show bytes cached by an
   earlier session, and it would overstate after an eviction (1 GB is many hours of audio).
+- **The cache is also the download of a playing YouTube audio stream** (2026-11-20,
+  [ADR 186](0186-one-fetch-per-item-a-playing-stream-is-its-own-download.md)): `PlaybackTee` fetches only the ranges the
+  player has not read, through the same key, and the whole stream is copied out as the offline copy. For that the cache's
+  data source now blocks on a locked span (`FLAG_BLOCK_ON_CACHE`), and every network byte through its upstream is counted
+  per key (`PlaybackTee.networkBytesFor`).

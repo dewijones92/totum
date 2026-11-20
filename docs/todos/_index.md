@@ -11,6 +11,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 
 | Item | Area | Priority | Status |
 |---|---|---|---|
+| [One fetch per item, the stream is the download](one-fetch-per-item.md) | downloads/playback | high | built 2026-11-20 (ADR 186; instrumented evidence, not yet seen on the phone) |
 | [📺 BBC programmes follow-ups](bbc-programmes-follow-ups.md) | search | low | open 2026-11-20 (iPlayer app route unseen, BBC Sounds, more than 50 episodes) |
 | [📱 On this phone follow-ups](phone-media-follow-ups.md) | library | medium | open 2026-11-14 (Show on the TV, phone files to the Pi, search hits) |
 | [Batch A, November 2026: the plan and its order](batch-a-2026-11.md) | batch | high | decided 2026-11-06 |

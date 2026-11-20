@@ -479,4 +479,47 @@ class QueueAutoDownloaderTest {
             downloads.observe(MediaItemId("episode")).first() is DownloadState.Downloaded,
         )
     }
+
+    @Test
+    fun `an item that is streaming is not fetched while it streams, and is once it stops`() = runTest(dispatcher) {
+        val streaming = MutableStateFlow<MediaItemId?>(MediaItemId("a"))
+        QueueAutoDownloader(
+            queue = queue,
+            downloads = downloads,
+            scope = CoroutineScope(dispatcher),
+            isEnabled = { true },
+            isAllowedOnThisNetwork = { true },
+            playingNow = { MediaItemId("a") },
+            heldWhileStreaming = streaming,
+        ).start()
+        queue.value = QueueSnapshot(listOf(entry("a"), entry("b")))
+        advanceUntilIdle()
+
+        assertEquals("only the one that is not streaming", listOf("b"), downloads.requested.map { it.first.value })
+
+        streaming.value = null
+        advanceUntilIdle()
+
+        assertEquals(listOf("b", "a"), downloads.requested.map { it.first.value })
+    }
+
+    @Test
+    fun `a streaming item that leaves the queue is not fetched when it stops`() = runTest(dispatcher) {
+        val streaming = MutableStateFlow<MediaItemId?>(MediaItemId("a"))
+        QueueAutoDownloader(
+            queue = queue,
+            downloads = downloads,
+            scope = CoroutineScope(dispatcher),
+            isEnabled = { true },
+            isAllowedOnThisNetwork = { true },
+            heldWhileStreaming = streaming,
+        ).start()
+        queue.value = QueueSnapshot(listOf(entry("a")))
+        advanceUntilIdle()
+        queue.value = QueueSnapshot(listOf(entry("b")))
+        streaming.value = null
+        advanceUntilIdle()
+
+        assertEquals(listOf("b"), downloads.requested.map { it.first.value })
+    }
 }

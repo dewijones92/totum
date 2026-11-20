@@ -66,13 +66,17 @@ internal object PlaybackCache {
         }
     }
 
-    fun factory(context: Context, upstream: DataSource.Factory): DataSource.Factory {
-        val store = get(context)
+    fun factory(context: Context, upstream: DataSource.Factory): DataSource.Factory =
+        factory(get(context), upstream)
+
+    internal fun factory(store: Cache, plainUpstream: DataSource.Factory): DataSource.Factory {
+        val counter = PlaybackTee.countingListener { spec -> PlaybackCacheKeys.key(spec.uri.toString()) }
+        val upstream = DataSource.Factory { plainUpstream.createDataSource().also { it.addTransferListener(counter) } }
         val cached = CacheDataSource.Factory()
             .setCache(store)
             .setUpstreamDataSourceFactory(upstream)
             .setCacheKeyFactory { spec -> keyOf(spec.uri.toString()) }
-            .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
+            .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR or CacheDataSource.FLAG_BLOCK_ON_CACHE)
             .setEventListener(
                 object : CacheDataSource.EventListener {
                     override fun onCachedBytesRead(cacheSizeBytes: Long, cachedBytesRead: Long) {
@@ -94,6 +98,7 @@ internal object PlaybackCache {
                     }
                 },
             )
+        PlaybackTee.install({ store }) { cached.createDataSource() }
         return DataSource.Factory { Router(store, cached.createDataSource(), upstream.createDataSource()) }
     }
 
@@ -144,6 +149,7 @@ internal object PlaybackCache {
             val cacheable = PlaybackCacheKeys.cacheable(dataSpec.uri.toString())
             (if (cacheable) PlaybackCacheReport.opensCached else PlaybackCacheReport.opensDirect).incrementAndGet()
             runCatching { logOpen(store, dataSpec, cacheable) }
+            if (cacheable) PlaybackTee.noteOpen(dataSpec.uri)
             val chosen = if (cacheable) cached else direct
             current = chosen
             return chosen.open(dataSpec)
