@@ -6,6 +6,8 @@
 #   STATE_DUMPS_DIR=<dir> ...                    another destination
 #   STATE_MAX_AGE_DAYS=3 ...                     when to warn that the dump is stale
 #
+# Dumps from debug builds (the emulator, version 0.1.0-dev) are skipped: they are not Dewi's phone.
+#
 # Read-only on the Pi (ls, stat and cat). Take a fresh dump on the phone first: Quick Settings tile
 # "📦 Send my state" (or Settings -> Diagnostics -> Send my state to Claude), then run this (ADR 159).
 # Prints the file's name, the app version it came from and its age, never anything from inside it.
@@ -26,7 +28,7 @@ chmod 700 "$OUT"
 SSH=(ssh -o BatchMode=yes -o ConnectTimeout=10 "$HOST")
 
 say "asking $HOST for its newest state dump under $REMOTE_DIR (read-only)"
-newest=$("${SSH[@]}" "ls -t $REMOTE_DIR/*.json.gz $REMOTE_DIR/linked/*.json.gz 2>/dev/null | head -1") \
+newest=$("${SSH[@]}" "ls -t $REMOTE_DIR/*.json.gz $REMOTE_DIR/linked/*.json.gz 2>/dev/null | grep -v -e '-0.1.0-dev.json.gz' | head -1") \
   || die "could not reach $HOST over ssh"
 [ -n "$newest" ] || die "the Pi holds no state dump under $REMOTE_DIR; take one on the phone first (tile: Send my state)"
 name=$(basename "$newest")

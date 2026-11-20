@@ -129,7 +129,7 @@ state as a lens (CLAUDE.md, "How a batch runs").
 - **`tools/state/pull-state.sh`** copies the newest dump on the Pi (`/home/pi/crashlog-data/states/` and its `linked/`
   folder, read-only ssh to `pi@192.168.0.19`, overridable with `STATE_PI`) into `~/claude-tasks/state-dumps/` at mode 600,
   prints the file's name, app version, when it was taken and its age, and warns on stderr past 3 days. It prints nothing
-  from inside the dump and does not fetch a file it already holds. The dump's age is its own `takenAtMs`, not the file's
+  from inside the dump and does not fetch a file it already holds. It skips dumps from debug builds (version `0.1.0-dev`, which is the emulator): on 2026-11-20 the tile's first test on `totum-api35` posted one, and it became "newest" on the Pi. The dump's age is its own `takenAtMs`, not the file's
   time on the Pi.
 - Not changed: the redactor, the allow-list, the server's retention and the 32 MB cap. The tile is the person's tap, so
   "send diagnostics and crash reports to my home server" being off does not stop it, as for Settings' button.
