@@ -108,10 +108,12 @@ Dewi's reports of 14 to 17 November (v0.1.927):
   (`the TV fetched the picture 8000ms ago and has asked for no sound since`), and the begun-request lines and the codec decision were logged.
 - That run also showed the codec step finding nothing to step to ("the offered pictures hold no other codec it can show"): the
   signed-in ladder, like the yt-dlp one, held one codec per height. That is why `VideoQuality.alternates` exists, in both builders.
-- **Not seen after the alternates:** the whole step on the emulator (watchdog, then the other codec, then the strip line). The server
-  half is covered by `CastStreamServerCodecStepTest` and the ladder half by `VideoQualityTest` and
-  `TheSignedInLadderKeepsTheOtherCodecsTest`; the re-send itself needs a Cast session, which nothing here can pose as
-  (see `tools/cast-bench/README.md`).
+- **After the alternates (merged build, same day):** as "Chromecast" the ladder offered 11 rungs, AVC was sent first, and a client that
+  fetched the init and index and then nothing was caught at 8000 ms: `Chromecast did not start 1080p · AVC; trying 1080p · VP9 instead`,
+  the session extras carried `CastCodecStep(from=AVC, to=VP9)`, and the strip, looked at on the screen, read "📺 stand-in Chromecast
+  didn't start H.264, trying VP9" under "📺 1080p · AVC on stand-in Chromecast". The re-send itself was not seen: it needs a Cast
+  session, which nothing here can pose as (see `tools/cast-bench/README.md`); the log says `the TV is on nothing now; not re-sending`.
+  Covered by `CastStreamServerCodecStepTest`, `VideoQualityTest` and `TheSignedInLadderKeepsTheOtherCodecsTest`.
 
 ## Not verified
 
