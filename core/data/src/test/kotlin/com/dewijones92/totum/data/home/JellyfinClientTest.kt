@@ -64,6 +64,29 @@ class JellyfinClientTest {
     }
 
     @Test
+    fun `a search sends the term encoded and the device token, and reads the echo`() = runTest {
+        server.enqueue(MockResponse.Builder().code(200).body(listing.replace("\"parent\":null", "\"search\":\"a&b c\"")).build())
+
+        val answer = client().search("a&b c")
+
+        val sent = server.takeRequest()
+        assertEquals("/fetch/jellyfin/browse", sent.url.encodedPath)
+        assertEquals("a&b c", sent.url.queryParameter("search"))
+        assertNull(sent.url.queryParameter("parent"))
+        assertEquals("device", sent.headers[HomeServerAuth.HEADER])
+        assertEquals("a&b c", (answer as HomeAnswer.Ok).value.search)
+    }
+
+    @Test
+    fun `a Pi that does not know search answers the plain top level, with no echo`() = runTest {
+        server.enqueue(MockResponse.Builder().code(200).body(listing).build())
+
+        val answer = client().search("heat")
+
+        assertNull((answer as HomeAnswer.Ok).value.search)
+    }
+
+    @Test
     fun `the first page sends no start at all`() = runTest {
         server.enqueue(MockResponse.Builder().code(200).body(listing).build())
 

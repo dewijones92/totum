@@ -15,6 +15,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
 import okhttp3.Response
+import java.net.URLEncoder
 
 internal class JellyfinFailure(message: String) : RuntimeException(message)
 
@@ -49,6 +50,28 @@ internal class JellyfinBrowse(private val jellyfin: Jellyfin) {
         )
     }
 
+    fun search(term: String): JellyfinListing {
+        val path = "/Items?Recursive=true&IncludeItemTypes=Movie,Episode&SortBy=SortName&Fields=$FIELDS" +
+            "&Limit=$SEARCH_LIMIT&SearchTerm=${URLEncoder.encode(term, Charsets.UTF_8).replace("+", "%20")}"
+        val body = jellyfin.get(path)
+        if (body == null) {
+            Diag.warn("jellyfin", "search \"$term\": Jellyfin did not answer")
+            throw JellyfinFailure("❌ Jellyfin did not answer")
+        }
+        val page = parsePage(body)
+        if (page == null) {
+            Diag.warn("jellyfin", "search \"$term\": the answer was not a library listing: ${body.take(LOGGED)}")
+            throw JellyfinFailure("❌ Jellyfin's answer was not a library listing (is its key right?)")
+        }
+        Diag.log(
+            "jellyfin",
+            "search \"$term\": ${page.items.size} item(s) of ${page.total ?: "an unknown number"} " +
+                "(${page.items.count { it.kind == JellyfinKind.MOVIE }} film(s), " +
+                "${page.items.count { it.kind == JellyfinKind.EPISODE }} episode(s))",
+        )
+        return JellyfinListing(null, "🔎 $term", page.items, page.total, null, search = term)
+    }
+
     fun open(id: String, range: String?): Response? = jellyfin.open("/Videos/$id/stream?static=true", range)
 
     fun image(id: String): Response? = jellyfin.open("/Items/$id/Images/Primary?maxHeight=$POSTER_HEIGHT&quality=90")
@@ -73,6 +96,7 @@ internal class JellyfinBrowse(private val jellyfin: Jellyfin) {
         private const val POSTER_HEIGHT = 480
 
         private const val PAGE = 100
+        private const val SEARCH_LIMIT = 50
         private const val LOGGED = 200
 
         fun parse(body: String): List<JellyfinItem> = parsePage(body)?.items.orEmpty()
