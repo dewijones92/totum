@@ -70,7 +70,9 @@ internal class FakeSsapServer(
         override fun onMessage(webSocket: WebSocket, text: String) {
             val message = Json.parseToJsonElement(text).jsonObject
             when (message["type"]?.jsonPrimitive?.contentOrNull) {
-                "hello" -> webSocket.send(frame("hello", "hello", buildJsonObject { put("protocolVersion", JsonPrimitive(1)) }))
+                "hello" -> webSocket.send(
+                    frame("hello", "hello", buildJsonObject { put("protocolVersion", JsonPrimitive(1)) })
+                )
                 "register" -> register(webSocket, message)
                 "request" -> request(webSocket, message)
             }
@@ -105,14 +107,18 @@ internal class FakeSsapServer(
         }
         val offered = payload["client-key"]?.jsonPrimitive?.contentOrNull
         if (offered == clientKey && knowsStoredKey) {
-            webSocket.send(frame("registered", "register_0", buildJsonObject { put("client-key", JsonPrimitive(clientKey)) }))
+            webSocket.send(
+                frame("registered", "register_0", buildJsonObject { put("client-key", JsonPrimitive(clientKey)) })
+            )
             return
         }
         webSocket.send(
             frame("response", "register_0", buildJsonObject { put("pairingType", JsonPrimitive(pairingType)) }),
         )
         if (pairingType != "PIN") {
-            webSocket.send(frame("registered", "register_0", buildJsonObject { put("client-key", JsonPrimitive(clientKey)) }))
+            webSocket.send(
+                frame("registered", "register_0", buildJsonObject { put("client-key", JsonPrimitive(clientKey)) })
+            )
         }
     }
 
@@ -128,17 +134,23 @@ internal class FakeSsapServer(
             "ssap://system/turnOff" -> turnOff(webSocket, id)
             "ssap://tv/switchInput" -> answer(webSocket, id, ok())
             "ssap://tv/getExternalInputList" -> answer(webSocket, id, ok { put("devices", devices()) })
-            else -> answer(webSocket, id, buildJsonObject {
-                put("returnValue", JsonPrimitive(false))
-                put("errorText", JsonPrimitive("no such service"))
-            })
+            else -> answer(
+                webSocket,
+                id,
+                buildJsonObject {
+                    put("returnValue", JsonPrimitive(false))
+                    put("errorText", JsonPrimitive("no such service"))
+                }
+            )
         }
     }
 
     private fun setPin(webSocket: WebSocket, id: String, body: JsonObject) {
         if (body["pin"]?.jsonPrimitive?.contentOrNull == pin) {
             answer(webSocket, id, ok())
-            webSocket.send(frame("registered", "register_0", buildJsonObject { put("client-key", JsonPrimitive(clientKey)) }))
+            webSocket.send(
+                frame("registered", "register_0", buildJsonObject { put("client-key", JsonPrimitive(clientKey)) })
+            )
         } else {
             answer(webSocket, id, buildJsonObject { put("returnValue", JsonPrimitive(false)) })
         }

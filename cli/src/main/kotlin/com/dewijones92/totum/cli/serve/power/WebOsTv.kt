@@ -29,12 +29,12 @@ internal class WebOsSession(
 
     fun register(clientKey: String?, pairingType: String): Registration {
         line.send(WebOsWire.hello())
-        await { WebOsWire.type(it) == "hello" }
+        await { WebOsReply.type(it) == "hello" }
         line.send(WebOsWire.request(SYSTEM_INFO_ID, WebOsWire.SYSTEM_INFO))
-        await { WebOsWire.id(it) == SYSTEM_INFO_ID }
+        await { WebOsReply.id(it) == SYSTEM_INFO_ID }
         var reply = sendRegister(clientKey, pairingType, signed = true)
-        if (WebOsWire.type(reply) == "error") {
-            Diag.log("webos", "the TV refused the signed manifest (${WebOsWire.error(reply)}); trying it unsigned")
+        if (WebOsReply.type(reply) == "error") {
+            Diag.log("webos", "the TV refused the signed manifest (${WebOsReply.error(reply)}); trying it unsigned")
             reply = sendRegister(clientKey, pairingType, signed = false)
         }
         return registrationOf(reply)
@@ -43,8 +43,8 @@ internal class WebOsSession(
     fun submitPin(pin: String): Registration {
         line.send(WebOsWire.request(PIN_ID, WebOsWire.SET_PIN, buildJsonObject { put("pin", JsonPrimitive(pin)) }))
         return awaitRegistered { message ->
-            if (WebOsWire.type(message) == "response" && WebOsWire.id(message) == PIN_ID &&
-                WebOsWire.returnValue(WebOsWire.payload(message)) == false
+            if (WebOsReply.type(message) == "response" && WebOsReply.id(message) == PIN_ID &&
+                WebOsReply.returnValue(WebOsReply.payload(message)) == false
             ) {
                 Registration.Refused("the TV did not accept that PIN")
             } else {
@@ -57,9 +57,9 @@ internal class WebOsSession(
         while (true) {
             val message = next()
             early(message)?.let { return it }
-            when (WebOsWire.type(message)) {
+            when (WebOsReply.type(message)) {
                 "registered" -> return registrationOf(message)
-                "error" -> return Registration.Refused(WebOsWire.error(message) ?: "the TV refused it")
+                "error" -> return Registration.Refused(WebOsReply.error(message) ?: "the TV refused it")
             }
         }
     }
@@ -72,32 +72,40 @@ internal class WebOsSession(
         val id = "totum_${++counter}"
         line.send(WebOsWire.request(id, uri, payload))
         val answer = try {
-            await { WebOsWire.id(it) == id }
+            await { WebOsReply.id(it) == id }
         } catch (e: IOException) {
-            if (!closeMeansDone) throw e
-            Diag.log("webos", "the TV closed the connection after $uri without an answer: taken as done (${e.message})")
-            return JsonObject(emptyMap())
+            return endedWithoutAnswer(uri, closeMeansDone, e)
         }
-        if (WebOsWire.type(answer) == "error") throw WebOsFault(WebOsWire.error(answer) ?: "an error with no text")
-        val body = WebOsWire.payload(answer)
-        if (WebOsWire.returnValue(body) == false) {
-            throw WebOsFault(WebOsWire.textOf(body["errorText"]) ?: "the TV said no, with no reason")
+        return bodyOf(answer)
+    }
+
+    private fun endedWithoutAnswer(uri: String, closeMeansDone: Boolean, cause: IOException): JsonObject {
+        if (!closeMeansDone) throw cause
+        Diag.log("webos", "the TV closed the connection after $uri without an answer: taken as done (${cause.message})")
+        return JsonObject(emptyMap())
+    }
+
+    private fun bodyOf(answer: JsonObject): JsonObject {
+        if (WebOsReply.type(answer) == "error") throw WebOsFault(WebOsReply.error(answer) ?: "an error with no text")
+        val body = WebOsReply.payload(answer)
+        if (WebOsReply.returnValue(body) == false) {
+            throw WebOsFault(WebOsReply.textOf(body["errorText"]) ?: "the TV said no, with no reason")
         }
         return body
     }
 
     private fun sendRegister(clientKey: String?, pairingType: String, signed: Boolean): JsonObject {
         line.send(WebOsWire.register(clientKey, pairingType, signed))
-        return await { WebOsWire.id(it) == WebOsWire.REGISTER_ID }
+        return await { WebOsReply.id(it) == WebOsWire.REGISTER_ID }
     }
 
-    private fun registrationOf(message: JsonObject): Registration = when (WebOsWire.type(message)) {
-        "registered" -> Registration.Registered(WebOsWire.textOf(WebOsWire.payload(message)["client-key"]))
-        "response" -> WebOsWire.textOf(WebOsWire.payload(message)["pairingType"])
+    private fun registrationOf(message: JsonObject): Registration = when (WebOsReply.type(message)) {
+        "registered" -> Registration.Registered(WebOsReply.textOf(WebOsReply.payload(message)["client-key"]))
+        "response" -> WebOsReply.textOf(WebOsReply.payload(message)["pairingType"])
             ?.let { Registration.NeedsPairing(it) }
             ?: Registration.Refused("the TV answered the registration with no pairing type")
-        "error" -> Registration.Refused(WebOsWire.error(message) ?: "an error with no text")
-        else -> Registration.Refused("an unexpected ${WebOsWire.type(message)} answer to the registration")
+        "error" -> Registration.Refused(WebOsReply.error(message) ?: "an error with no text")
+        else -> Registration.Refused("an unexpected ${WebOsReply.type(message)} answer to the registration")
     }
 
     private fun await(wanted: (JsonObject) -> Boolean): JsonObject {
@@ -107,7 +115,8 @@ internal class WebOsSession(
         }
     }
 
-    private fun next(): JsonObject = line.receive(responseMs) ?: throw IOException("the TV did not answer in ${responseMs}ms")
+    private fun next(): JsonObject =
+        line.receive(responseMs) ?: throw IOException("the TV did not answer in ${responseMs}ms")
 
     companion object {
         const val RESPONSE_MS = 8_000L
@@ -131,27 +140,35 @@ internal class WebOsTv(
 
     val paired: Boolean get() = keys.isPaired
 
-    suspend fun panelOn(): Boolean? = ask { session ->
-        val state = WebOsWire.textOf(session.request(WebOsWire.POWER_STATE)["state"])
-        if (state != lastState) Diag.log("webos", "$label: power state ${lastState ?: "unknown"} -> ${state ?: "unreadable"}")
+    suspend fun panelOn(): Boolean? = (ask(this::readPanelState) as? Outcome.Value)?.value
+
+    private fun readPanelState(session: WebOsSession): Boolean {
+        val state = WebOsReply.textOf(session.request(WebOsWire.POWER_STATE)["state"])
+        if (state != lastState) {
+            Diag.log("webos", "$label: power state ${lastState ?: "unknown"} -> ${state ?: "unreadable"}")
+        }
         lastState = state
-        state == WebOsWire.ACTIVE
-    }.let { (it as? Outcome.Value)?.value }
+        return state == WebOsWire.ACTIVE
+    }
 
     suspend fun powerOff(): String? = ask { it.request(WebOsWire.POWER_OFF, closeMeansDone = true) }.reason()
 
-    suspend fun switchInput(inputId: String): String? = ask { session ->
-        session.request(WebOsWire.SWITCH_INPUT, buildJsonObject { put("inputId", JsonPrimitive(inputId)) })
-    }.reason().also { Diag.log("webos", "$label: switch to input $inputId ${it?.let { why -> "failed: $why" } ?: "sent"}") }
+    suspend fun switchInput(inputId: String): String? {
+        val failure = ask { session ->
+            session.request(WebOsWire.SWITCH_INPUT, buildJsonObject { put("inputId", JsonPrimitive(inputId)) })
+        }.reason()
+        Diag.log("webos", "$label: switch to input $inputId ${failure?.let { "failed: $it" } ?: "sent"}")
+        return failure
+    }
 
     suspend fun inputs(): List<WebOsInput> = (
         ask { session ->
             (session.request(WebOsWire.EXTERNAL_INPUTS)["devices"] as? JsonArray).orEmpty().mapNotNull { element ->
                 val device = element as? JsonObject ?: return@mapNotNull null
-                val id = WebOsWire.textOf(device["id"]) ?: return@mapNotNull null
+                val id = WebOsReply.textOf(device["id"]) ?: return@mapNotNull null
                 WebOsInput(
                     id,
-                    WebOsWire.textOf(device["label"]) ?: id,
+                    WebOsReply.textOf(device["label"]) ?: id,
                     (device["connected"] as? JsonPrimitive)?.booleanOrNull == true,
                 )
             }
@@ -166,6 +183,7 @@ internal class WebOsTv(
 
     private fun Outcome<*>.reason(): String? = (this as? Outcome.Unavailable)?.why
 
+    @Suppress("TooGenericExceptionCaught")
     private suspend fun <T> ask(block: (WebOsSession) -> T): Outcome<T> = withContext(Dispatchers.IO) {
         val key = keys.read() ?: return@withContext unavailable("it has not been paired: run totum webos-pair")
         if (key.clientKey == refusedKey) {

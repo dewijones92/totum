@@ -89,18 +89,6 @@ internal object WebOsWire {
 
     const val REGISTER_ID = "register_0"
 
-    fun type(message: JsonObject): String? = message["type"]?.jsonPrimitive?.contentOrNull
-
-    fun id(message: JsonObject): String? = message["id"]?.jsonPrimitive?.contentOrNull
-
-    fun payload(message: JsonObject): JsonObject = (message["payload"] as? JsonObject) ?: JsonObject(emptyMap())
-
-    fun error(message: JsonObject): String? = message["error"]?.takeIf { it !is JsonNull }?.jsonPrimitive?.contentOrNull
-
-    fun returnValue(payload: JsonObject): Boolean? = payload["returnValue"]?.jsonPrimitive?.booleanOrNull
-
-    fun textOf(element: JsonElement?): String? = (element as? JsonPrimitive)?.contentOrNull
-
     private fun manifest(signed: Boolean): JsonObject = buildJsonObject {
         put("manifestVersion", JsonPrimitive(1))
         put("appVersion", JsonPrimitive("1.1"))
@@ -162,8 +150,22 @@ internal object WebOsWire {
 
     private const val SIGNATURE =
         "eyJhbGdvcml0aG0iOiJSU0EtU0hBMjU2Iiwia2V5SWQiOiJ0ZXN0LXNpZ25pbmctY2VydCIsInNpZ25hdHVyZVZlcnNpb24iOjF9" +
-        ".hrVRgjCwXVvE2OOSpDZ58hR+59aFNwYDyjQgKk3auukd7pcegmE2CzPCa0bJ0ZsRAcKkCTJrWo5iDzNhMBWRyaMOv5zWSrthlf7" +
-        "G128qvIlpMT0YNY+n/FaOHE73uLrS/g7swl3/qH/BGFG2Hu4RlL48eb3lLKqTt2xKHdCs6Cd4RMfJPYnzgvI4BNrFUKsjkcu+WD4" +
-        "OO2A27Pq1n50cMchmcaXadJhGrOqH5YmHdOCj5NSHzJYrsW0HPlpuAx/ECMeIZYDh6RMqaFM2DXzdKX9NmmyqzJ3o/0lkk/N97gf" +
-        "VRLW5hA29yeAwaCViZNCP8iC9aO0q9fQojoa7NQnAtw=="
+            ".hrVRgjCwXVvE2OOSpDZ58hR+59aFNwYDyjQgKk3auukd7pcegmE2CzPCa0bJ0ZsRAcKkCTJrWo5iDzNhMBWRyaMOv5zWSrthlf7" +
+            "G128qvIlpMT0YNY+n/FaOHE73uLrS/g7swl3/qH/BGFG2Hu4RlL48eb3lLKqTt2xKHdCs6Cd4RMfJPYnzgvI4BNrFUKsjkcu+WD4" +
+            "OO2A27Pq1n50cMchmcaXadJhGrOqH5YmHdOCj5NSHzJYrsW0HPlpuAx/ECMeIZYDh6RMqaFM2DXzdKX9NmmyqzJ3o/0lkk/N97gf" +
+            "VRLW5hA29yeAwaCViZNCP8iC9aO0q9fQojoa7NQnAtw=="
+}
+
+internal object WebOsReply {
+    fun type(message: JsonObject): String? = message["type"]?.jsonPrimitive?.contentOrNull
+
+    fun id(message: JsonObject): String? = message["id"]?.jsonPrimitive?.contentOrNull
+
+    fun payload(message: JsonObject): JsonObject = (message["payload"] as? JsonObject) ?: JsonObject(emptyMap())
+
+    fun error(message: JsonObject): String? = message["error"]?.takeIf { it !is JsonNull }?.jsonPrimitive?.contentOrNull
+
+    fun returnValue(payload: JsonObject): Boolean? = payload["returnValue"]?.jsonPrimitive?.booleanOrNull
+
+    fun textOf(element: JsonElement?): String? = (element as? JsonPrimitive)?.contentOrNull
 }

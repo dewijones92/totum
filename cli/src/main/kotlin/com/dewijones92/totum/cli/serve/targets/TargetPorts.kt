@@ -147,12 +147,15 @@ internal object TroubleWords {
             TargetKind.SPEAKER -> "🔌 $label was switched off or went out of range"
             else -> "📺 $label was switched off"
         }
-        TroubleKind.WONT_WAKE -> trouble.reason ?: "❌ $label didn't wake: check 'Turn on via Wi-Fi' in its settings"
+        TroubleKind.WONT_WAKE -> wontWake(label, trouble)
         TroubleKind.COULD_NOT_PLAY -> "❌ Couldn't play ${title ?: "that"}: ${trouble.reason ?: "no reason given"}"
         TroubleKind.YOUTUBE_BACKOFF ->
             "⏳ YouTube is refusing the Pi for now; try again around ${clockOf(trouble.untilMs)}"
         TroubleKind.STALLED -> "⚠️ ${title ?: "It"} has stopped moving on $label"
     }
+
+    private fun wontWake(label: String, trouble: TargetTrouble): String =
+        trouble.reason ?: "❌ $label didn't wake: check 'Turn on via Wi-Fi' in its settings"
 
     private fun clockOf(ms: Long?): String =
         ms?.let { java.text.SimpleDateFormat("HH:mm", java.util.Locale.UK).format(java.util.Date(it)) } ?: "later"

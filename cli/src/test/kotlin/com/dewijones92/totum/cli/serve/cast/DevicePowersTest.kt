@@ -132,7 +132,10 @@ class DevicePowersTest {
         assertEquals(File("/data/totum/webos"), config.webosDir)
         assertEquals(File("/data/totum/webos/webos-lg-tv.json"), config.webosKeyFile("lg-tv"))
         assertEquals("adb", config.adbBinary)
-        assertEquals("/usr/bin/adb", PowerConfig.fromEnv(mapOf("TOTUM_ADB" to "/usr/bin/adb")::get, File("/d")).adbBinary)
+        assertEquals(
+            "/usr/bin/adb",
+            PowerConfig.fromEnv(mapOf("TOTUM_ADB" to "/usr/bin/adb")::get, File("/d")).adbBinary
+        )
     }
 
     @Test
@@ -146,7 +149,9 @@ class DevicePowersTest {
     @Test
     fun `a Kodi with adb and an app starts that app when it does not answer, and picking it says it starts an app`() =
         runBlocking {
-            val power = powers(config(adbSpec = "Kodi=192.168.0.211:5555|the Fire Stick", apps = "Kodi=org.xbmc.kodi/.Splash"))
+            val power = powers(
+                config(adbSpec = "Kodi=192.168.0.211:5555|the Fire Stick", apps = "Kodi=org.xbmc.kodi/.Splash")
+            )
                 .of("Kodi")!!
             adb.onStart = { kodiListener = ServerSocket(kodiPort) }
 
@@ -167,7 +172,9 @@ class DevicePowersTest {
     @Test
     fun `a Kodi that is already running is not touched`() = runBlocking {
         kodiListener = ServerSocket(kodiPort)
-        val power = powers(config(adbSpec = "Kodi=192.168.0.211:5555", apps = "Kodi=org.xbmc.kodi/.Splash")).of("Kodi")!!
+        val power = powers(
+            config(adbSpec = "Kodi=192.168.0.211:5555", apps = "Kodi=org.xbmc.kodi/.Splash")
+        ).of("Kodi")!!
 
         assertTrue(power.ensureAwake())
 
@@ -216,7 +223,7 @@ class DevicePowersTest {
     }
 
     @Test
-    fun `a Kodi shown on a webOS TV has the TV put on its input once Kodi answers, and is switched off by switching the TV off`() =
+    fun `a Kodi shown on a webOS TV puts the TV on its input, and switching it off switches the TV off`() =
         runBlocking {
             pairTv()
             val power = powers(

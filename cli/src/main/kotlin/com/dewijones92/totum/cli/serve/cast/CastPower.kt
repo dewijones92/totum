@@ -124,7 +124,10 @@ internal class DevicePowers(
         val shown = config.shownOn[device.id]
         val displayDevice = shown?.let { byId[castIdOf(it.display)] }
         if (shown != null && displayDevice == null) {
-            Diag.warn("cast-target", "${device.name} is shown on \"${shown.display}\", which is not a configured device")
+            Diag.warn(
+                "cast-target",
+                "${device.name} is shown on \"${shown.display}\", which is not a configured device"
+            )
         }
         val display = displayDevice?.let(::powerFor)
         val ports = device.order.mapNotNull { protocol ->

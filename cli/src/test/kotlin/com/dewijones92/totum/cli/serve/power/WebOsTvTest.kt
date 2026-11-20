@@ -71,7 +71,10 @@ class WebOsTvTest {
         val failure = set.powerOff()
 
         assertNull(failure)
-        assertEquals(tv.clientKey, tv.registrations.single()["payload"]!!.jsonObject["client-key"]!!.jsonPrimitive.content)
+        assertEquals(
+            tv.clientKey,
+            tv.registrations.single()["payload"]!!.jsonObject["client-key"]!!.jsonPrimitive.content
+        )
         assertEquals("PROMPT", tv.registrations.single()["payload"]!!.jsonObject["pairingType"]!!.jsonPrimitive.content)
         assertTrue(tv.uris().contains("ssap://system/turnOff"))
     }
@@ -97,7 +100,7 @@ class WebOsTvTest {
     }
 
     @Test
-    fun `the TV asking to pair again means the stored key is no good, and it is not hammered with retries`() = runBlocking {
+    fun `a TV that asks to pair again has a bad key, and is not hammered with retries`() = runBlocking {
         tv.knowsStoredKey = false
         val set = paired()
 
@@ -168,7 +171,7 @@ class WebOsTvTest {
     }
 
     @Test
-    fun `the client key never reaches a log line, whether it worked, the TV refused or the TV was gone`() = runBlocking {
+    fun `the client key never reaches a log line, worked, refused or gone`() = runBlocking {
         val set = paired()
         set.panelOn()
         set.powerOff()

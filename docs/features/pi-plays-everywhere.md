@@ -189,7 +189,7 @@ browser listed at once and renamed in place), `BluezTest` and `TargetDeckSpeaker
 `TargetStateWireTest`, `TargetRulesTest` (core/data), `TargetsRepositoryTest`, `DeviceMarksTest`, `DeviceColourRuleTest` (app),
 instrumented `PlayOnPickerTest` and `DeviceColourSurfacesTest`.
 
-ADR 177: `SteppedPowerWolTest`, `KodiStartTest`, `KodiStartThenPlayTest`, `DevicePowersTest`, `WebOsTvTest`, `WebOsPairingTest`, `TargetDeckPowerOffTest`, `CommandParsingTest`, `PlayOnTest`, `TargetsRepositoryTest`; stand-ins `FakeSsapServer` and `FakeAdb`.
+ADR 177: `SteppedPowerWolTest`, `KodiStartTest`, `KodiStartThenPlayTest`, `DevicePowersTest`, `WebOsTvTest`, `PinnedTrustTest`, `WebOsPairingTest`, `TargetDeckPowerOffTest`, `CommandParsingTest`, `PlayOnTest`, `TargetsRepositoryTest`; stand-ins `FakeSsapServer` and `FakeAdb`.
 
 Unit (wake, hand back, live, ADR 152 amendments of 2026-11-07): `WakeOnLanTest`, `SteppedPowerWolTest` (was `TvWakeTest`), `WakeThenPlayTest`, `YtDlpLiveHlsTest`, `LiveForSpeakersTest`, `CastWireTest`, `CastControlTest`, `ChromecastPlayerTest`, `TargetDeckTest`, `TargetDeckStartTest`, `TargetDeckVolumeSafetyTest`, `SpeakerVolumeTest`, `MpvPlayerTest` (cli), `TargetRulesTest` (core), `TargetsRepositoryTest`, `TargetChipLabelTest` (app), `server/totum-cli/chromecast_helper_test.py`.
 

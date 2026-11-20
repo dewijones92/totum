@@ -9,7 +9,10 @@ internal fun writeOwnerOnly(target: File, text: String) {
     target.parentFile?.mkdirs()
     val staged = File(target.parentFile, target.name + ".new")
     Files.deleteIfExists(staged.toPath())
-    Files.createFile(staged.toPath(), PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rw-------")))
+    Files.createFile(
+        staged.toPath(),
+        PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rw-------"))
+    )
     staged.writeText(text)
     Files.move(staged.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING)
 }

@@ -4,8 +4,8 @@ import com.dewijones92.totum.cli.Command
 import com.dewijones92.totum.cli.serve.power.FakeSsapServer
 import com.dewijones92.totum.cli.serve.power.OkWebOsDial
 import com.dewijones92.totum.cli.serve.power.WebOsDial
-import com.dewijones92.totum.cli.serve.power.WebOsLine
 import com.dewijones92.totum.cli.serve.power.WebOsKeys
+import com.dewijones92.totum.cli.serve.power.WebOsLine
 import com.dewijones92.totum.common.Diag
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async

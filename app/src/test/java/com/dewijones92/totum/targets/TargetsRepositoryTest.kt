@@ -657,7 +657,7 @@ class TargetsRepositoryTest {
     }
 
     @Test
-    fun `a target whose pick starts an app shows as starting on the strip, and its failure keeps the Pi's words`() = runTest {
+    fun `a target whose pick starts an app shows as starting, with the Pi's words on failure`() = runTest {
         val kodi = tv.copy(startsApp = true)
         api.answer = HomeAnswer.Ok(TargetsAnswer(listOf(kodi.copy(power = TargetPower.WAKING))))
 

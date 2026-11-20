@@ -1,12 +1,12 @@
 package com.dewijones92.totum.cli.serve.cast
 
 import com.dewijones92.totum.cli.serve.power.DevicePower
+import com.dewijones92.totum.cli.serve.power.WakeOnLan
 import com.dewijones92.totum.cli.serve.targets.PlayRequest
 import com.dewijones92.totum.cli.serve.targets.TargetLink
 import com.dewijones92.totum.cli.serve.targets.TargetPlayer
 import com.dewijones92.totum.cli.serve.targets.withoutApiKeys
 import com.dewijones92.totum.common.Diag
-import com.dewijones92.totum.cli.serve.power.WakeOnLan
 import com.dewijones92.totum.data.targets.TargetPower
 import com.dewijones92.totum.data.targets.TargetTrouble
 import com.dewijones92.totum.data.targets.TroubleKind

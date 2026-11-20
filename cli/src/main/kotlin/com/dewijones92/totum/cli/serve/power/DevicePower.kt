@@ -182,6 +182,7 @@ internal class SteppedPower(
         note = null
     }
 
+    @Suppress("TooGenericExceptionCaught")
     private suspend fun runStep(step: WakeStep, why: String) {
         step.note?.let { note = it }
         val ok = try {

@@ -46,8 +46,9 @@ power were wanted, and each would have been a copy of `TvWake` and of the phone-
   the terminal or handed to the waiting pairing by a second `--pin=` run (a marker and a 600 file in the same folder). The
   client key and the TV's certificate fingerprint are stored in `$TOTUM_DATA/webos/webos-<id>.json`, mode 600 (written to a 600
   file and renamed, never created wider), and **never printed or logged** (`WebOsKey.toString` redacts it; the tests read every
-  log line and every printed line for it). The certificate is pinned at pairing; a changed certificate or a refused key is
-  reported as "run totum webos-pair again", and a refused key is not retried on every poll.
+  log line and every printed line for it). The certificate is pinned at pairing; a changed certificate is refused (the TV then reads as
+  unreachable, with the reason in the log), and a key the TV refuses says "run totum webos-pair again" and is not retried on
+  every poll.
 - **⏻ Switch off** is a `TargetAction.SWITCH_OFF`: on the remote panel and next to the selected target's chip, offered only
   when the Pi says `canSwitchOff` and the device is not already off. It stops what plays, hands the TV back, then switches it off.
 - **A sleep timer can switch the TV off afterwards, off by default** (`TargetSleepAsk.switchOff`, a checkbox under the timer,

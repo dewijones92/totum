@@ -196,8 +196,11 @@ class TargetDeckPowerOffTest {
         val offAt = events.indexOf("switch off")
         assertTrue("paused, then volume back, then stopped, then off: $events", pauseAt < restoreAt)
         assertTrue("the volume was restored before the TV was stopped: $events", restoreAt < stopAt)
-        assertTrue("the TV was switched off last: $events", stopAt < offAt && offAt == events.lastIndex - 0 ||
-            events.indexOf("release") < offAt)
+        assertTrue(
+            "the TV was switched off last: $events",
+            stopAt < offAt && offAt == events.lastIndex - 0 ||
+                events.indexOf("release") < offAt
+        )
         assertEquals(1, events.count { it == "switch off" })
     }
 
@@ -247,7 +250,7 @@ class TargetDeckPowerOffTest {
     }
 
     @Test
-    fun `a timer that wants a switch off on a TV that cannot be switched off still stops it and complains nowhere else`() =
+    fun `a timer that wants a switch off on a TV that cannot be switched off still stops it`() =
         runTest {
             val deck = deck(PowerLink(canSwitchOff = false))
             deck.playing("a")

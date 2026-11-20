@@ -15,7 +15,6 @@ class KodiStartTest {
     private val component = "org.xbmc.kodi/.Splash"
     private var now = 0L
     private var answering = false
-    private var answersAfterStart = true
     private val notesSeen = mutableListOf<String?>()
     private lateinit var power: SteppedPower
 

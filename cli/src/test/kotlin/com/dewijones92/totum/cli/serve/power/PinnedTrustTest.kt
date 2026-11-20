@@ -50,7 +50,11 @@ class PinnedTrustTest {
 
     @Test
     fun `a client certificate is never accepted`() {
-        val refused = runCatching { PinnedTrust(null).checkClientTrusted(arrayOf(certificate), "RSA") }.exceptionOrNull()
+        val refused = runCatching {
+            PinnedTrust(
+                null
+            ).checkClientTrusted(arrayOf(certificate), "RSA")
+        }.exceptionOrNull()
 
         assertTrue(refused is CertificateException)
     }

@@ -6,6 +6,7 @@ import com.dewijones92.totum.cli.serve.power.Registration
 import com.dewijones92.totum.cli.serve.power.WebOsDial
 import com.dewijones92.totum.cli.serve.power.WebOsKey
 import com.dewijones92.totum.cli.serve.power.WebOsKeys
+import com.dewijones92.totum.cli.serve.power.WebOsLine
 import com.dewijones92.totum.cli.serve.power.WebOsSession
 import com.dewijones92.totum.cli.serve.power.WebOsTv
 import com.dewijones92.totum.cli.serve.power.WebOsWire
@@ -50,7 +51,15 @@ internal class WebOsPairingTimes(
     val pollMs: Long = 500L,
 )
 
-@Suppress("LongParameterList", "ReturnCount", "LongMethod", "CyclomaticComplexMethod")
+internal class PairingIo(
+    val out: (String) -> Unit,
+    val typed: () -> String?,
+    val times: WebOsPairingTimes,
+    val clock: () -> Long,
+    val pause: suspend (Long) -> Unit,
+)
+
+@Suppress("LongParameterList")
 internal suspend fun webOsPair(
     command: Command.WebOsPair,
     out: (String) -> Unit,
@@ -76,71 +85,80 @@ internal suspend fun webOsPair(
     val dir = File(File(env("TOTUM_DATA") ?: "${System.getProperty("user.home")}/.totum"), "webos")
     val keyFile = File(dir, "webos-$id.json")
     val pending = PendingPin(dir, id, clock)
-    if (command.pin != null) return handThePinOver(command.pin, device.name, keyFile, pending, out, times, clock, pause)
+    val io = PairingIo(out, typed, times, clock, pause)
+    if (command.pin != null) return handThePinOver(command.pin, device.name, keyFile, pending, io)
+    return PairingRun(device, WebOsKeys(keyFile), keyFile, pending, dialFor, io).run()
+}
 
-    val keys = WebOsKeys(keyFile)
-    if (keys.isPaired) out("A key for ${device.name} is already stored; pairing again replaces it.")
-    out("Pairing ${device.name} at ${device.host} by PIN. The key will be stored in ${keyFile.path} (mode 600).")
-    Diag.log("webos-pair", "${device.name}: pairing at ${device.host}, key file ${keyFile.path}")
-    pending.waiting()
-    try {
-        dialFor(device.host).open(null).use { line ->
-            val session = WebOsSession(line)
-            when (val first = session.register(null, WebOsWire.PAIRING_PIN)) {
-                is Registration.Refused -> return refused(device.name, first.why, out)
-                is Registration.Registered -> return stored(device, first.clientKey, line.certSeen, keys, dialFor, out)
-                is Registration.NeedsPairing -> {
-                    Diag.log("webos-pair", "${device.name}: the TV asked for ${first.pairingType} pairing")
-                    val finished = if (first.pairingType == WebOsWire.PAIRING_PIN) {
-                        out(
-                            "The TV is showing a PIN. Give it to me with:  totum webos-pair \"${device.name}\" " +
-                                "--pin=<the PIN>  (or type it here and press Enter). Waiting up to " +
-                                "${times.waitForPinMs / MS_PER_S}s.",
-                        )
-                        val pin = waitForPin(pending, typed, times, clock, pause)
-                            ?: return refused(device.name, "no PIN arrived in time", out)
-                        Diag.log("webos-pair", "${device.name}: a PIN of ${pin.length} digits arrived")
-                        session.submitPin(pin)
-                    } else {
-                        out("The TV is asking on its screen: press Allow with its remote.")
-                        session.awaitRegistered()
-                    }
-                    return when (finished) {
-                        is Registration.Registered -> stored(device, finished.clientKey, line.certSeen, keys, dialFor, out)
-                        is Registration.Refused -> refused(device.name, finished.why, out)
-                        is Registration.NeedsPairing -> refused(device.name, "the TV asked to pair again", out)
-                    }
+private class PairingRun(
+    private val device: KnownCasts,
+    private val keys: WebOsKeys,
+    private val keyFile: File,
+    private val pending: PendingPin,
+    private val dialFor: (String) -> WebOsDial,
+    private val io: PairingIo,
+) {
+    suspend fun run(): Int {
+        if (keys.isPaired) io.out("A key for ${device.name} is already stored; pairing again replaces it.")
+        io.out("Pairing ${device.name} at ${device.host} by PIN. The key will be stored in ${keyFile.path} (mode 600).")
+        Diag.log("webos-pair", "${device.name}: pairing at ${device.host}, key file ${keyFile.path}")
+        pending.waiting()
+        return try {
+            dialFor(device.host).open(null).use { line -> pairOver(line) }
+        } catch (e: java.io.IOException) {
+            refused(device.name, "it could not be reached or stopped answering: ${e.message}", io.out)
+        } finally {
+            pending.done()
+        }
+    }
+
+    private suspend fun pairOver(line: WebOsLine): Int {
+        val session = WebOsSession(line)
+        return when (val first = session.register(null, WebOsWire.PAIRING_PIN)) {
+            is Registration.Refused -> refused(device.name, first.why, io.out)
+            is Registration.Registered -> stored(first.clientKey, line.certSeen)
+            is Registration.NeedsPairing -> {
+                Diag.log("webos-pair", "${device.name}: the TV asked for ${first.pairingType} pairing")
+                val finished = finishPairing(session, first.pairingType)
+                when (finished) {
+                    is Registration.Registered -> stored(finished.clientKey, line.certSeen)
+                    is Registration.Refused -> refused(device.name, finished.why, io.out)
+                    is Registration.NeedsPairing -> refused(device.name, "the TV asked to pair again", io.out)
                 }
             }
         }
-    } catch (e: java.io.IOException) {
-        return refused(device.name, "it could not be reached or stopped answering: ${e.message}", out)
-    } finally {
-        pending.done()
     }
-}
 
-private suspend fun stored(
-    device: KnownCasts,
-    clientKey: String?,
-    cert: String?,
-    keys: WebOsKeys,
-    dialFor: (String) -> WebOsDial,
-    out: (String) -> Unit,
-): Int {
-    if (clientKey.isNullOrEmpty()) return refused(device.name, "the TV registered us but sent no key", out)
-    keys.write(WebOsKey(clientKey, cert))
-    Diag.log("webos-pair", "${device.name}: paired; key stored, certificate pinned=${cert != null}")
-    out("✅ Paired ${device.name}. The key is stored (mode 600) and never printed or logged.")
-    val tv = WebOsTv(device.name, dialFor(device.host), keys)
-    val inputs = tv.inputs()
-    if (inputs.isEmpty()) {
-        out("(Could not read the TV's inputs just now.)")
-    } else {
-        out("Inputs on the TV, for TOTUM_SHOWN_ON (name=${device.name}@<id>):")
-        inputs.forEach { out("  ${it.id}  \"${it.label}\"${if (it.connected) "  connected" else ""}") }
+    private suspend fun finishPairing(session: WebOsSession, pairingType: String): Registration {
+        if (pairingType != WebOsWire.PAIRING_PIN) {
+            io.out("The TV is asking on its screen: press Allow with its remote.")
+            return session.awaitRegistered()
+        }
+        io.out(
+            "The TV is showing a PIN. Give it to me with:  totum webos-pair \"${device.name}\" " +
+                "--pin=<the PIN>  (or type it here and press Enter). Waiting up to " +
+                "${io.times.waitForPinMs / MS_PER_S}s.",
+        )
+        val pin = waitForPin(pending, io)
+            ?: return Registration.Refused("no PIN arrived in time")
+        Diag.log("webos-pair", "${device.name}: a PIN of ${pin.length} digits arrived")
+        return session.submitPin(pin)
     }
-    return 0
+
+    private suspend fun stored(clientKey: String?, cert: String?): Int {
+        if (clientKey.isNullOrEmpty()) return refused(device.name, "the TV registered us but sent no key", io.out)
+        keys.write(WebOsKey(clientKey, cert))
+        Diag.log("webos-pair", "${device.name}: paired; key stored, certificate pinned=${cert != null}")
+        io.out("✅ Paired ${device.name}. The key is stored (mode 600) and never printed or logged.")
+        val inputs = WebOsTv(device.name, dialFor(device.host), keys).inputs()
+        if (inputs.isEmpty()) {
+            io.out("(Could not read the TV's inputs just now.)")
+        } else {
+            io.out("Inputs on the TV, for TOTUM_SHOWN_ON (name=${device.name}@<id>):")
+            inputs.forEach { io.out("  ${it.id}  \"${it.label}\"${if (it.connected) "  connected" else ""}") }
+        }
+        return 0
+    }
 }
 
 private fun refused(name: String, why: String, out: (String) -> Unit): Int {
@@ -149,32 +167,17 @@ private fun refused(name: String, why: String, out: (String) -> Unit): Int {
     return 1
 }
 
-private suspend fun waitForPin(
-    pending: PendingPin,
-    typed: () -> String?,
-    times: WebOsPairingTimes,
-    clock: () -> Long,
-    pause: suspend (Long) -> Unit,
-): String? {
-    val began = clock()
-    while (clock() - began < times.waitForPinMs) {
-        (pending.handed() ?: typed()?.trim())?.takeIf { it.isNotEmpty() }?.let { return it }
-        pause(times.pollMs)
+private suspend fun waitForPin(pending: PendingPin, io: PairingIo): String? {
+    val began = io.clock()
+    while (io.clock() - began < io.times.waitForPinMs) {
+        (pending.handed() ?: io.typed()?.trim())?.takeIf { it.isNotEmpty() }?.let { return it }
+        io.pause(io.times.pollMs)
     }
     return null
 }
 
-@Suppress("LongParameterList")
-private suspend fun handThePinOver(
-    pin: String,
-    name: String,
-    keyFile: File,
-    pending: PendingPin,
-    out: (String) -> Unit,
-    times: WebOsPairingTimes,
-    clock: () -> Long,
-    pause: suspend (Long) -> Unit,
-): Int {
+private suspend fun handThePinOver(pin: String, name: String, keyFile: File, pending: PendingPin, io: PairingIo): Int {
+    val out = io.out
     if (!PIN_SHAPE.matches(pin)) return refused(name, "a PIN is 4 to 12 digits", out)
     if (!pending.isWaiting()) {
         out(
@@ -184,16 +187,19 @@ private suspend fun handThePinOver(
         Diag.log("webos-pair", "$name: a PIN was given but no pairing is waiting")
         return 1
     }
-    val began = clock()
+    val began = io.clock()
     pending.hand(pin)
     Diag.log("webos-pair", "$name: a PIN of ${pin.length} digits was handed to the waiting pairing")
-    out("The PIN was handed to the pairing that is waiting. Waiting up to ${times.waitForResultMs / MS_PER_S}s for it.")
-    while (clock() - began < times.waitForResultMs) {
+    out(
+        "The PIN was handed to the pairing that is waiting. " +
+            "Waiting up to ${io.times.waitForResultMs / MS_PER_S}s for it.",
+    )
+    while (io.clock() - began < io.times.waitForResultMs) {
         if (keyFile.isFile && keyFile.lastModified() >= began - MTIME_SLACK_MS) {
             out("✅ $name is paired.")
             return 0
         }
-        pause(times.pollMs)
+        io.pause(io.times.pollMs)
     }
     return refused(name, "the waiting pairing did not store a key in time (see its output and the Pi's log)", out)
 }

@@ -447,14 +447,17 @@ internal class TargetDeck(
             problem = null
             reportProgress(finished = true)
         }
-        if (queue.current?.itemId()?.let(sleep::endsWith) == true) {
-            val switchOff = sleep.switchesOff()
-            if (next in queue.entries.indices) queue = queue.copy(currentIndex = next)
-            finish("the sleep timer stopped it after $title", report = false, keepPlace = false)
-            if (switchOff && link.canSwitchOff) powerOff()
-            return
-        }
+        if (stoppedBySleepTimer(next, title)) return
         startAt(next)
+    }
+
+    private suspend fun stoppedBySleepTimer(next: Int, title: String?): Boolean {
+        if (queue.current?.itemId()?.let(sleep::endsWith) != true) return false
+        val switchOff = sleep.switchesOff()
+        if (next in queue.entries.indices) queue = queue.copy(currentIndex = next)
+        finish("the sleep timer stopped it after $title", report = false, keepPlace = false)
+        if (switchOff && link.canSwitchOff) powerOff()
+        return true
     }
 
     private fun unreachableProblem(): Problem =
