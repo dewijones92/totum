@@ -46,7 +46,7 @@ class AppSourcePages(
     override suspend fun page(source: MediaSource, part: SourcePart, after: PageToken?): Page<MediaItem>? =
         when (source) {
             is MediaSource.VideoChannel -> channelPage(source, part, after)
-            is MediaSource.PodcastFeed -> if (part == SourcePart.SHORTS) Page.empty() else feed(source)
+            is MediaSource.PodcastFeed -> if (part == SourcePart.UPLOADS) feed(source) else Page.empty()
         }
 
     private suspend fun channelPage(
@@ -57,6 +57,7 @@ class AppSourcePages(
         val id = source.youTubeChannelId ?: resolvedId(source) ?: return null
         val result = when (part) {
             SourcePart.UPLOADS -> innerTube.videos(id, after)
+            SourcePart.LIVE -> innerTube.streams(id, after)
             SourcePart.SHORTS -> innerTube.shorts(id, after)
         }
         return result.toMediaItemPage(source.id)

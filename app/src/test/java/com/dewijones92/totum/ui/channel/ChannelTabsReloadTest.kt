@@ -80,9 +80,12 @@ class ChannelTabsReloadTest {
     private class Script {
         var videos: suspend () -> ChannelVideos = { ChannelVideos.Failure("unscripted") }
         var shorts: suspend () -> ChannelVideos = { ChannelVideos.Failure("unscripted") }
+        var streams: suspend (PageToken?) -> ChannelVideos = { ChannelVideos.Success(Page.empty()) }
+        val order = mutableListOf<String>()
         var playlists: suspend () -> ChannelPlaylists = { ChannelPlaylists.Failure("unscripted") }
         var videoCalls = 0
         var shortsCalls = 0
+        var streamsCalls = 0
         var playlistCalls = 0
     }
 
@@ -92,12 +95,19 @@ class ChannelTabsReloadTest {
         innerTube = object : YouTubeChannel {
             override suspend fun videos(channelId: String, after: PageToken?): ChannelVideos {
                 script.videoCalls++
+                script.order += "videos"
                 return script.videos()
             }
 
             override suspend fun shorts(channelId: String, after: PageToken?): ChannelVideos {
                 script.shortsCalls++
                 return script.shorts()
+            }
+
+            override suspend fun streams(channelId: String, after: PageToken?): ChannelVideos {
+                script.streamsCalls++
+                script.order += "streams"
+                return script.streams(after)
             }
 
             override suspend fun search(channelId: String, query: String, after: PageToken?): ChannelVideos =
@@ -156,6 +166,7 @@ class ChannelTabsReloadTest {
     private fun ChannelViewModel.titles(tab: ChannelViewModel.Tab): List<String> = when (tab) {
         ChannelViewModel.Tab.VIDEOS -> uiState.value.videos.items.map { it.title }
         ChannelViewModel.Tab.SHORTS -> uiState.value.shorts.items.map { it.title }
+        ChannelViewModel.Tab.LIVE -> uiState.value.live.items.map { it.title }
         ChannelViewModel.Tab.PLAYLISTS -> uiState.value.playlists.items.map { it.title }
         ChannelViewModel.Tab.SEARCH -> emptyList()
     }
@@ -384,6 +395,93 @@ class ChannelTabsReloadTest {
             assertEquals(2, script.playlistCalls)
             assertEquals(listOf("first"), model.titles(ChannelViewModel.Tab.PLAYLISTS))
             assertFalse(model.uiState.value.playlists.error)
+        }
+
+    @Test
+    fun `a channel with streams gets a Live tab, one without does not`() = runTest(dispatcher) {
+        script.videos = { ok("a") }
+        script.streams = { ok("l1", "l2") }
+        val streaming = viewModel()
+        testScheduler.advanceUntilIdle()
+        assertTrue(ChannelViewModel.Tab.LIVE in streaming.uiState.value.tabs)
+        assertEquals(listOf("video l1", "video l2"), streaming.titles(ChannelViewModel.Tab.LIVE))
+
+        script.streams = { ok() }
+        val quiet = viewModel()
+        testScheduler.advanceUntilIdle()
+        assertFalse(ChannelViewModel.Tab.LIVE in quiet.uiState.value.tabs)
+    }
+
+    @Test
+    fun `the Live tab is asked for only once the Videos page has been read`() = runTest(dispatcher) {
+        script.videos = { ok("a") }
+        script.streams = { ok("l1") }
+        viewModel()
+        testScheduler.advanceUntilIdle()
+
+        assertEquals(listOf("videos", "streams"), script.order)
+    }
+
+    @Test
+    fun `selecting a Live tab that turned out empty falls back to Videos`() = runTest(dispatcher) {
+        script.videos = { ok("a") }
+        val model = viewModel()
+        testScheduler.advanceUntilIdle()
+
+        model.selectTab(ChannelViewModel.Tab.LIVE)
+        testScheduler.advanceUntilIdle()
+
+        assertEquals(ChannelViewModel.Tab.VIDEOS, model.uiState.value.tab)
+    }
+
+    @Test
+    fun `a Live tab that cannot be read stays hidden and the Videos tab is untouched`() = runTest(dispatcher) {
+        script.videos = { ok("a") }
+        script.streams = { ChannelVideos.Failure("offline") }
+        val model = viewModel()
+        testScheduler.advanceUntilIdle()
+
+        assertFalse(ChannelViewModel.Tab.LIVE in model.uiState.value.tabs)
+        assertEquals(listOf("video a"), model.titles(ChannelViewModel.Tab.VIDEOS))
+    }
+
+    @Test
+    fun `the Live tab pages through the streams with its continuation`() = runTest(dispatcher) {
+        script.videos = { ok("a") }
+        script.streams = { after ->
+            if (after == null) {
+                ChannelVideos.Success(Page(listOf(video("l1")), PageToken("older")))
+            } else {
+                ChannelVideos.Success(Page.last(listOf(video("l2"))))
+            }
+        }
+        val model = viewModel()
+        testScheduler.advanceUntilIdle()
+        model.selectTab(ChannelViewModel.Tab.LIVE)
+
+        model.loadMore()
+        testScheduler.advanceUntilIdle()
+
+        assertEquals(listOf("video l1", "video l2"), model.titles(ChannelViewModel.Tab.LIVE))
+        assertEquals(2, script.streamsCalls)
+    }
+
+    @Test
+    fun `a stale Live tab is fetched again on entry and a stream that went away takes the tab with it`() =
+        runTest(dispatcher) {
+            script.videos = { ok("a") }
+            script.streams = { ok("l1") }
+            val model = viewModel()
+            testScheduler.advanceUntilIdle()
+            assertTrue(ChannelViewModel.Tab.LIVE in model.uiState.value.tabs)
+
+            script.streams = { ok() }
+            clockMs += STALE_MS
+            model.refreshOnEntry()
+            testScheduler.advanceUntilIdle()
+
+            assertEquals(2, script.streamsCalls)
+            assertFalse(ChannelViewModel.Tab.LIVE in model.uiState.value.tabs)
         }
 
     private companion object {

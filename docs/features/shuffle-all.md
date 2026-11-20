@@ -3,7 +3,7 @@ title: Shuffle all (a channel, a podcast or a group)
 kind: feature
 status: shipped
 area: queue/channel
-updated: 2026-10-22
+updated: 2026-11-20
 ---
 
 # Shuffle all
@@ -21,6 +21,15 @@ these**. It is the same walk as one source (`shuffleTargetOf` builds one target 
 so the same set is one pin and one recent action), asking about Shorts when a channel is among them. The 🔀 button
 and this action share `rememberShuffleStarter`.
 
+## Live streams (2026-11-20)
+
+Past live streams are part of a channel's uploads for this purpose, so every shuffle all, one channel, a group or a
+ticked selection, walks the channel's Live tab too and does not ask about it (Include Shorts stays about Shorts).
+Each source's Live walk starts when its uploads walk is over, because the first Videos page tells whether the
+channel has a Live tab at all; a channel without one costs no request. A podcast has none. `WholeSource`'s summary line
+reads `gathered N item(s) from S source(s) in P page(s) (uploads=a, live=b, shorts=c), shorts=…, K source(s) with live
+streams (M found), unfinished=…`. Decision: [ADR 178](../adr/0178-a-channels-past-streams-are-its-live-tab-found-through-its-tab-list.md).
+
 ## Seam
 
 - `core/data/…/shuffle/WholeSource.kt`: the page walker (`SourcePages` port, `Gathered`).
@@ -33,9 +42,11 @@ and this action share `rememberShuffleStarter`.
 
 - `WholeSourceTest` (JVM): every page to the end; Shorts only when asked; a failing page keeps what came
   before and says so; a flaky page is retried; a repeating continuation stops; a group's channels and
-  podcasts merged once each.
+  podcasts merged once each; lives walked unasked, after the uploads, an empty live walk costing one page and not
+  reported unfinished, a failing live walk reported with the uploads kept.
 - `AppSourcePagesTest` (JVM): InnerTube paging by id; a handle resolved once then paged with its Shorts
-  (observed failing first: it returned yt-dlp's 20); stored podcast episodes.
+  (observed failing first: it returned yt-dlp's 20); stored podcast episodes; a channel's live streams paged by their
+  continuation, a handle resolved once for uploads and lives together, a podcast never asked for lives.
 - `ShuffleAllActionTest` (instrumented): the Shorts question and both answers; a podcast with no
   question; everything lands in the queue as one `shuffle:` group.
 - `ContinuationsTest` (JVM): a channel tab pages its grid, not its sort chips (`chipBarViewModel`) or the

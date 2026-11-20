@@ -36,6 +36,10 @@ internal object LockupParser {
 
     fun videos(body: String): Page<FeedVideo> {
         val root = parseOrNull(body) ?: return Page.empty()
+        return videos(root)
+    }
+
+    fun videos(root: JsonElement): Page<FeedVideo> {
         val out = LinkedHashMap<String, FeedVideo>()
         collect(root, "lockupViewModel") { lockup ->
             if (lockup.stringAt("contentType") in VIDEO_CONTENT_TYPES) {

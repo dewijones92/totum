@@ -373,6 +373,7 @@
     <string name="channel_subscribe">➕ Subscribe</string>
     <string name="channel_tab_videos">Videos</string>
     <string name="channel_tab_shorts">Shorts</string>
+    <string name="channel_tab_live">Live</string>
     <string name="channel_tab_playlists">Playlists</string>
 
     <!-- Local (cross-pillar) playlists -->

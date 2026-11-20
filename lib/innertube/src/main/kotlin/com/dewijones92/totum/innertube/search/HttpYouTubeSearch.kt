@@ -37,9 +37,9 @@ public class HttpYouTubeSearch(
 
     override suspend fun searchVideos(query: String, limit: Int, after: PageToken?): SearchVideosResult {
         val target = after?.let { SearchTarget.Continuation(it.value) } ?: SearchTarget.Query(query)
-        asAccount(target, limit)?.let { return it }
+        asAccount(target)?.let { return it }
         return when (val response = client.search(target)) {
-            is InnerTubeResponse.Success -> SearchVideosResult.Success(response.parsed { it.toPage(limit) })
+            is InnerTubeResponse.Success -> SearchVideosResult.Success(response.parsed { it.toPage() })
             // Search needs no token, so a 401/403 here is YouTube refusing the
             // request rather than a sign-in problem — report it as a failure.
             InnerTubeResponse.Unauthorized -> SearchVideosResult.Failure("rejected")
@@ -48,14 +48,14 @@ public class HttpYouTubeSearch(
     }
 
     /** The signed-in attempt, or null to mean "use the anonymous one". */
-    private suspend fun asAccount(target: SearchTarget, limit: Int): SearchVideosResult? {
+    private suspend fun asAccount(target: SearchTarget): SearchVideosResult? {
         val accessToken = token() ?: return null
         val response = client.searchAsAccount(target, accessToken)
         if (response !is InnerTubeResponse.Success) {
             Diag.log("search", "signed-in search refused ($response); falling back to anonymous")
             return null
         }
-        val page = response.parsed { it.toAccountPage(limit) }
+        val page = response.parsed { it.toAccountPage() }
         if (page.items.isEmpty()) {
             Diag.log("search", "signed-in search parsed to nothing; falling back to anonymous")
             return null
@@ -74,12 +74,12 @@ public class HttpYouTubeSearch(
      * growing a third search parser. The classic shape is tried as well, since one response
      * carrying both is cheaper to allow than to find out about later.
      */
-    private fun String.toAccountPage(limit: Int): Page<SearchedVideo> {
+    private fun String.toAccountPage(): Page<SearchedVideo> {
         val lockups = LockupParser.videos(this)
         if (lockups.items.isNotEmpty()) {
-            return Page(lockups.items.take(limit).map { it.asSearched() }, lockups.next)
+            return Page(lockups.items.map { it.asSearched() }, lockups.next)
         }
-        return toPage(limit)
+        return toPage()
     }
 
     /**
@@ -87,8 +87,8 @@ public class HttpYouTubeSearch(
      * handing out a token forever, and following one that yields nothing is an endless
      * scroll that never adds a row.
      */
-    private fun String.toPage(limit: Int): Page<SearchedVideo> {
-        val videos = SearchResultsParser.videos(this).take(limit)
+    private fun String.toPage(): Page<SearchedVideo> {
+        val videos = SearchResultsParser.videos(this)
         if (videos.isEmpty()) return Page.last(videos)
         val root = runCatching { json.parseToJsonElement(this) }.getOrNull() ?: return Page.last(videos)
         return Page(videos, Continuations.find(root))

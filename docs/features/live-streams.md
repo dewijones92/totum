@@ -3,7 +3,7 @@ title: Live streams
 kind: feature
 area: playback
 status: built 2026-11-06 (pushed; registry, live check, refresher and persistence tests written; parser, wait-schedule and watcher tests still owed; not seen on a device)
-updated: 2026-11-14
+updated: 2026-11-20
 ---
 
 # Live streams
@@ -18,6 +18,10 @@ updated: 2026-11-14
 Plays live YouTube from a manifest Totum builds from the live head ([ADR 69](../adr/0069-live-streams-play-a-manifest-totum-builds.md)),
 at 1x with nothing cut ([live-plays-at-1x.md](../todos/live-plays-at-1x.md)). Listed with the videos and tagged
 "🔴 LIVE" ([shorts-in-the-feed.md](shorts-in-the-feed.md)).
+
+## Past streams on the channel page (2026-11-20)
+
+A channel's past and current live streams are its **Live** tab, and Shuffle all walks them: [channel-browse.md](channel-browse.md), [ADR 178](../adr/0178-a-channels-past-streams-are-its-live-tab-found-through-its-tab-list.md).
 
 ## A live stream that has not started (2026-11-06)
 
