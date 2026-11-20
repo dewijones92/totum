@@ -4,6 +4,8 @@ public data class PlayOnOption(
     val target: Target,
     val power: TargetPower = TargetPower.ON,
     val switchedOnByHand: Boolean = false,
+    val startsApp: Boolean = false,
+    val canSwitchOff: Boolean = false,
 ) {
     val id: String get() = target.id
     val isPhone: Boolean get() = target.kind == TargetKind.PHONE
@@ -12,11 +14,12 @@ public data class PlayOnOption(
         get() = when {
             power != TargetPower.ASLEEP -> PlayOnHint.NONE
             switchedOnByHand -> PlayOnHint.SWITCH_ON_BY_HAND
+            startsApp -> PlayOnHint.STARTS_WHEN_PICKED
             else -> PlayOnHint.WAKES_WHEN_PICKED
         }
 }
 
-public enum class PlayOnHint { NONE, WAKES_WHEN_PICKED, SWITCH_ON_BY_HAND }
+public enum class PlayOnHint { NONE, WAKES_WHEN_PICKED, STARTS_WHEN_PICKED, SWITCH_ON_BY_HAND }
 
 public object PlayOn {
 
@@ -24,7 +27,7 @@ public object PlayOn {
 
     public fun options(listed: List<TargetState>, atHome: Boolean): List<PlayOnOption> {
         val devices = listed.filter { atHome || it.target.kind.reachableAway }
-            .map { PlayOnOption(it.target, it.power, it.switchedOnByHand) }
+            .map { PlayOnOption(it.target, it.power, it.switchedOnByHand, it.startsApp, it.canSwitchOff) }
         return listOf(PlayOnOption(phone)) + devices
     }
 

@@ -34,6 +34,7 @@ internal class DeckSleep(
     private val volume: TargetVolume?,
     private val playback: () -> SleepPlayback,
     private val pause: suspend () -> Unit,
+    private val switchOff: suspend () -> Unit = {},
 ) {
     private class Armed(
         val kind: SleepKind,
@@ -41,6 +42,7 @@ internal class DeckSleep(
         val itemIds: List<String>,
         val title: String?,
         val ramp: FadeRamp,
+        val switchOff: Boolean,
     ) {
         var job: Job? = null
         var fade: VolumeFade? = null
@@ -66,13 +68,14 @@ internal class DeckSleep(
             itemIds = ask.itemIds,
             title = ask.title,
             ramp = FadeRamp(if (timed) minOf(fade, total) else fade),
+            switchOff = ask.switchOff,
         )
         armed = sleep
         Diag.log(
             "sleep",
             "dewidebug sleep timer armed on $label: ${ask.kind} " +
                 (if (timed) "in $total" else "after ${ask.itemIds.size} item(s) ending ${ask.itemIds.lastOrNull()}") +
-                ", fade ${sleep.ramp.length}",
+                ", fade ${sleep.ramp.length}" + if (sleep.switchOff) ", then switch it off" else "",
         )
         sleep.job = scope.launch { if (timed) countDown(sleep) else watchItems(sleep) }
     }
@@ -85,6 +88,8 @@ internal class DeckSleep(
         Diag.log("sleep", "dewidebug sleep timer on $label released: $why")
         return true
     }
+
+    fun switchesOff(): Boolean = armed?.switchOff == true
 
     fun endsWith(itemId: String): Boolean =
         armed?.takeIf { it.kind == SleepKind.AFTER_ITEMS }?.itemIds?.lastOrNull() == itemId
@@ -123,6 +128,7 @@ internal class DeckSleep(
             title = sleep.title,
             fadeSeconds = sleep.ramp.length.inWholeSeconds.toInt(),
             fading = sleep.ramp.faded,
+            switchesOff = sleep.switchOff,
         )
     }
 
@@ -208,6 +214,10 @@ internal class DeckSleep(
         } finally {
             if (armed === sleep) armed = null
             restore(sleep, "the countdown ended and playback was paused")
+        }
+        if (sleep.switchOff) {
+            Diag.log("sleep", "dewidebug sleep timer on $label: the volume is back, now switching it off")
+            switchOff()
         }
     }
 

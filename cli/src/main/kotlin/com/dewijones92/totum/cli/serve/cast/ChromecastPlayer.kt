@@ -1,5 +1,7 @@
 package com.dewijones92.totum.cli.serve.cast
 
+import com.dewijones92.totum.cli.serve.power.DevicePower
+import com.dewijones92.totum.cli.serve.power.WakeOnLan
 import com.dewijones92.totum.cli.serve.targets.PlayRequest
 import com.dewijones92.totum.cli.serve.targets.TargetLink
 import com.dewijones92.totum.cli.serve.targets.TargetPlayer
@@ -17,7 +19,7 @@ internal class ChromecastPlayer(
     private val label: String,
     private val control: CastControl,
     private val streams: PiStreams,
-    private val wake: TvWake? = null,
+    private val wake: DevicePower? = null,
     private val clock: () -> Long = System::currentTimeMillis,
     private val watch: (check: () -> Boolean) -> Unit = ::watchWhileTrue,
 ) : TargetPlayer {
@@ -206,8 +208,16 @@ internal fun contentTypeOf(url: String, picture: Boolean, processed: Boolean): S
 internal class CastLink(
     private val host: String,
     private val control: CastControl,
-    private val wake: TvWake? = null,
+    private val wake: DevicePower? = null,
 ) : TargetLink {
+
+    override val startsApp: Boolean get() = wake?.startsApp == true
+
+    override val canSwitchOff: Boolean get() = wake?.canSwitchOff == true
+
+    override val powerNote: String? get() = wake?.note
+
+    override suspend fun switchOff(): String? = wake?.switchOff() ?: "Totum has no way to switch it off"
 
     @Volatile override var unreachable: TargetTrouble? = null
         private set
@@ -215,7 +225,7 @@ internal class CastLink(
     override suspend fun connect(): String? {
         unreachable = null
         if (wake != null && !wake.ensureAwake()) {
-            unreachable = TargetTrouble(TroubleKind.WONT_WAKE)
+            unreachable = TargetTrouble(TroubleKind.WONT_WAKE, reason = wake.failure)
             return null
         }
         val tries = if (wake?.sentWake == true) TRIES_AFTER_A_WAKE else 1

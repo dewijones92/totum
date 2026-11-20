@@ -1,4 +1,4 @@
-package com.dewijones92.totum.cli.serve.cast
+package com.dewijones92.totum.cli.serve.power
 
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.targets.TargetPower
@@ -11,7 +11,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-class TvWakeTest {
+class SteppedPowerWolTest {
 
     private val mac = byteArrayOf(0x20, 0x28, 0xbc.toByte(), 0x6b, 0xf7.toByte(), 0xf8.toByte())
     private val broadcasts = listOf("255.255.255.255", "192.168.0.255")
@@ -27,11 +27,11 @@ class TvWakeTest {
     private var onProbe: suspend () -> Unit = {}
     private var host: String? = null
 
-    private lateinit var wake: TvWake
+    private lateinit var wake: SteppedPower
 
-    private fun build(answersFromProbe: Int = Int.MAX_VALUE): TvWake {
+    private fun build(answersFromProbe: Int = Int.MAX_VALUE): SteppedPower {
         this.answersFromProbe = answersFromProbe
-        return TvWake(
+        return wakeOnLanPower(
             label = "LG TV",
             mac = mac,
             broadcasts = broadcasts,

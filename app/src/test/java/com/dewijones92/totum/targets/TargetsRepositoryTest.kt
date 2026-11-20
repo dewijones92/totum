@@ -657,6 +657,28 @@ class TargetsRepositoryTest {
     }
 
     @Test
+    fun `a target whose pick starts an app shows as starting, with the Pi's words on failure`() = runTest {
+        val kodi = tv.copy(startsApp = true)
+        api.answer = HomeAnswer.Ok(TargetsAnswer(listOf(kodi.copy(power = TargetPower.WAKING))))
+
+        repository.refresh("test")
+
+        assertEquals(
+            listOf(OperationKind.START_TARGET_APP to "LG TV"),
+            operations.running.value.map { it.kind to it.subject },
+        )
+
+        api.answer = HomeAnswer.Ok(
+            TargetsAnswer(listOf(kodi.copy(power = TargetPower.ASLEEP, problem = "❌ Kodi didn't start"))),
+        )
+        repository.refresh("test")
+        scope.advanceUntilIdle()
+
+        val end = ended.single { it.kind == OperationKind.START_TARGET_APP }.end
+        assertEquals(OperationEnd.Failed("Kodi didn't start"), end)
+    }
+
+    @Test
     fun `a wake the phone stops hearing about does not sit on the strip for ever`() = runTest {
         api.answer = HomeAnswer.Ok(TargetsAnswer(listOf(tv.copy(power = TargetPower.WAKING))))
         repository.refresh("test")
@@ -906,5 +928,26 @@ class TargetsRepositoryTest {
         assertEquals(listOf("t1", "t2"), ask.itemIds)
         assertEquals("Guitar Recital", ask.title)
         assertEquals(SleepKind.OFF, api.controlled.last().second.sleep!!.kind)
+    }
+
+    @Test
+    fun `a sleep timer does not switch the target off unless asked to`() = runTest {
+        repository.startSleep("lg-tv", 30.minutes)
+        repository.startSleep("lg-tv", 30.minutes, switchOff = true)
+        repository.sleepAfterItems("lg-tv", listOf("t1"), null, switchOff = true)
+
+        assertEquals(
+            listOf(false, true, true),
+            api.controlled.map { it.second.sleep!!.switchOff },
+        )
+    }
+
+    @Test
+    fun `switching a target off is its own command, sent to that target`() = runTest {
+        repository.command("lg-tv", TargetAction.SWITCH_OFF)
+
+        val (id, control) = api.controlled.single()
+        assertEquals("lg-tv", id)
+        assertEquals(TargetAction.SWITCH_OFF, control.action)
     }
 }

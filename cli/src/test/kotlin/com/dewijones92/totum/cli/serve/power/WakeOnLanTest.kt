@@ -1,4 +1,4 @@
-package com.dewijones92.totum.cli.serve.cast
+package com.dewijones92.totum.cli.serve.power
 
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals

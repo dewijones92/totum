@@ -175,16 +175,19 @@ internal class CastPlaces(
 internal class CastDeviceSource(
     private val devices: List<KnownDevice>,
     private val streams: PiStreams,
-    private val extraBroadcasts: List<String> = emptyList(),
+    extraBroadcasts: List<String> = emptyList(),
     private val places: CastPlaces = CastPlaces(null, null),
+    powerConfig: PowerConfig = PowerConfig(),
 ) : TargetSource {
+
+    private val powers = DevicePowers(devices, powerConfig, extraBroadcasts)
 
     override suspend fun find(fresh: Boolean): List<FoundTarget> = devices.map { device ->
         FoundTarget(Target(device.id, device.name, device.kind)) {
             val controls = device.order.map { protocol -> protocol to controlFor(device, protocol) }
             val control = controls.singleOrNull()?.second ?: FirstReachableControl(device.name, controls)
-            val wake = wakeFor(device)
-            TargetKit(ChromecastPlayer(device.name, control, streams, wake), CastLink(device.host, control, wake))
+            val power = powers.powerFor(device)
+            TargetKit(ChromecastPlayer(device.name, control, streams, power), CastLink(device.host, control, power))
         }
     }.also {
         Diag.log(
@@ -220,22 +223,5 @@ internal class CastDeviceSource(
             )
             CastProtocol.DLNA -> DlnaControl(address, device.name)
         }
-    }
-
-    private fun wakeFor(device: KnownDevice): TvWake? {
-        val mac = device.mac?.let(WakeOnLan::parseMac) ?: return null
-        val broadcasts = WakeOnLan.broadcastsFor(device.host, extraBroadcasts)
-        val ports = device.order.mapNotNull { protocol ->
-            protocol.port ?: portOf(device.addresses.getValue(protocol).host)
-        }
-        val probes = ports.map { ReceiverProbe(device.host, it) }
-        return TvWake(
-            label = device.name,
-            mac = mac,
-            broadcasts = broadcasts,
-            host = device.host,
-            sender = UdpWakeSender(),
-            answers = { probes.any { it.answers() } },
-        ).also { it.watch() }
     }
 }

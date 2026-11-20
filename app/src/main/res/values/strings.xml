@@ -1448,6 +1448,11 @@
     </plurals>
     <string name="ops_starting">⏳ Starting on %1$s…</string>
     <string name="ops_wake_target">⏰ Waking %1$s…</string>
+    <string name="ops_start_target_app">🔌 Starting %1$s…</string>
+    <plurals name="ops_start_app_done">
+        <item quantity="one">✅ %2$s is running</item>
+        <item quantity="other">✅ %2$s is running</item>
+    </plurals>
     <plurals name="ops_wake_done">
         <item quantity="one">✅ %2$s is awake</item>
         <item quantity="other">✅ %2$s is awake</item>
@@ -1455,6 +1460,9 @@
     <string name="target_asleep_wake">💤 Off · tap to wake</string>
     <string name="target_asleep_by_hand">🔌 %1$s is off · switch it on by hand</string>
     <string name="target_waking">⏰ Waking %1$s…</string>
+    <string name="target_switch_off">⏻ Switch off</string>
+    <string name="target_sleep_switch_off">⏻ Stop and switch %1$s off when the timer ends</string>
+    <string name="target_sleep_will_switch_off">⏻ %1$s will be switched off when the timer ends</string>
     <string name="target_chip_phone">📱 This phone</string>
     <string name="target_chip_more">➕ Play on…</string>
     <string name="target_send_to">📡 Send to…</string>
@@ -1463,6 +1471,7 @@
     <string name="play_on_home_unreachable">🏠 Home devices unreachable</string>
     <string name="play_on_asleep_hint">💤 Off · picking it switches it on</string>
     <string name="play_on_by_hand_hint">🔌 Off · switch it on by hand</string>
+    <string name="play_on_starts_app_hint">💤 Not running · picking it starts it</string>
     <string name="play_on_item">📡 Play on…</string>
     <string name="play_on_add_browser">🖥️ Add a browser…</string>
     <string name="play_on_add_browser_how">🌐 On the browser, open %1$s while it is on the home Wi-Fi. It shows up here as soon as it is connected, and then you can play on it.</string>

@@ -26,6 +26,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import com.dewijones92.totum.R
 import com.dewijones92.totum.data.targets.Target
+import com.dewijones92.totum.data.targets.TargetAction
 import com.dewijones92.totum.data.targets.TargetColours
 import com.dewijones92.totum.data.targets.TargetPower
 import com.dewijones92.totum.targets.TargetsRepository
@@ -56,6 +57,7 @@ fun TargetChips(targets: TargetsRepository, modifier: Modifier = Modifier) {
     }
     if (states.isEmpty() && address == null) return
     val power = states.associate { it.target.id to it.power }
+    val switchable = states.filter { it.canSwitchOff && it.power != TargetPower.ASLEEP }.map { it.target.id }.toSet()
     val inUse = states.filter { it.entries.isNotEmpty() || it.target.id == selected }.map { it.target }
     val idle = states.map { it.target } - inUse.toSet()
     var picking by remember { mutableStateOf(false) }
@@ -77,6 +79,14 @@ fun TargetChips(targets: TargetsRepository, modifier: Modifier = Modifier) {
                 selected = selected == target.id,
                 onClick = { targets.select(target.id) },
             )
+            if (selected == target.id && target.id in switchable) {
+                TargetChip(
+                    label = stringResource(R.string.target_switch_off),
+                    colour = Color.Gray,
+                    selected = false,
+                    onClick = { targets.command(target.id, TargetAction.SWITCH_OFF) },
+                )
+            }
         }
         if (idle.isNotEmpty() || address != null) {
             TargetChip(

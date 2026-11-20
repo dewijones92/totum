@@ -33,6 +33,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -65,6 +66,7 @@ import com.dewijones92.totum.playback.VolumeBoost
 import com.dewijones92.totum.targets.TargetsRepository
 import com.dewijones92.totum.targets.asTimerState
 import com.dewijones92.totum.ui.common.EmptyState
+import com.dewijones92.totum.ui.common.LabelledCheckbox
 import com.dewijones92.totum.ui.common.LocalItemShield
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.TagBadge
@@ -200,7 +202,12 @@ private fun RemotePower(targets: TargetsRepository, state: TargetState) {
                 Text(stringResource(R.string.target_asleep_wake))
             }
         }
-        TargetPower.WAKING -> Text(stringResource(R.string.target_waking, state.target.label))
+        TargetPower.WAKING -> Text(state.powerNote ?: stringResource(R.string.target_waking, state.target.label))
+    }
+    if (state.canSwitchOff && state.power != TargetPower.ASLEEP) {
+        TextButton(onClick = { targets.command(state.target.id, TargetAction.SWITCH_OFF) }) {
+            Text(stringResource(R.string.target_switch_off))
+        }
     }
 }
 
@@ -272,9 +279,11 @@ private fun RemoteRepeat(targets: TargetsRepository, state: TargetState) {
 private fun RemoteSleep(targets: TargetsRepository, state: TargetState) {
     val id = state.target.id
     val snapshot = remember(state.entries, state.at) { state.entries.toSnapshot(state.at) }
-    val endOfGroup = remember(snapshot) {
+    var switchOff by rememberSaveable(id) { mutableStateOf(false) }
+    val switchesOff = switchOff && state.canSwitchOff
+    val endOfGroup = remember(snapshot, switchesOff) {
         endOfGroupSleep(snapshot.entries, snapshot.currentIndex) { ids, title ->
-            targets.sleepAfterItems(id, ids.map { it.value }, title)
+            targets.sleepAfterItems(id, ids.map { it.value }, title, switchesOff)
         }
     }
     CompositionLocalProvider(
@@ -283,14 +292,27 @@ private fun RemoteSleep(targets: TargetsRepository, state: TargetState) {
     ) {
         SleepTimerControl(
             state = state.sleep.asTimerState(),
-            onStart = { targets.startSleep(id, it) },
+            onStart = { targets.startSleep(id, it, switchesOff) },
             onStopAfterItem = {
                 state.current?.item?.itemId?.let { current ->
-                    targets.sleepAfterItems(id, listOf(current), null)
+                    targets.sleepAfterItems(id, listOf(current), null, switchesOff)
                 }
             },
             onCancel = { targets.cancelSleep(id) },
             modifier = Modifier.padding(vertical = 4.dp),
+        )
+    }
+    if (state.canSwitchOff) {
+        LabelledCheckbox(
+            checked = switchOff,
+            label = stringResource(R.string.target_sleep_switch_off, state.target.label),
+            onChange = { switchOff = it },
+        )
+    }
+    if (state.sleep?.switchesOff == true) {
+        Text(
+            stringResource(R.string.target_sleep_will_switch_off, state.target.label),
+            style = MaterialTheme.typography.bodySmall,
         )
     }
 }
