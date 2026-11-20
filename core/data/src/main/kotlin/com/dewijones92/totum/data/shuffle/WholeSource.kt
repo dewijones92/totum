@@ -13,13 +13,18 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import java.util.concurrent.atomic.AtomicInteger
 
-public enum class SourcePart { UPLOADS, SHORTS }
+public enum class SourcePart { UPLOADS, LIVE, SHORTS }
 
 public fun interface SourcePages {
     public suspend fun page(source: MediaSource, part: SourcePart, after: PageToken?): Page<MediaItem>?
 }
 
-public data class Gathered(val items: List<MediaItem>, val pages: Int, val unfinished: List<String>)
+public data class Gathered(
+    val items: List<MediaItem>,
+    val pages: Int,
+    val unfinished: List<String>,
+    val pagesByPart: Map<SourcePart, Int> = emptyMap(),
+)
 
 public class WholeSource(
     private val pages: SourcePages,
@@ -34,21 +39,32 @@ public class WholeSource(
         includeShorts: Boolean,
         progress: (Int) -> Unit = {},
     ): Gathered = coroutineScope {
-        val parts = if (includeShorts) SourcePart.entries else listOf(SourcePart.UPLOADS)
         val loaded = AtomicInteger()
-        val walks = sources.flatMap { source -> parts.map { part -> async { walk(source, part, loaded, progress) } } }
-            .awaitAll()
+        val walks = sources.flatMap { source ->
+            val uploads = async { walk(source, SourcePart.UPLOADS, loaded, progress) }
+            val live = async {
+                uploads.await()
+                walk(source, SourcePart.LIVE, loaded, progress)
+            }
+            val shorts = SourcePart.SHORTS.takeIf { includeShorts }
+                ?.let { part -> async { walk(source, part, loaded, progress) } }
+            listOfNotNull(uploads, live, shorts)
+        }.awaitAll()
         val items = walks.flatMap { it.items }.distinctBy { it.id }
-        val gathered = Gathered(items, walks.sumOf { it.pages }, walks.mapNotNull { it.unfinished })
+        val pagesByPart = walks.groupBy { it.part }.mapValues { (_, walked) -> walked.sumOf { it.pages } }
+        val gathered = Gathered(items, walks.sumOf { it.pages }, walks.mapNotNull { it.unfinished }, pagesByPart)
+        val liveWalks = walks.filter { it.part == SourcePart.LIVE }
         Diag.log(
             TAG,
-            "gathered ${items.size} item(s) from ${sources.size} source(s) in ${gathered.pages} page(s), " +
-                "shorts=$includeShorts, unfinished=${gathered.unfinished.ifEmpty { "none" }}",
+            "gathered ${items.size} item(s) from ${sources.size} source(s) in ${gathered.pages} page(s) " +
+                "(${pagesByPart.entries.joinToString { "${it.key.name.lowercase()}=${it.value}" }}), " +
+                "shorts=$includeShorts, ${liveWalks.count { it.items.isNotEmpty() }} source(s) with live streams " +
+                "(${liveWalks.sumOf { it.items.size }} found), unfinished=${gathered.unfinished.ifEmpty { "none" }}",
         )
         gathered
     }
 
-    private class Walk(val items: List<MediaItem>, val pages: Int, val unfinished: String?)
+    private class Walk(val part: SourcePart, val items: List<MediaItem>, val pages: Int, val unfinished: String?)
 
     private suspend fun walk(
         source: MediaSource,
@@ -78,7 +94,7 @@ public class WholeSource(
             after = next
         }
         Diag.log(TAG, "\"${source.title}\" $part: ${items.size} item(s) in $fetched page(s), complete")
-        return Walk(items, fetched, null)
+        return Walk(part, items, fetched, null)
     }
 
     private suspend fun fetchWithRetries(source: MediaSource, part: SourcePart, after: PageToken?): Page<MediaItem>? {
@@ -93,7 +109,7 @@ public class WholeSource(
 
     private fun stop(source: MediaSource, part: SourcePart, items: List<MediaItem>, pages: Int, why: String): Walk {
         Diag.warn(TAG, "\"${source.title}\" $part: keeping ${items.size} item(s) from $pages page(s) — $why")
-        return Walk(items, pages, "${source.title} $part: $why")
+        return Walk(part, items, pages, "${source.title} $part: $why")
     }
 
     private companion object {

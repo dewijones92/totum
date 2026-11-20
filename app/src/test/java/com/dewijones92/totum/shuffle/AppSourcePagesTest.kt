@@ -3,6 +3,8 @@ package com.dewijones92.totum.shuffle
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.common.Page
 import com.dewijones92.totum.common.PageToken
+import com.dewijones92.totum.data.channel.ChannelRepository
+import com.dewijones92.totum.data.channel.ChannelVideosResult
 import com.dewijones92.totum.data.channel.fake.FakeChannelRepository
 import com.dewijones92.totum.data.podcast.fake.FakePodcastRepository
 import com.dewijones92.totum.data.shuffle.WholeSource
@@ -80,6 +82,51 @@ class AppSourcePagesTest {
         assertEquals(setOf("v1", "v2", "s1"), gathered.items.map { it.title }.toSet())
         assertEquals(listOf(null, PageToken("p2")), innerTube.requested)
         assertTrue(gathered.unfinished.isEmpty())
+    }
+
+    @Test
+    fun `a channel's past live streams are walked page by page with its uploads, shorts or not`() = runTest {
+        val innerTube = FakeYouTubeChannel(
+            videos = listOf(video("v1")),
+            streams = listOf(video("l1", FeedVideo.Kind.LIVE)),
+            streamsNext = PageToken("older"),
+            streamPages = mapOf("older" to Page(listOf(video("l2", FeedVideo.Kind.LIVE)), null)),
+        )
+        val pages = AppSourcePages(innerTube, FakeChannelRepository(), FakePodcastRepository())
+
+        val gathered = WholeSource(pages).everything(listOf(channel), includeShorts = false)
+
+        assertEquals(setOf("v1", "l1", "l2"), gathered.items.map { it.title }.toSet())
+        assertEquals(listOf(null, PageToken("older")), innerTube.streamsRequested)
+    }
+
+    @Test
+    fun `a handle-only channel is resolved once for its uploads and its live streams together`() = runTest {
+        var resolutions = 0
+        val channels = object : ChannelRepository {
+            override suspend fun fetchChannelVideos(channelUrl: HttpUrl): ChannelVideosResult {
+                resolutions++
+                return ChannelVideosResult.Success("UCabcdefghijklmnopqrstuv", "Someone", emptyList())
+            }
+        }
+        val innerTube = FakeYouTubeChannel(videos = listOf(video("v1")), streams = listOf(video("l1")))
+
+        val gathered = WholeSource(AppSourcePages(innerTube, channels, FakePodcastRepository()))
+            .everything(listOf(handleOnly), includeShorts = false)
+
+        assertEquals(setOf("v1", "l1"), gathered.items.map { it.title }.toSet())
+        assertEquals(1, resolutions)
+    }
+
+    @Test
+    fun `a podcast is never asked for live streams`() = runTest {
+        val innerTube = FakeYouTubeChannel()
+        val podcasts = FakePodcastRepository(initialEpisodes = listOf(episode("e1")))
+
+        WholeSource(AppSourcePages(innerTube, FakeChannelRepository(), podcasts))
+            .everything(listOf(feed), includeShorts = false)
+
+        assertEquals(emptyList<PageToken?>(), innerTube.streamsRequested)
     }
 
     @Test

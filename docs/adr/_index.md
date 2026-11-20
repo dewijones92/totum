@@ -1,7 +1,7 @@
 ---
 title: Architecture decision records
 kind: index
-updated: 2026-11-07
+updated: 2026-11-20
 ---
 
 # Architecture decision records
@@ -185,3 +185,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 171 | [Metadata repair runs off the main thread, asks once per torrent, works in batches, and both it and the spoiler shield log one line per pass](0171-repair-runs-off-the-main-thread-once-per-torrent-in-batches-and-logs-one-line-per-pass.md) | Accepted |
 | 174 | [DLNA and AirPlay devices are two more controls behind the one cast player, fed one more route of the one stream server](0174-dlna-and-airplay-are-more-controls-behind-the-one-cast-player.md) | Accepted |
 | 175 | [DLNA, AirPlay and Kodi carry the picture over the one stream server's HLS, and Kodi is driven by its own JSON-RPC](0175-dlna-airplay-and-kodi-carry-the-picture-over-the-one-stream-servers-hls.md) | Accepted |
+| 178 | [A channel's past live streams are its Live tab, found through the channel's own tab list, and shuffle all walks them](0178-a-channels-past-streams-are-its-live-tab-found-through-its-tab-list.md) | Accepted |

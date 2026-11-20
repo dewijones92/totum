@@ -140,9 +140,9 @@ fun ChannelScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ChannelTabs(selected: ChannelTab, onSelectTab: (ChannelTab) -> Unit) {
-    SecondaryTabRow(selectedTabIndex = selected.ordinal) {
-        ChannelTab.entries.forEach { tab ->
+private fun ChannelTabs(tabs: List<ChannelTab>, selected: ChannelTab, onSelectTab: (ChannelTab) -> Unit) {
+    SecondaryTabRow(selectedTabIndex = tabs.indexOf(selected).coerceAtLeast(0)) {
+        tabs.forEach { tab ->
             Tab(
                 selected = tab == selected,
                 onClick = { onSelectTab(tab) },
@@ -153,8 +153,10 @@ private fun ChannelTabs(selected: ChannelTab, onSelectTab: (ChannelTab) -> Unit)
 }
 
 @Composable
-private fun rememberTabFilters(title: String, sourceKey: String): List<ListFilter> =
-    listOf("videos", "shorts", "playlists").map { rememberListFilter("channel $title $it", key = sourceKey) }
+private fun rememberTabFilters(title: String, sourceKey: String): Map<String, ListFilter> =
+    listOf("videos", "shorts", "live", "playlists").associateWith {
+        rememberListFilter("channel $title $it", key = sourceKey)
+    }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -177,7 +179,11 @@ internal fun ChannelContent(
 ) {
     Surface(modifier = modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
-            val (videosFilter, shortsFilter, playlistsFilter) = rememberTabFilters(state.title, sourceKey)
+            val filters = rememberTabFilters(state.title, sourceKey)
+            val videosFilter = filters.getValue("videos")
+            val shortsFilter = filters.getValue("shorts")
+            val liveFilter = filters.getValue("live")
+            val playlistsFilter = filters.getValue("playlists")
             val shape = rememberListShape("channel $sourceKey")
             SourceHeader(
                 title = state.title,
@@ -188,17 +194,25 @@ internal fun ChannelContent(
                 pillar = MediaKind.VIDEO,
                 artworkUrl = state.artworkUrl,
                 actions = {
-                    ChannelFilterToggle(state, videosFilter, shortsFilter, playlistsFilter)
-                    if (state.tab == ChannelTab.VIDEOS || state.tab == ChannelTab.SHORTS) ShapeControl(shape)
+                    ChannelFilterToggle(state, videosFilter, shortsFilter, liveFilter, playlistsFilter)
+                    if (state.tab in MEDIA_TABS) ShapeControl(shape)
                     headerAction()
                 },
             )
-            ChannelTabs(state.tab, onSelectTab)
+            ChannelTabs(state.tabs, state.tab, onSelectTab)
             KeepsEachPlace("$sourceKey ${state.tab.name}") {
                 when (state.tab) {
-                    ChannelTab.VIDEOS, ChannelTab.SHORTS -> MediaItemTab(
-                        if (state.tab == ChannelTab.SHORTS) shortsFilter else videosFilter,
-                        if (state.tab == ChannelTab.SHORTS) state.shorts else state.videos,
+                    ChannelTab.VIDEOS, ChannelTab.SHORTS, ChannelTab.LIVE -> MediaItemTab(
+                        when (state.tab) {
+                            ChannelTab.SHORTS -> shortsFilter
+                            ChannelTab.LIVE -> liveFilter
+                            else -> videosFilter
+                        },
+                        when (state.tab) {
+                            ChannelTab.SHORTS -> state.shorts
+                            ChannelTab.LIVE -> state.live
+                            else -> state.videos
+                        },
                         state.downloadStates,
                         onPlay,
                         onDownload,
@@ -277,19 +291,24 @@ private fun ChannelFilterToggle(
     state: ChannelViewModel.UiState,
     videos: ListFilter,
     shorts: ListFilter,
+    live: ListFilter,
     playlists: ListFilter,
 ) {
     when (state.tab) {
         ChannelTab.VIDEOS -> FilterToggle(videos, state.videos.items.size)
         ChannelTab.SHORTS -> FilterToggle(shorts, state.shorts.items.size)
+        ChannelTab.LIVE -> FilterToggle(live, state.live.items.size)
         ChannelTab.PLAYLISTS -> FilterToggle(playlists, state.playlists.items.size)
         ChannelTab.SEARCH -> Unit
     }
 }
 
+private val MEDIA_TABS = setOf(ChannelTab.VIDEOS, ChannelTab.SHORTS, ChannelTab.LIVE)
+
 private fun ChannelTab.labelRes(): Int = when (this) {
     ChannelTab.VIDEOS -> R.string.channel_tab_videos
     ChannelTab.SHORTS -> R.string.channel_tab_shorts
+    ChannelTab.LIVE -> R.string.channel_tab_live
     ChannelTab.PLAYLISTS -> R.string.channel_tab_playlists
     ChannelTab.SEARCH -> R.string.channel_tab_search
 }

@@ -1,5 +1,6 @@
 package com.dewijones92.totum.innertube.channel
 
+import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.Page
 import com.dewijones92.totum.common.PageToken
 import com.dewijones92.totum.innertube.browse.BrowseTarget
@@ -11,6 +12,8 @@ import com.dewijones92.totum.innertube.feeds.FeedVideo
 import com.dewijones92.totum.innertube.feeds.LockupParser
 import com.dewijones92.totum.innertube.search.SearchResultsParser
 import kotlinx.serialization.json.Json
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * [YouTubeChannel] over InnerTube's WEB `browse` (no auth — channel content is public).
@@ -34,6 +37,21 @@ public class HttpYouTubeChannel(
             is TabResult.Ok -> ChannelVideos.Success(r.page)
             is TabResult.Err -> ChannelVideos.Failure(r.detail)
         }
+
+    override suspend fun streams(channelId: String, after: PageToken?): ChannelVideos {
+        if (after == null && liveTab[channelId] == false) {
+            val skipped = skippedStreams.incrementAndGet()
+            if (skipped % LOG_EVERY == 0) {
+                Diag.log(TAG, "dewidebug streams: $skipped first page(s) not asked for, the channel lists no Live tab")
+            }
+            return ChannelVideos.Success(Page.empty())
+        }
+        val first = after == null
+        return when (val r = tab(channelId, STREAMS_PARAMS, after, { body -> streamsPage(channelId, body, first) })) {
+            is TabResult.Ok -> ChannelVideos.Success(r.page)
+            is TabResult.Err -> ChannelVideos.Failure(r.detail)
+        }
+    }
 
     override suspend fun search(channelId: String, query: String, after: PageToken?): ChannelVideos =
         when (val r = tab(channelId, SEARCH_PARAMS, after, ::searchResults, query = query)) {
@@ -61,7 +79,12 @@ public class HttpYouTubeChannel(
         val target = after?.let { BrowseTarget.Continuation(it.value) }
             ?: BrowseTarget.Id(channelId, params, query)
         return when (val response = innerTube.browseWeb(target)) {
-            is InnerTubeResponse.Success -> TabResult.Ok(response.parsed(parse))
+            is InnerTubeResponse.Success -> TabResult.Ok(
+                response.parsed { body ->
+                    if (after == null && query == null) noteTabs(channelId, body)
+                    parse(body)
+                },
+            )
             InnerTubeResponse.Unauthorized -> TabResult.Err("Unauthorized")
             is InnerTubeResponse.Failure -> TabResult.Err(response.detail)
         }
@@ -93,6 +116,46 @@ public class HttpYouTubeChannel(
 
     private val json = Json { ignoreUnknownKeys = true }
 
+    private val liveTab = ConcurrentHashMap<String, Boolean>()
+    private val learned = AtomicInteger()
+    private val skippedStreams = AtomicInteger()
+
+    private fun noteTabs(channelId: String, body: String) {
+        if (!ChannelTabs.listsTabs(body)) return
+        remember(channelId, ChannelTabs.listsLiveTab(body))
+    }
+
+    private fun remember(channelId: String, hasLiveTab: Boolean) {
+        val before = liveTab.put(channelId, hasLiveTab)
+        if (before == hasLiveTab) return
+        if (before != null) {
+            Diag.log(TAG, "dewidebug $channelId's Live tab changed: ${before.word()} -> ${hasLiveTab.word()}")
+            return
+        }
+        val known = learned.incrementAndGet()
+        if (hasLiveTab) Diag.log(TAG, "dewidebug $channelId lists a Live tab ($known channel(s) known)")
+        if (known % LOG_EVERY == 0) {
+            Diag.log(
+                TAG,
+                "dewidebug tab lists read for $known channel(s): ${liveTab.values.count { it }} with a Live tab, " +
+                    "${skippedStreams.get()} Live first page(s) skipped so far",
+            )
+        }
+    }
+
+    private fun Boolean.word() = if (this) "listed" else "not listed"
+
+    private fun streamsPage(channelId: String, body: String, first: Boolean): Page<FeedVideo> {
+        val root = runCatching { json.parseToJsonElement(body) }.getOrNull() ?: return Page.empty()
+        if (first && !ChannelTabs.liveTabIsSelected(root)) {
+            remember(channelId, false)
+            Diag.log(TAG, "dewidebug $channelId has no Live tab: YouTube answered with another tab, so no streams")
+            return Page.empty()
+        }
+        if (first) remember(channelId, true)
+        return LockupParser.videos(root)
+    }
+
     private sealed interface TabResult<out T> {
         data class Ok<T>(val page: Page<T>) : TabResult<T>
         data class Err(val detail: String) : TabResult<Nothing>
@@ -102,6 +165,9 @@ public class HttpYouTubeChannel(
         // Stable per-tab browse tokens (identical for every channel), verified live 2026-07-24.
         const val VIDEOS_PARAMS = "EgZ2aWRlb3PyBgQKAjoA"
         const val SHORTS_PARAMS = "EgZzaG9ydHPyBgUKA5oBAA=="
+        const val STREAMS_PARAMS = "EgdzdHJlYW1z8gYECgJ6AA=="
+        const val TAG = "channel"
+        const val LOG_EVERY = 50
         const val PLAYLISTS_PARAMS = "EglwbGF5bGlzdHPyBgQKAkIA"
 
         /**
