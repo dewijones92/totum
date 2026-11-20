@@ -128,6 +128,14 @@ public sealed interface SearchHit {
         val librivox: Boolean,
     ) : SearchHit
 
+    public data class Programme(
+        override val title: String,
+        override val subtitle: String?,
+        override val artworkUrl: HttpUrl?,
+        val feedUrl: HttpUrl,
+        val pid: String,
+    ) : SearchHit
+
     /**
      * Something you already have, wherever it is: on this phone, at home, in the Jellyfin library.
      *
@@ -187,4 +195,18 @@ public fun SearchHit.Book.toSource(): MediaSource.PodcastFeed = MediaSource.Podc
     title = title,
     feedUrl = feedUrl,
     artworkUrl = artworkUrl,
+)
+
+public fun SearchHit.Programme.toSource(): MediaSource.PodcastFeed = MediaSource.PodcastFeed(
+    id = MediaSource.PodcastFeed.idFor(feedUrl),
+    title = title,
+    feedUrl = feedUrl,
+    artworkUrl = artworkUrl,
+)
+
+public fun SearchHit.Programme.asPodcast(): SearchHit.Podcast = SearchHit.Podcast(
+    title = title,
+    subtitle = subtitle,
+    artworkUrl = artworkUrl,
+    feedUrl = feedUrl,
 )

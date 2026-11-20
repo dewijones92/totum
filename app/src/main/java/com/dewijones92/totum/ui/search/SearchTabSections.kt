@@ -14,6 +14,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
 import com.dewijones92.totum.data.search.SearchHit
+import com.dewijones92.totum.data.search.asPodcast
 import com.dewijones92.totum.data.search.map
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.ui.common.FactEmoji
@@ -58,6 +59,7 @@ internal fun LazyListScope.tabSections(tab: SearchTab?, view: SearchTabView) {
         )
         SearchTab.AUDIOBOOKS -> bookSections(view.results, view.query, view.bookShelf, view.rows.bookActions())
         SearchTab.PODCASTS -> podcastSection(view.results, view.state, view.rows.onSubscribe)
+        SearchTab.BBC -> bbcSection(view.results, view.state, view.rows.onSubscribe)
         SearchTab.SONGS -> songSection(
             view.results,
             view.state.resolving,
@@ -73,12 +75,11 @@ internal fun LazyListScope.tabSections(tab: SearchTab?, view: SearchTabView) {
 internal fun LazyListScope.tabFooter(info: SearchTabInfo?, view: SearchTabView) {
     if (info != null && info.empty) {
         item {
-            val name = stringResource(info.tab.label).lowercase()
             SectionMessage(
-                if (info.tab == SearchTab.YOURS) {
-                    stringResource(R.string.search_tab_empty_yours, view.query)
-                } else {
-                    stringResource(R.string.search_tab_empty, name, view.query)
+                when (info.tab) {
+                    SearchTab.YOURS -> stringResource(R.string.search_tab_empty_yours, view.query)
+                    SearchTab.BBC -> stringResource(R.string.search_tab_empty_bbc, view.query)
+                    else -> stringResource(R.string.search_tab_empty, stringResource(info.tab.label).lowercase(), view.query)
                 },
             )
         }
@@ -128,6 +129,21 @@ private fun LazyListScope.podcastSection(
             hit = hit,
             subscribed = hit.feedUrl.value in state.subscribedFeeds,
             onSubscribe = { onSubscribe(hit) },
+        )
+    }
+}
+
+private fun LazyListScope.bbcSection(
+    results: Results.Loaded,
+    state: UiState,
+    onSubscribe: (SearchHit.Podcast) -> Unit,
+) {
+    hitSection({ labelled(FactEmoji.BBC, R.string.destination_bbc) }, results.programmes) { hit: SearchHit.Programme ->
+        val shown = hit.asPodcast()
+        PodcastHitRow(
+            hit = shown,
+            subscribed = hit.feedUrl.value in state.subscribedFeeds,
+            onSubscribe = { onSubscribe(shown) },
         )
     }
 }

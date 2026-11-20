@@ -22,6 +22,7 @@ import com.dewijones92.totum.common.writeTextReplacing
 import com.dewijones92.totum.common.youTubeVideoId
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.SourceGroup
+import com.dewijones92.totum.domain.iPlayerUrl
 import com.dewijones92.totum.jobs.JobOutcome
 import com.dewijones92.totum.jobs.PeriodicJob
 import com.dewijones92.totum.live.LiveNoticeLabels
@@ -68,9 +69,18 @@ class GroupNewsNotifier(private val context: Context, private val labels: LiveNo
             ),
         )
         val watch = item.mediaUrl?.takeIf { it.youTubeVideoId() != null }
-        val intent = watch?.let { Intent(Intent.ACTION_VIEW, it.value.toUri(), context, MainActivity::class.java) }
-            ?: Intent(context, MainActivity::class.java)
-        Diag.log(TAG, "notification for \"${item.title}\" opens ${if (watch != null) "the video" else "the app"}")
+        val iPlayer = item.iPlayerUrl
+        val intent = when {
+            iPlayer != null -> Intent(Intent.ACTION_VIEW, iPlayer.value.toUri())
+            watch != null -> Intent(Intent.ACTION_VIEW, watch.value.toUri(), context, MainActivity::class.java)
+            else -> Intent(context, MainActivity::class.java)
+        }
+        val opens = when {
+            iPlayer != null -> "the episode on iPlayer"
+            watch != null -> "the video"
+            else -> "the app"
+        }
+        Diag.log(TAG, "notification for \"${item.title}\" opens $opens")
         val open = PendingIntent.getActivity(
             context,
             item.id.value.hashCode(),

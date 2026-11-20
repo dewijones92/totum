@@ -80,6 +80,7 @@ class SearchViewModelTest {
             albums = albumSearch,
             artists = artistSearch,
             books = SearchSource { _, _, _ -> SearchOutcome.Success(Page.last(emptyList())) },
+            bbc = SearchSource { _, _, _ -> SearchOutcome.Success(Page.last(emptyList())) },
         ),
         scope = scope,
         // No home server in these tests: the section is simply absent, which is the common case.

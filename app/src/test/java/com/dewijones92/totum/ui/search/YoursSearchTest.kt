@@ -81,7 +81,7 @@ class YoursSearchTest {
     private val empty = SearchSource { _, _, _ -> SearchOutcome.Success(Page.last(emptyList())) }
 
     private fun model(yours: SearchSource?) = SearchViewModel(
-        sources = SearchSources(empty, empty, empty, empty, empty, empty, yours),
+        sources = SearchSources(empty, empty, empty, empty, empty, empty, empty, yours),
         torrents = null,
         podcastRepository = FakePodcastRepository(),
         queue = PlaybackQueue(

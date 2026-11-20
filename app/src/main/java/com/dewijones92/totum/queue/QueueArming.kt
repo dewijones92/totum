@@ -48,7 +48,7 @@ internal class QueueArming(private val controller: PlaybackController, private v
                 controller.armNext(route.playable.item, queued.pillar, audioOnly = withoutPicture)
                 true
             }
-            is PlayRoute.Refused -> false
+            is PlayRoute.External, is PlayRoute.Refused -> false
         }
     }
 }

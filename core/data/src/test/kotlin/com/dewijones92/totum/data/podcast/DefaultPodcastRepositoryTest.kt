@@ -4,13 +4,17 @@ import com.dewijones92.totum.common.Breadcrumbs
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.data.audiobook.ArchiveBooks
+import com.dewijones92.totum.data.bbc.BbcProgrammes
 import com.dewijones92.totum.data.net.FetchResult
 import com.dewijones92.totum.data.subscription.SubscriptionStore
 import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaSource
+import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.Subscription
+import com.dewijones92.totum.domain.opensExternally
+import com.dewijones92.totum.domain.toPlayableOrNull
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -48,6 +52,40 @@ class DefaultPodcastRepositoryTest {
         assertEquals(3, preview.episodes.size)
         assertTrue(preview.episodes.first().title.endsWith("Chapter 01"))
         assertEquals(setOf(MediaContentKind.AUDIOBOOK), preview.episodes.map { it.contentKind }.toSet())
+    }
+
+    @Test
+    fun `a BBC programme subscribes like any feed, its episodes opening in iPlayer with their end dates`() = runTest {
+        val body = checkNotNull(javaClass.getResource("/bbc/hignfy-episodes.json")).readText()
+        val programme = BbcProgrammes.feedUrl("b006mkw3")
+
+        val subscribed = repository(FetchResult.Success(body)).subscribe(programme) as SubscribeResult.Subscribed
+
+        assertEquals("Have I Got News for You", subscribed.source.title)
+        assertEquals("BBC One", subscribed.source.publisher)
+        val items = checkNotNull(store.saved).second
+        assertEquals(4, items.size)
+        assertEquals("bbc:m0033v6x", items.first().id.value)
+        assertEquals("https://www.bbc.co.uk/iplayer/episode/m0033v6x", items.first().mediaUrl?.value)
+        assertEquals(Instant.parse("2027-12-22T00:45:00Z"), items.first().availableUntil)
+        assertEquals("Have I Got News for You", items.first().author)
+        assertEquals(setOf(MediaContentKind.STANDARD), items.map { it.contentKind }.toSet())
+        assertTrue(items.all { it.opensExternally })
+        assertTrue(items.all { it.toPlayableOrNull()?.handle is PlayHandle.External })
+    }
+
+    @Test
+    fun `a refresh of a BBC programme that now has nothing leaves the stored episodes alone`() = runTest {
+        val body = checkNotNull(javaClass.getResource("/bbc/hignfy-episodes.json")).readText()
+        val programme = BbcProgrammes.feedUrl("b006mkw3")
+        repository(FetchResult.Success(body)).subscribe(programme)
+        val empty = EMPTY_PROGRAMME
+
+        val report = repository(FetchResult.Success(empty)).refresh()
+
+        assertEquals(1, report.failures.size)
+        assertTrue(report.failures.single() is FeedRefreshFailure.Unparseable)
+        assertEquals(4, checkNotNull(store.saved).second.size)
     }
 
     @Test
@@ -411,3 +449,6 @@ class PodcastFeedParsedOffTheCallerTest {
         assertTrue("named on $namedOn", namedOn.isNotEmpty() && namedOn.none { it.startsWith("pretend-main") })
     }
 }
+
+private const val EMPTY_PROGRAMME =
+    "{\"programme_episodes\":{\"page\":1,\"per_page\":50,\"count\":0,\"elements\":[],\"programme\":null}}"

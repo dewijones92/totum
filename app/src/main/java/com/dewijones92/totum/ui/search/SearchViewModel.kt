@@ -154,6 +154,7 @@ class SearchViewModel(
             val books: SearchSection<List<SearchHit.Book>> = SearchSection.Absent,
             val bookTorrents: SearchSection<List<SearchHit.Torrent>> = SearchSection.Absent,
             val yours: SearchSection<List<SearchHit.Yours>> = SearchSection.Absent,
+            val programmes: SearchSection<List<SearchHit.Programme>> = SearchSection.Absent,
             val loadingMore: Boolean = false,
         ) : Results {
             val canLoadMore: Boolean get() = videos.itemsOrNull?.hasMore == true
@@ -173,6 +174,7 @@ class SearchViewModel(
             val stillSearching: Boolean
                 get() = podcasts.isSearching || videos.isSearching || songs.isSearching || torrents.isSearching ||
                     albums.isSearching || artists.isSearching || books.isSearching || bookTorrents.isSearching ||
+                    programmes.isSearching ||
                     yours.isSearching
         }
     }
@@ -420,6 +422,14 @@ class SearchViewModel(
                 select = { it.page.items.filterIsInstance<SearchHit.Book>() },
             )
         }
+        launch {
+            run.section<List<SearchHit.Programme>>(
+                name = "BBC iPlayer",
+                updates = { sources.bbc.updates(query, BBC_RESULTS) },
+                into = { loaded, s -> loaded.copy(programmes = s) },
+                select = { it.page.items.filterIsInstance<SearchHit.Programme>() },
+            )
+        }
         val home = torrents ?: return
         launch {
             run.section<List<SearchHit.Torrent>>(
@@ -455,6 +465,7 @@ class SearchViewModel(
             // Absent, not Searching: with no home server there is no section to wait for.
             torrents = only(everything && torrents != null),
             books = only(everything),
+            programmes = only(everything),
             bookTorrents = only(everything && torrents?.bookSearch != null),
             yours = only(everything && sources.yours != null),
         )
@@ -720,6 +731,7 @@ class SearchViewModel(
         private const val TORRENT_RESULTS = 40
         private const val BOOK_RESULTS = 40
         private const val YOURS_RESULTS = 200
+        private const val BBC_RESULTS = 25
 
         /** A music search answers about 20 a page; a shelf keeps the lot and shows [RESULTS_PER_SECTION] at a time. */
         private const val MUSIC_PAGE = 25
@@ -760,6 +772,7 @@ class SearchViewModel(
                         artists = container.musicArtistSearchSource,
                         books = container.audiobookSearchSource,
                         yours = container.yoursSearchSource,
+                        bbc = container.bbcSearchSource,
                     ),
                     torrents = TorrentServices.from(container),
                     podcastRepository = container.podcastRepository,

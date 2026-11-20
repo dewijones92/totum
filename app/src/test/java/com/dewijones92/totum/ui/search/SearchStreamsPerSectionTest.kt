@@ -140,6 +140,7 @@ class SearchStreamsPerSectionTest {
             albums = SearchSource { _, _, _ -> error("albums are only asked in the music scope") },
             artists = SearchSource { _, _, _ -> error("artists are only asked in the music scope") },
             books = SearchSource { _, _, _ -> bookGate.await() },
+            bbc = SearchSource { _, _, _ -> SearchOutcome.Success(Page.last(emptyList())) },
         ),
         // No home server by default: the torrent section is then Absent, which one case asserts.
         torrents = if (!withHomeServer) {
