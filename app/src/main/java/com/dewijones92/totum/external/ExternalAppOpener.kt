@@ -3,10 +3,10 @@ package com.dewijones92.totum.external
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.widget.Toast
+import androidx.core.net.toUri
 import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
@@ -41,7 +41,7 @@ class ExternalAppOpener(private val context: Context) {
     }
 
     private fun start(url: HttpUrl, packageName: String?): Boolean {
-        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url.value))
+        val intent = Intent(Intent.ACTION_VIEW, url.value.toUri())
             .addCategory(Intent.CATEGORY_BROWSABLE)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             .also { if (packageName != null) it.setPackage(packageName) }
