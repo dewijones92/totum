@@ -31,7 +31,16 @@ import com.google.android.gms.cast.framework.CastContext
 fun CastButton(modifier: Modifier = Modifier, onDark: Boolean = false) {
     val context = LocalContext.current
     val available = remember {
-        runCatching { CastContext.getSharedInstance(context) }.isSuccess
+        runCatching { CastContext.getSharedInstance(context) }
+            .onFailure {
+                Diag.warn(
+                    "cast",
+                    "dewidebug the Cast button is hidden: the Cast framework would not start [" +
+                        "${com.dewijones92.totum.playback.cast.PlayServices.describe(context)}]",
+                    it,
+                )
+            }
+            .isSuccess
     }
     if (!available) return
     val button = remember { arrayOfNulls<MediaRouteButton>(1) }

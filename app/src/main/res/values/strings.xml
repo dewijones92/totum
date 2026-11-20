@@ -1157,6 +1157,10 @@
     <string name="cast_strip_quality">📺 %1$s on %2$s</string>
     <string name="cast_strip_quality_climbing">📺 %1$s on %2$s, going up to %3$s</string>
     <string name="cast_strip_stepped_down">⚠️ Dropped to %1$s, Wi-Fi too slow</string>
+    <string name="cast_strip_codec_step">📺 %1$s didn\'t start %2$s, trying %3$s</string>
+    <string name="cast_strip_another_codec">another format</string>
+    <string name="cast_start_silent">⚠️ Cast didn\'t start on %1$s</string>
+    <string name="cast_start_retry">Retry</string>
     <string name="cast_strip_volume">🔊 Volume %1$d%% on %2$s</string>
     <string name="cast_strip_muted">🔇 %1$s is muted</string>
     <string name="cast_strip_lower">a lower picture</string>

@@ -2,6 +2,7 @@ package com.dewijones92.totum.playback.cast
 
 import com.dewijones92.totum.domain.CastScreen
 import com.dewijones92.totum.domain.QualityLabel
+import com.dewijones92.totum.playback.CastCodecStep
 import com.dewijones92.totum.playback.CastProblem
 import com.dewijones92.totum.playback.CastStage
 
@@ -17,6 +18,8 @@ public interface CastTvPort {
         droppedFrom: Map<String, Int>,
     )
     public fun problem(now: CastProblem?)
+
+    public fun codecSteps(steps: Map<String, CastCodecStep>) {}
 
     public fun stage(mediaId: String, now: CastStage?, percent: Int? = null) {}
 

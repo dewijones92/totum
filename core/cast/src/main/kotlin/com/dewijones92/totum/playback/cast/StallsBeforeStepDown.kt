@@ -1,9 +1,15 @@
 package com.dewijones92.totum.playback.cast
 
 import com.dewijones92.totum.domain.QualityLabel
+import com.dewijones92.totum.domain.VideoCodecFamily
 import java.util.concurrent.ConcurrentHashMap
 
-public data class CastStep(val from: QualityLabel, val toHeight: Int)
+public data class CastStep(
+    val from: QualityLabel,
+    val toHeight: Int,
+    val toCodec: VideoCodecFamily? = null,
+    val refusedCodec: VideoCodecFamily? = null,
+)
 
 public class StallsBeforeStepDown(
     private val now: () -> Long = System::currentTimeMillis,

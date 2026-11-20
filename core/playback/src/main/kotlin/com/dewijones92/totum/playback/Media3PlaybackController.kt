@@ -163,6 +163,7 @@ public class Media3PlaybackController(
     private var castSentHeights: Map<String, Int> = emptyMap()
     private var castSentCodecs: Map<String, VideoCodecFamily> = emptyMap()
     private var castDroppedFrom: Map<String, Int> = emptyMap()
+    private var castCodecSteps: Map<String, CastCodecStep> = emptyMap()
 
     /** The rate the user chose. The player's own rate is not it — see [applyUserSpeed]. */
     private var userSpeed: Float = 1f
@@ -915,6 +916,10 @@ public class Media3PlaybackController(
         }.toMap()
         val dropped = extras.getBundle(CastStatus.EXTRA_CAST_DROPPED_FROM)
         castDroppedFrom = dropped?.keySet()?.associateWith { dropped.getInt(it) }.orEmpty()
+        val codecStepped = extras.getBundle(CastStatus.EXTRA_CAST_CODEC_STEP)
+        castCodecSteps = codecStepped?.keySet().orEmpty().mapNotNull { id ->
+            CastCodecStep.decode(codecStepped?.getString(id))?.let { id to it }
+        }.toMap()
         val fetching = extras.getBundle(CastStatus.EXTRA_CAST_FETCH_HEIGHT)
         castFetchHeights = fetching?.keySet()?.associateWith { fetching.getInt(it) }.orEmpty()
         castProblem = extras.getString(CastStatus.EXTRA_CAST_PROBLEM)?.let { name ->
@@ -935,7 +940,7 @@ public class Media3PlaybackController(
         Diag.log(
             "cast",
             "cast status: device=${castDeviceName ?: "none"} refused=$castRefused sentHeights=$castSentHeights " +
-                "sentCodecs=$castSentCodecs droppedFrom=$castDroppedFrom " +
+                "sentCodecs=$castSentCodecs droppedFrom=$castDroppedFrom codecSteps=$castCodecSteps " +
                 "problem=${castProblem ?: "none"} failure=${castFailedReason ?: "none"} fetching=$castFetchHeights " +
                 "stage=${castStage ?: "none"} ${castStagePercent?.let { "$it%" }.orEmpty()} " +
                 "for ${castStageItem ?: "-"} " +
@@ -1446,6 +1451,7 @@ public class Media3PlaybackController(
             castVideoHeight = castSentHeights[current.mediaId],
             castVideoCodec = castSentCodecs[current.mediaId],
             castDroppedFrom = castDroppedFrom[current.mediaId],
+            castCodecStep = castCodecSteps[current.mediaId],
             castFetchHeight = castFetchHeights[current.mediaId],
             castProblem = castProblem,
             castFailure = castFailedReason.takeIf { castFailedItem == current.mediaId },

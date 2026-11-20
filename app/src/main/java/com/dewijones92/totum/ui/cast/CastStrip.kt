@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dewijones92.totum.R
 import com.dewijones92.totum.domain.QualityLabel
+import com.dewijones92.totum.domain.plainName
 import com.dewijones92.totum.playback.CastProblem
 import com.dewijones92.totum.playback.CastStage
 import com.dewijones92.totum.playback.CastVolume
@@ -63,6 +64,18 @@ fun CastStrip(state: PlaybackState, modifier: Modifier = Modifier, actions: @Com
                 val now = state.castVideoHeight?.let { height -> QualityLabel(height, state.castVideoCodec).text }
                 Text(
                     stringResource(R.string.cast_strip_stepped_down, now ?: stringResource(R.string.cast_strip_lower)),
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(end = 8.dp, bottom = 6.dp),
+                )
+            }
+            state.castCodecStep?.let { step ->
+                Text(
+                    stringResource(
+                        R.string.cast_strip_codec_step,
+                        device,
+                        step.from.plainName,
+                        step.to?.plainName ?: stringResource(R.string.cast_strip_another_codec),
+                    ),
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.padding(end = 8.dp, bottom = 6.dp),
                 )

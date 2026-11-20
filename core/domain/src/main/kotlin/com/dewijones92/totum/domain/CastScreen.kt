@@ -16,12 +16,22 @@ public enum class VideoCodecFamily(public val prefixes: List<String>) {
     }
 }
 
+public val VideoCodecFamily.plainName: String
+    get() = when (this) {
+        VideoCodecFamily.AVC -> "H.264"
+        VideoCodecFamily.HEVC -> "HEVC"
+        VideoCodecFamily.VP9 -> "VP9"
+        VideoCodecFamily.VP8 -> "VP8"
+        VideoCodecFamily.AV1 -> "AV1"
+    }
+
 public data class CastScreen(
     val model: String,
     val codecs: Set<VideoCodecFamily>,
     val maxHeight: Int,
     val known: Boolean,
     val codecHeights: Map<VideoCodecFamily, Int> = emptyMap(),
+    val order: List<VideoCodecFamily> = PREFERRED,
 ) {
     public fun maxHeightOf(family: VideoCodecFamily): Int = minOf(maxHeight, codecHeights[family] ?: maxHeight)
 
@@ -30,7 +40,13 @@ public data class CastScreen(
         return family in codecs && (height == null || height <= maxHeightOf(family))
     }
 
-    public fun preference(codec: String?): Int = rank(codec)
+    public fun preference(codec: String?): Int =
+        VideoCodecFamily.of(codec)?.let { order.indexOf(it) }?.takeIf { it >= 0 } ?: Int.MAX_VALUE
+
+    public fun without(refused: Set<VideoCodecFamily>): CastScreen {
+        val left = codecs - refused
+        return if (left.isEmpty() || left == codecs) this else copy(codecs = left)
+    }
 
     public fun bestOf(offered: List<Pair<String?, Int>>): Int =
         offered.filter { (codec, height) -> canDecode(codec, height) }.maxOfOrNull { it.second } ?: maxHeight
@@ -53,6 +69,12 @@ public data class CastScreen(
             VideoCodecFamily.HEVC,
             VideoCodecFamily.AVC,
         )
+        private val SAFEST_FIRST = listOf(
+            VideoCodecFamily.AVC,
+            VideoCodecFamily.HEVC,
+            VideoCodecFamily.VP9,
+            VideoCodecFamily.AV1,
+        )
         private val PLAIN = setOf(VideoCodecFamily.VP9, VideoCodecFamily.AVC)
         private val MEASURED = PLAIN + VideoCodecFamily.HEVC
         private val LG_2020_ON = Regex("""^(OLED|QNED|NANO)\d{2}[A-Z]\d""", RegexOption.IGNORE_CASE)
@@ -72,7 +94,7 @@ public data class CastScreen(
                     known = true,
                     codecHeights = mapOf(VideoCodecFamily.AVC to FULL_HD),
                 )
-                else -> CastScreen(model.ifEmpty { UNKNOWN }, PLAIN, FULL_HD, known = false)
+                else -> CastScreen(model.ifEmpty { UNKNOWN }, PLAIN, FULL_HD, known = false, order = SAFEST_FIRST)
             }
         }
     }

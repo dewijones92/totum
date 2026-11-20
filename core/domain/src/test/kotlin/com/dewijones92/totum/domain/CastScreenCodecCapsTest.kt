@@ -84,4 +84,44 @@ class CastScreenCodecCapsTest {
         assertEquals("unknown Cast device", none.model)
         assertFalse(none.known)
     }
+
+    @Test
+    fun `a model nobody has measured prefers H264, then the rest, so a generic Chromecast gets the safest picture`() {
+        val generic = CastScreen.of("Chromecast")
+
+        assertFalse(generic.known)
+        assertTrue(generic.preference("avc1.640028") < generic.preference("vp09.00.40.08"))
+        assertTrue(generic.preference("hvc1.1.6.L93") < generic.preference("vp09.00.40.08"))
+    }
+
+    @Test
+    fun `the measured TVs keep VP9 ahead of H264`() {
+        listOf("OLED65C24LA", "Chromecast Ultra").map(CastScreen::of).forEach { screen ->
+            assertTrue(screen.model, screen.preference("vp09.00.40.08") < screen.preference("avc1.640028"))
+        }
+    }
+
+    @Test
+    fun `a screen can be told a codec was refused, but is never left with none`() {
+        val generic = CastScreen.of("Chromecast")
+
+        val withoutVp9 = generic.without(setOf(VideoCodecFamily.VP9))
+        assertFalse(withoutVp9.canDecode("vp09.00.40.08", 720))
+        assertTrue(withoutVp9.canDecode("avc1.640028", 720))
+        assertEquals(generic, generic.without(setOf(VideoCodecFamily.VP9, VideoCodecFamily.AVC)))
+    }
+
+    @Test
+    fun `every codec has a plain name for the strip`() {
+        assertEquals(
+            listOf("H.264", "HEVC", "VP9", "VP8", "AV1"),
+            listOf(
+                VideoCodecFamily.AVC,
+                VideoCodecFamily.HEVC,
+                VideoCodecFamily.VP9,
+                VideoCodecFamily.VP8,
+                VideoCodecFamily.AV1,
+            ).map { it.plainName },
+        )
+    }
 }

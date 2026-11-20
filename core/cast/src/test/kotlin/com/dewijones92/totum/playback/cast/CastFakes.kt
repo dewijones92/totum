@@ -64,6 +64,12 @@ internal class FakeCastTv(var screen: CastScreen? = null) : CastTvPort {
         problems += now
     }
 
+    var codecSteps: Map<String, com.dewijones92.totum.playback.CastCodecStep> = emptyMap()
+
+    override fun codecSteps(steps: Map<String, com.dewijones92.totum.playback.CastCodecStep>) {
+        codecSteps = steps
+    }
+
     override fun stage(mediaId: String, now: CastStage?, percent: Int?) {
         stages += mediaId to now
     }

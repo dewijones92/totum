@@ -79,6 +79,27 @@ class CastBestRungOnlyTest {
     }
 
     @Test
+    fun `a model nobody has measured is sent H264 at the same height, not VP9`() {
+        choose(listOf(vp9At1080, avcAt1080), screen = CastScreen.of("Chromecast"))
+
+        assertEquals(avcAt1080.url, rungs.urlOf(0))
+    }
+
+    @Test
+    fun `an unmeasured model is still sent the taller VP9 over a shorter H264`() {
+        choose(listOf(vp9At1080, avcAt720), screen = CastScreen.of("Chromecast"))
+
+        assertEquals(vp9At1080.url, rungs.urlOf(0))
+    }
+
+    @Test
+    fun `the measured Chromecast Ultra is still sent VP9 at the same height`() {
+        choose(listOf(vp9At1080, avcAt1080), screen = CastScreen.of("Chromecast Ultra"))
+
+        assertEquals(vp9At1080.url, rungs.urlOf(0))
+    }
+
+    @Test
     fun `nothing the TV can show sends no picture and says so`() {
         assertFalse(choose(listOf(av1At2160)))
 

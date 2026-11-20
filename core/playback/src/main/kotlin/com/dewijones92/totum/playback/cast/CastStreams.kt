@@ -24,6 +24,7 @@ internal class CastStreams(
     gate: () -> SpeechGate = { SpeechGate.OFF },
     host: CastHost,
     tvs: CastTvPort,
+    refusals: CodecRefusals = CodecRefusals(),
 ) {
     private val server = CastStreamServer(
         engines = { request ->
@@ -42,7 +43,14 @@ internal class CastStreams(
         tvs = tvs,
         tools = context.castTools(),
         upstream = PatientUpstream(CachedUpstream(cachedHttpFactory(context))::get)::get,
+        refusals = refusals,
     )
+
+    var onTvNotStarting: ((mediaId: String, step: CastStep) -> Unit)?
+        get() = server.onTvNotStarting
+        set(value) {
+            server.onTvNotStarting = value
+        }
 
     var screens: ScreenLink?
         get() = server.screens

@@ -1,10 +1,12 @@
 package com.dewijones92.totum.playback.cast
 
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.domain.CastScreen
 import com.dewijones92.totum.domain.Picture
 import com.dewijones92.totum.domain.QualityLabel
 import com.dewijones92.totum.domain.VideoCodecFamily
 import com.dewijones92.totum.domain.pictureAt
+import com.dewijones92.totum.playback.CastCodecStep
 import com.dewijones92.totum.playback.CastProblem
 import com.dewijones92.totum.playback.CastStage
 import java.io.File
@@ -13,6 +15,7 @@ import java.net.URI
 import java.security.SecureRandom
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedDeque
+import java.util.concurrent.atomic.AtomicBoolean
 
 public class CastSubtitleSource(
     public val location: String,
@@ -49,8 +52,22 @@ public class CastStreamServer(
     private val port: Int = DEFAULT_PORT,
     private val alsoServes: (HttpRequest) -> HttpReply? = { null },
     private val upstream: (String, String?) -> UpstreamReply = PatientUpstream()::get,
+    private val refusals: CodecRefusals = CodecRefusals(),
+    private val probeRung: (CastRung) -> StreamLayout = { rung ->
+        StreamLayouts.probe { span -> Upstream.bytes(rung.url, span) }
+    },
+    private val later: (Long, () -> Unit) -> Unit = castLater("cast-server"),
+    startWaitMs: Long = TvStartWatch.WAIT_MS,
 ) {
     private val videos = TvVideos(tvs)
+
+    @Volatile
+    public var onTvNotStarting: ((mediaId: String, step: CastStep) -> Unit)? = null
+
+    private val startWatch = TvStartWatch(later, waitMs = startWaitMs, onStuck = ::tvNotStarting)
+    private val codecSteps = ConcurrentHashMap<String, Int>()
+    private val triedAfterwards = ConcurrentHashMap<String, Pair<String, VideoCodecFamily>>()
+    private val heartbeating = AtomicBoolean(false)
 
     @Volatile
     public var screens: ScreenLink? = null
@@ -98,6 +115,79 @@ public class CastStreamServer(
         return CastStep(from.quality, lower)
     }
 
+    private fun tvNotStarting(mediaId: String, token: String, waitedMs: Long) {
+        val session = sessions[token]
+        if (session == null || latest[mediaId] !== session) {
+            Diag.log("cast", "$mediaId: the start watch for $token ended after ${waitedMs}ms but that session is gone")
+            return
+        }
+        Diag.warn(
+            "cast",
+            "$mediaId: the TV fetched the picture ${waitedMs}ms ago and has asked for no sound since " +
+                "(no audio/init.mp4, no segment, no media status)",
+        )
+        session.relay.noteInFlight()
+        val handler = onTvNotStarting ?: run {
+            Diag.log("cast", "$mediaId: nothing here can re-send it with another codec; leaving it as it is")
+            return
+        }
+        stepDownCodec(mediaId, session)?.let { handler(mediaId, it) }
+    }
+
+    private fun stepDownCodec(mediaId: String, session: Session): CastStep? {
+        val sent = session.rungs.rungs.firstOrNull()?.first
+        val family = VideoCodecFamily.of(sent?.codec)
+        val tv = session.tvScreen()
+        if (sent == null || family == null) {
+            Diag.log(
+                "cast",
+                "$mediaId: the picture did not start, but it is not a ladder rung with another codec to try"
+            )
+            return null
+        }
+        if (tv == null) {
+            Diag.log("cast", "$mediaId: ${family.name} did not start, but no TV is connected to name the model")
+            return null
+        }
+        val why = when {
+            !refusals.leavesSomethingAfter(tv, family) -> "every codec ${tv.model} is thought to take has been tried"
+            (codecSteps[mediaId] ?: 0) >= MAX_CODEC_STEPS -> "it has already been re-sent $MAX_CODEC_STEPS times"
+            else -> null
+        }
+        if (why != null) {
+            Diag.log("cast", "$mediaId: ${family.name} did not start on ${tv.model}, but it stays: $why")
+            return null
+        }
+        val reduced = session.format.screenFor(refusals.appliedTo(tv).without(setOf(family)))
+        val next = CastLadder.ranked(session.ladder, reduced, session.ceiling)
+            .firstOrNull { VideoCodecFamily.of(it.codec) != family }
+        if (next == null) {
+            Diag.log(
+                "cast",
+                "$mediaId: ${family.name} did not start on ${tv.model}, but the offered pictures hold no other codec " +
+                    "it can show (${session.rungs.showableSummary()}); it stays",
+            )
+            return null
+        }
+        val to = VideoCodecFamily.of(next.codec)
+        refusals.tried(tv.model, family)
+        codecSteps.merge(mediaId, 1, Int::plus)
+        triedAfterwards[mediaId] = tv.model to family
+        steppingDown.add(mediaId)
+        videos.codecStepped(mediaId, CastCodecStep(family, to))
+        Diag.warn(
+            "cast",
+            "$mediaId: ${tv.model} did not start ${sent.label}; trying ${next.label} instead " +
+                "(set aside so far: ${refusals.refusedFor(tv.model).joinToString { it.name }})",
+        )
+        return CastStep(sent.quality, next.height, toCodec = to, refusedCodec = family)
+    }
+
+    private fun beat() {
+        sessions.values.forEach { it.relay.noteInFlight() }
+        if (sessions.isEmpty()) heartbeating.set(false) else later(HEARTBEAT_MS) { beat() }
+    }
+
     private val random = SecureRandom()
     private val reach = CastReach(tvs, vpnInTheWay = { host.vpnInTheWay })
     private val failures = CastFailures(tvs)
@@ -111,8 +201,11 @@ public class CastStreamServer(
         val ladder: List<CastRung>,
         val ceiling: Int?,
         val format: CastFormat,
+        val triedAfter: Pair<String, VideoCodecFamily>? = null,
     ) {
-        private fun screen() = format.screenFor(tvs.current(item.mediaId)?.screen)
+        fun tvScreen(): CastScreen? = tvs.current(item.mediaId)?.screen
+
+        private fun screen() = format.screenFor(tvScreen()?.let(refusals::appliedTo))
 
         val rungs = CastRungs(
             item.mediaId,
@@ -187,7 +280,7 @@ public class CastStreamServer(
                         "only and a step-down has nowhere to go",
                 )
             }
-            return rungs.choose(url, ladder, screen(), ceiling)
+            return rungs.choose(url, ladder, screen(), ceiling, probeRung)
         }
 
         private fun remoteFile(url: String) {
@@ -265,6 +358,7 @@ public class CastStreamServer(
         }
 
         fun close() {
+            startWatch.forget(token)
             audio.close()
             relay.close()
         }
@@ -575,6 +669,7 @@ public class CastStreamServer(
         order.addLast(token)
         while (order.size > MAX_SESSIONS) order.pollFirst()?.let { sessions.remove(it)?.close() }
         host.hold(true)
+        if (heartbeating.compareAndSet(false, true)) later(HEARTBEAT_MS) { beat() }
         val url = "$base/c/$token/${format.file}"
         reach.handedOver(item.mediaId, token)
         Diag.log(
@@ -593,13 +688,28 @@ public class CastStreamServer(
         if (!reload) {
             ceilings.remove(item.mediaId)
             videos.forget(item.mediaId)
+            codecSteps.remove(item.mediaId)
+            triedAfterwards.remove(item.mediaId)
         }
-        return Session(token, item, sources.video, sources.audio, sources.ladder, ceilings[item.mediaId], format)
+        return Session(
+            token,
+            item,
+            sources.video,
+            sources.audio,
+            sources.ladder,
+            ceilings[item.mediaId],
+            format,
+            triedAfterwards[item.mediaId].takeIf { reload },
+        )
     }
 
     public fun stopAll() {
+        tvs.current()?.let { refusals.forgetTentative(it.screen.model) }
         reach.clear()
         failures.clear()
+        startWatch.clear()
+        codecSteps.clear()
+        triedAfterwards.clear()
         live.clear()
         sessions.values.forEach { it.close() }
         sessions.clear()
@@ -648,6 +758,7 @@ public class CastStreamServer(
         val answered = replyStatus(reply) < Http.CLIENT_ERROR
         if (answered) {
             if (CastFormat.isManifest(what) || what.startsWith("audio/")) failures.worked(session.item.mediaId)
+            watchTheStart(session, what)
             stageAfter(session, what)
         } else {
             Diag.warn(
@@ -656,6 +767,17 @@ public class CastStreamServer(
             )
         }
         return reply
+    }
+
+    private fun watchTheStart(session: Session, what: String) {
+        when {
+            what.startsWith("audio/") -> {
+                startWatch.soundFetched(session.token)
+                session.triedAfter?.let { (model, family) -> refusals.worked(model, family) }
+            }
+            what.startsWith("video") && session.rungs.rungs.isNotEmpty() && onTvNotStarting != null ->
+                startWatch.pictureFetched(session.item.mediaId, session.token)
+        }
     }
 
     private fun replyStatus(reply: HttpReply): Int = when (reply) {
@@ -776,6 +898,8 @@ public class CastStreamServer(
 
         public const val DEFAULT_PORT: Int = 8765
         private const val MAX_SESSIONS = 6
+        private const val MAX_CODEC_STEPS = 2
+        private const val HEARTBEAT_MS = 10_000L
         private const val VIDEO_LOG_FIRST = 3
         private const val VIDEO_LOG_EVERY = 25
         private val MANIFEST_HINTS = listOf(".m3u8", ".mpd", "/manifest/")

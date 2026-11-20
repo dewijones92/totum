@@ -106,6 +106,22 @@ internal class CastStepDownWatch(
 
     private fun stepDown(id: String) {
         val step = stepDownFor(id) ?: return
+        resend(id, step)
+    }
+
+    fun tvDidNotStart(id: String, step: CastStep) {
+        val current = namedItemId(player.currentMediaItem, sentItem())
+        if (current != id) {
+            Diag.log(
+                "cast",
+                "dewidebug $id: the TV did not start it, but the TV is on ${current ?: "nothing"} now; not re-sending",
+            )
+            return
+        }
+        resend(id, step)
+    }
+
+    private fun resend(id: String, step: CastStep) {
         val index = player.currentMediaItemIndex
         val items = List(player.mediaItemCount) { at ->
             val held = player.getMediaItemAt(at)
@@ -115,7 +131,7 @@ internal class CastStepDownWatch(
         val playing = player.playWhenReady
         Diag.warn(
             "cast",
-            "$id: sending ${step.toHeight}p instead of ${step.from.text}; re-sending ${items.size} item(s) from " +
+            "$id: sending ${step.sentText()} instead of ${step.from.text}; re-sending ${items.size} item(s) from " +
                 "index $index at ${position}ms (playWhenReady=$playing)",
         )
         judge.afterStepDown()
@@ -123,6 +139,8 @@ internal class CastStepDownWatch(
         player.playWhenReady = playing
         player.prepare()
     }
+
+    private fun CastStep.sentText(): String = toCodec?.let { "${toHeight}p · ${it.name}" } ?: "${toHeight}p"
 
     private companion object {
         const val TICK_MS = 2_000L

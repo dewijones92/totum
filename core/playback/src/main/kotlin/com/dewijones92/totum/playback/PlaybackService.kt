@@ -31,12 +31,16 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.Vitals
 import com.dewijones92.totum.domain.CastScreen
 import com.dewijones92.totum.playback.cast.CastHost
+import com.dewijones92.totum.playback.cast.CastReceiverWatch
 import com.dewijones92.totum.playback.cast.CastStandIn
 import com.dewijones92.totum.playback.cast.CastStatus
 import com.dewijones92.totum.playback.cast.CastStepDownWatch
 import com.dewijones92.totum.playback.cast.CastStreams
 import com.dewijones92.totum.playback.cast.CastTv
+import com.dewijones92.totum.playback.cast.CodecRefusals
 import com.dewijones92.totum.playback.cast.PcScreens
+import com.dewijones92.totum.playback.cast.PlayServices
+import com.dewijones92.totum.playback.cast.PrefsRefusalStore
 import com.dewijones92.totum.playback.cast.ScreenPage
 import com.dewijones92.totum.playback.cast.ScreenSession
 import com.dewijones92.totum.playback.cast.TimeMappedCastPlayer
@@ -105,6 +109,8 @@ public class PlaybackService : MediaSessionService() {
     @UnstableApi
     private var screens: PcScreens? = null
     private val castStatus = CastStatus { mediaSession }
+    private val castMain = Handler(Looper.getMainLooper())
+    private val receiverWatch = CastReceiverWatch()
     private var currentPlayer: Player? = null
 
     @UnstableApi
@@ -161,6 +167,17 @@ public class PlaybackService : MediaSessionService() {
                     )
                     Diag.log("playback", "service now on ${mediaItem?.mediaId ?: "nothing"} (reason $reason)")
                     cachedPreloader?.releaseIfPlaying(mediaItem)
+                }
+
+                override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {
+                    Diag.log(
+                        "playback",
+                        "dewidebug service tracks on ${player.currentMediaItem?.mediaId}: " +
+                            "${tracks.groups.size} group(s) [${tracks.groups.joinToString { it.type.toString() }}], " +
+                            "isPlaying=${player.isPlaying} state=${player.playbackState} " +
+                            "positionMs=${player.currentPosition} " +
+                            "getTracksAvailable=${player.isCommandAvailable(Player.COMMAND_GET_TRACKS)}",
+                    )
                 }
 
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -415,7 +432,19 @@ public class PlaybackService : MediaSessionService() {
     /** Wires a Cast session in if Play Services + a receiver are reachable; otherwise stays fully local. */
     @UnstableApi
     private fun setUpCast(localPlayer: Player) {
-        val castContext = runCatching { CastContext.getSharedInstance(this) }.getOrNull() ?: return
+        val castContext = runCatching { CastContext.getSharedInstance(this) }.getOrElse { failure ->
+            Diag.warn(
+                "cast",
+                "dewidebug Cast is not available in the playback service, so nothing here can cast " +
+                    "[${PlayServices.describe(this)}]",
+                failure,
+            )
+            return
+        }
+        Diag.log(
+            "cast",
+            "dewidebug the Cast framework started in the playback service [${PlayServices.describe(this)}]"
+        )
         val host = CastHost(this)
         val streams = CastStreams(
             context = this,
@@ -431,6 +460,7 @@ public class PlaybackService : MediaSessionService() {
             gate = { booster.speechGate },
             host = host,
             tvs = castStatus,
+            refusals = CodecRefusals(PrefsRefusalStore(this)),
         )
         castStreams = streams
         screens = screensFor(streams, localPlayer)
@@ -443,12 +473,15 @@ public class PlaybackService : MediaSessionService() {
             .build()
         val cast = TimeMappedCastPlayer(remote, streams::timelineFor)
         cast.addListener(watchTheTv(cast))
-        cast.addListener(CastStepDownWatch(cast, streams::stepDown, sentItem = { handoff.item }))
+        val castWatch = CastStepDownWatch(cast, streams::stepDown, sentItem = { handoff.item })
+        cast.addListener(castWatch)
+        streams.onTvNotStarting = { id, step -> castMain.post { castWatch.tvDidNotStart(id, step) } }
         screens?.observe(cast)
         remote.setSessionAvailabilityListener(
             object : SessionAvailabilityListener {
                 override fun onCastSessionAvailable() {
                     val device = castContext.sessionManager.currentCastSession?.castDevice
+                    receiverWatch.attach(castContext.sessionManager.currentCastSession?.remoteMediaClient)
                     castStatus.connected(CastTv(device?.friendlyName ?: "the TV", CastScreen.of(device?.modelName)))
                     switchTo(cast)
                 }
@@ -458,6 +491,7 @@ public class PlaybackService : MediaSessionService() {
                         Diag.log("cast", "the Cast session ended while the PC screen plays; the screen keeps playing")
                         return
                     }
+                    receiverWatch.detach()
                     castStatus.connected(null)
                     switchTo(localPlayer)
                     streams.stopAll()
