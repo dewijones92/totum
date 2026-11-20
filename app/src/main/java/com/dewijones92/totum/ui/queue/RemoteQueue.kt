@@ -325,7 +325,10 @@ private fun RemoteVolume(targets: TargetsRepository, state: TargetState, colour:
             colors = remoteSliderColours(colour),
             modifier = Modifier.weight(1f).padding(horizontal = 4.dp).semantics { contentDescription = sliderName },
         )
-        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.testTag(REMOTE_VOLUME_TAG)) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.semantics(mergeDescendants = true) {}.testTag(REMOTE_VOLUME_TAG),
+        ) {
             Text(
                 volume?.let { stringResource(R.string.target_volume_percent, it.toInt()) } ?: "—",
                 style = MaterialTheme.typography.labelLarge,
