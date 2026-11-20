@@ -87,7 +87,7 @@ class SharedPicturesTest {
     fun `an address nobody was given answers not found and never a file`() {
         server.sharePicture(picture("a.jpg"))
 
-        assertEquals(404, fetch("http://phone:$port/p/0000000000000000/picture.jpg").status)
+        assertEquals(404, fetch("http://phone:$port/p/ffffffffffffffff/picture.jpg").status)
         assertEquals(404, fetch("http://phone:$port/p/../../etc/passwd").status)
     }
 
