@@ -3,7 +3,7 @@ title: Periodic jobs and their last run
 kind: feature
 status: built 2026-11-06 (tests to follow)
 area: platform
-updated: 2026-11-06
+updated: 2026-11-20
 ---
 
 # Periodic jobs and their last run
@@ -18,7 +18,7 @@ last ran, whether it succeeded, a detail line and when it last succeeded; `Conte
 | Job (unique name) | Worker | Every | Network | Records |
 |---|---|---|---|---|
 | `new-content-refresh` | `NewContentWorker` | 6 h | connected | items notified, or why it failed (retry) |
-| `new-uploads` | `NewUploadsWorker` | 2 h | unmetered | done (skipped under instrumentation) |
+| `new-uploads` | `NewUploadsWorker` | 2 h | unmetered | done (skipped under instrumentation); also refreshes 🧘 Long ones and records "N long one(s) ready", see [long-ones](long-ones.md) |
 | `group-news` | `GroupNewsWorker` | 60 min | connected | done (skipped under instrumentation) |
 | `queue-tidy` | `QueueTidyWorker` | 7 days | none | what moved, see [queue-tidy-up](queue-tidy-up.md) |
 | `backup-check` | `BackupCheckWorker` | 7 days | connected | which copy read, or why not, see [backup-checked](backup-checked.md) |

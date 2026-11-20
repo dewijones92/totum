@@ -59,9 +59,12 @@ fun interface PlayerStreams {
     suspend fun signedInFor(videoId: String, describe: Boolean): PlayerResult.Success? = null
 
     suspend fun liveCheck(videoId: String): LiveCheck = LiveCheck.Unknown("this player cannot check for a live start")
+
+    suspend fun lengthCheck(videoId: String): LengthCheck = LengthCheck.Unknown("this player cannot check a length")
 }
 
 /** [PlayerStreams] over our own InnerTube client. */
+@Suppress("TooManyFunctions")
 class InnerTubePlayerStreams(
     private val innerTube: InnerTubeClient,
     /**
@@ -302,33 +305,69 @@ class InnerTubePlayerStreams(
 
     /** The parsed anonymous response, refusals included — see [playerFor] for why they matter. */
     private suspend fun anonymousPlayer(videoId: String): PlayerResult? {
-        if (botBackOff?.allows("second opinion for $videoId") == false) {
+        val parsed = anonymousParsed(videoId, "second opinion")
+        return if (parsed is PlayerResult.Success) {
+            parsed.playable().also { botBackOff?.served("second opinion for $videoId") }
+        } else {
+            parsed
+        }
+    }
+
+    override suspend fun lengthCheck(videoId: String): LengthCheck {
+        val parsed = anonymousParsed(videoId, "length check")
+        return when (parsed) {
+            is PlayerResult.Success -> {
+                botBackOff?.served("length check for $videoId")
+                val kind = contentKindOf(parsed.details, parsed.streaming)
+                val seconds = parsed.details?.lengthSeconds
+                when {
+                    kind == MediaContentKind.LIVE -> LengthCheck.LiveNow(VIA_ANONYMOUS)
+                    seconds == null -> LengthCheck.SaysNone("the answer carried no length")
+                    else -> LengthCheck.Known(seconds, kind == MediaContentKind.WAS_LIVE, VIA_ANONYMOUS)
+                }
+            }
+            is PlayerResult.Unplayable -> parsed.asLengthCheck()
+            is PlayerResult.Failure -> LengthCheck.Unknown("unreadable: ${parsed.detail}")
+            null -> LengthCheck.Unknown("YouTube did not answer")
+        }
+    }
+
+    private fun PlayerResult.Unplayable.asLengthCheck(): LengthCheck {
+        val seconds = details?.lengthSeconds
+        return when {
+            upcoming != null -> LengthCheck.Upcoming(VIA_ANONYMOUS)
+            seconds != null -> LengthCheck.Known(seconds, details?.isLive == true, VIA_ANONYMOUS)
+            reason.contains("not a bot", ignoreCase = true) || reason.contains("backing off", ignoreCase = true) ->
+                LengthCheck.Unknown(reason)
+            else -> LengthCheck.SaysNone("refused: $reason")
+        }
+    }
+
+    private suspend fun anonymousParsed(videoId: String, what: String): PlayerResult? {
+        if (botBackOff?.allows("$what for $videoId") == false) {
             return PlayerResult.Unplayable("anonymous YouTube is backing off after a bot check")
         }
         val response = runCatching { innerTube.player(videoId) }.getOrElse { failure ->
-            Diag.warn("resolve", "second opinion for $videoId could not be fetched", failure)
+            if (failure is kotlinx.coroutines.CancellationException) throw failure
+            Diag.warn("resolve", "$what for $videoId could not be fetched", failure)
             return null
         }
         val success = response as? InnerTubeResponse.Success ?: run {
-            Diag.log("resolve", "second opinion for $videoId: $response")
+            Diag.log("resolve", "$what for $videoId: $response")
             return null
         }
         return when (val parsed = success.parsed { PlayerResponseParser.parse(it) }) {
-            is PlayerResult.Success -> parsed.playable().also { botBackOff?.served("second opinion for $videoId") }
+            is PlayerResult.Success -> parsed
             is PlayerResult.Unplayable -> {
-                Diag.log("resolve", "second opinion for $videoId refused: ${parsed.reason}")
+                Diag.log("resolve", "$what for $videoId refused: ${parsed.reason}")
                 parsed.noteIfUpcoming(videoId, "the anonymous player")
-                if (parsed.reason.contains(
-                        "not a bot",
-                        ignoreCase = true
-                    )
-                ) {
-                    botBackOff?.refused("second opinion for $videoId")
+                if (parsed.reason.contains("not a bot", ignoreCase = true)) {
+                    botBackOff?.refused("$what for $videoId")
                 }
                 parsed
             }
             is PlayerResult.Failure -> {
-                Diag.warn("resolve", "second opinion for $videoId unreadable: ${parsed.detail}")
+                Diag.warn("resolve", "$what for $videoId unreadable: ${parsed.detail}")
                 null
             }
         }
@@ -457,3 +496,4 @@ private fun PlayerResult?.reasonForLog(): String = when (this) {
 }
 
 private const val ACCOUNT_MISS_MEMORY_MS = 20_000L
+private const val VIA_ANONYMOUS = "the anonymous player"

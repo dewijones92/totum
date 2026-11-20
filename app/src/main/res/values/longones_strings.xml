@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="longones_title">🧘 Long ones</string>
+    <string name="longones_tile_blurb">🧘 Unwatched videos over 20 minutes, from what you follow</string>
+    <plurals name="longones_tile_ready">
+        <item quantity="one">✅ %1$d ready</item>
+        <item quantity="other">✅ %1$d ready</item>
+    </plurals>
+    <string name="longones_intro">🧘 Over 20 minutes, not started, from channels and shows you follow. Newest first, never more than 2 from one channel.</string>
+    <string name="longones_empty">📭 Nothing long and unwatched yet. It looks again whenever you open this page.</string>
+    <string name="longones_building">⏳ Looking through what you follow…</string>
+    <string name="longones_strip">Finding long videos</string>
+    <string name="longones_refresh">Refresh</string>
+    <plurals name="longones_lengths_waiting">
+        <item quantity="one">⏳ %1$d video length is still being looked up</item>
+        <item quantity="other">⏳ %1$d video lengths are still being looked up</item>
+    </plurals>
+    <plurals name="longones_wifi">
+        <item quantity="one">📶 Waiting for Wi-Fi: %1$d more video length to look up</item>
+        <item quantity="other">📶 Waiting for Wi-Fi: %1$d more video lengths to look up</item>
+    </plurals>
+</resources>

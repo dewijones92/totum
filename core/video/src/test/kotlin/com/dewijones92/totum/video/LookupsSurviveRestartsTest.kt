@@ -127,6 +127,22 @@ class LookupsSurviveRestartsTest {
     }
 
     @Test
+    fun `a length is known from a stored lookup even after its URLs have expired, with no network`() = runTest {
+        freshProcess().resolve(url, SourceId("s"))
+        clock += 3 * 24 * 60 * 60_000L
+
+        val resolver = freshProcess()
+
+        assertEquals(600.seconds, resolver.knownLength(url))
+        assertEquals(1, extractions)
+    }
+
+    @Test
+    fun `a video never looked up has no known length`() {
+        assertNull(freshProcess().knownLength(url))
+    }
+
+    @Test
     fun `every field of the extraction survives the round trip`() {
         val store = FileLookupStore(folder.root)
         val stored = StoredLookup(metadata(), SourceId("s"), listOf(segment), savedAtMs = start)

@@ -237,6 +237,8 @@ import com.dewijones92.totum.live.LiveNoticeLabels
 import com.dewijones92.totum.live.LiveNotifier
 import com.dewijones92.totum.live.LiveRefresher
 import com.dewijones92.totum.live.LiveStartWatcher
+import com.dewijones92.totum.longones.LongOnes
+import com.dewijones92.totum.longones.longOnesOf
 import com.dewijones92.totum.mobiledata.MobileDataMeter
 import com.dewijones92.totum.mobiledata.SharedPrefsMobileDataStore
 import com.dewijones92.totum.mobiledata.reachedLimit
@@ -477,6 +479,7 @@ interface AppContainer {
     val kidLock: KidLock
     val kidTv: KidTv? get() = null
     val tripMode: TripMode? get() = null
+    val longOnes: LongOnes? get() = null
     val downloadChooser: DownloadChooser
 
     /** Full backup / restore of everything that is not re-downloadable. */
@@ -1149,6 +1152,15 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     override val kidTv: KidTv by lazy { kidTvFor(this, context) }
 
     override val tripMode: TripMode by lazy { tripModeFor(this, context) }
+
+    override val longOnes: LongOnes by lazy {
+        longOnesOf(
+            this,
+            context.filesDir,
+            unmetered = { !networkStatus.isMetered() },
+            playStates = { playStatesNow.value },
+        )
+    }
 
     override val downloadChooser: DownloadChooser by lazy {
         DownloadChooser(

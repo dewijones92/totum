@@ -190,6 +190,18 @@ class VideoResolver(
         }
     }
 
+    suspend fun lengthCheck(watchUrl: HttpUrl): LengthCheck {
+        val id = watchUrl.youTubeVideoId() ?: return LengthCheck.Unknown("not a YouTube watch link")
+        val streams = playerStreams ?: return LengthCheck.Unknown("no player-response client")
+        return streams.lengthCheck(id).also { check ->
+            when (check) {
+                is LengthCheck.LiveNow -> liveStates?.noteLive(id, "length check via ${check.via}")
+                is LengthCheck.Known -> if (check.wasLive) liveStates?.noteEnded(id, "length check via ${check.via}")
+                is LengthCheck.Upcoming, is LengthCheck.SaysNone, is LengthCheck.Unknown -> Unit
+            }
+        }
+    }
+
     private suspend fun resolveShared(
         watchUrl: HttpUrl,
         sourceId: SourceId,
@@ -847,6 +859,9 @@ class VideoResolver(
     }
 
     fun knownQualities(watchUrl: HttpUrl): List<VideoQuality> = fresh(watchUrl)?.qualities.orEmpty()
+
+    fun knownLength(watchUrl: HttpUrl): kotlin.time.Duration? =
+        lookupStore?.load(watchUrl)?.metadata?.durationSeconds?.takeIf { it > 0 }?.seconds
 
     /** A cached entry still inside its TTL, or null. */
     private fun fresh(watchUrl: HttpUrl): Resolved? {
