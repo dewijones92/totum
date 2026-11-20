@@ -271,6 +271,13 @@ ADR 136). Each group header has a line "⏳ 4 h 12 min left at 2x", or "at least
 queue would still play ([group-time-left.md](group-time-left.md), ADR 138). A group's ⋮ menu has "📤 Share the list of
 titles" ([share-link.md](share-link.md), ADR 134).
 
+## Items that open in another app (2026-11-20)
+
+A BBC iPlayer episode ([ADR 184](../adr/0184-bbc-programmes-are-followable-sources-that-open-in-iplayer.md)) is a `PlayHandle.External`.
+`playNow`, `peek` and `playAll` hand its link to `openExternally` when you asked, and start nothing; an automatic play never opens
+another app. Every add path (`enqueue`, `playNext`, `enqueueAll`, `playNextAll`, `addToGroup`, `playAll`) leaves such items out and logs
+the count, so they never sit in the queue; `route` and `QueueArming` still have a `PlayRoute.External` branch so the `when` is total.
+
 ## Tests owed (2026-11-06 consistency sweep)
 
 The player's Up next ✕ offering Undo and its long-press opening the item menu (instrumented); the empty-queue related

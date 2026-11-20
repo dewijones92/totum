@@ -2,7 +2,7 @@
 title: Consistent everywhere, with its exceptions recorded
 kind: adr
 status: accepted
-updated: 2026-11-14
+updated: 2026-11-20
 ---
 
 # 108. Consistent everywhere, with its exceptions recorded
@@ -152,6 +152,15 @@ and the stale comment on the cached-feed rows is true again. Still open: D3, sho
 private spinners, empty-state looks, search-field designs, group membership Undo returning to the old slot, the channel
 marks on Shorts and later pages, and marks on search results and related videos (a product call: no per-video progress
 call exists).
+
+Recorded exceptions from BBC programmes ([ADR 184](0184-bbc-programmes-are-followable-sources-that-open-in-iplayer.md), 2026-11-20):
+
+- **A BBC episode opens in the iPlayer app (else the browser) instead of playing in Totum.** Its menu has no Play next, Add
+  to queue, Peek, Listen/Watch, Download or Play on…, it never enters the queue (every add path leaves it out and logs
+  it), and a list that holds one plays the rest and skips it. Star, Add to playlist, Share, Not for me, Details and the
+  follow mark are as for any episode.
+- **A BBC programme's page has no Shuffle all and no Inbox toggle**: both exist to fill the queue, which cannot hold its episodes.
+- **A starred or playlisted BBC episode does not carry its "on iPlayer until" date**: those tables have no such column.
 
 ## Consequences
 

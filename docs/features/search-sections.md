@@ -137,3 +137,8 @@ Four of the seven JVM cases were watched failing against the old await-everythin
 The tests hold the clock deliberately (`advanceTimeBy` past the debounce, then `runCurrent`) rather
 than `advanceUntilIdle`, which would run virtual time past the section timeout and report every
 source as unanswered before the test could answer for it.
+
+## 📺 BBC (2026-11-20)
+
+A BBC tab (Everything scope) holds `SearchHit.Programme` results from the iPlayer metadata API, one request per query, programmes
+only. Each row is the podcast row (open the programme's page, ➕ follow). See [bbc-programmes.md](bbc-programmes.md).
