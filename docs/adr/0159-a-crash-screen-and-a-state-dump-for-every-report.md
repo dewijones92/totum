@@ -2,7 +2,7 @@
 title: A crash screen for everyone, reports to the Pi as a setting, and a state dump with every report
 kind: adr
 status: accepted
-updated: 2026-11-14
+updated: 2026-11-20
 ---
 
 # 159. A crash screen for everyone, reports to the Pi as a setting, and a state dump with every report
@@ -113,6 +113,26 @@ read its report was the state of exactly the problem still to be diagnosed.
 - **Deploy order.** Crashlog server first, then the app: a new phone against the old server sends the header, which the old
   server ignores, so the dump is kept as an unlinked one; an old phone against the new server is the unlinked case. Nothing
   in nginx changes (the header is forwarded by default and the 32 MB `/ingest/state` limit already covers the size).
+
+## Amendment, 2026-11-20: a fresh dump on demand, before every big batch
+
+Dewi (Batch C, task F): he wants a fresh state dump easily before every big batch, because refining reads his real
+state as a lens (CLAUDE.md, "How a batch runs").
+
+- **A Quick Settings tile, "📦 Send my state"** (`SendStateTileService`), sends one dump to the Pi now. It adds no path:
+  it calls the same `AppContainer.sendMyState` as Settings' "📤 Send my state to Claude", which runs
+  `HomeReports.sendState` (so `DiagnosticsUploader.sendState`, `StateDump` and the one redactor) as a tracked task, and
+  `StateSend.message` words the outcome for both. It works only when the phone is signed in to the home server;
+  otherwise the toast and the tile subtitle say "⚠️ Not signed in to your home server, so nothing was sent." The tile
+  shows ⏳ while sending and ignores a second tap until the first has ended. Like the report tile, it needs no
+  permission and is added by the person from Quick Settings' edit mode.
+- **`tools/state/pull-state.sh`** copies the newest dump on the Pi (`/home/pi/crashlog-data/states/` and its `linked/`
+  folder, read-only ssh to `pi@192.168.0.19`, overridable with `STATE_PI`) into `~/claude-tasks/state-dumps/` at mode 600,
+  prints the file's name, app version, when it was taken and its age, and warns on stderr past 3 days. It prints nothing
+  from inside the dump and does not fetch a file it already holds. The dump's age is its own `takenAtMs`, not the file's
+  time on the Pi.
+- Not changed: the redactor, the allow-list, the server's retention and the 32 MB cap. The tile is the person's tap, so
+  "send diagnostics and crash reports to my home server" being off does not stop it, as for Settings' button.
 
 ## Consequences
 
