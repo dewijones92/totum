@@ -13,5 +13,6 @@
     <string name="search_tab_searching">Still searching</string>
     <string name="search_tab_empty">📭 No %1$s for “%2$s”</string>
     <string name="search_tab_empty_yours">📭 Nothing of yours matches “%1$s”</string>
+    <string name="yours_series_opens">📂 Series: opens its seasons</string>
     <string name="search_section_yours">📥 Already yours</string>
 </resources>

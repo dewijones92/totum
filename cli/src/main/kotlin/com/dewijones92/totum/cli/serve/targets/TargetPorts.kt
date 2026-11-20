@@ -5,6 +5,7 @@ import com.dewijones92.totum.data.targets.SoundSettings
 import com.dewijones92.totum.data.targets.Target
 import com.dewijones92.totum.data.targets.TargetEntry
 import com.dewijones92.totum.data.targets.TargetKind
+import com.dewijones92.totum.data.targets.TargetPlays
 import com.dewijones92.totum.data.targets.TargetPower
 import com.dewijones92.totum.data.targets.TargetTrouble
 import com.dewijones92.totum.data.targets.TroubleKind
@@ -20,6 +21,7 @@ internal data class PlayRequest(
     val picture: Boolean,
     val title: String,
     val cast: CastItem? = null,
+    val itemId: String? = null,
 )
 
 internal class TargetStream(val url: String, val cast: CastItem? = null)
@@ -42,6 +44,9 @@ internal interface TargetPlayer {
     val notice: String? get() = null
     val live: Boolean get() = false
     val power: TargetPower get() = TargetPower.ON
+    val plays: TargetPlays get() = TargetPlays.ANYTHING
+
+    fun refuses(item: PlayableItem): String? = plays.refusal(item)
 }
 
 internal interface TargetLink {

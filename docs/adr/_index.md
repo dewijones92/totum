@@ -193,5 +193,7 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 181 | [Exsurge lengths are sliders at the summons, a walk says it is a walk, and five steady minutes of walking finish a break](0181-exsurge-lengths-are-sliders-a-walk-says-so-and-steady-walking-counts.md) | Accepted |
 | 183 | [Search shows what you already have, first, in a 📥 Yours tab: the phone's downloads, the Pi's finished downloads and the Jellyfin library, one row each](0183-search-shows-what-you-already-have-first.md) | Accepted |
 | 184 | [BBC programmes are followable sources whose episodes open in iPlayer](0184-bbc-programmes-are-followable-sources-that-open-in-iplayer.md) | Accepted |
+| 185 | [Long ones are built from what is cached, and fill in lengths lazily](0185-long-ones-are-built-from-what-is-cached-and-fill-in-lengths-lazily.md) | Accepted |
 | 186 | [One fetch per item: a playing stream is its own download, and nothing swaps a healthy stream for a file](0186-one-fetch-per-item-a-playing-stream-is-its-own-download.md) | Accepted |
+| 187 | [A running Jellyfin app is a target the Pi drives by item id, and it takes only Jellyfin items](0187-a-running-jellyfin-app-is-a-target-the-pi-drives-by-item-id.md) | Accepted |
 | 188 | [The selected device is a second media session beside the phone's, so the lock screen and the notification control it](0188-the-selected-device-is-a-second-media-session-for-the-lock-screen-and-notification.md) | Accepted |

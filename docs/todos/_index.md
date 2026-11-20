@@ -28,7 +28,8 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [🖥️ A browser is a Play on… target (open the Pi's address in any browser)](browser-target.md) | casting/pi | high | built 2026-11-13, Batch B P9 (home network only; away from home decided, not built; real-device checks owed) |
 | [📺 Cast to Apple TV (AirPlay) and DLNA players too](cast-to-airplay-and-dlna.md) | casting/pi | medium | built 2026-11-14 (ADRs 174 and 175, picture and a Kodi control); real LG and Kodi tests owed |
 | [⏻ Switch the LG off, put it on an input, start Kodi when Android has killed it](webos-and-kodi-power.md) | casting/pi | medium | built 2026-11-20 (ADR 177, fakes only); real LG and Fire Stick checks owed |
-| [🔊 Home Assistant's sounds play through Totum](home-assistant-sounds-through-totum.md) | casting/pi | high | Totum side built 2026-11-07 (live waits for the casting-brain move), adapter not deployed |
+| [🔊 Home Assistant's sounds play through Totum](home-assistant-sounds-through-totum.md) | casting/pi | high | adapter live since 2026-11-07, contract-tested and one change owed to the Pi 2026-11-20; no real HA-driven play seen yet; jazz source open (Dewi) |
+| [🎞️ Drive a running Jellyfin app from Totum](jellyfin-remote-control.md) | casting/pi | medium | built 2026-11-20, Batch C (ADR 187; unit tests against a fake Jellyfin; not run against a real client) |
 | [A daily 🤖 For you feed](for-you-feed.md) | ai | medium | built 2026-11-07, Batch A (tests written 2026-11-07; device checks owed) |
 | [TL;DR and chapters for long items](tldr-and-chapters.md) | ai | medium | built 2026-11-07, Batch A (tests written 2026-11-07; device checks owed) |
 | [Ask about this video](ask-about-this-video.md) | ai | medium | built 2026-11-07, Batch A (tests written 2026-11-07; device checks owed) |
@@ -36,6 +37,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [A spoiler shield for sport](tennis-spoiler-shield.md) | ai/video | medium | built 2026-11-07, Batch A (tests written 2026-11-07; device checks owed) |
 | [Jellyfin's films and series inside Totum](jellyfin-in-totum.md) | home | medium | built 2026-11-07, Batch A (tests written 2026-11-07; device checks owed) |
 | [Trip mode](trip-mode.md) | downloads | low | built 2026-11-07, Batch A (ADR 149; tests written; not run on a device) |
+| [🧘 Long ones follow-ups](long-ones-follow-ups.md) | library | medium | open 2026-11-20 (keeping the channel table fresh, the vetoable calls on podcasts and the dopamine gate, phone check) |
 | [One tap puts the kid playlist on the TV](kid-tv-button.md) | casting/kids | low | built 2026-11-07, Batch A (ADR 148; tests written; not run on a TV) |
 | [A bedtime sleep timer](bedtime-sleep-timer.md) | player | low | built 2026-11-06, Batch A (ADR 133; tests written 2026-11-07) |
 | [Ready for other people: licence and reports](publish-licence-and-reports.md) | publishing | medium | built 2026-11-07, Batch A (tests written 2026-11-07; device checks owed) |

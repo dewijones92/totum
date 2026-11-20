@@ -153,7 +153,7 @@ class SearchViewModel(
             val torrents: SearchSection<List<SearchHit.Torrent>>,
             val books: SearchSection<List<SearchHit.Book>> = SearchSection.Absent,
             val bookTorrents: SearchSection<List<SearchHit.Torrent>> = SearchSection.Absent,
-            val yours: SearchSection<List<SearchHit.Yours>> = SearchSection.Absent,
+            val yours: SearchSection<List<SearchHit.YoursHit>> = SearchSection.Absent,
             val programmes: SearchSection<List<SearchHit.Programme>> = SearchSection.Absent,
             val loadingMore: Boolean = false,
         ) : Results {
@@ -406,11 +406,11 @@ class SearchViewModel(
         if (!everything) return
         sources.yours?.let { yours ->
             launch {
-                run.section<List<SearchHit.Yours>>(
+                run.section<List<SearchHit.YoursHit>>(
                     name = "yours",
                     updates = { yours.updates(query, YOURS_RESULTS) },
                     into = { loaded, s -> loaded.copy(yours = s) },
-                    select = { it.page.items.filterIsInstance<SearchHit.Yours>() },
+                    select = { it.page.items.filterIsInstance<SearchHit.YoursHit>() },
                 )
             }
         }

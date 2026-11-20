@@ -26,6 +26,7 @@ import com.dewijones92.totum.cli.serve.filing.SidecarMaker
 import com.dewijones92.totum.cli.serve.jellyfin.JellyfinBrowse
 import com.dewijones92.totum.cli.serve.jellyfin.JellyfinNotSetUp
 import com.dewijones92.totum.cli.serve.jellyfin.JellyfinRoutes
+import com.dewijones92.totum.cli.serve.jellyfin.jellyfinClientsFrom
 import com.dewijones92.totum.cli.serve.sound.ProcessedSound
 import com.dewijones92.totum.cli.serve.speakers.KeepAwakeSettings
 import com.dewijones92.totum.cli.serve.speakers.SpeakerSource
@@ -297,6 +298,7 @@ internal suspend fun serveAsk(port: Int, out: (String) -> Unit, polite: Politene
             SpeakerSource(shell, targetsDir, streams::locally, switchedOnByHandFromEnv(), keepAwake),
             castDevicesFromEnv(streams, targetsDir, File(home.dataDir, "airplay")),
             BrowserSource(browsers, streams),
+            jellyfinClientsFrom(jellyfin),
         ),
         YouTubeProgress(home.watchHistory, home::signedInToYouTube),
         ownerId = home::youTubeOwnerId,

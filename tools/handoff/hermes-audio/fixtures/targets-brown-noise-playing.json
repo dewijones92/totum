@@ -1,0 +1,97 @@
+{
+    "targets": [
+        {
+            "target": {
+                "id": "54158976cda4",
+                "label": "LG S65Q soundbar",
+                "kind": "SPEAKER"
+            },
+            "entries": [
+                {
+                    "item": {
+                        "itemId": "sound:brown-noise",
+                        "sourceId": "hermes-audio",
+                        "title": "Brown noise",
+                        "author": null,
+                        "thumbnailUrl": null,
+                        "mediaUrl": null,
+                        "contentKind": "MUSIC",
+                        "playbackType": "PODCAST",
+                        "handle": "path=file:///sounds/brown-noise.opus",
+                        "durationMs": null,
+                        "sourceUrl": null,
+                        "membersOnly": false,
+                        "publisher": null,
+                        "albumId": null,
+                        "albumTitle": null,
+                        "publishedAtMs": null,
+                        "publishedText": null,
+                        "viewsText": null
+                    },
+                    "groupId": null,
+                    "groupTitle": null,
+                    "addedBy": "🏠 Home Assistant",
+                    "reportsToYouTube": false,
+                    "loop": true
+                }
+            ],
+            "at": 0,
+            "playing": true,
+            "positionMs": 1000,
+            "durationMs": 60000,
+            "volume": null,
+            "volumeMode": null,
+            "keepAwake": null,
+            "linked": true,
+            "problem": null,
+            "sound": {
+                "skipSilence": false,
+                "boost": "OFF"
+            },
+            "repeat": "OFF",
+            "live": false,
+            "power": "ON",
+            "switchedOnByHand": false,
+            "starting": false,
+            "trouble": null,
+            "sleep": null,
+            "startsApp": false,
+            "canSwitchOff": false,
+            "powerNote": null,
+            "plays": "ANYTHING"
+        },
+        {
+            "target": {
+                "id": "f44efd21926d",
+                "label": "dprofy Soundmic",
+                "kind": "SPEAKER"
+            },
+            "entries": [],
+            "at": -1,
+            "playing": false,
+            "positionMs": 0,
+            "durationMs": null,
+            "volume": null,
+            "volumeMode": null,
+            "keepAwake": null,
+            "linked": false,
+            "problem": null,
+            "sound": {
+                "skipSilence": false,
+                "boost": "OFF"
+            },
+            "repeat": "OFF",
+            "live": false,
+            "power": "ON",
+            "switchedOnByHand": false,
+            "starting": false,
+            "trouble": null,
+            "sleep": null,
+            "startsApp": false,
+            "canSwitchOff": false,
+            "powerNote": null,
+            "plays": "ANYTHING"
+        }
+    ],
+    "browserAddress": null
+}

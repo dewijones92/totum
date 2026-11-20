@@ -90,6 +90,8 @@ class TotumApplication : Application(), SingletonImageLoader.Factory {
             } else {
                 runCatching { container.newUploads.check("app opened") }
                     .onFailure { Diag.warn("uploads", "check on opening failed", it) }
+                runCatching { container.longOnes?.refresh("app opened") }
+                    .onFailure { Diag.warn("longones", "refresh on opening failed", it) }
             }
             if (warmEngineAfterLaunch) {
                 runCatching { container.groupNews.check(container.sourceGroupStore.observeGroups().first()) }

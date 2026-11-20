@@ -136,6 +136,12 @@ public sealed interface SearchHit {
         val pid: String,
     ) : SearchHit
 
+    /** A row of the 📥 Yours tab: an item you can play, or a Jellyfin series you can open. */
+    public sealed interface YoursHit : SearchHit {
+        public val places: Set<YourPlace>
+        public val sortKey: String
+    }
+
     /**
      * Something you already have, wherever it is: on this phone, at home, in the Jellyfin library.
      *
@@ -145,11 +151,24 @@ public sealed interface SearchHit {
      */
     public data class Yours(
         public val playable: PlayableItem,
-        public val places: Set<YourPlace>,
-    ) : SearchHit {
+        override val places: Set<YourPlace>,
+    ) : YoursHit {
         override val title: String get() = playable.item.title
         override val subtitle: String? get() = playable.item.author
         override val artworkUrl: HttpUrl? get() = playable.item.thumbnailUrl
+        override val sortKey: String get() = playable.item.id.value
+    }
+
+    /** A Jellyfin series whose name matched: a folder, so it opens its page rather than playing. */
+    public data class YoursSeries(
+        public val id: String,
+        override val title: String,
+        public val year: Int?,
+        override val artworkUrl: HttpUrl?,
+    ) : YoursHit {
+        override val subtitle: String? get() = year?.toString()
+        override val places: Set<YourPlace> get() = setOf(YourPlace.JELLYFIN)
+        override val sortKey: String get() = "jellyfin-series:$id"
     }
 
     /** A subscribable podcast feed. */

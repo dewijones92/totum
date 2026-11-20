@@ -77,6 +77,7 @@ import com.dewijones92.totum.ui.common.rememberForgetRecent
 import com.dewijones92.totum.ui.common.rememberMediaItemActions
 import com.dewijones92.totum.ui.common.rowFacts
 import com.dewijones92.totum.ui.common.toMediaItem
+import com.dewijones92.totum.ui.library.JellyfinScreen
 import com.dewijones92.totum.ui.search.SearchViewModel.Results
 import com.dewijones92.totum.ui.search.SearchViewModel.UiState
 
@@ -103,53 +104,67 @@ fun SearchScreen(
     var browsingChannel by rememberSaveable(stateSaver = VideoChannelSaver) {
         mutableStateOf<MediaSource.VideoChannel?>(null)
     }
+    var browsingSeries by rememberSaveable { mutableStateOf<String?>(null) }
     val progressOf = rememberTorrentProgress(viewModel)
-    ListThenDetail(browsingChannel, listKey = "search results", onBack = { browsingChannel = null }, list = {
-        TorrentMenuSheet(viewModel, container)
-        CompositionLocalProvider(
-            LocalTorrentProgress provides progressOf,
-            LocalTorrentExtras provides rememberTorrentExtras(viewModel),
-            LocalTorrentMenu provides viewModel::openTorrentMenu,
-        ) {
-            SearchContent(
-                state = state,
-                onSearch = viewModel::search,
-                onQueryChange = viewModel::onQueryChange,
-                onSubscribe = viewModel::subscribe,
-                onPlayVideo = viewModel::playVideo,
-                onPlaySong = viewModel::playSong,
-                onPlayTorrent = viewModel::playTorrent,
-                onDownloadTorrent = viewModel::downloadTorrent,
-                onPlayYours = viewModel::playYours,
-                onPlayBook = { book ->
-                    viewModel.playBook(
-                        book,
-                        resources.getString(R.string.book_opening_strip, book.title)
+    ListThenDetail(
+        browsingSeries,
+        listKey = "search results over a series",
+        onBack = { browsingSeries = null },
+        list = {
+            ListThenDetail(browsingChannel, listKey = "search results", onBack = { browsingChannel = null }, list = {
+                TorrentMenuSheet(viewModel, container)
+                CompositionLocalProvider(
+                    LocalTorrentProgress provides progressOf,
+                    LocalTorrentExtras provides rememberTorrentExtras(viewModel),
+                    LocalTorrentMenu provides viewModel::openTorrentMenu,
+                ) {
+                    SearchContent(
+                        state = state,
+                        onSearch = viewModel::search,
+                        onQueryChange = viewModel::onQueryChange,
+                        onSubscribe = viewModel::subscribe,
+                        onPlayVideo = viewModel::playVideo,
+                        onPlaySong = viewModel::playSong,
+                        onPlayTorrent = viewModel::playTorrent,
+                        onDownloadTorrent = viewModel::downloadTorrent,
+                        onPlayYours = viewModel::playYours,
+                        onOpenSeries = { series ->
+                            Diag.log("search", "dewidebug yours: open series \"${series.title}\" (${series.id})")
+                            browsingSeries = series.id
+                        },
+                        onPlayBook = { book ->
+                            viewModel.playBook(
+                                book,
+                                resources.getString(R.string.book_opening_strip, book.title)
+                            )
+                        },
+                        onRemoveHistory = forgetHistory,
+                        onClearHistory = clearHistory,
+                        actions = actions,
+                        more = SearchMore(videos = viewModel::loadMoreVideos, music = viewModel::moreMusic),
+                        onGoToChannel = { item ->
+                            actions.goToSource(item) { source ->
+                                (source as? MediaSource.VideoChannel)?.let { browsingChannel = it }
+                            }
+                        },
+                        modifier = modifier,
+                        header = SearchHeader(
+                            title,
+                            onBack,
+                            viewModel.lastQuery,
+                            hint = stringResource(
+                                if (scope == SearchScope.MUSIC) R.string.music_search_hint else R.string.search_hint
+                            ),
+                        ),
+                        idle = idle,
                     )
-                },
-                onRemoveHistory = forgetHistory,
-                onClearHistory = clearHistory,
-                actions = actions,
-                more = SearchMore(videos = viewModel::loadMoreVideos, music = viewModel::moreMusic),
-                onGoToChannel = { item ->
-                    actions.goToSource(item) { source ->
-                        (source as? MediaSource.VideoChannel)?.let { browsingChannel = it }
-                    }
-                },
-                modifier = modifier,
-                header = SearchHeader(
-                    title,
-                    onBack,
-                    viewModel.lastQuery,
-                    hint = stringResource(
-                        if (scope == SearchScope.MUSIC) R.string.music_search_hint else R.string.search_hint
-                    ),
-                ),
-                idle = idle,
-            )
-        }
-    }) { channel ->
-        ChannelFromSearch(container, channel, onBack = { browsingChannel = null }, modifier)
+                }
+            }) { channel ->
+                ChannelFromSearch(container, channel, onBack = { browsingChannel = null }, modifier)
+            }
+        },
+    ) { seriesId ->
+        JellyfinScreen(container, onBack = { browsingSeries = null }, modifier = modifier, openAt = seriesId)
     }
 }
 
@@ -181,6 +196,7 @@ internal fun SearchContent(
     onDownloadTorrent: (SearchHit.Torrent) -> Unit = {},
     onPlayBook: (SearchHit.Book) -> Unit = {},
     onPlayYours: (SearchHit.Yours) -> Unit = {},
+    onOpenSeries: (SearchHit.YoursSeries) -> Unit = {},
 ) {
     var query by rememberSaveable { mutableStateOf(header.initialQuery) }
     var submitted by rememberSaveable { mutableStateOf(header.initialQuery.trim()) }
@@ -226,6 +242,7 @@ internal fun SearchContent(
                 onDownloadTorrent = onDownloadTorrent,
                 onPlayBook = onPlayBook,
                 onPlayYours = onPlayYours,
+                onOpenSeries = onOpenSeries,
             )
         }
     }
@@ -322,7 +339,7 @@ internal fun labelled(emoji: String, titleRes: Int): String = "$emoji " + string
 
 private fun Results.Loaded.selectableItems(): List<MediaItem> =
     (
-        yours.itemsOrNull.orEmpty().map { it.playable.item } +
+        yours.itemsOrNull.orEmpty().filterIsInstance<SearchHit.Yours>().map { it.playable.item } +
             songs.itemsOrNull?.items.orEmpty().take(shown(MusicShelf.SONGS)).map {
                 it.toMediaItem(SearchViewModel.AD_HOC_MUSIC_SOURCE)
             } +
@@ -345,6 +362,7 @@ private fun ResultsList(
     onDownloadTorrent: (SearchHit.Torrent) -> Unit = {},
     onPlayBook: (SearchHit.Book) -> Unit = {},
     onPlayYours: (SearchHit.Yours) -> Unit = {},
+    onOpenSeries: (SearchHit.YoursSeries) -> Unit = {},
 ) {
     val rows = SearchRowActions(
         onSubscribe,
@@ -354,6 +372,7 @@ private fun ResultsList(
         onDownloadTorrent,
         onPlayBook,
         onPlayYours,
+        onOpenSeries,
         actions,
         onGoToChannel,
         more,

@@ -3,9 +3,12 @@ package com.dewijones92.totum.data.targets
 import com.dewijones92.totum.data.backup.BackupItem
 import com.dewijones92.totum.data.backup.toBackup
 import com.dewijones92.totum.data.backup.toPlayable
+import com.dewijones92.totum.data.jellyfin.isJellyfin
+import com.dewijones92.totum.data.jellyfin.jellyfinId
 import com.dewijones92.totum.data.queue.QueueEntry
 import com.dewijones92.totum.data.queue.QueueGroup
 import com.dewijones92.totum.data.queue.QueueSnapshot
+import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.RepeatMode
 import com.dewijones92.totum.playback.SleepFade
 import com.dewijones92.totum.playback.VolumeBoost
@@ -99,6 +102,24 @@ public data class TargetTrouble(
 )
 
 @Serializable
+public enum class TargetPlays {
+    ANYTHING,
+    JELLYFIN_ONLY,
+    ;
+
+    public fun refusal(item: PlayableItem): String? = when (this) {
+        ANYTHING -> null
+        JELLYFIN_ONLY ->
+            if (item.item.id.isJellyfin && item.item.id.jellyfinId() != null) null else ONLY_JELLYFIN
+    }
+
+    public companion object {
+        public const val ONLY_JELLYFIN: String =
+            "a Jellyfin app plays only films and episodes from the Jellyfin library"
+    }
+}
+
+@Serializable
 public data class TargetState(
     val target: Target,
     val entries: List<TargetEntry> = emptyList(),
@@ -122,6 +143,7 @@ public data class TargetState(
     val startsApp: Boolean = false,
     val canSwitchOff: Boolean = false,
     val powerNote: String? = null,
+    val plays: TargetPlays = TargetPlays.ANYTHING,
 ) {
     val current: TargetEntry? get() = entries.getOrNull(at)
 }

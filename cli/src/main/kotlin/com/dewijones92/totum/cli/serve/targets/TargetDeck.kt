@@ -130,6 +130,7 @@ internal class TargetDeck(
         startsApp = link.startsApp,
         canSwitchOff = link.canSwitchOff,
         powerNote = if ((link.power ?: player.power) == TargetPower.WAKING) link.powerNote else null,
+        plays = player.plays,
     )
 
     private fun volumeNow(): Int? = volumeControl?.percent ?: player.volumePercent
@@ -144,12 +145,31 @@ internal class TargetDeck(
 
     suspend fun accept(request: TargetQueueRequest): EnqueueResult = lock.withLock { acceptLocked(request) }
 
-    private fun acceptLocked(request: TargetQueueRequest): EnqueueResult {
-        val wanted = request.playables(random, target.id)
-        if (wanted.isEmpty()) {
-            Diag.warn("targets", "${target.id}: nothing playable in a ${request.mode} of ${request.items.size}")
-            return EnqueueResult.Refused("❌ Nothing in that was playable on ${target.label}")
+    private fun nothingPlayable(request: TargetQueueRequest, refusal: String?): EnqueueResult.Refused {
+        val because = refusal?.let { ": $it" }.orEmpty()
+        Diag.warn(
+            "targets",
+            "${target.id}: nothing playable in a ${request.mode} of ${request.items.size}$because",
+        )
+        return EnqueueResult.Refused("❌ Nothing in that was playable on ${target.label}$because")
+    }
+
+    private fun playableHere(request: TargetQueueRequest): Pair<List<PlayableItem>, String?> {
+        val asked = request.playables(random, target.id)
+        val refusals = asked.mapNotNull { item -> player.refuses(item)?.let { item to it } }
+        if (refusals.isNotEmpty()) {
+            Diag.warn(
+                "targets",
+                "${target.id}: ${refusals.size} of ${asked.size} item(s) left out, ${refusals.first().second} " +
+                    "(first: ${refusals.first().first.item.id.value})",
+            )
         }
+        return (asked - refusals.map { it.first }.toSet()) to refusals.firstOrNull()?.second
+    }
+
+    private fun acceptLocked(request: TargetQueueRequest): EnqueueResult {
+        val (wanted, refusal) = playableHere(request)
+        if (wanted.isEmpty()) return nothingPlayable(request, refusal)
         val group = request.group
         problem = null
         request.repeat?.let(::setRepeat)
@@ -645,6 +665,11 @@ internal class TargetDeck(
         if (playing && queue.current != null) startAt(queue.currentIndex, where)
     }
 
+    private suspend fun lookUp(item: PlayableItem, picture: Boolean): Pair<TargetStream?, String?> {
+        val refusal = player.refuses(item)
+        return if (refusal != null) null to refusal else sounds.streamFor(item, picture) to null
+    }
+
     private suspend fun startAt(index: Int, startAtMs: Long = 0) {
         var at = index
         while (at in queue.entries.indices) {
@@ -665,10 +690,10 @@ internal class TargetDeck(
             val picture = target.kind.hasPicture && item.picture != Picture.NO
             val itemSound = sound.copy(skipSilence = item.item.contentKind.skipsSilence(sound.skipSilence))
             val lookedUpAt = clock()
-            val stream = sounds.streamFor(item, picture)
+            val (stream, refusal) = lookUp(item, picture)
             resolveMs += clock() - lookedUpAt
             if (stream == null) {
-                val why = sounds.whyNone(item)
+                val why = refusal ?: sounds.whyNone(item)
                 val until = sounds.refusedUntil(item)
                 val kind = if (until != null) TroubleKind.YOUTUBE_BACKOFF else TroubleKind.COULD_NOT_PLAY
                 problem = TroubleWords.problem(
@@ -687,7 +712,16 @@ internal class TargetDeck(
             queue = queue.copy(currentIndex = at)
             placeMs = if (item.item.contentKind == MediaContentKind.LIVE) 0 else startAtMs
             player.play(
-                PlayRequest(stream.url, reached, itemSound, startAtMs, picture, item.item.title, stream.cast)
+                PlayRequest(
+                    stream.url,
+                    reached,
+                    itemSound,
+                    startAtMs,
+                    picture,
+                    item.item.title,
+                    stream.cast,
+                    item.item.id.value,
+                ),
             )
             playing = true
             lastSeenMs = null

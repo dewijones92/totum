@@ -116,6 +116,23 @@ class JellyfinScreenTest {
     }
 
     @Test
+    fun openedAtASeriesItListsItsChildrenAndBackLeavesTheScreen() {
+        val pi = FakeJellyfin(
+            mutableMapOf((showId to 0) to HomeAnswer.Ok(JellyfinListing(showId, "Bluey", listOf(episode)))),
+        )
+        val container = FakeAppContainer(jellyfin = pi)
+        compose.setContent { TotumTheme { JellyfinScreen(container, onBack = { backed = true }, openAt = showId) } }
+        compose.waitForIdle()
+
+        compose.onNodeWithText("S01E04 · Mr Wolf").assertIsDisplayed()
+        assertEquals("the top level is never read when opened at a series", listOf(showId to 0), pi.asked)
+
+        compose.onNodeWithContentDescription(text(R.string.back)).performClick()
+
+        assertTrue(backed)
+    }
+
+    @Test
     fun backOnTheTopLevelLeavesTheScreen() {
         show(FakeJellyfin(mutableMapOf((null to 0) to top(film))))
 

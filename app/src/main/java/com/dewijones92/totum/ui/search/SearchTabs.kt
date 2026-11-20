@@ -84,7 +84,7 @@ private fun List<Facts>.together(tab: SearchTab): SearchTabInfo? {
     )
 }
 
-private fun Results.Loaded.yoursWorthATab(): SearchSection<List<SearchHit.Yours>> = when (val section = yours) {
+private fun Results.Loaded.yoursWorthATab(): SearchSection<List<SearchHit.YoursHit>> = when (val section = yours) {
     SearchSection.Searching -> SearchSection.Absent
     is SearchSection.Found ->
         if (section.items.isEmpty() && section.notes.isEmpty()) SearchSection.Absent else section

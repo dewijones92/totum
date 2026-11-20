@@ -129,16 +129,17 @@ finished jobs (🏠) and the Jellyfin library (🎞️), each row saying where i
 | Piece | Where |
 |---|---|
 | The source | `YoursSearchSource` (`:core:data`): one `SearchSource` whose `updates` flow emits the phone's matches first, then each place as it answers; `YoursMerge` makes one row per thing |
-| The hit | `SearchHit.Yours(playable, places)`, `YourPlace` PHONE / HOME / JELLYFIN |
-| The Pi | `GET /jellyfin/browse?search=<term>` (films and episodes, 50 at most) echoing the term in `JellyfinListing.search`; `JellyfinApi.search` |
-| The tab and rows | `SearchTab.YOURS` first; `YoursSection.kt`; the row is `MediaItemRow` with a "📱 On this phone · 🏠 At home · 🎞️ In Jellyfin" line |
+| The hit | `SearchHit.YoursHit`: `Yours(playable, places)` (`YourPlace` PHONE / HOME / JELLYFIN) or `YoursSeries(id, title, year, poster)` |
+| The Pi | `GET /jellyfin/browse?search=<term>` (films, series and episodes, 50 at most) echoing the term in `JellyfinListing.search`; `JellyfinApi.search` |
+| The tab and rows | `SearchTab.YOURS` first; `YoursSection.kt`; a playable is `MediaItemRow` with a "📱 On this phone · 🏠 At home · 🎞️ In Jellyfin" line; a series is a "📺 Bluey" row that opens the Jellyfin page at that series over the results |
 
 - Shown as the tab on screen whenever it has matches; while it has none and is still asking it has no tab (no flicker);
   with no matches but a note ("🏠 Home not reachable") it keeps a tab so an empty answer is not read as "not downloaded".
 - `SearchOutcome.Success` and `SearchSection.Found` carry `notes`, lines that are not results.
-- Not searched: the queue (6,033 rows on Dewi's phone) and pins; series; the Music scope.
+- Not searched: the queue (6,033 rows on Dewi's phone) and pins; the Music scope.
+- A series row (2026-11-20) opens `JellyfinScreen(openAt = id)` as an overlay of search (back returns to the results); an episode row, from here or anywhere else, plays as its whole series from that episode ([ADR 154](../adr/0154-jellyfin-is-browsed-and-streamed-through-the-pi.md) amendment). Needs the Pi redeployed for the series rows.
 - Logs (`search`): `dewidebug yours "<q>": N of M download(s) match`, `… finished download(s) at home match` or why not read,
-  `… jellyfin N playable of M returned (total T)` or why not, and `… done after Tms: phone=… home=… jellyfin=… -> R row(s)`.
+  `… jellyfin N playable of M returned (total T), S series` or why not, and `… done after Tms: phone=… home=… jellyfin=… series=… -> R row(s)`. Playing an episode logs `[queue] dewidebug series: <id> (SxxEyy) plays alone: <why>` when it does not carry on, and `[jellyfin] … queued with its series "<name>": N episode(s)` when it does.
 - Checked on the emulator against the real Pi (not yet deployed with the route): "spinal" listed the Pi's Spinal Tap II
   files at home with the poster, and the note "⚠️ The home server needs updating to search Jellyfin".
 

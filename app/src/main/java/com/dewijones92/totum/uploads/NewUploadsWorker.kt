@@ -5,8 +5,10 @@ import androidx.work.CoroutineWorker
 import androidx.work.NetworkType
 import androidx.work.WorkerParameters
 import com.dewijones92.totum.TotumApplication
+import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.jobs.JobOutcome
 import com.dewijones92.totum.jobs.PeriodicJob
+import com.dewijones92.totum.longones.LongOnesRun
 import java.time.Duration
 
 class NewUploadsWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
@@ -15,7 +17,10 @@ class NewUploadsWorker(context: Context, params: WorkerParameters) : CoroutineWo
         val container = (applicationContext as TotumApplication).container
         return JOB.run(container.lastRuns) {
             container.newUploads.check("every $INTERVAL_HOURS h")
-            JobOutcome.Done()
+            val longOnes = runCatching { container.longOnes?.refresh("new-uploads job, every $INTERVAL_HOURS h") }
+                .onFailure { Diag.warn("longones", "refresh from the new-uploads job failed", it) }
+                .getOrNull()
+            JobOutcome.Done((longOnes as? LongOnesRun.Done)?.let { "${it.chosen} long one(s) ready" }.orEmpty())
         }
     }
 
