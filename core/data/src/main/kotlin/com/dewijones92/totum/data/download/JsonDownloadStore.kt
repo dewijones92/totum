@@ -21,6 +21,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import java.io.File
+import java.io.IOException
 import java.time.Instant
 
 @Suppress("TooManyFunctions")
@@ -120,8 +121,18 @@ public class JsonDownloadStore(private val file: File, private val now: () -> In
 
     private suspend fun change(edit: (List<Row>) -> List<Row>) = lock.withLock {
         val next = edit(rows.value)
+        try {
+            file.writeTextReplacing(JSON.encodeToString(ListSerializer(Row.serializer()), next))
+        } catch (failure: IOException) {
+            Diag.warn(
+                "download",
+                "dewidebug the download list at $file could not be written, so the change was not applied " +
+                    "(${rows.value.size} row(s) kept as they were)",
+                failure,
+            )
+            throw failure
+        }
         rows.value = next
-        file.writeTextReplacing(JSON.encodeToString(ListSerializer(Row.serializer()), next))
     }
 
     private fun load(): List<Row> = if (!file.exists()) {

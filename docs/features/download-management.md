@@ -3,10 +3,16 @@ title: Managing downloads — cancel, retry, sort, and see what failed
 kind: feature
 status: shipped
 area: downloads
-updated: 2026-11-06
+updated: 2026-11-20
 ---
 
 # Managing downloads
+
+> 💾 **The download list is written before it is published (2026-11-20).** `JsonDownloadStore` (the Pi's store; the app's is Room)
+> used to set its in-memory list and then write the file, so a failed write left the screen ahead of the disk until the next
+> restart. It now writes first, publishes only on success, logs the failure (`dewidebug the download list … could not be
+> written`) and rethrows it to the caller. See also [ADR 186](../adr/0186-one-fetch-per-item-a-playing-stream-is-its-own-download.md):
+> a playing YouTube audio stream is its own download, so the audio is no longer fetched twice.
 
 > 🐛 **A download that ended at once could crash the app. Fixed 2026-10-31.** CI run of e294d360 crashed with
 > `ForegroundServiceDidNotStartInTimeException` in `DownloadKeepAliveService`: `hold(true)` asks Android to start a
