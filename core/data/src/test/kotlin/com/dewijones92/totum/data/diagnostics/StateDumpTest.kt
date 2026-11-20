@@ -21,6 +21,7 @@ class StateDumpTest {
     private val cookieValue = "SAPISID-COOKIE-VALUE-xxxx3333"
     private val homeHost = "myhome.example.net"
     private val screenKey = "PC-SCREEN-ACCESS-KEY-zzzz4444"
+    private val googlePhotosRefresh = "1//GOOGLE-PHOTOS-REFRESH-TOKEN-wwww5555"
 
     private val preferences: Map<String, Map<String, Any?>> = mapOf(
         "totum_settings" to mapOf(
@@ -33,6 +34,7 @@ class StateDumpTest {
         "youtube_account" to mapOf("access_token" to youtubeAccess, "refresh_token" to youtubeRefresh),
         "totum_visitor" to mapOf("visitor_data" to cookieValue),
         "totum_screen" to mapOf("key" to screenKey),
+        "google_photos_auth" to mapOf("refresh" to googlePhotosRefresh),
         "totum_drive_backup" to mapOf("folder" to "content://com.google.android.apps.docs/tree/abcdef"),
         "exsurge" to mapOf("state.v1" to """{"phase":"IDLE","stepsToday":1200,"authToken":"$homeToken"}"""),
         "daily_alarms" to mapOf("alarms.v1" to """[{"id":"pickup","time":"17:30"}]"""),
@@ -99,6 +101,8 @@ class StateDumpTest {
             "totum_visitor",
             "totum_screen",
             screenKey,
+            "google_photos_auth",
+            googlePhotosRefresh,
             "totum_drive_backup",
             "content://com.google.android.apps.docs",
         ).forEach {
