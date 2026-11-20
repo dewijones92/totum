@@ -32,7 +32,7 @@ concurrency:
 jobs:
   verify-sponsorblock:
     name: SponsorBlock removal (offline)
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v7
       - name: Install ffmpeg + yt-dlp
@@ -44,12 +44,12 @@ jobs:
 
   verify-mock-youtube:
     name: Mock YouTube replay (offline)
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
-          node-version: 24
+          node-version: 26
       - name: Install yt-dlp + mitmproxy (pinned to the cassette's recording versions)
         run: python3 -m pip install "yt-dlp==2026.6.9" "mitmproxy==12.2.2"
       - name: Replay cassette and verify offline extraction
@@ -67,12 +67,12 @@ jobs:
   # goes red and is seen; it does not stop a build shipping.
   instrumented:
     name: Instrumented tests (emulator)
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v7
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: 21
@@ -156,14 +156,14 @@ jobs:
 
   build:
     name: Quality gates + build
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       contents: write # rolling 'latest' release
     steps:
       - uses: actions/checkout@v7
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: 21
