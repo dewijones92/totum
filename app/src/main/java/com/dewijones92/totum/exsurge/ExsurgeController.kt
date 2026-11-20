@@ -6,6 +6,7 @@ import com.dewijones92.totum.stats.StatEvent
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
 
@@ -65,10 +66,11 @@ data class ExsurgeView(
     val stepsAvailable: Boolean,
     val at: Instant,
     val zone: ZoneId,
+    val steadyMinutes: Int = 0,
 ) {
     val context: ExsurgeContext get() = ExsurgeContext(settings, zone, stepsAvailable)
     val mood: Mood get() = moodOf(memory.state, at)
-    val banner: BannerLine get() = bannerLineOf(memory.state, at, context)
+    val banner: BannerLine get() = bannerLineOf(memory.state, at, context, steadyMinutes)
     val pauseAvailable: Boolean get() = settings.enabled && ExsurgeMachine.canPause(memory, at, zone)
     val actions: List<BannerAction> get() = bannerActionsOf(memory.state, settings.enabled, pauseAvailable)
 }
@@ -87,6 +89,8 @@ class ExsurgeController(
     private var outcomes = store.loadOutcomes()
     private var settingsLog = store.loadSettingsLog()
     private var stepWindow = StepWindow(settings.walkWindow)
+    private val steadyWalk = SteadyWalkWatch(settings)
+    private var lastEnabledChange: EnabledChange? = null
     private var simulatedSteps = false
     private var stepReadings = 0L
     private var lastStepTotal: Long? = null
@@ -114,6 +118,10 @@ class ExsurgeController(
             put("exsurge.nextWake", view.nextWake?.toString() ?: "-")
             put("exsurge.stepsAvailable", "${view.stepsAvailable} (simulated=$simulatedSteps, readings=$stepReadings)")
             put("exsurge.lastEvent", lastEvent)
+            put(
+                "exsurge.steadyWalk",
+                steadyWalk.describe(settings, tracked = settings.enabled && memory.state is ExsurgeState.Sitting),
+            )
             put("exsurge.today", view.stats.today.toString())
             put("exsurge.streakDays", view.stats.streakDays.toString())
             put("exsurge.rank", "${view.stats.rank.latin} laurels=${view.stats.laurels}")
@@ -158,6 +166,14 @@ class ExsurgeController(
         val changed = transition.memory != memory
         memory = transition.memory
         if (changed) store.saveMemory(memory)
+        if (memory.state !is ExsurgeState.Sitting && steadyWalk.minutesDone > 0) {
+            Diag.log(
+                TAG,
+                "dewidebug exsurge steady walk: stretch dropped at ${steadyWalk.minutesDone} minute(s) " +
+                    "because the state is now ${memory.state.label()}",
+            )
+        }
+        if (memory.state !is ExsurgeState.Sitting) steadyWalk.clear()
         val noteText = transition.notes.joinToString(" | ").ifEmpty { "no change" }
         val effectText = transition.effects.joinToString(",") { it.label() }.ifEmpty { "none" }
         if (event !is ExsurgeEvent.StepsCounted || transition.effects.isNotEmpty()) {
@@ -194,6 +210,11 @@ class ExsurgeController(
         val before = settings
         Diag.log(TAG, "dewidebug exsurge settings from=$source ${ExsurgeCodec.settingsDiff(settings, next)}")
         if (next.walkWindow != settings.walkWindow) stepWindow = StepWindow(next.walkWindow)
+        if (next.steadyWalkMinutes != settings.steadyWalkMinutes ||
+            next.steadyWalkStepsPerMinute != settings.steadyWalkStepsPerMinute
+        ) {
+            steadyWalk.reconfigure(next)
+        }
         val turnedOff = settings.enabled && !next.enabled
         if (next.enabled != settings.enabled) {
             record(
@@ -211,12 +232,26 @@ class ExsurgeController(
             else -> next
         }
         store.saveSettings(settings)
-        noteSettingsChange(source, before)
+        noteSettingsChange(sourceWithFlip(source, before), before)
         dispatch(if (turnedOff) ExsurgeEvent.TurnOff else ExsurgeEvent.SettingsChanged, source)
     }
 
     val settingsHistory: List<SettingsChange>
         @Synchronized get() = settingsLog.changes
+
+    private fun sourceWithFlip(source: String, before: ExsurgeSettings): String {
+        if (settings.enabled == before.enabled) return source
+        val now = clock()
+        val previous = lastEnabledChange
+        lastEnabledChange = EnabledChange(now, source, settings.enabled)
+        if (previous == null) return source
+        val gap = Duration.between(previous.at, now)
+        if (gap > FLIP_WINDOW) return source
+        val flipped = "enabled flipped back ${gap.toMillis()} ms after the switch to ${previous.enabled} from " +
+            "${previous.source}; state=${memory.state.label()}"
+        Diag.log(TAG, "dewidebug exsurge settings flip-flop: $flipped (this one from $source)")
+        return "$source ($flipped)"
+    }
 
     private fun noteSettingsChange(source: String, before: ExsurgeSettings) {
         val change = SettingsChange(clock().toEpochMilli(), source, ExsurgeCodec.settingsDiff(before, settings))
@@ -242,13 +277,25 @@ class ExsurgeController(
             )
         }
         when (memory.state) {
-            is ExsurgeState.Sitting -> if (settings.walkResetSteps in 1..inWindow) {
-                stepWindow.clear()
-                dispatch(ExsurgeEvent.Walked, "$source inWindow=$inWindow")
+            is ExsurgeState.Sitting -> {
+                if (settings.walkResetSteps in 1..inWindow) {
+                    stepWindow.clear()
+                    dispatch(ExsurgeEvent.Walked, "$source inWindow=$inWindow")
+                }
+                trackSteadyWalk(total, at, source)
             }
             is ExsurgeState.Rising, is ExsurgeState.OnBreak -> dispatch(ExsurgeEvent.StepsCounted(total), source)
             else -> Unit
         }
+    }
+
+    private fun trackSteadyWalk(total: Long, at: Instant, source: String) {
+        val events = steadyWalk.record(at, total, settings, memory.state.label())
+        events.filterIsInstance<SteadyWalkEvent.Completed>().forEach { done ->
+            val event = ExsurgeEvent.SteadyWalk(done.startedAt, done.steps)
+            dispatch(event, "$source steady ${settings.steadyWalkMinutes}m")
+        }
+        if (events.isNotEmpty()) publish(clock())
     }
 
     @Synchronized
@@ -348,6 +395,7 @@ class ExsurgeController(
             stepsAvailable = available,
             at = at,
             zone = zone,
+            steadyMinutes = steadyWalk.minutesDone,
         )
     }
 
@@ -355,8 +403,11 @@ class ExsurgeController(
         const val TAG: String = "Exsurge"
         private const val STEP_LOG_EVERY = 50L
         private const val MAX_OUTCOMES = 5000
+        private val FLIP_WINDOW: Duration = Duration.ofSeconds(2)
     }
 }
+
+private data class EnabledChange(val at: Instant, val source: String, val enabled: Boolean)
 
 private fun summonsIdOf(state: ExsurgeState, fallback: Long): Long = when (state) {
     is ExsurgeState.Summoned -> state.summons.id
@@ -391,6 +442,7 @@ private val ExsurgeEvent.move: ExsurgeMove?
         ExsurgeEvent.Snooze -> ExsurgeMove.SNOOZE
         ExsurgeEvent.Skip -> ExsurgeMove.SKIP
         ExsurgeEvent.Walked -> ExsurgeMove.WALKED
+        is ExsurgeEvent.SteadyWalk -> ExsurgeMove.STEADY_WALK
         ExsurgeEvent.PauseHour -> ExsurgeMove.PAUSE_HOUR
         ExsurgeEvent.TurnOff -> ExsurgeMove.TURN_OFF
         ExsurgeEvent.Tick, ExsurgeEvent.SettingsChanged, is ExsurgeEvent.StepsCounted -> null

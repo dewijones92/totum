@@ -5,7 +5,7 @@ status: built — awaiting a real day on Dewi's phone; see features/exsurge-et-d
 area: side-quest
 priority: medium
 requested: 2026-10-01
-updated: 2026-10-06
+updated: 2026-11-20
 ---
 
 > **Built 2026-10-01.** The feature doc is [features/exsurge-et-disce](../features/exsurge-et-disce.md) and the decisions are [ADRs 2–7](../adr/_index.md). Two departures from the plan, both recorded in ADR 5: `setExactAndAllowWhileIdle` rather than `setAlarmClock` (so it does not take over the clock's "next alarm"), and "Pause 1 hour" capped at once a day.
@@ -13,6 +13,12 @@ updated: 2026-10-06
 **Follow-up (Dewi, 2026-10-06):** the popup also offers Continue Totum: resume the current
 item while taking the walking break, without language practice. The behaviour belongs in
 the feature doc and [ADR 4](../adr/0004-playback-set-playing-and-interruption.md).
+
+**Follow-up (Dewi, 2026-11-20):** the summons screen's break and snooze lengths are sliders; a walk that resets the
+sitting clock says so on every surface; five steady minutes of walking count as a finished break. Decided and built in
+[ADR 181](../adr/0181-exsurge-lengths-are-sliders-a-walk-says-so-and-steady-walking-counts.md). Owed: a real day on his phone
+to see whether 40 steps a minute is the right threshold (the settings are on the Timing card), and a look at the empty
+active days that make the first tap on the switch read as "Zzz".
 
 # Exsurge et Disce ("rise up and learn")
 

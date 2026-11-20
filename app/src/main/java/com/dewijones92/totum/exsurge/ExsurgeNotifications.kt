@@ -11,6 +11,7 @@ import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.reminders.kit.PinnedChannel
 import com.dewijones92.totum.theme.Tangerine40
+import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -191,6 +192,7 @@ class BannerText(private val context: Context) {
                 null
             )
             is BannerLine.Sitting -> sitting(line, view)
+            is BannerLine.Walking -> walking(line, view)
             is BannerLine.Summoned -> Triple(
                 context.getString(R.string.exsurge_banner_summoned),
                 context.getString(R.string.exsurge_banner_summoned_detail, line.call, line.snoozes),
@@ -226,6 +228,28 @@ class BannerText(private val context: Context) {
         ),
         line.satMinutes.toInt() to line.limitMinutes,
     )
+
+    private fun walking(line: BannerLine.Walking, view: ExsurgeView): Triple<String, String, Pair<Int, Int>?> = Triple(
+        context.getString(R.string.exsurge_banner_walking, ago(line.resetAgo)),
+        context.getString(
+            R.string.exsurge_banner_walking_detail,
+            line.steadyMinutes,
+            line.steadyNeeded,
+            view.stats.today.completed,
+            view.stats.rank.latin,
+        ),
+        line.steadyMinutes to line.steadyNeeded,
+    )
+
+    private fun ago(elapsed: Duration): String {
+        val seconds = elapsed.seconds.coerceAtLeast(0)
+        return if (seconds < SECONDS_PER_MINUTE) {
+            context.resources.getQuantityString(R.plurals.exsurge_unit_seconds, seconds.toInt(), seconds.toInt())
+        } else {
+            val minutes = (seconds / SECONDS_PER_MINUTE).toInt()
+            context.resources.getQuantityString(R.plurals.exsurge_unit_minutes, minutes, minutes)
+        }
+    }
 
     private fun onBreak(line: BannerLine.OnBreak, view: ExsurgeView): Triple<String, String, Pair<Int, Int>?> {
         val total = line.lengthMinutes * SECONDS_PER_MINUTE

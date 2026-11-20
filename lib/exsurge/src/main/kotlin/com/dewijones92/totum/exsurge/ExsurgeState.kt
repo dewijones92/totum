@@ -45,6 +45,7 @@ public sealed interface ExsurgeState {
         val after: OutcomeKind? = null,
         val oneOff: Boolean = false,
         val minutes: Int? = null,
+        val walkedAt: Instant? = null,
     ) : ExsurgeState {
         public fun limitMinutes(settings: ExsurgeSettings): Int = minutes ?: settings.sittingMinutes
 
@@ -111,6 +112,7 @@ public sealed interface ExsurgeEvent {
     public data object Snooze : ExsurgeEvent
     public data object Skip : ExsurgeEvent
     public data object Walked : ExsurgeEvent
+    public data class SteadyWalk(val startedAt: Instant, val steps: Int) : ExsurgeEvent
     public data object PauseHour : ExsurgeEvent
     public data class StepsCounted(val total: Long) : ExsurgeEvent
 }

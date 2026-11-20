@@ -3,14 +3,28 @@ package com.dewijones92.totum.exsurge
 import java.time.Duration
 import java.time.Instant
 
-public class StepWindow(private val window: Duration = DEFAULT_WINDOW) {
-    private val readings = ArrayDeque<Pair<Instant, Long>>()
+internal class RebasedCounter {
+    private var last: Long? = null
     private var offset = 0L
 
+    fun rebase(counterTotal: Long): Long {
+        val previous = last
+        if (previous != null && counterTotal + offset < previous) offset = previous - counterTotal
+        return (counterTotal + offset).also { last = it }
+    }
+
+    fun reset() {
+        last = null
+        offset = 0
+    }
+}
+
+public class StepWindow(private val window: Duration = DEFAULT_WINDOW) {
+    private val readings = ArrayDeque<Pair<Instant, Long>>()
+    private val counter = RebasedCounter()
+
     public fun record(at: Instant, counterTotal: Long): Int {
-        val last = readings.lastOrNull()
-        if (last != null && counterTotal + offset < last.second) offset = last.second - counterTotal
-        val total = counterTotal + offset
+        val total = counter.rebase(counterTotal)
         readings.addLast(at to total)
         val cutoff = at - window
         while (readings.size > 1 && !readings[1].first.isAfter(cutoff)) readings.removeFirst()
@@ -19,7 +33,7 @@ public class StepWindow(private val window: Duration = DEFAULT_WINDOW) {
 
     public fun clear() {
         readings.clear()
-        offset = 0
+        counter.reset()
     }
 
     public companion object {

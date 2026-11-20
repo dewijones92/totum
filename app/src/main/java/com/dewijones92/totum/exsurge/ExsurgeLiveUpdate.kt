@@ -26,6 +26,7 @@ class ExsurgeLiveUpdate(private val context: Context) {
     private fun chipText(chip: BannerChip): String? = when (chip) {
         is BannerChip.Countdown -> null
         is BannerChip.Steps -> context.getString(R.string.exsurge_chip_steps, chip.steps, chip.needed)
+        is BannerChip.Walking -> context.getString(R.string.exsurge_chip_walking, chip.steadyMinutes, chip.needed)
         BannerChip.Go -> context.getString(R.string.exsurge_chip_go)
         BannerChip.Off -> context.getString(R.string.exsurge_chip_off)
         BannerChip.Asleep -> context.getString(R.string.exsurge_chip_asleep)

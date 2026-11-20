@@ -14,6 +14,8 @@
     <string name="exsurge_banner_sitting">🪑 Next summons %1$s</string>
     <string name="exsurge_banner_no_more_today">🏁 No more summons today</string>
     <string name="exsurge_banner_sitting_detail">Sat %1$d of %2$d min · laurels today: %3$d · %4$s</string>
+    <string name="exsurge_banner_walking">🚶 Walking · timer reset %1$s ago</string>
+    <string name="exsurge_banner_walking_detail">Steady walk: %1$d of %2$d min for a laurel · laurels today: %3$d · %4$s</string>
     <string name="exsurge_banner_summoned">📣 EXSURGE! Time to stand up</string>
     <string name="exsurge_banner_summoned_detail">Call %1$d · snoozes: %2$d</string>
     <string name="exsurge_banner_snoozed">💤 Snoozed until %1$s</string>
@@ -26,6 +28,7 @@
     <string name="exsurge_chip_off">😢 Off</string>
     <string name="exsurge_chip_asleep">😴 Zzz</string>
     <string name="exsurge_chip_steps">%1$d/%2$d</string>
+    <string name="exsurge_chip_walking">🚶 %1$d/%2$d</string>
 
     <string name="exsurge_action_go">GO</string>
     <string name="exsurge_action_go_to">GO → %1$s</string>
@@ -49,7 +52,6 @@
     <string name="exsurge_takeover_title">EXSURGE!</string>
     <string name="exsurge_takeover_subtitle">🪑 Sitting: %1$d min. Up for %2$d min: walk, and practise if you like.</string>
     <string name="exsurge_takeover_break_length">Break length</string>
-    <string name="exsurge_takeover_break_minutes">%1$d min</string>
     <string name="exsurge_takeover_call">Call %1$d of 3</string>
     <string name="exsurge_destination_missing">⚠️ %1$s is not installed</string>
 
@@ -60,6 +62,7 @@
     <string name="exsurge_tile_done">🏁 Done for today</string>
     <string name="exsurge_tile_now">📣 Rise now!</string>
     <string name="exsurge_tile_break">🚶 On break</string>
+    <string name="exsurge_tile_walking">🚶 Walking</string>
 
     <string name="exsurge_settings_row">Exsurge et Disce: stand up and study</string>
     <string name="exsurge_settings_enabled">Summon me to stand up</string>
@@ -75,6 +78,8 @@
     <string name="exsurge_settings_snooze">Snooze length (minutes)</string>
     <string name="exsurge_settings_call_interval">Call again after (seconds)</string>
     <string name="exsurge_settings_rise_timeout">Wait for steps before starting anyway (minutes)</string>
+    <string name="exsurge_settings_steady_minutes">Steady walk that counts as a finished break (minutes)</string>
+    <string name="exsurge_settings_steady_steps">Steps a minute for a walk to count as steady</string>
     <string name="exsurge_settings_walk_window">Walking window (minutes)</string>
     <string name="exsurge_settings_mid_cue_minutes">Break cue: minutes before the end</string>
     <string name="exsurge_settings_pause_minutes">Pause length (minutes)</string>
@@ -116,6 +121,7 @@
     <string name="exsurge_ring_paused">⏸️ until Surgius returns</string>
     <string name="exsurge_ring_asleep">😴 until Surgius wakes</string>
     <string name="exsurge_ring_steps">👣 steps to rise</string>
+    <string name="exsurge_ring_walking">🚶 steady minutes toward a finished break</string>
     <string name="exsurge_ring_summoned">📣 Exsurge!</string>
     <string name="exsurge_ring_off">😢 Surgius is weeping</string>
     <plurals name="exsurge_rank_badge">

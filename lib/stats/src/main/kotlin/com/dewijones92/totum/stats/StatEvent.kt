@@ -20,6 +20,7 @@ public enum class ExsurgeMove {
     SNOOZE,
     SKIP,
     WALKED,
+    STEADY_WALK,
     PAUSE_HOUR,
     TURN_OFF,
 }

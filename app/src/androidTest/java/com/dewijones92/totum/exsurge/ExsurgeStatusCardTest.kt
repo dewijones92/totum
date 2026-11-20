@@ -52,6 +52,16 @@ class ExsurgeStatusCardTest {
     }
 
     @Test
+    fun walkingSaysTheTimerWasResetAndHowFarTheSteadyWalkHasGot() {
+        val reset = tenAm.plusSeconds(600)
+        val walking = view(ExsurgeState.Sitting(reset, walkedAt = reset), minutesLater = 10)
+            .copy(at = reset.plusSeconds(40), steadyMinutes = 3)
+        showsWhatTheBannerShows(walking)
+        compose.onNodeWithTag("exsurge-status-title").assertTextEquals("🚶 Walking · timer reset 40 s ago")
+        compose.onNodeWithTag("exsurge-countdown").assertTextEquals("3/5")
+    }
+
+    @Test
     fun sittingShowsTheNextSummonsTheBarAndTheIdleButtons() {
         val view = view(ExsurgeState.Sitting(tenAm), minutesLater = 12)
         assertEquals(view.actions, showsWhatTheBannerShows(view))

@@ -109,6 +109,7 @@ public object ExsurgeMachine {
                 ExsurgeEvent.Snooze -> snooze()
                 ExsurgeEvent.Skip -> skip()
                 ExsurgeEvent.Walked -> walked()
+                is ExsurgeEvent.SteadyWalk -> steadyWalk(event)
                 ExsurgeEvent.PauseHour -> pauseHour()
                 is ExsurgeEvent.StepsCounted -> steps(event.total)
             }
@@ -391,7 +392,43 @@ public object ExsurgeMachine {
             val state = memory.state as? Sitting ?: return
             val sat = Duration.between(state.since, at).toMinutes()
             note("walked ${settings.walkResetSteps}+ steps after sitting ${sat}m: clock reset")
-            become(state.copy(since = at))
+            become(state.copy(since = at, walkedAt = at))
+        }
+
+        private fun steadyWalk(event: ExsurgeEvent.SteadyWalk) {
+            val state = memory.state
+            if (state !is Sitting || !settings.enabled) {
+                return note(
+                    "steady walk ignored at state=${state.label()} (schedule on=${settings.enabled}, " +
+                        "${event.steps} steps since ${event.startedAt})"
+                )
+            }
+            val id = memory.nextSummonsId
+            memory = memory.copy(nextSummonsId = id + 1)
+            note(
+                "steady walk of ${settings.steadyWalkMinutes}m since ${event.startedAt} " +
+                    "(${event.steps} steps, at least ${settings.steadyWalkStepsPerMinute} a minute): " +
+                    "counted as finished break #$id after sitting ${Duration.between(state.since, at).toMinutes()}m"
+            )
+            emit(
+                Speak(Cue.FREE),
+                Buzz(Haptic.STEPS_ACCEPTED),
+                Record(
+                    BreakOutcome(
+                        summonsId = id,
+                        summonedAt = event.startedAt,
+                        resolvedAt = at,
+                        kind = OutcomeKind.COMPLETED,
+                        snoozes = 0,
+                        breakStartedAt = event.startedAt,
+                        steps = event.steps,
+                        stepsProven = true,
+                        stepsRequired = true,
+                        practised = false,
+                    ),
+                ),
+            )
+            arrive(OutcomeKind.COMPLETED)
         }
 
         private fun pauseHour() {
@@ -482,6 +519,7 @@ private fun ExsurgeEvent.label(): String = when (this) {
     ExsurgeEvent.Snooze -> "snooze"
     ExsurgeEvent.Skip -> "skip"
     ExsurgeEvent.Walked -> "walked"
+    is ExsurgeEvent.SteadyWalk -> "steadyWalk($steps)"
     ExsurgeEvent.PauseHour -> "pauseHour"
     is ExsurgeEvent.StepsCounted -> "steps($total)"
 }

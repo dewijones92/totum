@@ -179,7 +179,7 @@ class ExsurgeControllerTest {
         exsurge.onStepCounter(5000)
         advance(minutes = 2)
         exsurge.onStepCounter(5120)
-        assertEquals(ExsurgeState.Sitting(now), exsurge.view.value.memory.state)
+        assertEquals(ExsurgeState.Sitting(now, walkedAt = now), exsurge.view.value.memory.state)
         assertEquals(now.plus(Duration.ofMinutes(30)), ports.wakes.last())
     }
 
@@ -440,6 +440,135 @@ class ExsurgeControllerTest {
         assertEquals(null, ports.wakes.last())
     }
 
+    private var stepTotal = 1_000L
+
+    private fun ExsurgeController.walk(seconds: Long, perMinute: Int) {
+        var carried = 0.0
+        repeat((seconds / WALK_READING_EVERY_S).toInt()) {
+            advance(seconds = WALK_READING_EVERY_S)
+            carried += perMinute * WALK_READING_EVERY_S / SECONDS_PER_MINUTE
+            val whole = carried.toLong()
+            stepTotal += whole
+            carried -= whole
+            onStepCounter(stepTotal)
+        }
+    }
+
+    @Test
+    fun `five steady minutes of walking while sitting are a finished break with a laurel and a fresh clock`() {
+        val exsurge = controller()
+        exsurge.turnOn()
+        exsurge.onStepCounter(stepTotal)
+        exsurge.walk(seconds = 5 * 60 + 10, perMinute = 84)
+
+        val outcome = store.outcomes.single()
+        assertEquals(OutcomeKind.COMPLETED, outcome.kind)
+        assertTrue(outcome.credited)
+        assertFalse(outcome.practised)
+        assertTrue(outcome.steps >= 5 * 40)
+        assertEquals(1, exsurge.view.value.stats.today.completed)
+        assertEquals(5L, exsurge.view.value.stats.today.minutesStanding)
+        assertEquals(1, exsurge.view.value.stats.laurels)
+        assertTrue(Cue.FREE in ports.cues)
+        assertTrue(Haptic.STEPS_ACCEPTED in ports.haptics)
+        val state = exsurge.view.value.memory.state as ExsurgeState.Sitting
+        assertEquals(OutcomeKind.COMPLETED, state.after)
+        assertEquals(5, exsurge.view.value.steadyMinutes)
+    }
+
+    @Test
+    fun `walking on after the credit earns no second laurel while the walk goes on`() {
+        val exsurge = controller()
+        exsurge.turnOn()
+        exsurge.onStepCounter(stepTotal)
+        exsurge.walk(seconds = 12 * 60, perMinute = 84)
+
+        assertEquals(1, store.outcomes.size)
+        assertEquals(1, exsurge.view.value.stats.laurels)
+        exsurge.walk(seconds = 70, perMinute = 0)
+        exsurge.walk(seconds = 5 * 60 + 10, perMinute = 84)
+        assertEquals(2, store.outcomes.size)
+    }
+
+    @Test
+    fun `four minutes of walking are not a break, and the banner counts the steady minutes`() {
+        val exsurge = controller()
+        exsurge.turnOn()
+        exsurge.onStepCounter(stepTotal)
+        exsurge.walk(seconds = 4 * 60 + 40, perMinute = 84)
+
+        assertTrue(store.outcomes.isEmpty())
+        assertEquals(4, exsurge.view.value.steadyMinutes)
+        val line = exsurge.view.value.banner as BannerLine.Walking
+        assertEquals(4, line.steadyMinutes)
+        assertEquals(5, line.steadyNeeded)
+        assertTrue(line.resetAgo < Duration.ofMinutes(2))
+    }
+
+    @Test
+    fun `a gap in the walking starts the five minutes again`() {
+        val exsurge = controller()
+        exsurge.turnOn()
+        exsurge.onStepCounter(stepTotal)
+        exsurge.walk(seconds = 3 * 60, perMinute = 84)
+        advance(seconds = 90)
+        exsurge.walk(seconds = 4 * 60 + 40, perMinute = 84)
+        assertTrue(store.outcomes.isEmpty())
+        exsurge.walk(seconds = 40, perMinute = 84)
+        assertEquals(1, store.outcomes.size)
+    }
+
+    @Test
+    fun `a manual one-off clock with the schedule off earns nothing for a steady walk`() {
+        val exsurge = controller()
+        exsurge.dispatch(ExsurgeEvent.RestartClock(), "banner")
+        exsurge.onStepCounter(stepTotal)
+        exsurge.walk(seconds = 6 * 60, perMinute = 84)
+
+        assertTrue(store.outcomes.isEmpty())
+        assertFalse(Cue.FREE in ports.cues)
+        assertTrue(exsurge.view.value.memory.state is ExsurgeState.Sitting)
+        assertEquals(0, exsurge.view.value.steadyMinutes)
+    }
+
+    @Test
+    fun `a summons that arrives mid-walk drops the stretch`() {
+        val exsurge = controller()
+        exsurge.turnOn()
+        exsurge.onStepCounter(stepTotal)
+        exsurge.walk(seconds = 3 * 60, perMinute = 84)
+        assertTrue(exsurge.view.value.steadyMinutes >= 2)
+        exsurge.dispatch(ExsurgeEvent.SummonNow, "banner")
+        assertEquals(0, exsurge.view.value.steadyMinutes)
+        assertTrue(store.outcomes.isEmpty())
+    }
+
+    @Test
+    fun `the diagnostics block says how far a steady walk has got`() {
+        val exsurge = controller()
+        exsurge.turnOn()
+        exsurge.onStepCounter(stepTotal)
+        exsurge.walk(seconds = 2 * 60 + 10, perMinute = 84)
+        val text = exsurge.diagnostics.getValue("exsurge.steadyWalk")
+        assertTrue(text, text.startsWith("2 of 5 steady minutes (at least 40 steps a minute)"))
+    }
+
+    @Test
+    fun `an enabled flag that flips back within two seconds says so in the history`() {
+        val exsurge = controller()
+        exsurge.updateSettings("settings page: enabled switch") { it.copy(enabled = true) }
+        now = now.plusMillis(400)
+        exsurge.updateSettings("settings page: enabled switch") { it.copy(enabled = false) }
+        now = now.plusSeconds(30)
+        exsurge.updateSettings("settings page: enabled switch") { it.copy(enabled = true) }
+
+        val sources = exsurge.settingsHistory.map { it.source }
+        assertEquals("settings page: enabled switch", sources.first())
+        assertTrue(sources[1], sources[1].contains("enabled flipped back 400 ms after the switch to true"))
+        assertTrue(sources[1], sources[1].contains("from settings page: enabled switch"))
+        assertEquals("settings page: enabled switch", sources[2])
+    }
+
     private class RecordingPorts : ExsurgePorts {
         var reminders = 0
         val wakes = mutableListOf<Instant?>()
@@ -491,5 +620,10 @@ class ExsurgeControllerTest {
         override fun viewChanged(view: ExsurgeView) {
             views++
         }
+    }
+
+    private companion object {
+        const val WALK_READING_EVERY_S = 5L
+        const val SECONDS_PER_MINUTE = 60.0
     }
 }

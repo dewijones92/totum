@@ -17,10 +17,16 @@ import java.time.Instant
 
 public enum class Mood { CONTENT, SUMMONING, CHEERING, COUNTING, FREEING, WOUNDED, SLEEPING, WEEPING }
 
+public val WALKING_SHOWN_FOR: Duration = Duration.ofMinutes(2)
+
+public fun ExsurgeState.walkingAt(at: Instant): Boolean =
+    this is Sitting && walkedAt?.let { !at.isBefore(it) && Duration.between(it, at) < WALKING_SHOWN_FOR } == true
+
 public fun moodOf(state: ExsurgeState, at: Instant): Mood = when (state) {
     Off, is Paused -> Mood.WEEPING
     is Dormant -> Mood.SLEEPING
     is Sitting -> when {
+        state.walkingAt(at) -> Mood.CHEERING
         state.after == OutcomeKind.COMPLETED && Duration.between(state.since, at) < FREEING_FOR -> Mood.FREEING
         state.after == OutcomeKind.SKIPPED || state.after == OutcomeKind.MISSED -> Mood.WOUNDED
         else -> Mood.CONTENT
@@ -37,24 +43,47 @@ public sealed interface BannerLine {
     public data class Sleeping(val backAt: Instant?) : BannerLine
     public data class Paused(val until: Instant) : BannerLine
     public data class Sitting(val summonsAt: Instant?, val satMinutes: Long, val limitMinutes: Int) : BannerLine
+    public data class Walking(
+        val summonsAt: Instant?,
+        val resetAgo: Duration,
+        val steadyMinutes: Int,
+        val steadyNeeded: Int,
+    ) : BannerLine
     public data class Summoned(val call: Int, val snoozes: Int) : BannerLine
     public data class Snoozed(val until: Instant) : BannerLine
     public data class Rising(val steps: Int, val needed: Int) : BannerLine
     public data class OnBreak(val endsAt: Instant, val steps: Int, val lengthMinutes: Int) : BannerLine
 }
 
-public fun bannerLineOf(state: ExsurgeState, at: Instant, context: ExsurgeContext): BannerLine {
+public fun bannerLineOf(
+    state: ExsurgeState,
+    at: Instant,
+    context: ExsurgeContext,
+    steadyMinutes: Int = 0,
+): BannerLine {
     val settings = context.settings
     return when (state) {
         Off -> BannerLine.Off
         is Dormant -> BannerLine.Sleeping(state.resumesAt)
         is Paused -> BannerLine.Paused(state.until)
-        is Sitting -> BannerLine.Sitting(
-            summonsAt = (state.since + state.length(settings))
-                .takeIf { state.oneOff || it.isBefore(settings.activeEndAfter(state.since, context.zone)) },
-            satMinutes = Duration.between(state.since, at).toMinutes().coerceAtLeast(0),
-            limitMinutes = state.limitMinutes(settings),
-        )
+        is Sitting -> {
+            val summonsAt = (state.since + state.length(settings))
+                .takeIf { state.oneOff || it.isBefore(settings.activeEndAfter(state.since, context.zone)) }
+            if (state.walkingAt(at)) {
+                BannerLine.Walking(
+                    summonsAt = summonsAt,
+                    resetAgo = state.walkedAt?.let { Duration.between(it, at) } ?: Duration.ZERO,
+                    steadyMinutes = steadyMinutes,
+                    steadyNeeded = settings.steadyWalkMinutes,
+                )
+            } else {
+                BannerLine.Sitting(
+                    summonsAt = summonsAt,
+                    satMinutes = Duration.between(state.since, at).toMinutes().coerceAtLeast(0),
+                    limitMinutes = state.limitMinutes(settings),
+                )
+            }
+        }
         is Summoned -> BannerLine.Summoned(state.call, state.summons.snoozes)
         is Snoozed -> BannerLine.Snoozed(state.until)
         is Rising -> BannerLine.Rising(state.steps, context.stepsToRise)
@@ -69,6 +98,7 @@ public fun bannerLineOf(state: ExsurgeState, at: Instant, context: ExsurgeContex
 public sealed interface BannerChip {
     public data class Countdown(val until: Instant) : BannerChip
     public data class Steps(val steps: Int, val needed: Int) : BannerChip
+    public data class Walking(val steadyMinutes: Int, val needed: Int) : BannerChip
     public data object Go : BannerChip
     public data object Off : BannerChip
     public data object Asleep : BannerChip
@@ -79,6 +109,7 @@ public fun bannerChipOf(line: BannerLine): BannerChip = when (line) {
     is BannerLine.Sleeping -> BannerChip.Asleep
     is BannerLine.Paused -> BannerChip.Countdown(line.until)
     is BannerLine.Sitting -> line.summonsAt?.let(BannerChip::Countdown) ?: BannerChip.Asleep
+    is BannerLine.Walking -> BannerChip.Walking(line.steadyMinutes, line.steadyNeeded)
     is BannerLine.Summoned -> BannerChip.Go
     is BannerLine.Snoozed -> BannerChip.Countdown(line.until)
     is BannerLine.Rising -> if (line.needed > 0) BannerChip.Steps(line.steps, line.needed) else BannerChip.Go

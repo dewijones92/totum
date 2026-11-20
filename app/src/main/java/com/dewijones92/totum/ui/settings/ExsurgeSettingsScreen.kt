@@ -78,8 +78,9 @@ fun ExsurgeSettingsScreen(exsurge: ExsurgeController, onBack: () -> Unit, modifi
     KeepScreenAwake("exsurge page")
     val view by exsurge.view.collectAsStateWithLifecycle()
     val settings = view.settings
-    val update: (ExsurgeSettings.() -> ExsurgeSettings) -> Unit = { change ->
-        exsurge.updateSettings("settings") { it.change() }
+    val resources = LocalResources.current
+    val update: Update = { source, change ->
+        exsurge.updateSettings("settings page: $source") { it.change() }
     }
     Surface(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
@@ -97,7 +98,7 @@ fun ExsurgeSettingsScreen(exsurge: ExsurgeController, onBack: () -> Unit, modifi
                     label = stringResource(R.string.exsurge_settings_enabled),
                     summary = stringResource(R.string.exsurge_settings_enabled_summary),
                     checked = settings.enabled,
-                    onCheckedChange = { on -> update { copy(enabled = on) } },
+                    onCheckedChange = { on -> update("enabled switch") { copy(enabled = on) } },
                     inset = 0.dp,
                 )
             }
@@ -114,7 +115,9 @@ fun ExsurgeSettingsScreen(exsurge: ExsurgeController, onBack: () -> Unit, modifi
                         label = stringResource(spec.label),
                         summary = stringResource(spec.summary),
                         checked = spec.get(settings),
-                        onCheckedChange = { v -> update { spec.set(this, v) } },
+                        onCheckedChange = { v ->
+                            update("switch ${resources.getResourceEntryName(spec.label)}") { spec.set(this, v) }
+                        },
                         inset = 0.dp,
                     )
                 }
@@ -130,6 +133,8 @@ fun ExsurgeSettingsScreen(exsurge: ExsurgeController, onBack: () -> Unit, modifi
         }
     }
 }
+
+private typealias Update = (source: String, change: ExsurgeSettings.() -> ExsurgeSettings) -> Unit
 
 private fun onStatusAction(context: Context, exsurge: ExsurgeController, action: BannerAction) {
     Diag.log(ExsurgeController.TAG, "dewidebug exsurge page action ${action.name}")
@@ -221,6 +226,24 @@ private val TIMING = listOf(
         { it.riseTimeoutMinutes },
     ) {
         copy(riseTimeoutMinutes = it)
+    },
+    StepperSpec(
+        R.string.exsurge_settings_steady_minutes,
+        R.plurals.exsurge_unit_minutes,
+        1,
+        ExsurgeSettings.STEADY_WALK_MINUTES_RANGE,
+        { it.steadyWalkMinutes },
+    ) {
+        copy(steadyWalkMinutes = it)
+    },
+    StepperSpec(
+        R.string.exsurge_settings_steady_steps,
+        R.plurals.exsurge_unit_steps,
+        5,
+        ExsurgeSettings.STEADY_WALK_STEPS_RANGE,
+        { it.steadyWalkStepsPerMinute },
+    ) {
+        copy(steadyWalkStepsPerMinute = it)
     },
     StepperSpec(
         R.string.exsurge_settings_walk_window,
@@ -345,39 +368,37 @@ private fun StatsCard(view: ExsurgeView) {
 }
 
 @Composable
-private fun HoursSection(settings: ExsurgeSettings, update: (ExsurgeSettings.() -> ExsurgeSettings) -> Unit) {
+private fun HoursSection(settings: ExsurgeSettings, update: Update) {
     val locale = LocalConfiguration.current.locales[0]
     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         DayOfWeek.entries.forEach { day ->
             val on = day in settings.activeDays
             FilterChip(
                 selected = on,
-                onClick = { update { copy(activeDays = if (on) activeDays - day else activeDays + day) } },
+                onClick = {
+                    update("day chip $day") { copy(activeDays = if (on) activeDays - day else activeDays + day) }
+                },
                 label = { Text(day.getDisplayName(TextStyle.SHORT, locale)) },
             )
         }
     }
     TimeStepper(stringResource(R.string.exsurge_settings_from), settings.startMinuteOfDay) { v ->
-        update {
-            copy(startMinuteOfDay = v)
-        }
+        update("slider from") { copy(startMinuteOfDay = v) }
     }
     TimeStepper(stringResource(R.string.exsurge_settings_until), settings.endMinuteOfDay) { v ->
-        update {
-            copy(endMinuteOfDay = v)
-        }
+        update("slider until") { copy(endMinuteOfDay = v) }
     }
 }
 
 @Composable
-private fun DestinationSection(settings: ExsurgeSettings, update: (ExsurgeSettings.() -> ExsurgeSettings) -> Unit) {
+private fun DestinationSection(settings: ExsurgeSettings, update: Update) {
     var packageText by rememberSaveable { mutableStateOf(settings.destinationPackage) }
     var routeText by rememberSaveable { mutableStateOf(settings.destinationRoute) }
     OutlinedTextField(
         value = packageText,
         onValueChange = { v ->
             packageText = v
-            update { copy(destinationPackage = v) }
+            update("package field") { copy(destinationPackage = v) }
         },
         label = { Text(stringResource(R.string.exsurge_settings_package)) },
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
@@ -386,7 +407,7 @@ private fun DestinationSection(settings: ExsurgeSettings, update: (ExsurgeSettin
         value = routeText,
         onValueChange = { v ->
             routeText = v
-            update { copy(destinationRoute = v) }
+            update("route field") { copy(destinationRoute = v) }
         },
         label = { Text(stringResource(R.string.exsurge_settings_route)) },
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
@@ -489,7 +510,7 @@ private fun checks(
 private fun Stepper(
     spec: StepperSpec,
     settings: ExsurgeSettings,
-    update: (ExsurgeSettings.() -> ExsurgeSettings) -> Unit,
+    update: Update,
 ) {
     val resources = LocalResources.current
     SnappingSlider(
@@ -499,7 +520,7 @@ private fun Stepper(
         step = spec.step,
         shown = { resources.getQuantityString(spec.unit, it, it) },
         tag = "exsurge-slider-${spec.label}",
-    ) { chosen -> update { spec.set(this, chosen) } }
+    ) { chosen -> update("slider ${resources.getResourceEntryName(spec.label)}") { spec.set(this, chosen) } }
 }
 
 @Composable

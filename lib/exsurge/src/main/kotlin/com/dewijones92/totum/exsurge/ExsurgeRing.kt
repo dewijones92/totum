@@ -3,7 +3,7 @@ package com.dewijones92.totum.exsurge
 import java.time.Duration
 import java.time.Instant
 
-public enum class RingKind { RISE_IN, BREAK_LEFT, STEPS, SNOOZED, PAUSED, SUMMONED, ASLEEP, OFF }
+public enum class RingKind { RISE_IN, BREAK_LEFT, STEPS, WALKING, SNOOZED, PAUSED, SUMMONED, ASLEEP, OFF }
 
 public data class RingReading(val fraction: Float, val until: Instant?, val kind: RingKind)
 
@@ -12,6 +12,11 @@ public fun ringOf(line: BannerLine, at: Instant): RingReading = when (line) {
     is BannerLine.Sleeping -> RingReading(0f, line.backAt, RingKind.ASLEEP)
     is BannerLine.Paused -> RingReading(0f, line.until, RingKind.PAUSED)
     is BannerLine.Sitting -> RingReading(sittingFraction(line, at), line.summonsAt, RingKind.RISE_IN)
+    is BannerLine.Walking -> RingReading(
+        share(line.steadyMinutes.toLong(), line.steadyNeeded.toLong()),
+        null,
+        RingKind.WALKING,
+    )
     is BannerLine.Summoned -> RingReading(1f, null, RingKind.SUMMONED)
     is BannerLine.Snoozed -> RingReading(1f, line.until, RingKind.SNOOZED)
     is BannerLine.Rising -> RingReading(share(line.steps.toLong(), line.needed.toLong()), null, RingKind.STEPS)

@@ -90,7 +90,7 @@ class ExsurgeMachineTest {
     fun `walking resets the sitting clock`() {
         val walkedAt = mondayTen.plusMinutes(20)
         val reset = apply(sitting(), ExsurgeEvent.Walked, walkedAt)
-        assertEquals(Sitting(walkedAt), reset.memory.state)
+        assertEquals(Sitting(walkedAt, walkedAt = walkedAt), reset.memory.state)
         val later = apply(reset.memory, ExsurgeEvent.Tick, mondayTen.plusMinutes(35))
         assertTrue(later.memory.state is Sitting)
     }
@@ -603,7 +603,7 @@ class ExsurgeMachineTest {
         val changed = apply(armed, ExsurgeEvent.SettingsChanged, evening.plusMinutes(5)).memory
         assertEquals(Sitting(evening, oneOff = true), changed.state)
         val walked = apply(changed, ExsurgeEvent.Walked, evening.plusMinutes(10)).memory
-        assertEquals(Sitting(evening.plusMinutes(10), oneOff = true), walked.state)
+        assertEquals(Sitting(evening.plusMinutes(10), oneOff = true, walkedAt = evening.plusMinutes(10)), walked.state)
     }
 
     @Test
@@ -626,7 +626,7 @@ class ExsurgeMachineTest {
         val early = ZonedDateTime.of(2026, 10, 5, 8, 50, 0, 0, zone).toInstant()
         val armed = apply(ExsurgeMemory(Dormant(null)), ExsurgeEvent.RestartClock(), early).memory
         val walked = apply(armed, ExsurgeEvent.Walked, early.plusMinutes(20)).memory
-        assertEquals(Sitting(early.plusMinutes(20)), walked.state)
+        assertEquals(Sitting(early.plusMinutes(20), walkedAt = early.plusMinutes(20)), walked.state)
         val six = ZonedDateTime.of(2026, 10, 5, 18, 0, 0, 0, zone).toInstant()
         val evening = apply(walked.copy(state = Sitting(six.minusSeconds(600))), ExsurgeEvent.Tick, six)
         assertTrue(evening.memory.state is Dormant)
@@ -653,5 +653,13 @@ class ExsurgeMachineTest {
         val second = apply(first, ExsurgeEvent.RestartClock(), early.plusSeconds(19)).memory
         val due = apply(second, ExsurgeEvent.Tick, early.plusSeconds(19).plusMinutes(30))
         assertTrue("expected a summons, was ${due.memory.state.label()}", due.memory.state is Summoned)
+    }
+
+    @Test
+    fun `a walk reset remembers when it happened so the banner can say so`() {
+        val walked = apply(sitting(), ExsurgeEvent.Walked, mondayTen.plusMinutes(20)).memory.state as Sitting
+        assertEquals(mondayTen.plusMinutes(20), walked.walkedAt)
+        val sat = apply(ExsurgeMemory(Dormant(null)), ExsurgeEvent.RestartClock(), mondayTen).memory.state as Sitting
+        assertNull(sat.walkedAt)
     }
 }
