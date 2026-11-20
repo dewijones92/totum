@@ -2,7 +2,7 @@
 title: Casting plays a stream the phone serves, with Totum's own audio and the original video packets
 kind: adr
 status: accepted
-updated: 2026-11-06
+updated: 2026-11-20
 ---
 
 # 68. Casting plays a stream the phone serves, with Totum's own audio and the original video packets
@@ -104,7 +104,8 @@ Probed on 2026-10-21 against both TVs (Pi webcam stills, the C920 microphone, re
   position so it switches stream. Measured 2026-10-21 through the relay: the LG OLED65C24LA's Cast player plays VP9 at
   2160p but errors on AV1 at any size (the TV itself decodes AV1); the Chromecast Ultra plays VP9 1080p but errors on
   VP9 2160p and AV1. So both are VP9/H.264, the LG up to 2160p and the Ultra up to 1080p; unknown devices are
-  VP9/H.264 1080p. **HEVC** measured 2026-10-21 (1080p 8-bit DASH, `hev1` and `hvc1` tags): both TVs play it, so a
+  VP9/H.264 1080p, **H.264 first** since [ADR 179](0179-a-silent-cast-moves-to-the-next-codec-and-an-unmeasured-tv-gets-h264-first.md) (they were VP9 first, and two generic Chromecasts went
+  silent on it). **HEVC** measured 2026-10-21 (1080p 8-bit DASH, `hev1` and `hvc1` tags): both TVs play it, so a
   downloaded x265 torrent casts without re-encoding (its video is remuxed into an MP4); HEVC Main10 is not measured.
   A torrent still streaming as **Matroska** (H.264 or HEVC) is **remuxed on demand** (Dewi's choice, 2026-10-22):
   `MkvVideo` reads the header, the video track (often not the first) and the Cues by byte range, and each cue-to-cue

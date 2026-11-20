@@ -3,7 +3,7 @@ title: Casting
 kind: feature
 area: playback
 status: built — in use with the LG and the Chromecast Ultra (fixed from Dewi's diagnostics of 7 to 11 November, ADR 164); the TV volume, the read-ahead, the 12 s step-down, SubRip on the LG and the Pi's casting are not yet seen on a real TV
-updated: 2026-11-14
+updated: 2026-11-20
 ---
 
 # Casting
@@ -13,7 +13,7 @@ updated: 2026-11-14
 > of 7 to 11 November, [ADR 164](../adr/0164-casting-fixes-from-the-diagnostics-of-7-to-11-november.md)), so "prototype" understated
 > it. Still **not seen on a real TV**, per this doc: the TV's volume (2026-11-06, "Not yet seen on a device"), the read-ahead on a
 > throttled link, the 12 s step-down, SubRip captions on the LG, the PC screen's seek bar against a real phone (ADR 164's own
-> "needs a real TV" list), the 24 fps on 60 Hz judder (still a suspect), and the Pi casting with the same code
+> "needs a real TV" list), the 24 fps on 60 Hz judder (still a suspect), a generic Chromecast taking H.264 and the 8 s start watchdog ([ADR 179](../adr/0179-a-silent-cast-moves-to-the-next-codec-and-an-unmeasured-tv-gets-h264-first.md), nothing run against a real generic Chromecast), and the Pi casting with the same code
 > ([pi-plays-everywhere](pi-plays-everywhere.md): the relay is not yet seen on a real TV).
 
 Cast (the button in the player's top bar) sends what is playing to a Google Cast device. Totum stays the brain: the TV
@@ -135,6 +135,27 @@ Logs: `dewidebug resume rewind skipped: nothing names the item [...]`, `dewidebu
 an item but nothing names it [...]`, `dewidebug not asking where else it was watched: no item id [...]`.
 `dewidebug step-down watch: the receiver names nothing; using <id>, the item Totum sent`, `dewidebug step-down watch: the TV is
 buffering and nothing names the item, ...`, `dewidebug silent tail not watched: nothing names the item`.
+
+## A generic Chromecast, and a TV that goes quiet (2026-11-20, [ADR 179](../adr/0179-a-silent-cast-moves-to-the-next-codec-and-an-unmeasured-tv-gets-h264-first.md))
+
+Reports of 14 to 17 November (v0.1.927): Kitchen TV and Living Room TV (model string "Chromecast", not the Ultra) fetched the
+manifest and the VP9 video's init and index and then nothing; audio-only casts worked.
+
+- **H.264 first for a model `CastScreen.of` does not recognise** (`CastScreen.order`; the LG, the Ultra and a PC screen keep VP9
+  or AV1 first). The phone's own ladder while casting follows the same order.
+- **Start watchdog.** The TV has fetched the picture and asked for no sound in 8 s (`TvStartWatch`): the item is re-sent at its
+  place with the next codec (`CastStreamServer.stepDownCodec`, `CastStepDownWatch.tvDidNotStart`), at most twice, never when
+  no other codec is offered. The strip says "📺 <TV> didn't start VP9, trying H.264". The refusal is held for the cast, and
+  saved per model (`CodecRefusals`, `PrefsRefusalStore`) only when the TV then asks for sound from the other codec's session.
+  Not armed for the Pi's targets.
+- **Logs:** `dewidebug the receiver says playing|buffering|loading|idle because of an ERROR [item= loading= position=]`,
+  `the receiver reported an error: type= detailedErrorCode= reason=` (the load's own result is not exposed by Media3, so it is
+  read from these), `video request begun #n range= (k in flight)`, `video relay: N request(s) still in flight, the oldest for
+  Xms` every 10 s while one is open, `the TV fetched the picture Nms ago and has asked for no sound since`, `… did not start
+  <label>; trying <label> instead (set aside so far: …)`, `codec refusals saved: …`.
+- **A route selected and no session callback in 5 s** (a Play Services Dynamite failure, report 20261114T200559): logged with the
+  cast state and the Play Services version, and the snackbar "⚠️ Cast didn't start on <TV>" offers Retry (selects the route
+  again). A Cast framework that will not start in the service, the app or the Cast button now logs why.
 
 ## Kid TV (2026-11-07)
 
