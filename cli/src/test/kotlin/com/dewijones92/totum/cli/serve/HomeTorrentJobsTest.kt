@@ -1,5 +1,6 @@
 package com.dewijones92.totum.cli.serve
 
+import com.dewijones92.totum.cli.testsupport.OwnedScope
 import com.dewijones92.totum.common.BotBackOff
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.common.PoliteGate
@@ -15,10 +16,6 @@ import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.TorrentIds
 import com.dewijones92.totum.polite.Politeness
 import com.sun.net.httpserver.HttpServer
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
 import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
@@ -40,7 +37,7 @@ class HomeTorrentJobsTest {
     @get:Rule
     val tmp = TemporaryFolder()
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val scope = OwnedScope()
     private val polite = Politeness(PoliteGate(maxInFlight = 4, perSecond = 1_000.0, burst = 1_000), BotBackOff())
     private val seen = CopyOnWriteArrayList<String>()
     private var answer = 503
@@ -48,8 +45,11 @@ class HomeTorrentJobsTest {
 
     @After
     fun stop() {
-        scope.cancel()
-        stalls.forEach { it.stop(0) }
+        try {
+            scope.shutDown()
+        } finally {
+            stalls.forEach { it.stop(0) }
+        }
     }
 
     private val transport = Interceptor { chain ->

@@ -4,7 +4,10 @@ import com.dewijones92.totum.cli.serve.filing.FilePlan
 import com.dewijones92.totum.cli.serve.filing.FolderLibrary
 import com.dewijones92.totum.cli.serve.filing.LibraryFiler
 import com.dewijones92.totum.cli.serve.filing.Shelf
+import com.dewijones92.totum.cli.testsupport.OwnedScope
+import com.dewijones92.totum.common.Breadcrumbs
 import com.dewijones92.totum.common.HttpUrl
+import com.dewijones92.totum.data.download.DownloadRecord
 import com.dewijones92.totum.data.download.JsonDownloadStore
 import com.dewijones92.totum.data.torrent.TorrentPlayables
 import com.dewijones92.totum.domain.DownloadState
@@ -14,11 +17,8 @@ import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.polite.Politeness
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.After
@@ -35,7 +35,7 @@ class HomeFilingTest {
     private val downloads = File(root, "media/totum").apply { mkdirs() }
     private val movies = File(root, "media/videos/movies").apply { mkdirs() }
     private val series = File(root, "media/videos/series").apply { mkdirs() }
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val scope = OwnedScope()
     private val asked = mutableListOf<Pair<String, String?>>()
     private val filer = LibraryFiler(
         FolderLibrary(mapOf(Shelf.MOVIES to movies, Shelf.SERIES to series)),
@@ -48,8 +48,11 @@ class HomeFilingTest {
 
     @After
     fun clean() {
-        scope.cancel()
-        root.deleteRecursively()
+        try {
+            scope.shutDown()
+        } finally {
+            root.deleteRecursively()
+        }
     }
 
     private fun item(id: String, source: SourceId, url: String) = PlayableItem(
@@ -143,5 +146,29 @@ class HomeFilingTest {
         val home = home()
         until("relocated") { home.fileOf("ep2")?.canonicalPath == file.canonicalPath }
         Unit
+    }
+
+    @Test
+    fun `a record the store cannot write is logged and filing carries on with the next one`() = runBlocking {
+        val notADirectory = File(root, "not-a-directory").apply { writeText("a file where the data folder should be") }
+        val unwritable = JsonDownloadStore(File(notADirectory, "downloads.json"))
+        val moved = item("ep3", SourceId("feed"), "http://example.com/ep3.mp3")
+        File(downloads, "ep3.media").writeText("talk")
+        val finished = File(downloads, "abc.media").apply { writeText("film") }
+        val records = flowOf(
+            listOf(
+                DownloadRecord(moved, DownloadState.Downloaded("/downloads/ep3.media")),
+                DownloadRecord(torrent, DownloadState.Downloaded(finished.path)),
+            ),
+        )
+
+        HomeFiling(unwritable, downloads, filer).start(scope, records)
+        until("filing to carry on past the failed write") { asked.isNotEmpty() || scope.uncaught.isNotEmpty() }
+
+        assertEquals(emptyList<Throwable>(), scope.uncaught)
+        assertEquals(listOf("Toy Story 5 (2026) x265.mkv" to "Toy.Story.5.2026.1080p.x265.10bit"), asked)
+        val said = Breadcrumbs.snapshot().filter { it.tag == "filing" }.map { it.message }
+        assertTrue(said.toString(), said.any { "ep3" in it && "filing carries on" in it })
+        assertTrue(said.toString(), said.any { "torrent:abc:1" in it && "filing carries on" in it })
     }
 }

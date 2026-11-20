@@ -3,6 +3,7 @@ package com.dewijones92.totum.cli.serve
 import com.dewijones92.totum.cli.serve.cast.CommandOutput
 import com.dewijones92.totum.cli.serve.cast.YtDlpLiveHls
 import com.dewijones92.totum.cli.serve.targets.YouTubeProgress
+import com.dewijones92.totum.cli.testsupport.OwnedScope
 import com.dewijones92.totum.common.BotBackOff
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.common.PoliteGate
@@ -20,10 +21,6 @@ import com.dewijones92.totum.ytdlp.DownloadRequest
 import com.dewijones92.totum.ytdlp.ExtractionResult
 import com.dewijones92.totum.ytdlp.YtDlpEngine
 import com.dewijones92.totum.ytdlp.fake.FakeYtDlpEngine
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.runBlocking
@@ -53,7 +50,7 @@ class YouTubeGateTest {
     private val gate = PoliteGate(maxInFlight = 1, perSecond = 1_000.0, burst = 1_000)
     private val botBackOff = BotBackOff()
     private val polite = Politeness(gate, botBackOff)
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val scope = OwnedScope()
 
     private class Seen(val what: String, val inFlight: Int)
 
@@ -98,7 +95,7 @@ class YouTubeGateTest {
 
     @After
     fun stop() {
-        scope.cancel()
+        scope.shutDown()
     }
 
     private val item = PlayableItem(
