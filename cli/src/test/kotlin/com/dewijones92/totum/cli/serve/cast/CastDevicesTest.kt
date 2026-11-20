@@ -2,6 +2,7 @@ package com.dewijones92.totum.cli.serve.cast
 
 import com.dewijones92.totum.cli.Command
 import com.dewijones92.totum.cli.serve.sound.ProcessedSound
+import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.targets.Target
 import com.dewijones92.totum.data.targets.TargetKind
 import com.dewijones92.totum.data.targets.TargetsJson
@@ -117,6 +118,21 @@ class CastDevicesTest {
         sound.answers = false
         both.reachable()
         assertTrue(both.showsPictures)
+    }
+
+    @Test
+    fun `listing the configured devices every minute logs the count once`() = runBlocking {
+        val logged = mutableListOf<String>()
+        Diag.sink = Diag.Sink { _, _, message, _ -> logged += message }
+        try {
+            val source = CastDeviceSource(devices(cast = "Chromecast Ultra=1.1.1.1"), streams())
+
+            repeat(4) { source.find(false) }
+
+            assertEquals(1, logged.count { "configured 1 cast target(s)" in it })
+        } finally {
+            Diag.sink = Diag.Sink { _, _, _, _ -> }
+        }
     }
 
     @Test

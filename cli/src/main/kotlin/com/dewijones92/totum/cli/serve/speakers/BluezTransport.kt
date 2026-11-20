@@ -1,5 +1,6 @@
 package com.dewijones92.totum.cli.serve.speakers
 
+import com.dewijones92.totum.cli.serve.LogOnChange
 import com.dewijones92.totum.common.Diag
 import kotlin.math.roundToInt
 
@@ -28,11 +29,23 @@ internal interface SpeakerTransport {
 }
 
 internal class BluezTransport(private val mac: String, private val shell: Shell) : SpeakerTransport {
-    private val transport = Regex("""/org/bluez/hci\d+/dev_${mac.replace(':', '_')}/fd\d+""", RegexOption.IGNORE_CASE)
+    private val noTransport = LogOnChange("speakers")
+    private val device = "dev_${mac.replace(':', '_')}"
+    private val transport = Regex("""/org/bluez/hci\d+/$device(/sep\d+)?/fd\d+""", RegexOption.IGNORE_CASE)
 
     private suspend fun path(): String? {
         val tree = shell.run(listOf("busctl", "--system", "tree", "org.bluez", "--list")) ?: return null
-        return tree.lines().map { it.trim() }.firstOrNull { transport.matches(it) }
+        val lines = tree.lines().map { it.trim() }
+        val found = lines.firstOrNull { transport.matches(it) }
+        if (found == null) {
+            val ours = lines.filter { it.contains(device, ignoreCase = true) }
+            noTransport.log(
+                mac,
+                "dewidebug $mac: no A2DP transport among ${lines.size} bus object(s); the device's own: " +
+                    ours.joinToString(" | ").ifEmpty { "none" }
+            )
+        }
+        return found
     }
 
     override suspend fun volume(): TransportVolume {

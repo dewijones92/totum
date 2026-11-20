@@ -65,10 +65,12 @@ internal class KeepAwakeSettings(
     }
 }
 
+internal enum class Reconnect { LINKED, FAILED, HOST_DOWN }
+
 internal interface KeepAwakeTransport {
     suspend fun linked(): Boolean
 
-    suspend fun reconnect(): Boolean
+    suspend fun reconnect(): Reconnect
 
     suspend fun sendSignal(signal: KeepAwakeSignal): Boolean
 }
@@ -84,6 +86,7 @@ internal class KeepAwakeKeeper(
     private val signalEveryMs: Long = SIGNAL_EVERY_MS,
     private val reconnectEveryMs: Long = RECONNECT_EVERY_MS,
     private val reconnectMaxMs: Long = RECONNECT_MAX_MS,
+    private val hostDownMaxMs: Long = HOST_DOWN_MAX_MS,
     private val summaryEvery: Int = SUMMARY_EVERY,
 ) : TargetKeeper {
     private val lock = Mutex()
@@ -91,11 +94,13 @@ internal class KeepAwakeKeeper(
     private var lastSignalMs: Long? = null
     private var lastReconnectMs: Long? = null
     private var reconnectWaitMs = reconnectEveryMs
+    private var hostDownSince: Long? = null
     private var checks = 0
     private var signals = 0
     private var signalFailures = 0
     private var reconnects = 0
     private var reconnectFailures = 0
+    private var hostDownFailures = 0
     private var waits = 0
     private var busyChecks = 0
 
@@ -130,6 +135,7 @@ internal class KeepAwakeKeeper(
             return
         }
         reconnectWaitMs = reconnectEveryMs
+        endHostDown(now)
         move(KeepAwake.KEPT, "connected and kept awake (window $window)")
         if (busy) {
             busyChecks++
@@ -147,19 +153,49 @@ internal class KeepAwakeKeeper(
             return
         }
         lastReconnectMs = now
-        if (transport.reconnect()) {
-            reconnects++
-            reconnectWaitMs = reconnectEveryMs
-            move(KeepAwake.KEPT, "was not connected, reconnected and kept awake (window $window)")
-            sendSignal(now)
-        } else {
-            reconnectFailures++
-            reconnectWaitMs = (reconnectWaitMs * 2).coerceAtMost(reconnectMaxMs)
-            move(
-                KeepAwake.RECONNECTING,
-                "not connected and a reconnect failed; the next try is in ${reconnectWaitMs}ms"
-            )
+        when (val result = transport.reconnect()) {
+            Reconnect.LINKED -> {
+                reconnects++
+                reconnectWaitMs = reconnectEveryMs
+                endHostDown(now)
+                move(KeepAwake.KEPT, "was not connected, reconnected and kept awake (window $window)")
+                sendSignal(now)
+            }
+            Reconnect.FAILED -> {
+                reconnectFailures++
+                reconnectWaitMs = (reconnectWaitMs * 2).coerceAtMost(maxOf(reconnectMaxMs, reconnectWaitMs))
+                move(
+                    KeepAwake.RECONNECTING,
+                    "not connected and a reconnect failed; the next try is in ${reconnectWaitMs}ms"
+                )
+            }
+            Reconnect.HOST_DOWN -> {
+                reconnectFailures++
+                hostDownFailures++
+                reconnectWaitMs = (reconnectWaitMs * 2).coerceAtMost(hostDownMaxMs)
+                if (hostDownSince == null) {
+                    hostDownSince = now
+                    Diag.log(
+                        "speakers",
+                        "$id: dewidebug the speaker answers \"Host is down\" (switched off or out of range), so " +
+                            "reconnects back off to at most ${hostDownMaxMs / MS_PER_MIN} min; first retry in " +
+                            "${reconnectWaitMs / MS_PER_MIN} min, and the wait resets when it is seen again"
+                    )
+                }
+                move(KeepAwake.RECONNECTING, "host is down; the next try is in ${reconnectWaitMs}ms")
+            }
         }
+    }
+
+    private fun endHostDown(now: Long) {
+        val since = hostDownSince ?: return
+        hostDownSince = null
+        Diag.log(
+            "speakers",
+            "$id: dewidebug the speaker is back after ${(now - since) / MS_PER_MIN} min of \"Host is down\" " +
+                "($hostDownFailures failed reconnect(s)); the reconnect wait is back to ${reconnectEveryMs / MS_PER_MIN} min"
+        )
+        hostDownFailures = 0
     }
 
     private suspend fun sendSignal(now: Long) {
@@ -186,6 +222,8 @@ internal class KeepAwakeKeeper(
         const val SIGNAL_EVERY_MS = 60_000L
         const val RECONNECT_EVERY_MS = 120_000L
         const val RECONNECT_MAX_MS = 600_000L
+        const val HOST_DOWN_MAX_MS = 3_600_000L
+        const val MS_PER_MIN = 60_000L
         const val SUMMARY_EVERY = 20
     }
 }
