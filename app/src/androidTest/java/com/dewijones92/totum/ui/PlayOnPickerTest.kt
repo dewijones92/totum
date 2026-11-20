@@ -35,9 +35,6 @@ import com.dewijones92.totum.ui.queue.PLAY_ON_OPTION_PREFIX
 import com.dewijones92.totum.ui.queue.PLAY_ON_ROW_TAG
 import com.dewijones92.totum.ui.queue.PLAY_ON_UNREACHABLE_TAG
 import com.dewijones92.totum.ui.queue.PlayOnRow
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -51,7 +48,7 @@ class PlayOnPickerTest {
     @get:Rule
     val compose = createComposeRule()
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val scope = mainThreadScope()
 
     @After
     fun stop() = scope.cancel()
