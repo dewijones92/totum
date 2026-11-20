@@ -203,10 +203,38 @@ class YoursSearchTest {
     }
 
     @Test
+    fun `a Jellyfin series is a row in the tab and counts in its number`() = runTest(dispatcher) {
+        val jelly = object : JellyfinApi {
+            override suspend fun browse(parent: String?, start: Int): HomeAnswer<JellyfinListing> = error("not browsed")
+            override suspend fun search(term: String): HomeAnswer<JellyfinListing> = HomeAnswer.Ok(
+                JellyfinListing(
+                    null,
+                    "🔎",
+                    listOf(JellyfinItem("0123456789abcd77", "Spinal Tap Diaries", JellyfinKind.SERIES, year = 1999)),
+                    1,
+                    null,
+                    search = term,
+                ),
+            )
+
+            override fun streamUrl(item: JellyfinItem): HttpUrl = HttpUrl.of("https://totum.example/fetch/x.mkv")
+        }
+        val model = model(yoursSource(atHome = null, jellyfin = jelly))
+
+        startSearch(model, "spinal tap")
+
+        val rows = (model.loaded().yours as SearchSection.Found).items
+        val series = rows.filterIsInstance<SearchHit.YoursSeries>().single()
+        assertEquals("0123456789abcd77", series.id)
+        assertEquals(listOf("Spinal Tap II", "Spinal Tap Diaries"), rows.map { it.title })
+        assertEquals(2, searchTabsFor(model.loaded(), "spinal tap").first { it.tab == SearchTab.YOURS }.count)
+    }
+
+    @Test
     fun `tapping a row plays it through the queue`() = runTest(dispatcher) {
         val model = model(yoursSource(atHome = null))
         startSearch(model, "spinal tap")
-        val hit = (model.loaded().yours as SearchSection.Found).items.single()
+        val hit = (model.loaded().yours as SearchSection.Found).items.filterIsInstance<SearchHit.Yours>().single()
         assertNull(playback.state.value)
 
         model.playYours(hit)

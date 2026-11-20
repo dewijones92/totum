@@ -72,10 +72,27 @@ on other lists it should be its own value (🏠 At home), fed from `HomeDownload
 - The tab and section render through the existing `hitSection`/`WrappingTabs`; `SearchOutcome.Success` and
   `SearchSection.Found` gained `notes` (a line that is not a result), which no other section uses yet. `SearchSection.map`
   now keeps `stillWaitingFor` and `notes` (it dropped `stillWaitingFor`; the only caller, videos, never had one).
-- Series are not searched: a series is a folder, and a search row has nowhere to open it. A series' episodes are found
-  when their own names match.
+- Series are searched too (amended 2026-11-20, below): a series is a folder, so its row opens its page rather than playing.
 - The Music scope's search (songs, albums, artists) has no Yours tab, so a downloaded song is not offered there. That is
   an inconsistency to decide on, not a decision.
-- A Jellyfin episode played from a search row plays alone, not as the rest of its season (the Library page's behaviour).
+- A Jellyfin episode played from a search row carries on through its series (amended 2026-11-20, below).
 - At Dewi's scale (578 downloads in the 2026-11-20 dump, a few hundred finished home jobs) matching is a few
   milliseconds on `Dispatchers.Default`; `YoursSearchSourceTest` holds 600 + 400 items under a second and capped at 200 rows.
+
+## Amended 2026-11-20: series are searched, and an episode carries on through its series
+
+Two follow-ups left by the first build.
+
+- **A series is a row.** `GET /jellyfin/browse?search=` now asks Jellyfin for `Movie,Series,Episode` (50 at most), so a
+  series whose name matches comes back beside the films and episodes. `SearchHit` gained a sealed `YoursHit` with two
+  members: `Yours` (a playable, as before) and `YoursSeries` (id, name, year, poster; always 🎞️ In Jellyfin). The merge
+  orders by place, then title, so a series sits among the Jellyfin rows, and a series is never merged into a phone or
+  home item (it has no file). Its row reads "📺 Bluey" with "year · 🎞️ In Jellyfin · 📂 Series: opens its seasons", and
+  tapping it opens the Jellyfin page at that series over the search results (the same overlay shape as a channel opened
+  from search; back returns to the results with their place). The Pi is still told the term as typed. **Old Pi
+  degradation is unchanged**: a Pi without the route answers its top level with no echo of the term and the tab says
+  "⚠️ The home server needs updating to search Jellyfin"; a Pi with the first version of the route (films and episodes
+  only) simply lists no series. The Pi needs a redeploy for series.
+- **An episode played from a search row is its series' group.** See [ADR 154](0154-jellyfin-is-browsed-and-streamed-through-the-pi.md),
+  amended the same day: the rule lives in the queue's `playNow`, so a search row is one of several ways in, not a
+  special case.

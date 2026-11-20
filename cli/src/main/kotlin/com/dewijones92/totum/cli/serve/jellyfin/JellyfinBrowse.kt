@@ -51,7 +51,7 @@ internal class JellyfinBrowse(private val jellyfin: Jellyfin) {
     }
 
     fun search(term: String): JellyfinListing {
-        val path = "/Items?Recursive=true&IncludeItemTypes=Movie,Episode&SortBy=SortName&Fields=$FIELDS" +
+        val path = "/Items?Recursive=true&IncludeItemTypes=Movie,Series,Episode&SortBy=SortName&Fields=$FIELDS" +
             "&Limit=$SEARCH_LIMIT&SearchTerm=${URLEncoder.encode(term, Charsets.UTF_8).replace("+", "%20")}"
         val body = jellyfin.get(path)
         if (body == null) {
@@ -67,6 +67,7 @@ internal class JellyfinBrowse(private val jellyfin: Jellyfin) {
             "jellyfin",
             "search \"$term\": ${page.items.size} item(s) of ${page.total ?: "an unknown number"} " +
                 "(${page.items.count { it.kind == JellyfinKind.MOVIE }} film(s), " +
+                "${page.items.count { it.kind == JellyfinKind.SERIES }} series, " +
                 "${page.items.count { it.kind == JellyfinKind.EPISODE }} episode(s))",
         )
         return JellyfinListing(null, "🔎 $term", page.items, page.total, null, search = term)

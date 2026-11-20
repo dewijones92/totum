@@ -2,7 +2,7 @@
 title: Jellyfin is browsed and streamed through the Pi, with the key kept there
 kind: adr
 status: accepted
-updated: 2026-11-13
+updated: 2026-11-20
 ---
 
 # 154. Jellyfin is browsed and streamed through the Pi, with the key kept there
@@ -32,7 +32,7 @@ token-gated `totum.` host).
 - **One source behind the existing seams, not a second player.** An item is a `PlayableItem` with a `PlayHandle.Podcast`
   and the Pi's stream address as its `mediaUrl`, id `jellyfin:<id>`. The address keeps the file's own extension, so
   `Picture` knows it has a picture and Listen/Watch, the queue, groups, resume, downloads and the mini player treat it as
-  they treat a torrent file. Tapping an episode plays the rest of its season as a queue group.
+  they treat a torrent file. Tapping an episode played the rest of its season as a queue group (since 2026-11-20 its whole series: see the last amendment).
 - **A Pi target resolves it itself.** `TargetStreams` (the deck's `TargetSounds`) turns a `jellyfin:` id into Jellyfin's stream address with
   the key, for mpv and ffmpeg on the Pi, instead of the phone's `/fetch/` address (which needs the device token).
 - **Listings are read a page at a time** (`Limit`/`StartIndex`, 100 per page; the listing says `total` and `next`, the
@@ -117,3 +117,30 @@ Jellyfin special case in the screen:
 term trimmed and capped at 100 characters, a blank term refused with 400) as a `JellyfinListing` with `search` set to the
 term. An older Pi ignores the parameter, so a phone treats an answer without the echo as "not searched". Used by the 📥
 Yours tab of search: [ADR 183](0183-search-shows-what-you-already-have-first.md).
+
+## Amended 2026-11-20: an episode is queued as its series, whichever way it is started
+
+Found on the first build of the 📥 Yours tab (ADR 183): an episode played from a search row played alone, while the
+Jellyfin page queued its season. Two ways of starting the same thing gave two behaviours, and neither carried on into the
+next season. It is now one rule, as `BookPlayer` queues a book ([ADR 105](0105-audiobooks-are-books-from-the-archive-and-torrents.md)):
+
+- **One seam in the queue.** `PlaybackQueue.playNow` (so every row, history and Carry on entry, pin, link, notification
+  and "play on" choice that plays one Jellyfin episode) asks `SeriesRuns.forTap` first. For an episode (a `jellyfin:`
+  item with a series name and an `SxxEyy` title) played by the user, not handed a group, not already queued in one, not a
+  back/forward step and with a network, `JellyfinApi.seriesRunOf` reads the series and the queue plays it with `playAll`
+  as one group `jellyfin:series:<series id>` titled "📺 <series>", every episode of every season in order, starting at the
+  tapped one. It carries on through the rest of its season and then the next, the way a group plays, and earlier episodes
+  are above it in the queue. The Jellyfin page's episode tap calls the same `playAsSeries` and falls back to its season
+  group only when the series cannot be read. A film has no series and plays alone, as before. Explore is unchanged (it
+  still feeds the episodes after the one that ended, and skips played ones).
+- **Reading the series is one search when the Pi can search.** `findSeries` asks `search(<series name>)` and takes the
+  series with that exact name; a Pi without the route (no echo) is walked from the top level as Explore always did. The
+  seasons and episodes are then read a page at a time (`seasonsOf`, `episodesOf`; Explore's `episodesAfter` shares
+  `findSeries`). The read is cut at 6 s: past that, or if the series is unknown or does not hold the tapped episode, the
+  episode plays alone and the log line says why (`dewidebug series: <id> (SxxEyy) plays alone: <reason>`).
+- **Scale.** A series of a few hundred episodes adds that many rows to a queue that already holds about 6,000; the queue
+  inserts a run in one mutation as it does for a book or a playlist.
+- **Not covered:** an episode already queued in some other group plays there, unchanged; an episode already queued with
+  no group ("➕ Added by you") is moved into the series group; an item whose title carries no `SxxEyy` (the Pi always
+  writes one for an episode) counts as a film for this purpose. Restoring a backup restores the queue as it was and plays
+  nothing, so it has no say.
