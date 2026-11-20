@@ -242,6 +242,7 @@ class SearchViewModel(
         .transformLatest { raw ->
             if (raw.length < MIN_QUERY_LENGTH) {
                 activeQuery = null
+                loaded = null
                 emit(Results.Idle)
             } else {
                 emit(Results.Searching)
@@ -254,12 +255,15 @@ class SearchViewModel(
     /*
      * Held rather than derived, because "load more" appends to what is already on screen
      * — a pure derivation of the query text has nowhere to put page two. The typed flow
-     * feeds this; loadMoreVideos appends to it.
+     * feeds this; loadMoreVideos and moreMusic write to the same [loaded] flow the sections do.
      */
     private val results = MutableStateFlow<Results>(Results.Idle)
 
     /** The query the current results belong to, so a continuation asks about the right one. */
     private var activeQuery: SearchQuery? = null
+
+    @Volatile
+    private var loaded: MutableStateFlow<Results.Loaded>? = null
 
     init {
         viewModelScope.launch { searched.collect { results.value = it } }
@@ -344,6 +348,7 @@ class SearchViewModel(
      */
     private fun searchStream(query: SearchQuery): Flow<Results> = channelFlow {
         val state = MutableStateFlow(startingSections(query))
+        loaded = state
         launch { state.collect { send(it) } }
         val run = SearchRun(query, state)
         launchEverythingOnlySections(run, query)
@@ -576,32 +581,36 @@ class SearchViewModel(
      * states by returning a final page — so there is simply never a token to follow.
      */
     fun loadMoreVideos() {
-        val current = results.value as? Results.Loaded ?: return
-        if (current.loadingMore) return
-        val shown = current.videos.itemsOrNull ?: return
-        val token = shown.next ?: return
+        val live = loaded ?: return
         val query = activeQuery ?: return
-        results.value = current.copy(loadingMore = true)
+        val current = live.value
+        if (current.loadingMore) return
+        val token = current.videos.itemsOrNull?.next ?: return
+        live.update { it.copy(loadingMore = true) }
         viewModelScope.launch {
             val outcome = sources.videos.search(query, RESULTS_PER_SECTION, token)
             // Re-read: a new query may have landed while this page was in flight, and
             // appending page two of the old search to it would be worse than dropping it.
-            val latest = results.value as? Results.Loaded ?: return@launch
-            if (activeQuery != query) return@launch
-            results.value = when (outcome) {
+            if (activeQuery != query || loaded !== live) return@launch
+            when (outcome) {
                 is SearchOutcome.Success -> {
-                    val onScreen = latest.videos.itemsOrNull ?: return@launch
-                    val grown = onScreen.append(outcome.page.videosOnly()) { it.watchUrl.value }
+                    var total = 0
+                    var more = false
+                    live.update { latest ->
+                        val onScreen = latest.videos.itemsOrNull ?: return@update latest.copy(loadingMore = false)
+                        val grown = onScreen.append(outcome.page.videosOnly()) { it.watchUrl.value }
+                        total = grown.items.size
+                        more = grown.hasMore
+                        latest.copy(videos = SearchSection.Found(grown), loadingMore = false)
+                    }
                     Diag.log(
                         "search",
-                        "next page -> ${outcome.page.items.size} returned, " +
-                            "${grown.items.size} total (more=${grown.hasMore})",
+                        "dewidebug next page -> ${outcome.page.items.size} returned, $total total (more=$more)",
                     )
-                    latest.copy(videos = SearchSection.Found(grown), loadingMore = false)
                 }
                 is SearchOutcome.Failure -> {
                     Diag.warn("search", "next page failed: ${outcome.detail}")
-                    latest.copy(loadingMore = false)
+                    live.update { it.copy(loadingMore = false) }
                 }
             }
         }
@@ -616,7 +625,8 @@ class SearchViewModel(
      * Shows more of one music shelf: the rest of the page already fetched first, then the next page.
      */
     fun moreMusic(shelf: MusicShelf) {
-        val current = results.value as? Results.Loaded ?: return
+        val live = loaded ?: return
+        val current = live.value
         val page = current.page(shelf) ?: return
         val shown = current.shown(shelf)
         if (shown < page.items.size) {
@@ -627,26 +637,27 @@ class SearchViewModel(
                     shown + RESULTS_PER_SECTION
                 )} of ${page.items.size} fetched"
             )
-            results.value = current.copy(musicShown = current.musicShown + (shelf to shown + RESULTS_PER_SECTION))
+            live.update { it.copy(musicShown = it.musicShown + (shelf to it.shown(shelf) + RESULTS_PER_SECTION)) }
             return
         }
         val token = page.next ?: return
         val query = activeQuery ?: return
         if (current.loadingMore) return
-        results.value = current.copy(loadingMore = true)
+        live.update { it.copy(loadingMore = true) }
         viewModelScope.launch {
             val outcome = sources.of(shelf).search(query, MUSIC_PAGE, token)
-            val latest = results.value as? Results.Loaded ?: return@launch
-            if (activeQuery != query) return@launch
-            results.value = when (outcome) {
-                is SearchOutcome.Success -> latest.withMore(shelf, outcome.page).also {
+            if (activeQuery != query || loaded !== live) return@launch
+            when (outcome) {
+                is SearchOutcome.Success -> {
+                    live.update { it.withMore(shelf, outcome.page) }
                     Diag.log(
                         "search",
-                        "more ${shelf.name.lowercase()} -> ${outcome.page.items.size} returned, " +
-                            "${it.page(shelf)?.items?.size} in all (more=${outcome.page.hasMore})",
+                        "dewidebug more ${shelf.name.lowercase()} -> ${outcome.page.items.size} returned, " +
+                            "${live.value.page(shelf)?.items?.size} in all (more=${outcome.page.hasMore})",
                     )
                 }
-                is SearchOutcome.Failure -> latest.copy(loadingMore = false).also {
+                is SearchOutcome.Failure -> {
+                    live.update { it.copy(loadingMore = false) }
                     Diag.warn("search", "more ${shelf.name.lowercase()} failed: ${outcome.detail}")
                 }
             }
