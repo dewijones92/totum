@@ -644,6 +644,11 @@ differently from an anonymous one — which cannot be tested on a signed-out dev
   :cli:installDist lint compileDebugAndroidTestKotlin testDebugUnitTest test koverVerify` (unprefixed tasks run in
   every module, as CI does).
 - Commit as you go — small, coherent commits at each green state.
+- **Say which repo files would make life easier** (Dewi, 2026-11-20: *"if there's any file in this repo … that we need to
+  CRUD to make our lives easier … improve diagnostics or something, anything … let me know. This is a rule from now
+  onwards"*). Whenever work shows that creating, updating or deleting a file in this repo would help (a missing log or
+  state block, a stale doc, a script that would save a slow loop, a dead file, a fixture, a preflight check), list it to
+  Dewi in the report under 🔍 Found, with the file and what it would buy, rather than letting it pass.
 - **How a batch runs** (Dewi, 2026-10-14, 2026-10-15, 2026-10-23 and 2026-11-06):
   1. **Refine the whole batch before building any of it** (Dewi, 2026-11-06: *"before we start a big batch of work, we
      refine a big batch of work … we investigate as we go, we probe … we shift left … scouts … a holistic approach"*).
