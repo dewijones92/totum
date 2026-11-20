@@ -46,11 +46,16 @@ import com.dewijones92.totum.ui.common.rowFacts
 import kotlinx.coroutines.launch
 
 @Composable
-fun JellyfinScreen(container: AppContainer, onBack: () -> Unit, modifier: Modifier = Modifier) {
+fun JellyfinScreen(
+    container: AppContainer,
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
+    openAt: String? = null,
+) {
     val api = container.jellyfin ?: return
-    var trail by rememberSaveable { mutableStateOf(listOf<String>()) }
+    var trail by rememberSaveable { mutableStateOf(listOfNotNull(openAt)) }
     val read = remember { mutableMapOf<String?, JellyfinListing>() }
-    val up = { trail = trail.dropLast(1) }
+    val up = { if (trail.size <= listOfNotNull(openAt).size) onBack() else trail = trail.dropLast(1) }
     val open = { id: String -> trail = trail + id }
     ListThenDetail(trail.lastOrNull(), listKey = "jellyfin", onBack = up, list = {
         Listing(container, api, null, read, onBack, open, modifier)
@@ -137,6 +142,7 @@ private fun Items(
         Text(stringResource(R.string.jellyfin_empty), Modifier.padding(20.dp))
         return
     }
+    val scope = rememberCoroutineScope()
     val byId = listing.items.filter { it.kind.playable }.associate { it.id to api.playable(it) }
     val playables = byId.values.toList()
     val group = QueueGroup("jellyfin:${listing.parent ?: "top"}", listing.title)
@@ -150,11 +156,14 @@ private fun Items(
                     subtitleLines = rowFacts(playable.item, playable.pillar),
                     pillar = playable.pillar,
                     onPlay = {
-                        Diag.log(
-                            "jellyfin",
-                            "play ${item.id} (${item.title}) with ${playables.size} from \"${group.title}\""
-                        )
-                        container.playbackQueue.playAll(playables, group, startAt = playable.item.id)
+                        scope.launch {
+                            if (container.playbackQueue.playAsSeries(playable)) return@launch
+                            Diag.log(
+                                "jellyfin",
+                                "play ${item.id} (${item.title}) with ${playables.size} from \"${group.title}\""
+                            )
+                            container.playbackQueue.playAll(playables, group, startAt = playable.item.id)
+                        }
                     },
                 )
             } else {

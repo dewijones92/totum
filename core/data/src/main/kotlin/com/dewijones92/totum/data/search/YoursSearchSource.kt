@@ -11,6 +11,7 @@ import com.dewijones92.totum.data.home.HomePiCall
 import com.dewijones92.totum.data.home.JellyfinApi
 import com.dewijones92.totum.data.home.playable
 import com.dewijones92.totum.data.jellyfin.JellyfinItem
+import com.dewijones92.totum.data.jellyfin.JellyfinKind
 import com.dewijones92.totum.data.jellyfin.JellyfinListing
 import com.dewijones92.totum.domain.DownloadedMedia
 import com.dewijones92.totum.domain.FuzzyMatch
@@ -85,10 +86,17 @@ public class YoursSearchSource(
     private suspend fun jellyfinChange(query: SearchQuery, api: JellyfinApi): Parts.() -> Unit {
         val answer = withTimeoutOrNull(networkTimeoutMs) { api.search(query.value) }
         val listing = (answer as? HomeAnswer.Ok)?.value
-        val found = listing?.takeIf { it.search != null }?.items.orEmpty().filter { it.kind.playable }
+        val answered = listing?.takeIf { it.search != null }?.items.orEmpty()
+        val found = answered.filter { it.kind.playable }
+        val folders = answered.filter { it.kind == JellyfinKind.SERIES }
         val note = noteFor(answer, listing)
-        Diag.log("search", "dewidebug yours \"${query.value}\": jellyfin ${describe(answer, listing, found.size)}")
+        Diag.log(
+            "search",
+            "dewidebug yours \"${query.value}\": jellyfin ${describe(answer, listing, found.size)}" +
+                if (listing?.search != null) ", ${folders.size} series" else "",
+        )
         return {
+            series = folders.map { SearchHit.YoursSeries(it.id, it.name, it.year, api.imageUrl(it)) }
             jellyfin = found.map { it to api.playable(it) }
             waiting = waiting - JELLYFIN
             note?.let(::addNote)
@@ -130,7 +138,7 @@ public class YoursSearchSource(
 
         suspend fun publish(change: Parts.() -> Unit) = gate.withLock {
             parts.change()
-            val merged = YoursMerge.merge(parts.phone, parts.home, parts.jellyfin)
+            val merged = YoursMerge.merge(parts.phone, parts.home, parts.jellyfin, parts.series)
             out.send(
                 SearchOutcome.Success(
                     Page.last(merged.take(limit)),
@@ -148,7 +156,8 @@ public class YoursSearchSource(
             Diag.log(
                 "search",
                 "dewidebug yours \"${query.value}\" done after ${took}ms: phone=${parts.phone.size} " +
-                    "home=${parts.home.size} jellyfin=${parts.jellyfin.size} -> $rows row(s)$shown$notes",
+                    "home=${parts.home.size} jellyfin=${parts.jellyfin.size} series=${parts.series.size} " +
+                    "-> $rows row(s)$shown$notes",
             )
         }
     }
@@ -157,6 +166,7 @@ public class YoursSearchSource(
         var phone: List<PlayableItem> = emptyList(),
         var home: List<PlayableItem> = emptyList(),
         var jellyfin: List<Pair<JellyfinItem, PlayableItem>> = emptyList(),
+        var series: List<SearchHit.YoursSeries> = emptyList(),
         var waiting: List<String>,
         val notes: MutableList<String> = mutableListOf(),
     ) {

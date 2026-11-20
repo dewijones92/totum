@@ -15,17 +15,19 @@ internal object YoursMerge {
         phone: List<PlayableItem>,
         home: List<PlayableItem>,
         jellyfin: List<Pair<JellyfinItem, PlayableItem>>,
-    ): List<SearchHit.Yours> {
+        series: List<SearchHit.YoursSeries> = emptyList(),
+    ): List<SearchHit.YoursHit> {
         val rows = LinkedHashMap<MediaItemId, Row>()
         phone.forEach { rows.getOrPut(it.item.id) { Row(it) }.places += YourPlace.PHONE }
         home.forEach { rows.getOrPut(it.item.id) { Row(it) }.places += YourPlace.HOME }
         jellyfin.forEach { (item, playable) -> absorbIntoJellyfin(rows, item, playable) }
-        return rows.values
-            .map { SearchHit.Yours(it.playable, it.places.toSortedSet().toSet()) }
+        val items: List<SearchHit.YoursHit> =
+            rows.values.map { SearchHit.Yours(it.playable, it.places.toSortedSet().toSet()) }
+        return (items + series.distinctBy { it.id })
             .sortedWith(
-                compareBy<SearchHit.Yours> { it.places.min().ordinal }
+                compareBy<SearchHit.YoursHit> { it.places.min().ordinal }
                     .thenBy { it.title.lowercase(Locale.ROOT) }
-                    .thenBy { it.playable.item.id.value },
+                    .thenBy { it.sortKey },
             )
     }
 

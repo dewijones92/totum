@@ -69,6 +69,9 @@ class YoursSearchSourceTest {
         override fun streamUrl(item: JellyfinItem): HttpUrl = HttpUrl.of(
             "https://totum.example/fetch/jellyfin/stream/${item.id}.mkv"
         )
+
+        override fun imageUrl(item: JellyfinItem): HttpUrl =
+            HttpUrl.of("https://totum.example/fetch/jellyfin/image/${item.id}")
     }
 
     private fun answering(vararg items: JellyfinItem, searched: String? = "echo") = Jelly {
@@ -85,7 +88,13 @@ class YoursSearchSourceTest {
     private suspend fun YoursSearchSource.last(text: String): SearchOutcome.Success =
         updates(SearchQuery(text), LIMIT).toList().last() as SearchOutcome.Success
 
-    private fun SearchOutcome.Success.rows(): List<SearchHit.Yours> = page.items.map { it as SearchHit.Yours }
+    private fun SearchOutcome.Success.rows(): List<SearchHit.Yours> = page.items.filterIsInstance<SearchHit.Yours>()
+
+    private fun SearchOutcome.Success.series(): List<SearchHit.YoursSeries> =
+        page.items.filterIsInstance<SearchHit.YoursSeries>()
+
+    private fun series(id: String, name: String, year: Int? = null) =
+        JellyfinItem(id, name, JellyfinKind.SERIES, year = year)
 
     @Test
     fun `a film is found wherever it is, each row naming its place`() = runTest {
@@ -288,6 +297,63 @@ class YoursSearchSourceTest {
 
         assertTrue(answer.page.items.isEmpty())
         assertEquals(listOf(YoursSearchSource.JELLYFIN_NEEDS_UPDATING), answer.notes)
+    }
+
+    @Test
+    fun `a series whose name matches is a row of its own that opens its page`() = runTest {
+        val answer = source(
+            jellyfin = answering(
+                series("0123456789abcd77", "Bluey", 2018),
+                episode("0123456789abcd78", "Bluey", 1, 2, "Bluey and Bingo"),
+            ),
+        ).last("bluey")
+
+        val found = answer.series().single()
+        assertEquals("0123456789abcd77", found.id)
+        assertEquals("Bluey", found.title)
+        assertEquals("2018", found.subtitle)
+        assertEquals(setOf(YourPlace.JELLYFIN), found.places)
+        assertEquals("https://totum.example/fetch/jellyfin/image/0123456789abcd77", found.artworkUrl?.value)
+        assertEquals(1, answer.rows().size)
+    }
+
+    @Test
+    fun `a series sorts among the Jellyfin rows by title, after the phone and home rows`() = runTest {
+        val answer = source(
+            phone = listOf(download("p1", "Zulu show")),
+            home = { HomeHoldings.Read(listOf(job("h1", "Able show"))) },
+            jellyfin = answering(
+                film("0123456789abcd02", "Zeta show", 2000),
+                series("0123456789abcd03", "Mid show"),
+                film("0123456789abcd01", "Beta show", 2001),
+            ),
+        ).last("show")
+
+        assertEquals(
+            listOf("Zulu show", "Able show", "Beta show", "Mid show", "Zeta show"),
+            answer.page.items.map { it.title },
+        )
+    }
+
+    @Test
+    fun `a series from a Pi that gave no search echo is not listed`() = runTest {
+        val answer = source(
+            jellyfin = answering(series("0123456789abcd77", "Bluey"), searched = null),
+        ).last("bluey")
+
+        assertTrue(answer.page.items.isEmpty())
+        assertEquals(listOf(YoursSearchSource.JELLYFIN_NEEDS_UPDATING), answer.notes)
+    }
+
+    @Test
+    fun `a Pi that does not know series yet still lists its films and episodes`() = runTest {
+        val answer = source(
+            jellyfin = answering(episode("0123456789abcd78", "Bluey", 1, 2, "Bluey and Bingo")),
+        ).last("bluey")
+
+        assertEquals(0, answer.series().size)
+        assertEquals(1, answer.rows().size)
+        assertTrue(answer.notes.isEmpty())
     }
 
     @Test

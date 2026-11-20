@@ -2,6 +2,7 @@ package com.dewijones92.totum.queue
 
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
+import com.dewijones92.totum.data.home.JellyfinSeriesRun
 import com.dewijones92.totum.data.queue.QueueEntry
 import com.dewijones92.totum.data.queue.QueueGroup
 import com.dewijones92.totum.data.queue.QueueSnapshot
@@ -146,7 +147,10 @@ class PlaybackQueue(
     private val repeatOneOffForRun: (String) -> Boolean = { false },
     private val shield: ItemShield = NoShield,
     private val openExternally: (PlayableItem, HttpUrl) -> Boolean = { _, _ -> false },
+    seriesRun: suspend (MediaItem) -> JellyfinSeriesRun? = { null },
 ) {
+    private val seriesRuns = SeriesRuns(seriesRun, offline)
+
     private val _state = MutableStateFlow(QueueSnapshot())
 
     private val _notices = MutableSharedFlow<QueueNotice>(extraBufferCapacity = NOTICE_BUFFER)
@@ -448,6 +452,7 @@ class PlaybackQueue(
         if (item.handle is PlayHandle.External) {
             return byYou && openInTheirOwnApp(item, "play now")
         }
+        if (playAsSeries(item, group, byYou, reason, local)) return true
         // A repeat of the SAME item within a blink is never a real second request. A report
         // from Dewi's phone showed play-now firing seventeen times in twelve seconds, about
         // every 170ms, alternating between two videos — and since each one resolves, and a
@@ -475,6 +480,25 @@ class PlaybackQueue(
             quiet = quiet,
             reason = reason,
         ).also { played -> if (played && byYou) pictureOffers.started(item, "play now") }
+    }
+
+    suspend fun playAsSeries(
+        item: PlayableItem,
+        group: QueueGroup? = null,
+        byYou: Boolean = true,
+        reason: PlayReason? = PlayReason.Chosen(ChosenWay.TAP),
+        local: Boolean = false,
+    ): Boolean {
+        val queuedIn = _state.value.entries.firstOrNull { it.item.item.id == item.item.id }?.group
+        val run = seriesRuns.forTap(item.item, group, queuedIn, byYou, reason) ?: return false
+        playAll(
+            run.items,
+            run.group,
+            startAt = item.item.id,
+            reason = reason ?: PlayReason.Chosen(ChosenWay.TAP),
+            local = local,
+        )
+        return true
     }
 
     private val refusals = PlayAttempts(shield, clock)

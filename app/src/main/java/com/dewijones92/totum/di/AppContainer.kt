@@ -62,6 +62,7 @@ import com.dewijones92.totum.data.home.HomeJobsClient
 import com.dewijones92.totum.data.home.JellyfinApi
 import com.dewijones92.totum.data.home.JellyfinClient
 import com.dewijones92.totum.data.home.TargetsClient
+import com.dewijones92.totum.data.home.seriesRunOf
 import com.dewijones92.totum.data.importexport.OpmlExporter
 import com.dewijones92.totum.data.importexport.SubscriptionImportParser
 import com.dewijones92.totum.data.net.HttpTextFetcher
@@ -1658,6 +1659,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             )::switchOffForRunOf,
             shield = aiFeatures.spoilerShield,
             openExternally = { item, url -> externalOpener.open(url, item.item.title) },
+            seriesRun = { item -> jellyfin?.seriesRunOf(item) },
         ).also { it.destination = targets }
     }
 

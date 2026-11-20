@@ -15,9 +15,12 @@ oh, these are things I've downloaded. I want to only see the ones I've downloade
 
 ## Owed
 
-- **Deploy the Pi** (`totum serve`) for the 🎞️ part; until then the tab says "⚠️ The home server needs updating to search Jellyfin".
+- **Deploy the Pi** (`totum serve`) for the 🎞️ part and for series rows (the route now includes `Series`); until then the tab says "⚠️ The home server needs updating to search Jellyfin".
 - The Music scope's search has no Yours tab (a downloaded song is not offered there): decide.
-- Series are not searched (nowhere to open one from a search row).
 - Queue and pinned items are not searched on purpose (6,033 queue rows); one more `YourPlace` if wanted.
 - "Downloaded" on list headers stays phone-only; a 🏠 At home value for it is a separate change if wanted.
-- A Jellyfin episode from a search row plays alone, not with the rest of its season.
+
+## Done 2026-11-20 (Batch C task N)
+
+Series rows that open the series' page, and an episode from any row playing as its whole series: ADR 183 and
+[ADR 154](../adr/0154-jellyfin-is-browsed-and-streamed-through-the-pi.md) amendments.

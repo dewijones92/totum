@@ -31,6 +31,7 @@ internal class SearchRowActions(
     val onDownloadTorrent: (SearchHit.Torrent) -> Unit,
     val onPlayBook: (SearchHit.Book) -> Unit,
     val onPlayYours: (SearchHit.Yours) -> Unit,
+    val onOpenSeries: (SearchHit.YoursSeries) -> Unit,
     val actions: MediaItemActions,
     val onGoToChannel: (MediaItem) -> Unit,
     val more: SearchMore,
