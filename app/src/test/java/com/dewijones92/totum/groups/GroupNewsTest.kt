@@ -77,6 +77,30 @@ class GroupNewsTest {
         }
 
     @Test
+    fun `a group opened before its first check still announces what was published since it was opened`() = runTest {
+        news.opened(group.id)
+        upload("between", "2026-10-29T12:30:00Z")
+        now = Instant.parse("2026-10-29T13:00:00Z")
+
+        news.check(listOf(group))
+
+        assertEquals(listOf("between"), notified)
+        assertEquals(1, news.newCount(group.id))
+    }
+
+    @Test
+    fun `a group opened before its first check does not announce what was published before it was opened`() = runTest {
+        upload("before", "2026-10-29T11:00:00Z")
+        news.opened(group.id)
+        now = Instant.parse("2026-10-29T13:00:00Z")
+
+        news.check(listOf(group))
+
+        assertEquals(emptyList<String>(), notified)
+        assertEquals(0, news.newCount(group.id))
+    }
+
+    @Test
     fun `opening the group clears the count and says since when, for the markers`() = runTest {
         news.check(listOf(group))
         upload("fresh", "2026-10-29T15:00:00Z")

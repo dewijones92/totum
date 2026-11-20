@@ -2,7 +2,7 @@
 title: Groups say what's new, notify each new video, and live in the Library
 kind: adr
 status: accepted
-updated: 2026-10-31
+updated: 2026-11-20
 ---
 
 # 95. Groups say what's new, notify each new video, and live in the Library
@@ -53,6 +53,14 @@ any network; Shorts and live included (ADR 94's feed brings them).
 - Publish-day lookups run four at a time and at most 25 per channel; the day cache is written atomically and remembers
   "no day given"; a podcast's notification opens the app (only a YouTube watch link can play straight from one);
   deleting a group runs in the app's scope so leaving the page cannot cancel it.
+
+## Amended 2026-11-20: a group opened before its first check
+
+Opening a group before the hourly check had run gave it `seenAt` and no `joined` times, and the first check then set
+every member's `joined` to now, so videos published between the opening and that check were never announced (the
+missed "ai" group). When a group's state has no `joined` times, `GroupNews.settle` now takes them from the time the
+group was seen. A member added to an older group still gets its first look at the time it joined.
+Tests: `GroupNewsTest` (a video published after the opening is announced; one published before it is not).
 
 ## Consequences
 
