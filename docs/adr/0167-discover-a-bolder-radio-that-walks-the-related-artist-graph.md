@@ -50,8 +50,8 @@ browse ids) and the artist's top songs, so a far-ranging mode needs no new endpo
   two pages (`PAGES_PER_TOP_UP`), plus the seed's page the first time; no page is asked twice (`ArtistPages` keeps
   them six hours, 200 at most, and the walk never revisits one); top-ups run in the gate's background lane and a
   refill pauses 1.5 s between steps and stops after three. Nothing fans out.
-- **Visibility**: `OperationKind.DISCOVER` shows "🧭 Finding music near <seed>" in the progress strip with a
-  running count while the first batch is built, then "🧭 … 2 songs to start, more as you listen". When nothing is
+- **Visibility**: `OperationKind.DISCOVER` shows "🔭 Finding music near <seed>" in the progress strip with a
+  running count while the first batch is built, then "🔭 … 2 songs to start, more as you listen". When nothing is
   found it ends "📭 Couldn't find anything new near <seed>" and queues nothing. A page or lookup that failed is not
   "nothing found": the walk reports the failure, Discover tries once more after three seconds (through the gate), and if
   YouTube Music still does not answer the operation ends "❌ … couldn't reach YouTube Music (<reason>)" with the reason
