@@ -65,7 +65,9 @@ class JellyfinClientTest {
 
     @Test
     fun `a search sends the term encoded and the device token, and reads the echo`() = runTest {
-        server.enqueue(MockResponse.Builder().code(200).body(listing.replace("\"parent\":null", "\"search\":\"a&b c\"")).build())
+        server.enqueue(
+            MockResponse.Builder().code(200).body(listing.replace("\"parent\":null", "\"search\":\"a&b c\"")).build()
+        )
 
         val answer = client().search("a&b c")
 
