@@ -3,7 +3,7 @@ title: Exsurge et Disce — stand up and study
 kind: feature
 area: side-quest
 status: built — awaiting a real day on Dewi's phone (the emulator has no step counter)
-updated: 2026-11-13
+updated: 2026-11-20
 ---
 
 # Exsurge et Disce ("rise up and learn")
@@ -13,13 +13,15 @@ his language app, Loquax. Make the prompt really obvious, give it a voice and a 
 everything configurable. The backlog item, with the agreed design and the open ideas, is
 [todos/exsurge-et-disce](../todos/exsurge-et-disce.md); the decisions are ADRs
 [2](../adr/0002-exsurge-side-quest-module.md) to [8](../adr/0008-an-unproven-break-earns-no-laurel.md) and
-[10](../adr/0010-break-length-is-chosen-at-the-summons.md), and [15](../adr/0015-exsurge-banner-is-a-live-update.md).
+[10](../adr/0010-break-length-is-chosen-at-the-summons.md), [15](../adr/0015-exsurge-banner-is-a-live-update.md) and
+[181](../adr/0181-exsurge-lengths-are-sliders-a-walk-says-so-and-steady-walking-counts.md).
 
 ## What it does
 
 | Moment | What happens | Surgius says |
 |---|---|---|
-| Sitting (weekdays 09:00–18:00) | Sticky banner: "Next summons 14:32 · Sat 17 of 30 min". Walking 100+ steps in five minutes resets the clock. | — |
+| Sitting (weekdays 09:00–18:00) | Sticky banner: "Next summons 14:32 · Sat 17 of 30 min". Walking 100+ steps in five minutes resets the clock, and the banner then says "🚶 Walking · timer reset 40 s ago" for two minutes. | — |
+| Five steady minutes of walking | A finished break with no summons: a laurel, the day tally, a fresh sitting clock ([ADR 181](../adr/0181-exsurge-lengths-are-sliders-a-walk-says-so-and-steady-walking-counts.md)) | *Satis! Liber es!* |
 | 30 minutes sat | Full-screen takeover (over the lock screen, or over any app with the overlay grant), vibration | *Exsurge, Dewi.* |
 | Ignored 60s, then 120s | Called again, louder | *Exsurge! Exsurge!* · *Quo usque tandem, Dewi, sella abutere?* |
 | Ignored 3 minutes | Missed: recorded, the clock restarts | — |
@@ -36,20 +38,20 @@ everything configurable. The backlog item, with the agreed design and the open i
 - **Streak:** a day counts when every summons ended in a *credited* break. A snooze never breaks it;
   a skip, a miss or an unproven break does (GO pressed, but no steps within the rise timeout). A day
   with no summons neither extends nor breaks it. See [ADR 8](../adr/0008-an-unproven-break-earns-no-laurel.md).
-- **Break length chips** (Dewi, 2026-10-06): the takeover offers 2 / 5 / 10 / 15 min above GO,
-  with the last choice selected. A chip writes the one Break length setting, so the stepper on the
-  Exsurge screen shows the same number. GO, Just walk and Continue Totum fix that length on the
-  break as it begins. Changing the setting later applies from the next break and never moves the
-  one under way. A value set by the stepper outside the four shows as an extra selected chip. See
-  [ADR 10](../adr/0010-break-length-is-chosen-at-the-summons.md).
+- **Break length slider** (Dewi, 2026-10-06 as chips, 2026-11-20 as a slider): the takeover has a slider from 1 to 15
+  minutes in 1-minute steps above GO, set to the last choice. Moving it writes the one Break length setting, so the stepper
+  on the Exsurge screen shows the same number. GO, Just walk and Continue Totum fix that length on the break as it
+  begins. Changing the setting later applies from the next break and never moves the one under way. It is the
+  app's `SnappingSlider`, the same control as the settings. See [ADR 10](../adr/0010-break-length-is-chosen-at-the-summons.md)
+  and [ADR 181](../adr/0181-exsurge-lengths-are-sliders-a-walk-says-so-and-steady-walking-counts.md).
 - **The Exsurge screen shows everything the banner shows** (Dewi, 2026-10-06): a status card at
   the top with the banner's own title, detail line, progress bar and buttons. `BannerText` writes
   both texts, and `bannerActionsOf` (in `:lib:exsurge`) lists the buttons for both, so the page and
   the notification cannot disagree. The card updates every second while the screen is open. Its
   GO (while snoozed) opens the takeover's GO.
 - **Every timing is a setting:** sitting limit, break length, steps to rise, walking threshold and
-  window, snooze length, call-again interval (missed after three calls), rise timeout,
-  the break cue's minutes before the end, and the pause length.
+  window, the steady walk's minutes and steps a minute, snooze length, call-again interval (missed after three calls),
+  rise timeout, the break cue's minutes before the end, and the pause length.
 - **Always-present banner** (Dewi, 2026-10-05): stays visible when switched off, paused, or
   outside active hours. Off reads "Exsurge et Disce is off" and offers **Turn on**, **Summon now**
   and **Restart clock**. It stays quiet, re-posts after dismissal, and is restored at startup,
@@ -90,12 +92,33 @@ everything configurable. The backlog item, with the agreed design and the open i
   snooze row opens the same `RestartClockDialog` (slider set to the usual length, 40 min on his phone) and calls the
   same `restartClock(...)`, which dispatches `RestartClock(minutes)` with the source `takeover`; the takeover then closes
   because the summons is over.
+- **Settings history sources** (ADR 181): the Exsurge page writes a distinct source per control
+  (`settings page: enabled switch`, `settings page: slider exsurge_settings_sitting`, ...), the summons sliders write
+  `takeover slider: break length` and `takeover slider: snooze length`, and a change of `enabled` within two seconds of
+  the previous one is noted in the history with the gap, the previous source and the state ("enabled flipped back 400 ms
+  after the switch to true from ..."). On 16 November `enabled` flipped false, true, false six times, 0.35 to 0.72 s apart, from
+  the page's switch, which can only be two touches; the phone's active days are empty, so the first touch
+  showed "😴 Surgius sleeps · no active days set".
 - **Settings history** (finding 160, [ADR 162](../adr/0162-exsurge-keeps-a-durable-history-of-its-settings-changes.md)):
   the last 20 settings changes are kept on the phone with their time, source and field diff, the loaded settings are
   logged at start-up, and a start-up that finds the stored settings different from the last write records that as a
   change from `start-up: found changed since the last write`. The history is in the diagnostics state block as
   `exsurge.settingsHistory`; this is what will say whether the 5 November overnight change ("Tuesday 06:00" to "no days,
   08:00") was an `updateSettings` caller or something else.
+- **Walking is visible** (Dewi, 2026-11-20; report 20261116T134953 had the countdown "stuck at 19 min" while he walked,
+  because 100 steps in the 5-minute window restart the sitting clock, about every 65 to 135 s at his pace). For two minutes
+  after such a reset the banner title reads "🚶 Walking · timer reset 40 s ago" with "Steady walk: 3 of 5 min for a
+  laurel" under it, the hero ring shows the steady minutes with Surgius cheering, the Live Update chip reads "🚶 3/5"
+  and the Quick Settings tile "🚶 Walking". `Sitting.walkedAt` carries when it happened and `BannerLine.Walking` is the one
+  line every surface reads.
+- **Five steady minutes of walking are a finished break** ([ADR 181](../adr/0181-exsurge-lengths-are-sliders-a-walk-says-so-and-steady-walking-counts.md)):
+  five back-to-back minutes from the first step of a stretch, each with at least 40 steps (Dewi walks at about 78 a
+  minute; both numbers are settings on the Timing card), complete a break with no summons. It earns a laurel, counts in
+  the day tally and the week (`completed`, `steps`, `minutesStanding`), says *Satis! Liber es!* with the short buzz and
+  starts a fresh sitting clock. A slow minute or a gap with no steps starts the stretch again. It counts only from a
+  sitting clock while the schedule is on: nothing in Off, Paused, Dormant or with a manual one-off clock, and a summons,
+  rise or break in progress is never interrupted. Each decision is a `dewidebug exsurge steady walk` line, and the
+  diagnostics block has `exsurge.steadyWalk`.
 - **Summon now** outside active hours is a one-off too, so its snooze comes back rather than being
   dropped as "outside hours".
 - **Steps arrive promptly while it matters.** The step counter is batched at 60 s while sitting, to
@@ -110,10 +133,11 @@ everything configurable. The backlog item, with the agreed design and the open i
 - **The summons notification** carries GO, Snooze and Skip (Dewi, 2026-10-07; it was GO, Just walk and
   Snooze, with Skip only once snoozes ran out). Android shows three actions at most; the popup has all of
   them, including Just walk and Continue Totum. Its actions scroll on a small screen.
-- **Snoozes are unlimited** and their length is chosen on the popup (Dewi, 2026-10-07): chips for 5, 10,
-  15 and 30 minutes beside the Snooze button, writing the one Snooze length setting like the break chips
-  do, so the last choice is remembered; a length set by the stepper outside the four shows as an extra
-  chip. The "Snoozes per summons" setting is gone, and the stepper now goes up to 60 minutes.
+- **Snoozes are unlimited** and their length is chosen on the popup (Dewi, 2026-10-07 as chips, 2026-11-20 as a
+  slider): a slider from 5 to 60 minutes in fives above the Snooze button, writing the one Snooze length setting like the
+  break slider does, so the last choice is remembered; a length set by the stepper that is not a multiple of five gives a
+  1-minute slider for that visit, so it always shows the number that will happen. The "Snoozes per summons" setting is
+  gone, and the stepper goes up to 60 minutes.
 - **Stats** count the breaks that included practice separately ("done: 3 (practised: 2)"). Walking
   without practice still earns the laurel; the laurel is for standing up.
 - **Quick Settings tile:** turns it on and off, and shows "Next 14:32". A long-press opens the
@@ -207,6 +231,25 @@ last asked for, and whether the posted banner is actually promoted.
   walk, the break carries 10 and the setting reads 10). On the emulator, Summon now from the card
   summoned, 10 min was chosen, and Just walk gave "On break until 11:09" from 10:59. The page,
   the takeover and the small-screen takeover were screenshotted and looked at.
+
+- **Sliders, walking and the steady walk (2026-11-20, [ADR 181](../adr/0181-exsurge-lengths-are-sliders-a-walk-says-so-and-steady-walking-counts.md)):**
+  - ✅ **JVM:** 144 `:lib:exsurge` tests and 41 `:app` Exsurge tests pass with `-Ptotum.exsurgeTests` (run as their own
+    command), with `:lib:exsurge:koverVerify`; the full gate (`detekt cpdCheck :cli:installDist lint
+    compileDebugAndroidTestKotlin testDebugUnitTest test koverVerify`) is green. The tracker, machine and line tests were
+    seen red against stubs first (for example "walking resets the sitting clock" expected `walkedAt` and got null;
+    `SteadyWalkTest` "five minutes of steady walking completes a break" expected one completion and got none).
+  - ✅ **Device, `totum-api35`:** the 26 Exsurge instrumented tests pass at 1080×2400. At 320×640@160 25 pass; the 26th,
+    `ExsurgeAndroidPortsTest.theOffBannerStaysPostedWithAllThreeUsefulActions`, failed in 2 of 4 runs at that size (0 of 1 at 1080×2400) because the live app's
+    own "Surgius sleeps" banner (same notification id) replaced the one the test had posted: a race in that test, not in this
+    change, not confirmed against a build from before it.
+  - ✅ **Looked at, on the emulator:** the takeover at 1080×2400 (break slider and snooze slider, the subtitle following the
+    break length, a drag changing the saved setting and putting it back) and at 320×640@160 (the break slider; the snooze
+    slider is below the fold there and was not seen, only exercised by `aChosenSnoozeLengthIsRememberedAndUsedByTheNextSnooze`).
+  - ⚠️ **Not seen on a device:** the walking banner, hero and Live Update chip, and a simulated five-minute walk. The shared
+    emulator's Room database was moved to schema 29 by another build part-way through, and this build (28) cannot downgrade
+    it. `ExsurgeStatusCardTest` covers the walking title and countdown text.
+  - ⏳ **On Dewi's phone:** not yet. Whether 40 steps a minute is the right bar for his walks, and how the walking line reads
+    over a real day, need his phone's step counter (the emulator's is simulated).
 
 ## Independent review (Opus 5.5, 2026-10-01)
 
