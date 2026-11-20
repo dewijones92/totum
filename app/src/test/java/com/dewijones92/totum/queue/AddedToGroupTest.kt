@@ -73,13 +73,24 @@ class AddedToGroupTest {
     }
 
     @Test
-    fun `a group already played through gets its new upload next, not behind the cursor`() {
+    fun `a group wholly behind the cursor gets its new upload at the end of its own section, never next`() {
         val before = snapshot(3, "p1" to peep, "p2" to peep, "a" to null, "b" to null)
 
         val after = before.addedTo(peep, listOf(item("new")), GroupSpot.NEXT)
 
-        assertEquals(listOf("p1", "p2", "a", "b", "new"), after.ids())
-        assertEquals(3, after.currentIndex)
+        assertEquals(listOf("p1", "p2", "new", "a", "b"), after.ids())
+        assertEquals(4, after.currentIndex)
+    }
+
+    @Test
+    fun `a large group wholly behind the cursor does not drag its new uploads in after what is playing`() {
+        val rows = (1..1_290).map { "p$it" to peep } + listOf("a" to null, "b" to null)
+        val before = snapshot(1_290, *rows.toTypedArray())
+
+        val after = before.addedTo(peep, listOf(item("n1"), item("n2")), GroupSpot.NEXT)
+
+        assertEquals(listOf("p1290", "n1", "n2", "a", "b"), after.ids().drop(1_289))
+        assertEquals(1_292, after.currentIndex)
     }
 
     @Test

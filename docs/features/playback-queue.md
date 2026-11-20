@@ -3,7 +3,7 @@ title: Playback queue
 kind: feature
 area: playback
 status: shipped
-updated: 2026-11-06
+updated: 2026-11-20
 ---
 
 # Playback queue
@@ -158,7 +158,8 @@ related video follows, not the queue's next"). See ADR 56.
 
 ## New uploads (2026-10-15)
 
-A shuffle-all group keeps receiving its sources' new uploads, next in the group, and sources switched into the inbox
+A shuffle-all group keeps receiving its sources' new uploads, next in the group (when the whole group is behind
+what is playing they join the end of its own section and never play next, 2026-11-20), and sources switched into the inbox
 (their page's 📥 button, Settings → 📥 New uploads, or every subscription) feed a "📥 New" group at the end. Checked
 every 2 hours on Wi-Fi, on opening, or by ⋮ → 🔄 Pull new uploads. See [ADR 59](../adr/0059-new-uploads-flow-into-shuffled-groups-and-an-inbox.md).
 
