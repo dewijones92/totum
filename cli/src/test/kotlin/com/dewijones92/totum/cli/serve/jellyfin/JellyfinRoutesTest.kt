@@ -142,7 +142,7 @@ class JellyfinRoutesTest {
     }
 
     @Test
-    fun `a search asks Jellyfin for films and episodes by the term, encoded, and echoes the term back`() {
+    fun `a search asks Jellyfin for films, series and episodes by the term, encoded, and echoes the term back`() {
         val answer = get("/jellyfin/browse?search=spinal%20tap%20%26%20co")
 
         val listing = TargetsJson.decodeFromString(JellyfinListing.serializer(), String(answer.body()))
@@ -150,10 +150,24 @@ class JellyfinRoutesTest {
         assertEquals("spinal tap & co", listing.search)
         assertEquals("MediaBrowser Token=\"secret-key\"", authorizations.single())
         val sent = asked.single()
-        assertTrue(sent, sent.startsWith("/Items?Recursive=true&IncludeItemTypes=Movie,Episode"))
+        assertTrue(sent, sent.startsWith("/Items?Recursive=true&IncludeItemTypes=Movie,Series,Episode"))
         assertTrue(sent, sent.contains("&Limit=50"))
         assertTrue(sent, sent.endsWith("&SearchTerm=spinal%20tap%20%26%20co"))
         assertFalse(String(answer.body()).contains("secret-key"))
+    }
+
+    @Test
+    fun `a search answer keeps the series that matched beside the films and episodes`() {
+        val answer = get("/jellyfin/browse?search=bluey")
+
+        val listing = TargetsJson.decodeFromString(JellyfinListing.serializer(), String(answer.body()))
+        assertEquals(200, answer.statusCode())
+        assertEquals("bluey", listing.search)
+        assertEquals(
+            listOf(JellyfinKind.SERIES, JellyfinKind.MOVIE),
+            listing.items.map { it.kind }.filter { it != JellyfinKind.OTHER },
+        )
+        assertEquals("Bluey", listing.items.first { it.kind == JellyfinKind.SERIES }.name)
     }
 
     @Test
