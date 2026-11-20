@@ -3,7 +3,7 @@ title: Crash and diagnostics reporting
 kind: feature
 status: shipped
 area: infrastructure
-updated: 2026-11-14
+updated: 2026-11-20
 ---
 
 # Crash reporting
@@ -257,6 +257,8 @@ The dump is posted with the report's id (`X-Totum-Report-Id`, the id the sink re
 `triage.sh show <report id>` (the note, key facts, the screenshots saved to a folder, and where the dump is; `considered` also shows 📷 N screenshots and 📝 when the reporter wrote a note), `triage.sh state <report id>` or load it into the emulator with `tools/emulator/load-state.sh <report id>`. A safety cap
 (`CRASHLOG_MAX_UNCONSIDERED_STATE_MB`, 1024) drops the oldest with a `BUDGET EXCEEDED` log line. A dump with no report id
 (an older phone, or "📤 Send my state to Claude" on its own) is still kept apart, newest five.
+
+`triage.sh considered` with no date lists every unconsidered report whatever its age plus the last 7 days of considered ones, and its footer always gives the server-wide unconsidered count with a `🚨` line when a date window hides one (2026-11-20: a 7-day default had hidden five reports from 14 October for five weeks).
 
 On the phone, the report and its state stay pending together: once the sink accepts the report the phone keeps it with a
 `.receipt` (the id and the number of state attempts) until the state is accepted. A failed state is retried at the next

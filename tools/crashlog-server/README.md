@@ -36,7 +36,7 @@ container on the Pi, reached through the existing nginx at
 | `POST /api/report/{id}/findings` | Add one **finding** to a report: `title`, `state`, `fixed_in`, `note` |
 | `POST /api/finding/{fid}` | Re-judge a finding; fields left out are kept |
 | `GET /api/report/{id}/findings` | A report's findings and whether it counts as **considered** |
-| `GET /api/considered?since=YYYY-MM-DD` | Every report since a date, considered or not, with its findings, `has_state` / `state_bytes` (whether its state dump is still held), `screenshots` (how many) and `has_note` (the reporter wrote one) |
+| `GET /api/considered?since=YYYY-MM-DD&unconsidered=all` | Every report since a date, considered or not, with its findings, `has_state` / `state_bytes` (whether its state dump is still held), `screenshots` (how many) and `has_note` (the reporter wrote one). `unconsidered=all` also lists every unconsidered report older than `since`, so the window cannot hide one. The reply carries `unconsidered` (in the list), `unconsidered_total` (server-wide, whatever the window) and `unconsidered_hidden` (the difference) |
 | `GET /healthz` | Liveness |
 
 ## State dumps: the app's whole state, kept while its report is unconsidered
@@ -221,13 +221,19 @@ The report's `note` becomes a one-line summary of its findings.
 From the laptop, `tools/crashlog-server/triage.sh` does all of it over ssh:
 
 ```bash
-tools/crashlog-server/triage.sh considered 2026-10-01   # ✅/⬜ per report, 📦 dump held, 📷 N screenshots, 📝 note, with its findings
+tools/crashlog-server/triage.sh considered              # EVERY unconsidered report, whatever its age, plus the considered ones of the last 7 days
+tools/crashlog-server/triage.sh considered 2026-10-01   # only that window; says loudly when it hides an unconsidered report
 tools/crashlog-server/triage.sh show <report> [dir]      # the note, key facts, screenshots saved to dir, where the state dump is
 tools/crashlog-server/triage.sh add <report> fixed "no summons after a 2nd Restart" v0.1.556
 tools/crashlog-server/triage.sh set <finding-id> noise
 ```
 
-Tests: `tests/test_findings.py`, `tests/test_states.py`, `tests/test_state_endpoint.py` and `tests/test_report_states.py` (unittest; the endpoint one needs
+Each report is marked ✅/⬜, 📦 dump held, 📷 N screenshots, 📝 note, with its findings. The footer always gives the
+server-wide unconsidered count, and a `🚨` line when the window leaves an unconsidered report out (a 7-day default once hid five
+reports from 14 October for five weeks, 2026-11-20). A server older than `unconsidered_total` is called out too, since it would
+ignore `unconsidered=all`.
+
+Tests: `tests/test_findings.py`, `tests/test_triage_script.py` (the script against a fake `ssh`), `tests/test_states.py`, `tests/test_state_endpoint.py` and `tests/test_report_states.py` (unittest; the endpoint one needs
 `fastapi` and `httpx`, so it skips on a laptop without them). There is no Python toolchain for the server on the
 laptop, so run them in the server's own image on the Pi:
 `docker run --rm -e PYTHONDONTWRITEBYTECODE=1 -v <dir>:/src -w /src totum-crashlog:local python -m unittest discover -s tests`.

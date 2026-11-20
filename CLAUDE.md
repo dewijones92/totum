@@ -653,8 +653,8 @@ differently from an anonymous one — which cannot be tested on a signed-out dev
   1. **Refine the whole batch before building any of it** (Dewi, 2026-11-06: *"before we start a big batch of work, we
      refine a big batch of work … we investigate as we go, we probe … we shift left … scouts … a holistic approach"*).
      A batch mixes big items, little items and many of them, and no code is written until Dewi says so. Refining means:
-     - **Read every unconsidered diagnostics report** (`tools/crashlog-server/triage.sh considered` with no date, so
-       nothing older is missed) and turn each note into a finding or an item.
+     - **Read every unconsidered diagnostics report** (`tools/crashlog-server/triage.sh considered` with no date lists every one
+       whatever its age, and its footer gives the server-wide count; until 2026-11-20 it hid anything older than 7 days) and turn each note into a finding or an item.
      - **Investigate and probe as you go:** settle a hypothesis with evidence, not a guess. That means a quick proof of
        concept on the real device (the LG and the webcam, a laptop server), a spike with real data (Dewi's own backup,
        tokens stripped), or the compiled code run against the real input. Several of the 2026-11-05/06 hypotheses

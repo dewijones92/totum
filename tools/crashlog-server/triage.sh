@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Flag the findings in Totum's crash/diagnostics reports, from the laptop, over ssh to the Pi.
 #
-#   triage.sh considered [since]                       reports since a date (default: 7 days ago), considered or not;
+#   triage.sh considered [since]                       EVERY unconsidered report, whatever its age, plus the considered ones
+#                                                      since a date (default: 7 days ago); with a date, only that window,
+#                                                      and a loud line when it hides an unconsidered report;
 #                                                      📦 state dump still held, 📷 N screenshots, 📝 the reporter wrote a note
 #   triage.sh show <report-id> [out-dir]               the note and key facts, screenshots saved to out-dir (default ./<report-id>), where the state dump is
 #   triage.sh findings <report-id>                     one report's findings
@@ -48,14 +50,25 @@ for r in data["reports"]:
         version = " " + f["fixed_in"] if f["fixed_in"] else ""
         print("     #{} {}{}: {}".format(f["id"], f["state"], version, f["title"]))
 held = sum(1 for r in data["reports"] if r.get("has_state"))
-print("\n{} of {} not yet considered; {} state dump(s) held (📦)".format(data["unconsidered"], len(data["reports"]), held))
+listed = len(data["reports"])
+total = data.get("unconsidered_total")
+if total is None:
+    print("\n🚨 THIS SERVER PREDATES unconsidered_total: {} of {} listed are unconsidered, and older unconsidered reports may be hidden. Redeploy the crashlog server.".format(data["unconsidered"], listed))
+else:
+    print("\n{} unconsidered server-wide; {} listed ({} unconsidered); {} state dump(s) held (📦)".format(total, listed, data["unconsidered"], held))
+    hidden = data.get("unconsidered_hidden", 0)
+    if hidden:
+        print("🚨 {} UNCONSIDERED report(s) are OUTSIDE this window and NOT listed above: run `triage.sh considered` with no date to see them".format(hidden))
 '
 }
 
 case "${1:-}" in
   considered)
-    since=${2:-$(date -u -d '7 days ago' +%Y-%m-%d)}
-    call GET /api/considered "since=$since" | show_considered
+    if [ -n "${2:-}" ]; then
+      call GET /api/considered "since=$2" | show_considered
+    else
+      call GET /api/considered "since=$(date -u -d '7 days ago' +%Y-%m-%d)" "unconsidered=all" | show_considered
+    fi
     ;;
   findings)
     call GET "/api/report/${2:?report id}/findings"

@@ -93,6 +93,40 @@ class FindingsTest(unittest.TestCase):
         self.assertEqual([fresh], [r["id"] for r in listed["reports"]])
         self.assertEqual(1, listed["unconsidered"])
 
+    def test_the_window_alone_hides_an_old_unconsidered_report_and_says_so(self):
+        before = body(main.api_considered(since="2020-06-01", unconsidered=""))
+        old = add_report("w-old-open", received_at="2020-01-01T00:00:00+00:00")
+
+        listed = body(main.api_considered(since="2020-06-01", unconsidered=""))
+
+        self.assertNotIn(old, [r["id"] for r in listed["reports"]])
+        self.assertEqual(before["unconsidered_total"] + 1, listed["unconsidered_total"])
+        self.assertEqual(before["unconsidered_hidden"] + 1, listed["unconsidered_hidden"])
+
+    def test_asking_for_every_unconsidered_report_lists_the_old_ones_too(self):
+        old_open = add_report("w-all-open", received_at="2020-01-02T00:00:00+00:00")
+        old_done = add_report("w-all-done", received_at="2020-01-03T00:00:00+00:00")
+        add(old_done, title="judged", state="noise")
+        recent_done = add_report("w-all-recent-done", received_at="2020-07-01T00:00:00+00:00")
+        add(recent_done, title="judged", state="noise")
+
+        listed = body(main.api_considered(since="2020-06-01", unconsidered="all"))
+        ids = [r["id"] for r in listed["reports"]]
+
+        self.assertIn(old_open, ids)
+        self.assertNotIn(old_done, ids)
+        self.assertIn(recent_done, ids)
+        self.assertEqual(0, listed["unconsidered_hidden"])
+        self.assertEqual(listed["unconsidered_total"], sum(not r["considered"] for r in listed["reports"]))
+
+    def test_the_server_wide_count_does_not_depend_on_the_window(self):
+        narrow = body(main.api_considered(since="2999-01-01", unconsidered=""))
+        wide = body(main.api_considered(since="", unconsidered=""))
+
+        self.assertEqual(wide["unconsidered_total"], narrow["unconsidered_total"])
+        self.assertEqual(0, narrow["unconsidered"])
+        self.assertEqual(narrow["unconsidered_total"], narrow["unconsidered_hidden"])
+
     def test_pruning_a_report_takes_its_findings_with_it(self):
         report = add_report("r-pruned")
         add(report, title="t")

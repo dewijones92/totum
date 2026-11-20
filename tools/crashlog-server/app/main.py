@@ -728,16 +728,24 @@ def api_report_findings(report_id: str) -> JSONResponse:
 
 
 @app.get("/api/considered")
-def api_considered(since: str = Query(default="", description="received_at >= this, e.g. 2026-10-01")) -> JSONResponse:
-    """Every report since a date with whether it has been considered and what was found in it —
-    the ticked-off list, newest first."""
+def api_considered(
+    since: str = Query(default="", description="received_at >= this, e.g. 2026-10-01"),
+    unconsidered: str = Query(default="", description="`all` also lists every unconsidered report older than `since`"),
+) -> JSONResponse:
+    """Reports since a date with whether each has been considered and what was found in it —
+    the ticked-off list, newest first. `unconsidered=all` adds every unconsidered report whatever its
+    age, so a window can never hide one. `unconsidered_total` is server-wide; `unconsidered_hidden`
+    counts those the list leaves out."""
     with closing(_connect()) as connection:
-        rows = connection.execute(
-            "SELECT * FROM reports WHERE received_at >= ? ORDER BY received_at DESC", (since,)
-        ).fetchall()
+        rows = connection.execute("SELECT * FROM reports ORDER BY received_at DESC").fetchall()
         out = []
+        total_unconsidered = 0
         for row in rows:
             findings = _findings(connection, row["id"])
+            is_considered = _considered(row, findings)
+            total_unconsidered += not is_considered
+            if row["received_at"] < since and not (unconsidered == "all" and not is_considered):
+                continue
             dump = states.linked_path(STATES_DIR, row["id"])
             out.append(
                 {
@@ -745,7 +753,7 @@ def api_considered(since: str = Query(default="", description="received_at >= th
                     "kind": row["kind"],
                     "app_version": row["app_version"],
                     "state": row["state"],
-                    "considered": _considered(row, findings),
+                    "considered": is_considered,
                     "has_state": dump is not None,
                     "state_bytes": dump.stat().st_size if dump is not None else None,
                     "screenshots": row["screenshot_count"] or 0,
@@ -754,7 +762,15 @@ def api_considered(since: str = Query(default="", description="received_at >= th
                     "findings": findings,
                 }
             )
-    return JSONResponse({"reports": out, "unconsidered": sum(not r["considered"] for r in out)})
+    listed_unconsidered = sum(not r["considered"] for r in out)
+    return JSONResponse(
+        {
+            "reports": out,
+            "unconsidered": listed_unconsidered,
+            "unconsidered_total": total_unconsidered,
+            "unconsidered_hidden": total_unconsidered - listed_unconsidered,
+        }
+    )
 
 
 def _backfill_report_facts() -> None:
