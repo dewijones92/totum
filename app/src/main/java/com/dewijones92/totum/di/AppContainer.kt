@@ -36,6 +36,8 @@ import com.dewijones92.totum.data.ask.AskService
 import com.dewijones92.totum.data.ask.FileAskChats
 import com.dewijones92.totum.data.ask.HttpAskService
 import com.dewijones92.totum.data.audiobook.ArchiveBookSearchSource
+import com.dewijones92.totum.data.bbc.BbcProgrammes
+import com.dewijones92.totum.data.bbc.BbcSearchSource
 import com.dewijones92.totum.data.channel.ChannelLatestUploads
 import com.dewijones92.totum.data.channel.ChannelRepository
 import com.dewijones92.totum.data.channel.DefaultChannelRepository
@@ -62,7 +64,9 @@ import com.dewijones92.totum.data.home.JellyfinClient
 import com.dewijones92.totum.data.home.TargetsClient
 import com.dewijones92.totum.data.importexport.OpmlExporter
 import com.dewijones92.totum.data.importexport.SubscriptionImportParser
+import com.dewijones92.totum.data.net.HttpTextFetcher
 import com.dewijones92.totum.data.net.OkHttpTextFetcher
+import com.dewijones92.totum.data.net.TimedCacheFetcher
 import com.dewijones92.totum.data.notforme.FileNotForMeStore
 import com.dewijones92.totum.data.notforme.NotForMe
 import com.dewijones92.totum.data.phone.google.GooglePhotosConfig
@@ -177,6 +181,7 @@ import com.dewijones92.totum.exsurge.ExsurgeLiveUpdate
 import com.dewijones92.totum.exsurge.ExsurgeState
 import com.dewijones92.totum.exsurge.TakeoverActivity
 import com.dewijones92.totum.exsurge.exsurgeController
+import com.dewijones92.totum.external.ExternalAppOpener
 import com.dewijones92.totum.groups.FileGroupNewsStore
 import com.dewijones92.totum.groups.GroupNews
 import com.dewijones92.totum.groups.GroupNewsNotifier
@@ -666,6 +671,8 @@ interface AppContainer {
     val queueSkips: QueueSkips
     val episodeDownloads: EpisodeDownloads
     val audiobookSearchSource: SearchSource
+
+    val bbcSearchSource: SearchSource
     val audiobookTorrentSource: SearchSource?
     val bookPlayer: BookPlayer
     val statsLog: StatsLog
@@ -869,7 +876,16 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         playbackControllerOf(this, context, playbackSpeedStore)
     }
 
-    private val textFetcher by lazy { OkHttpTextFetcher(httpClient) }
+    private val textFetcher: HttpTextFetcher by lazy {
+        TimedCacheFetcher(
+            OkHttpTextFetcher(httpClient),
+            label = "bbc",
+            ttlMs = BBC_CACHE_MS,
+            maxEntries = BBC_CACHE_ENTRIES,
+            cacheable = BbcProgrammes::isBbcApi,
+        )
+    }
+    private val externalOpener by lazy { ExternalAppOpener(context) }
     override val groupNews: GroupNews by lazy {
         GroupNews(
             FileGroupNewsStore(File(context.filesDir, "group_news.json")),
@@ -1634,6 +1650,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                 setMode = appPreferences::setRepeatMode,
             )::switchOffForRunOf,
             shield = aiFeatures.spoilerShield,
+            openExternally = { item, url -> externalOpener.open(url, item.item.title) },
         ).also { it.destination = targets }
     }
 
@@ -1811,7 +1828,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                         nominatePreload(item.item.id, url, audioUrl, videoPlaybackLauncher.captionsFor(resolved, url))
                     }
                 }
-            is PlayHandle.LocalVideo -> Unit
+            is PlayHandle.LocalVideo, is PlayHandle.External -> Unit
             is PlayHandle.Podcast -> {
                 handle.audioUrl?.let { homeTorrentServer?.warmAudio(it) }
                 warmTheNextPicture(item, handle)
@@ -2062,6 +2079,8 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
 
     override val audiobookSearchSource: SearchSource by lazy { ArchiveBookSearchSource(textFetcher) }
 
+    override val bbcSearchSource: SearchSource by lazy { BbcSearchSource(textFetcher) }
+
     override val audiobookTorrentSource: SearchSource? by lazy {
         homeTorrentServer?.let { TorrentSearchSource(it, category = TorrentCategory.AUDIOBOOKS) }
     }
@@ -2211,6 +2230,8 @@ private fun shuffleAllOf(c: DefaultAppContainer): ShuffleAll = ShuffleAll(
 /** Matches the home server's own 180s ceiling for a fan-out indexer search. */
 private const val TORRENT_SEARCH_TIMEOUT_SECONDS = 180L
 private const val RECENT_LIMIT = 8
+private const val BBC_CACHE_MS = 15 * 60 * 1000L
+private const val BBC_CACHE_ENTRIES = 40
 
 private fun homeTorrentServerOf(prefs: AppPreferences, httpClient: OkHttpClient): HomeTorrentServer? {
     val settings = prefs.settings.value

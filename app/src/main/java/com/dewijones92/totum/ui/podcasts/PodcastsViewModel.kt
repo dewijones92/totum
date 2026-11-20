@@ -18,6 +18,8 @@ import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.Subscription
+import com.dewijones92.totum.domain.asPlayable
+import com.dewijones92.totum.domain.opensExternally
 import com.dewijones92.totum.playback.PlaybackController
 import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.ui.common.MediaSort
@@ -124,10 +126,14 @@ class PodcastsViewModel(
     fun playNext(episode: MediaItem) = queue.playNext(queuedItem(episode))
 
     private fun queuedItem(episode: MediaItem) =
-        PlayableItem(
-            episode,
-            PlayHandle.Podcast((uiState.value.downloadStates[episode.id] as? DownloadState.Downloaded)?.localPath),
-        )
+        if (episode.opensExternally) {
+            episode.asPlayable()
+        } else {
+            PlayableItem(
+                episode,
+                PlayHandle.Podcast((uiState.value.downloadStates[episode.id] as? DownloadState.Downloaded)?.localPath),
+            )
+        }
 
     fun deleteDownload(episode: MediaItem) {
         viewModelScope.launch { downloads.deleteSoon(episode.id) }

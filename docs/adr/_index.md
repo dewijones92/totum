@@ -189,3 +189,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 177 | [A device says how it comes on and goes off in one place; the LG is driven over webOS and a Kodi Android has killed is started over adb](0177-a-device-says-how-it-comes-on-and-goes-off-lg-over-webos-kodi-started-over-adb.md) | Accepted |
 | 178 | [A channel's past live streams are its Live tab, found through the channel's own tab list, and shuffle all walks them](0178-a-channels-past-streams-are-its-live-tab-found-through-its-tab-list.md) | Accepted |
 | 180 | [The selected device owns the dock's now-playing bar on every tab, and its remote page is one scrolling list with a compact card on top](0180-the-selected-device-owns-the-dock-bar-and-the-remote-page-is-a-card-over-its-list.md) | Accepted |
+| 184 | [BBC programmes are followable sources whose episodes open in iPlayer](0184-bbc-programmes-are-followable-sources-that-open-in-iplayer.md) | Accepted |

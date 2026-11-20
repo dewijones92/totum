@@ -47,6 +47,7 @@ public data class ParsedEpisode(
     /** Podcasting 2.0 remote chapters URL (`<podcast:chapters url=…>`); fetched if no inline chapters. */
     val chaptersUrl: String? = null,
     val transcripts: List<ParsedTranscript> = emptyList(),
+    val availableUntil: Instant? = null,
 )
 
 public data class ParsedTranscript(val url: String, val type: String?, val language: String?)

@@ -5,6 +5,8 @@ import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.common.Vitals
 import com.dewijones92.totum.data.audiobook.ArchiveBooks
 import com.dewijones92.totum.data.audiobook.ArchiveItemParser
+import com.dewijones92.totum.data.bbc.BbcProgrammes
+import com.dewijones92.totum.data.bbc.IblEpisodesParser
 import com.dewijones92.totum.data.net.FetchResult
 import com.dewijones92.totum.data.net.HttpTextFetcher
 import com.dewijones92.totum.data.rss.ParsedEpisode
@@ -90,7 +92,11 @@ public class DefaultPodcastRepository(
             }
         }
         return withContext(Dispatchers.Default) {
-            val read = if (ArchiveBooks.isBook(feedUrl)) ArchiveItemParser.parse(body) else parser.parse(body)
+            val read = when {
+                ArchiveBooks.isBook(feedUrl) -> ArchiveItemParser.parse(body)
+                BbcProgrammes.isProgramme(feedUrl) -> IblEpisodesParser.parse(body)
+                else -> parser.parse(body)
+            }
             val parsed = when (val result = read) {
                 is RssParseResult.Success -> result.feed
                 is RssParseResult.Failure -> {
@@ -235,6 +241,7 @@ public class DefaultPodcastRepository(
         thumbnailUrl = imageUrl?.let(HttpUrl::parse) ?: source.artworkUrl,
         mediaUrl = enclosureUrl?.let(HttpUrl::parse),
         chapters = chapters,
+        availableUntil = availableUntil,
         contentKind = MediaContentKind.AUDIOBOOK.takeIf { ArchiveBooks.isBook(source.feedUrl) }
             ?: MediaContentKind.STANDARD,
     )

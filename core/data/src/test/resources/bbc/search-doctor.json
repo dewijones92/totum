@@ -1,0 +1,99 @@
+{
+  "version": "1.0",
+  "new_search": {
+    "query": "doctor",
+    "results": [
+      {
+        "id": "b006q2x0",
+        "type": "programme",
+        "title": "Doctor Who (2005–2022)",
+        "images": {
+          "type": "image",
+          "standard": "https://ichef.bbci.co.uk/images/ic/{recipe}/p0gpxrx6.jpg"
+        },
+        "labels": {
+          "category": "Sci-Fi"
+        },
+        "status": "available",
+        "count": 176,
+        "master_brand": {
+          "id": "bbc_one",
+          "titles": {
+            "large": "BBC One",
+            "small": "BBC One",
+            "medium": "BBC One"
+          },
+          "attribution": "bbc_one"
+        }
+      },
+      {
+        "id": "p0gglvqn",
+        "type": "programme",
+        "title": "Doctor Who",
+        "images": {
+          "type": "image",
+          "standard": "https://ichef.bbci.co.uk/images/ic/{recipe}/p0l2h3cm.jpg"
+        },
+        "labels": {
+          "category": "Sci-Fi"
+        },
+        "status": "available",
+        "count": 21,
+        "master_brand": {
+          "id": "bbc_one",
+          "titles": {
+            "large": "BBC One",
+            "small": "BBC One",
+            "medium": "BBC One"
+          },
+          "attribution": "bbc_one"
+        }
+      },
+      {
+        "id": "b094m5t9",
+        "type": "programme",
+        "title": "Doctor Foster",
+        "images": {
+          "type": "image",
+          "standard": "https://ichef.bbci.co.uk/images/ic/{recipe}/p08g4s8b.jpg"
+        },
+        "labels": {
+          "category": "Drama",
+          "editorial_info": "Doctor Foster will return"
+        },
+        "status": "available",
+        "count": 10,
+        "master_brand": {
+          "id": "bbc_one",
+          "titles": {
+            "large": "BBC One",
+            "small": "BBC One",
+            "medium": "BBC One"
+          },
+          "attribution": "bbc_one"
+        }
+      },
+      {
+        "id": "m000qq5j",
+        "type": "episode",
+        "title": "Zog and the Flying Doctors",
+        "images": {
+          "type": "image",
+          "standard": "https://ichef.bbci.co.uk/images/ic/{recipe}/p09098nr.jpg"
+        },
+        "labels": null,
+        "status": "available",
+        "count": null,
+        "master_brand": {
+          "id": "bbc_one",
+          "titles": {
+            "large": "BBC One",
+            "small": "BBC One",
+            "medium": "BBC One"
+          },
+          "attribution": "bbc_one"
+        }
+      }
+    ]
+  }
+}

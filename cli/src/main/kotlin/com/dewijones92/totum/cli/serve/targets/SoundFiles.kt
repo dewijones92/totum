@@ -17,7 +17,7 @@ internal class SoundFiles(private val root: File) {
         val path = when (val handle = item.handle) {
             is PlayHandle.Podcast -> handle.localPath
             is PlayHandle.LocalVideo -> handle.localPath
-            is PlayHandle.Video -> null
+            is PlayHandle.Video, is PlayHandle.External -> null
         }
         if (path == null || !path.startsWith(SCHEME, ignoreCase = true)) return FileAnswer.NotAFile
         val answer = answerFor(path)
