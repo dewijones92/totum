@@ -10,6 +10,7 @@ import com.dewijones92.totum.innertube.browse.InnerTubeClient
 import com.dewijones92.totum.innertube.browse.InnerTubeResponse
 import com.dewijones92.totum.innertube.browse.parsed
 import com.dewijones92.totum.innertube.player.LiveCheck
+import com.dewijones92.totum.innertube.player.NetworkUnreachable
 import com.dewijones92.totum.innertube.player.PlayableFormat
 import com.dewijones92.totum.innertube.player.PlayerClient
 import com.dewijones92.totum.innertube.player.PlayerResponseParser
@@ -227,6 +228,10 @@ class InnerTubePlayerStreams(
         // or a dead network makes this path undebuggable from a report.
         val outcome = account.playerFor(videoId, describe)
         outcome.noteIfUpcoming(videoId, "the signed-in TV client")
+        if (outcome is PlayerResult.Failure && outcome.unreachable) {
+            Diag.warn("resolve", "$videoId: the signed-in TV client could not reach YouTube (${outcome.detail})")
+            throw NetworkUnreachable(outcome.detail)
+        }
         val signedIn = outcome as? PlayerResult.Success
         Diag.log(
             "resolve",

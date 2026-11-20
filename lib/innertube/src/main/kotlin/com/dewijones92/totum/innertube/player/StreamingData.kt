@@ -150,5 +150,5 @@ public sealed interface PlayerResult {
         val details: PlayerDetails? = null,
         val upcoming: UpcomingLive? = null,
     ) : PlayerResult
-    public data class Failure(val detail: String) : PlayerResult
+    public data class Failure(val detail: String, val unreachable: Boolean = false) : PlayerResult
 }

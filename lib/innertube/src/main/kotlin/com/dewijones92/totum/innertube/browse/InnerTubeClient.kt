@@ -389,12 +389,18 @@ public class InnerTubeClient(
                     }
                 }
             } catch (e: IOException) {
-                InnerTubeResponse.Failure(e.message ?: "network error")
+                InnerTubeResponse.Failure(e.message ?: "network error", unreachable = isUnreachable(e))
             }
         }
     }
 
     public companion object {
+        public fun isUnreachable(e: IOException): Boolean =
+            generateSequence<Throwable>(e) { it.cause }.any {
+                it is java.net.UnknownHostException || it is java.net.NoRouteToHostException ||
+                    it is java.net.ConnectException
+            }
+
         private const val BASE: String = "https://www.youtube.com/youtubei/v1"
         public const val BROWSE_URL: String = "$BASE/browse?prettyPrint=false"
         public const val NEXT_URL: String = "$BASE/next?prettyPrint=false"
@@ -590,7 +596,7 @@ public sealed interface InnerTubeResponse {
     /** The token was rejected — treat as signed out. */
     public data object Unauthorized : InnerTubeResponse
 
-    public data class Failure(val detail: String) : InnerTubeResponse
+    public data class Failure(val detail: String, val unreachable: Boolean = false) : InnerTubeResponse
 }
 
 public suspend fun <T> InnerTubeResponse.Success.parsed(read: (String) -> T): T =
