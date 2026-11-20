@@ -3,11 +3,11 @@ package com.dewijones92.totum.ui
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.test.platform.app.InstrumentationRegistry
@@ -198,7 +198,12 @@ class TargetChipsTest {
 
     @Test
     fun whenThereAreMoreChipsThanFitARowShowsThereIsMoreToScrollTo() {
-        val many = (1..8).map { TargetState(Target("d$it", "Device number $it", TargetKind.SPEAKER), entries = tv.entries) }
+        val many = (1..8).map {
+            TargetState(
+                Target("d$it", "Device number $it", TargetKind.SPEAKER),
+                entries = tv.entries
+            )
+        }
         show(repository(*many.toTypedArray()))
 
         compose.onNodeWithTag(CHIPS_MORE_TAG).assertExists()

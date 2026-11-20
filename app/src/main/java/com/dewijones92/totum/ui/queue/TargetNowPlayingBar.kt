@@ -24,8 +24,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -35,14 +33,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dewijones92.totum.R
-import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.targets.TargetAction
-import com.dewijones92.totum.data.targets.TargetColours
 import com.dewijones92.totum.data.targets.TargetControl
 import com.dewijones92.totum.data.targets.TargetState
-import com.dewijones92.totum.data.targets.barFor
 import com.dewijones92.totum.data.targets.shownLengthMs
 import com.dewijones92.totum.data.targets.toQueueEntry
 import com.dewijones92.totum.playback.SeekSteps
@@ -51,28 +45,6 @@ import com.dewijones92.totum.ui.common.ArtworkWithBadge
 import com.dewijones92.totum.ui.common.NowPlayingBarFrame
 import com.dewijones92.totum.ui.common.dockColor
 import com.dewijones92.totum.ui.common.face
-
-internal data class SelectedRemote(val state: TargetState, val colour: Color)
-
-@Composable
-internal fun rememberSelectedRemote(targets: TargetsRepository): SelectedRemote? {
-    if (!targets.available) return null
-    val listed by targets.targets.collectAsStateWithLifecycle()
-    val selected by targets.selected.collectAsStateWithLifecycle()
-    val colours by targets.colours.collectAsStateWithLifecycle()
-    val state = listed.barFor(selected)
-    val why = when {
-        selected == null -> "this phone is the chosen device"
-        state != null -> "${state.target.label} is chosen and has ${state.entries.size} queued, at=${state.at}"
-        listed.none { it.target.id == selected } -> "$selected is chosen but the Pi does not list it"
-        else -> "$selected is chosen but has nothing playing or queued to show"
-    }
-    LaunchedEffect(state?.target?.id, selected) {
-        val owner = if (state != null) "the remote for ${state.target.label}" else "the phone's"
-        Diag.log("targets", "dock bar is $owner: $why")
-    }
-    return state?.let { SelectedRemote(it, TargetColours.of(colours, it.target.id).asColour()) }
-}
 
 @Composable
 internal fun TargetNowPlayingBar(

@@ -153,7 +153,7 @@ internal class KeepAwakeKeeper(
             return
         }
         lastReconnectMs = now
-        when (val result = transport.reconnect()) {
+        when (transport.reconnect()) {
             Reconnect.LINKED -> {
                 reconnects++
                 reconnectWaitMs = reconnectEveryMs

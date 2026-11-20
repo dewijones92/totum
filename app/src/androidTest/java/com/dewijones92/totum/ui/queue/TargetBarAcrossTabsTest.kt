@@ -196,7 +196,12 @@ class TargetBarAcrossTabsTest {
         val play = context.getString(R.string.target_play)
         val shown = compose.onAllNodesWithContentDescription(play).fetchSemanticsNodes().size
         assertEquals("the bar and the page both offer Play, and neither offers Pause: $shown", 2, shown)
-        assertEquals(0, compose.onAllNodesWithContentDescription(context.getString(R.string.target_pause)).fetchSemanticsNodes().size)
+        assertEquals(
+            0,
+            compose.onAllNodesWithContentDescription(
+                context.getString(R.string.target_pause)
+            ).fetchSemanticsNodes().size
+        )
         TestShots.take("target-bar-queue-tab")
     }
 

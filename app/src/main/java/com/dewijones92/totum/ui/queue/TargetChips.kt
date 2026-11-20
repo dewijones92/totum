@@ -47,6 +47,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.data.targets.PlayOnOption
 import com.dewijones92.totum.data.targets.Target
 import com.dewijones92.totum.data.targets.TargetAction
 import com.dewijones92.totum.data.targets.TargetColours
@@ -85,7 +86,6 @@ fun TargetChips(targets: TargetsRepository, modifier: Modifier = Modifier) {
     val switchable = states.filter { it.canSwitchOff && it.power != TargetPower.ASLEEP }.map { it.target.id }.toSet()
     val inUse = states.filter { it.entries.isNotEmpty() || it.target.id == selected }.map { it.target }
     val idle = states.map { it.target } - inUse.toSet()
-    var picking by remember { mutableStateOf(false) }
     var adding by remember { mutableStateOf(false) }
     val scroll = rememberScrollState()
     Box(modifier) {
@@ -122,30 +122,44 @@ fun TargetChips(targets: TargetsRepository, modifier: Modifier = Modifier) {
                 }
             }
             if (idle.isNotEmpty() || address != null) {
-                TargetChip(
-                    label = stringResource(R.string.target_chip_more),
-                    colour = Color.Gray,
-                    selected = false,
-                    onClick = { picking = true },
-                )
-                DropdownMenu(expanded = picking, onDismissRequest = { picking = false }) {
-                    val idleIds = idle.map { it.id }.toSet()
-                    PlayOnMenuItems(offered.filter { it.id in idleIds }, colours, selected) {
-                        picking = false
-                        targets.choose(it)
-                    }
-                    address?.let {
-                        AddBrowserEntry({
-                            picking = false
-                            adding = true
-                        })
-                    }
-                }
+                MoreDevices(targets, offered, idle, colours, selected, address) { adding = true }
             }
         }
         ScrollHints(scroll)
     }
     address?.takeIf { adding }?.let { AddBrowserDialog(it) { adding = false } }
+}
+
+@Composable
+private fun MoreDevices(
+    targets: TargetsRepository,
+    offered: List<PlayOnOption>,
+    idle: List<Target>,
+    colours: Map<String, Long>,
+    selected: String?,
+    address: String?,
+    onAddBrowser: () -> Unit,
+) {
+    var picking by remember { mutableStateOf(false) }
+    TargetChip(
+        label = stringResource(R.string.target_chip_more),
+        colour = Color.Gray,
+        selected = false,
+        onClick = { picking = true },
+    )
+    DropdownMenu(expanded = picking, onDismissRequest = { picking = false }) {
+        val idleIds = idle.map { it.id }.toSet()
+        PlayOnMenuItems(offered.filter { it.id in idleIds }, colours, selected) {
+            picking = false
+            targets.choose(it)
+        }
+        address?.let {
+            AddBrowserEntry({
+                picking = false
+                onAddBrowser()
+            })
+        }
+    }
 }
 
 @Composable

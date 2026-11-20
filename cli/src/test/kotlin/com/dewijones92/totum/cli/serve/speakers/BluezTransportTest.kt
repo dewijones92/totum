@@ -97,7 +97,8 @@ class BluezTransportTest {
             try {
                 val shell = BusShell(
                     tree = "/org/bluez\n/org/bluez/hci0/dev_00_11_22_33_44_55\n" +
-                        "/org/bluez/hci0/dev_00_11_22_33_44_55/sep1\n/org/bluez/hci0/dev_00_11_22_33_44_55/sep1/odd9\n" +
+                        "/org/bluez/hci0/dev_00_11_22_33_44_55/sep1\n" +
+                        "/org/bluez/hci0/dev_00_11_22_33_44_55/sep1/odd9\n" +
                         "/org/bluez/hci0/dev_AA_BB_CC_DD_EE_FF/sep1\n",
                 )
 
