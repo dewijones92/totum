@@ -38,6 +38,8 @@ public data class ExsurgeSettings(
     val callIntervalSeconds: Int = 60,
     val riseTimeoutMinutes: Int = 3,
     val walkWindowMinutes: Int = 5,
+    val steadyWalkMinutes: Int = 5,
+    val steadyWalkStepsPerMinute: Int = 40,
     val pauseMinutes: Int = 60,
     val midCueMinutes: Int = 2,
     val flatNudge: Boolean = true,
@@ -65,6 +67,8 @@ public data class ExsurgeSettings(
         callIntervalSeconds = callIntervalSeconds.coerceIn(CALL_INTERVAL_RANGE),
         riseTimeoutMinutes = riseTimeoutMinutes.coerceIn(RISE_TIMEOUT_RANGE),
         walkWindowMinutes = walkWindowMinutes.coerceIn(WALK_WINDOW_RANGE),
+        steadyWalkMinutes = steadyWalkMinutes.coerceIn(STEADY_WALK_MINUTES_RANGE),
+        steadyWalkStepsPerMinute = steadyWalkStepsPerMinute.coerceIn(STEADY_WALK_STEPS_RANGE),
         pauseMinutes = pauseMinutes.coerceIn(PAUSE_RANGE),
         midCueMinutes = midCueMinutes.coerceIn(MID_CUE_RANGE),
         flatNudgeMinutes = flatNudgeMinutes.coerceIn(FLAT_NUDGE_RANGE),
@@ -101,6 +105,8 @@ public data class ExsurgeSettings(
         public val RISE_TIMEOUT_RANGE: IntRange = 1..10
         public val WALK_WINDOW_RANGE: IntRange = 1..15
         public val FLAT_NUDGE_RANGE: IntRange = 1..15
+        public val STEADY_WALK_MINUTES_RANGE: IntRange = 2..15
+        public val STEADY_WALK_STEPS_RANGE: IntRange = 10..150
         public val PAUSE_RANGE: IntRange = 15..240
         public val MID_CUE_RANGE: IntRange = 1..5
         public const val MINUTES_PER_HOUR: Int = 60

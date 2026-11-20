@@ -352,4 +352,54 @@ class ExsurgeSupportTest {
         assertEquals(3 * onMs(Haptic.SUMMONS), onMs(Haptic.RELEASE))
         assertTrue("about five seconds in all", Haptic.RELEASE.waveform.sum() >= 4_500)
     }
+
+    @Test
+    fun `a walk reset shows as walking for two minutes with how long ago, then as sitting again`() {
+        val context = ExsurgeContext(settings, zone, stepsAvailable = true)
+        val reset = at(5, 10, 20)
+        val state = ExsurgeState.Sitting(reset, walkedAt = reset)
+        val walking = bannerLineOf(state, reset.plusSeconds(40), context, steadyMinutes = 3)
+        assertEquals(BannerLine.Walking(at(5, 10, 50), Duration.ofSeconds(40), 3, 5), walking)
+        assertTrue(bannerLineOf(state, reset.plusSeconds(119), context) is BannerLine.Walking)
+        assertEquals(
+            BannerLine.Sitting(at(5, 10, 50), satMinutes = 2, limitMinutes = 30),
+            bannerLineOf(state, reset.plusSeconds(121), context),
+        )
+        assertEquals(
+            BannerLine.Sitting(at(5, 10, 50), satMinutes = 0, limitMinutes = 30),
+            bannerLineOf(ExsurgeState.Sitting(reset), reset, context),
+        )
+    }
+
+    @Test
+    fun `walking cheers Surgius, and the chip and ring show the steady minutes`() {
+        val reset = at(5, 10, 20)
+        val state = ExsurgeState.Sitting(reset, OutcomeKind.SKIPPED, walkedAt = reset)
+        assertEquals(Mood.CHEERING, moodOf(state, reset.plusSeconds(30)))
+        assertEquals(Mood.WOUNDED, moodOf(state, reset.plusSeconds(150)))
+        val line = BannerLine.Walking(at(5, 10, 50), Duration.ofSeconds(30), 3, 5)
+        assertEquals(BannerChip.Walking(3, 5), bannerChipOf(line))
+        val ring = ringOf(line, reset)
+        assertEquals(RingKind.WALKING, ring.kind)
+        assertEquals(0.6f, ring.fraction, 0.001f)
+        assertNull(ring.until)
+    }
+
+    @Test
+    fun `the steady walk settings have defaults taken from a real walk and stay in range`() {
+        assertEquals(5, settings.steadyWalkMinutes)
+        assertEquals(40, settings.steadyWalkStepsPerMinute)
+        val wild = settings.copy(steadyWalkMinutes = 0, steadyWalkStepsPerMinute = 9_000).validated()
+        assertEquals(ExsurgeSettings.STEADY_WALK_MINUTES_RANGE.first, wild.steadyWalkMinutes)
+        assertEquals(ExsurgeSettings.STEADY_WALK_STEPS_RANGE.last, wild.steadyWalkStepsPerMinute)
+    }
+
+    @Test
+    fun `a saved sitting state from before walkedAt still decodes`() {
+        val stored = """{"state":{"type":"sitting","since":${at(5, 9).toEpochMilli()}},"nextSummonsId":3}"""
+        val memory = ExsurgeCodec.decodeMemory(stored)
+        assertNull((memory.state as ExsurgeState.Sitting).walkedAt)
+        val walked = ExsurgeMemory(ExsurgeState.Sitting(at(5, 10), walkedAt = at(5, 10, 3)))
+        assertEquals(walked, ExsurgeCodec.decodeMemory(ExsurgeCodec.encodeMemory(walked)))
+    }
 }
