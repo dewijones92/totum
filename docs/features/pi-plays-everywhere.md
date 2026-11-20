@@ -3,7 +3,7 @@ title: 📡 The Pi plays to any TV, speaker or browser; the phone is a remote
 kind: feature
 area: casting/pi
 status: built 2026-11-07, Batch A (tests written 2026-11-07; volume rule and the YouTube relay fixed after the first run on the LG; the relay not yet seen on a real TV)
-updated: 2026-11-14
+updated: 2026-11-20
 ---
 
 # 📡 The Pi plays to any TV, speaker or browser
@@ -150,6 +150,23 @@ sound processing on the Pi). Brief: [pi-plays-everywhere.md](../todos/pi-plays-e
 - **A device switched on by hand says so**: "🔌 Off · switch it on by hand" in the picker, no wake sent when it is picked,
   `TOTUM_SPEAKERS_SWITCHED_ON_BY_HAND` on the Pi; and one colour per device on every surface (`TargetColours.of`).
 
+## Power: how a device comes on and goes off (ADR 177)
+
+- **One seam.** A target's way to come on lives in one place on the Pi (`DevicePower`, `cli/.../serve/power/`): wake-on-LAN,
+  an Android stick woken and an app started over adb, a display switched on and put on an input, or by hand. The picker's
+  "💤 Off · picking it switches it on" and the deck's wake-then-play both ask it. A device that starts an app says "💤 Not
+  running · picking it starts it"; what a wake is doing reads in the header ("🔌 Starting Kodi on the Fire Stick…").
+- **LG webOS.** `TOTUM_WEBOS_TARGETS=LG TV=192.168.0.219`, paired once with `totum webos-pair "LG TV"` (the TV shows a
+  PIN). A paired LG is on only while its panel says `Active` (port 3001 stays open in standby), can be put on an input and
+  can be switched off. **⏻ Switch off** is on the remote panel and next to the selected chip when the Pi says it can.
+- **Sleep timer.** A checkbox under the timer, off by default, switches the device off after the fade, the pause and the
+  volume being put back.
+- **Kodi on the Fire Stick.** `TOTUM_ADB_TARGETS=Kodi=192.168.0.211:5555|the Fire Stick`, `TOTUM_START_APPS=Kodi=org.xbmc.kodi/.Splash`
+  and optionally `TOTUM_SHOWN_ON=Kodi=LG TV@HDMI_1`. A Kodi that does not answer has its stick woken (only if asleep) and Kodi
+  started, again every 20 s for up to a minute; otherwise "❌ Kodi didn't start".
+- Not seen on the real LG or the real stick yet (tests use a fake SSAP server and a fake adb shell); see
+  [webos-and-kodi-power](../todos/webos-and-kodi-power.md).
+
 ## Not built (see the todo)
 
 A name typed into the browser page (a stored name is read, none is written); the browser page away from home; Home Assistant's brown noise and jazz through Totum (the Totum side is built; the dot-files adapter is in `tools/handoff/hermes-audio/`, not deployed); the mini-player pill
@@ -172,7 +189,9 @@ browser listed at once and renamed in place), `BluezTest` and `TargetDeckSpeaker
 `TargetStateWireTest`, `TargetRulesTest` (core/data), `TargetsRepositoryTest`, `DeviceMarksTest`, `DeviceColourRuleTest` (app),
 instrumented `PlayOnPickerTest` and `DeviceColourSurfacesTest`.
 
-Unit (wake, hand back, live, ADR 152 amendments of 2026-11-07): `WakeOnLanTest`, `TvWakeTest`, `WakeThenPlayTest`, `YtDlpLiveHlsTest`, `LiveForSpeakersTest`, `CastWireTest`, `CastControlTest`, `ChromecastPlayerTest`, `TargetDeckTest`, `TargetDeckStartTest`, `TargetDeckVolumeSafetyTest`, `SpeakerVolumeTest`, `MpvPlayerTest` (cli), `TargetRulesTest` (core), `TargetsRepositoryTest`, `TargetChipLabelTest` (app), `server/totum-cli/chromecast_helper_test.py`.
+ADR 177: `SteppedPowerWolTest`, `KodiStartTest`, `KodiStartThenPlayTest`, `DevicePowersTest`, `WebOsTvTest`, `PinnedTrustTest`, `WebOsPairingTest`, `TargetDeckPowerOffTest`, `CommandParsingTest`, `PlayOnTest`, `TargetsRepositoryTest`; stand-ins `FakeSsapServer` and `FakeAdb`.
+
+Unit (wake, hand back, live, ADR 152 amendments of 2026-11-07): `WakeOnLanTest`, `SteppedPowerWolTest` (was `TvWakeTest`), `WakeThenPlayTest`, `YtDlpLiveHlsTest`, `LiveForSpeakersTest`, `CastWireTest`, `CastControlTest`, `ChromecastPlayerTest`, `TargetDeckTest`, `TargetDeckStartTest`, `TargetDeckVolumeSafetyTest`, `SpeakerVolumeTest`, `MpvPlayerTest` (cli), `TargetRulesTest` (core), `TargetsRepositoryTest`, `TargetChipLabelTest` (app), `server/totum-cli/chromecast_helper_test.py`.
 
 Unit: `PcmChainTest`, `TargetRulesTest`, `TargetEntriesTest` (core), `TargetDeckTest`, `YouTubeProgressTest`,
 `PcmPumpTest`, `CastWireTest`, `CastControlTest`, `YouTubeOwnershipTest` (cli); `TargetsRepositoryTest`, `PlayLocallyTest`,

@@ -121,16 +121,15 @@ class NewUploads(
         val inbox = if (onlyGroup != null) {
             emptyList()
         } else {
-            eligible.sources.filter { source ->
-                (source.id.value !in covered).also { free ->
-                    if (!free) {
-                        Diag.log(
-                            TAG,
-                            "inbox: \"${source.title}\" has a shuffled group in the queue; its uploads go there"
-                        )
-                    }
-                }
+            val (free, taken) = eligible.sources.partition { it.id.value !in covered }
+            if (taken.isNotEmpty()) {
+                Diag.log(
+                    TAG,
+                    "inbox: ${taken.size} source(s) have a shuffled group in the queue, so their uploads go there " +
+                        "(first ${minOf(taken.size, NAMED)}: ${taken.take(NAMED).joinToString { "\"${it.title}\"" }})",
+                )
             }
+            free
         }
         val known = eligible.sources.mapTo(mutableSetOf()) { it.id.value }
         val keep = if (eligible.complete) known else known + state.inboxSeen.keys
@@ -168,7 +167,15 @@ class NewUploads(
             group.shuffle.sources.filter { it.id in plan.eligible }
                 .forEach { source -> fetched[source.id]?.let { noteSeen(inboxSeen, source.id, it) } }
         }
-        val fresh = plan.inbox.flatMap { source -> inboxNews(source, fetched[source.id.value], inboxSeen) }
+        val firstLooks = mutableListOf<String>()
+        val fresh = plan.inbox.flatMap { source -> inboxNews(source, fetched[source.id.value], inboxSeen, firstLooks) }
+        if (firstLooks.isNotEmpty()) {
+            Diag.log(
+                TAG,
+                "inbox: first look at ${firstLooks.size} source(s), their existing uploads noted and none added " +
+                    "(first ${minOf(firstLooks.size, NAMED)}: ${firstLooks.take(NAMED).joinToString { "\"$it\"" }})",
+            )
+        }
         val playable = fresh.sortedByDescending { it.publishedAt }.mapNotNull { it.toPlayableOrNull() }
         val inboxAdded = if (playable.isEmpty()) 0 else queue.add(INBOX, playable, GroupSpot.END)
         if (plan.inbox.isNotEmpty() || inboxAdded > 0) {
@@ -180,9 +187,10 @@ class NewUploads(
         }
         val inQueue = queue.groupIds()
         store.save(UploadsState(groups.filterKeys { it in inQueue }, inboxSeen))
+        val moreFailed = if (failed.size > NAMED) " and ${failed.size - NAMED} more" else ""
         return UploadsReport(addedToGroups, inboxAdded, failed, plan.unwatched).also {
             val line = "check ($why): ${it.added} added (groups $addedToGroups, inbox $inboxAdded), " +
-                "${failed.size} failed $failed" +
+                "${failed.size} failed ${failed.take(NAMED)}$moreFailed" +
                 if (plan.unwatched.isEmpty()) "" else ", not watched ${plan.unwatched}"
             Diag.log(TAG, line)
             Vitals.set("uploads.lastCheck", "${java.time.Instant.now()} $line")
@@ -210,7 +218,7 @@ class NewUploads(
         Diag.log(
             TAG,
             "\"${shuffle.title}\": ${items.size} latest, ${fresh.size} new " +
-                "(${fresh.joinToString { it.title.take(TITLE_CHARS) }}), $added added next in the group",
+                "(${fresh.joinToString { it.title.take(TITLE_CHARS) }}), $added added to the group",
         )
         return group.copy(seen = group.seen + items.map { it.id.value }) to added
     }
@@ -219,16 +227,14 @@ class NewUploads(
         source: MediaSource,
         got: List<MediaItem>?,
         seen: MutableMap<String, List<String>>,
+        firstLooks: MutableList<String>,
     ): List<MediaItem> {
         if (got == null) return emptyList()
         val items = got.filter { !it.isShort && !it.membersOnly }
         val before = seen[source.id.value]
         noteSeen(seen, source.id.value, got)
         if (before == null) {
-            Diag.log(
-                TAG,
-                "inbox: first look at \"${source.title}\", ${items.size} existing upload(s) noted, none added"
-            )
+            firstLooks += source.title
             return emptyList()
         }
         return items.filter { it.id.value !in before }
@@ -246,6 +252,7 @@ class NewUploads(
         private const val TAG = "uploads"
         private const val SHUFFLE_PREFIX = "shuffle:"
         private const val TITLE_CHARS = 40
+        private const val NAMED = 5
         private const val OLDER_KEPT = 200
         private const val IN_FLIGHT = 4
     }

@@ -21,9 +21,14 @@ public class FakeYouTubeChannel(
     private val playlists: List<Playlist> = emptyList(),
     private val videosNext: PageToken? = null,
     private val videoPages: Map<String, Page<FeedVideo>> = emptyMap(),
+    private val streams: List<FeedVideo> = emptyList(),
+    private val streamPages: Map<String, Page<FeedVideo>> = emptyMap(),
+    private val streamsNext: PageToken? = null,
 ) : YouTubeChannel {
 
     public val requested: MutableList<PageToken?> = mutableListOf()
+
+    public val streamsRequested: MutableList<PageToken?> = mutableListOf()
 
     override suspend fun videos(channelId: String, after: PageToken?): ChannelVideos {
         requested += after
@@ -42,6 +47,12 @@ public class FakeYouTubeChannel(
 
     override suspend fun shorts(channelId: String, after: PageToken?): ChannelVideos =
         ChannelVideos.Success(Page.last(shorts))
+
+    override suspend fun streams(channelId: String, after: PageToken?): ChannelVideos {
+        streamsRequested += after
+        val page = after?.let { streamPages[it.value] } ?: Page(streams, streamsNext)
+        return ChannelVideos.Success(page)
+    }
 
     override suspend fun playlists(channelId: String, after: PageToken?): ChannelPlaylists =
         ChannelPlaylists.Success(Page.last(playlists))

@@ -8,8 +8,13 @@ import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.PublishedAge
+import com.dewijones92.totum.domain.opensExternally
 import com.dewijones92.totum.domain.publisherFor
 import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
+import java.util.Locale
 import kotlin.time.Duration
 
 /**
@@ -47,6 +52,7 @@ fun mediaItemFacts(
         // `MediaItem.pillar` is documented as a guess for items that have no handle yet. Re-deriving
         // it here would put back the second rule that a Shorts URL once fell down the gap between.
         authorEmoji = shownAs(item, pillar).maker,
+        availability = iPlayerAvailability(item, now),
     )
 }
 
@@ -71,6 +77,7 @@ object FactEmoji {
     const val CHANNEL: String = "📺"
     const val PODCAST: String = "🎙️"
     const val TORRENT: String = "🧲"
+    const val BBC: String = "📺"
 
     /**
      * The network or label behind a show, on its own line under the show's name. A label glyph
@@ -130,6 +137,7 @@ fun mediaFacts(
      * be in competition for one line — see [com.dewijones92.totum.domain.MediaItem.publisher].
      */
     publisher: String? = null,
+    availability: String? = null,
 ): List<String> = listOfNotNull(
     author.labelled(authorEmoji),
     // The SAME rule the podcast mapping applies, called rather than restated — it had three
@@ -139,7 +147,28 @@ fun mediaFacts(
     publisherFor(publisher, null, author).nameOrNull.labelled(FactEmoji.PUBLISHER),
     viewsText.labelled(FactEmoji.VIEWS),
     dateText.labelled(FactEmoji.PUBLISHED),
+    availability,
 )
+
+fun iPlayerAvailability(
+    item: MediaItem,
+    now: Instant = Instant.now(),
+    zone: ZoneId = ZoneId.systemDefault(),
+): String? {
+    val until = item.availableUntil?.takeIf { item.opensExternally } ?: return null
+    val day = AVAILABLE_DAY.withZone(zone).format(until)
+    if (until.isBefore(now)) return "⌛ No longer on iPlayer (it ended on $day)"
+    val days = ChronoUnit.DAYS.between(now, until)
+    val left = when {
+        days < 1 -> " · ⏰ less than a day left"
+        days <= LAST_WEEKS_DAYS -> " · ⏰ $days days left"
+        else -> ""
+    }
+    return "⏳ On iPlayer until $day$left"
+}
+
+private val AVAILABLE_DAY = DateTimeFormatter.ofPattern("d MMM yyyy", Locale.UK)
+private const val LAST_WEEKS_DAYS = 14L
 
 /**
  * A fact with its emoji, or null when there is no fact. Applied here rather than at each `Text`, so

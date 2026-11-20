@@ -1,4 +1,4 @@
-package com.dewijones92.totum.cli.serve.cast
+package com.dewijones92.totum.cli.serve.power
 
 import java.net.DatagramPacket
 import java.net.DatagramSocket

@@ -49,6 +49,15 @@ android {
             ?: System.getenv("TOTUM_SPONSOR_URL")
             ?: ""
         buildConfigField("String", "SPONSOR_URL", "\"${sponsorUrl.trim()}\"")
+
+        val photosClientId = (project.findProperty("totum.photosClientId") as String?)?.takeIf { it.isNotBlank() }
+            ?: System.getenv("TOTUM_PHOTOS_CLIENT_ID")
+            ?: ""
+        val photosClientSecret = (project.findProperty("totum.photosClientSecret") as String?)?.takeIf { it.isNotBlank() }
+            ?: System.getenv("TOTUM_PHOTOS_CLIENT_SECRET")
+            ?: ""
+        buildConfigField("String", "GOOGLE_PHOTOS_CLIENT_ID", "\"${photosClientId.trim()}\"")
+        buildConfigField("String", "GOOGLE_PHOTOS_CLIENT_SECRET", "\"${photosClientSecret.trim()}\"")
     }
 
     signingConfigs {

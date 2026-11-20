@@ -80,6 +80,7 @@ class AccountResumePositions(
     private val _watched = MutableStateFlow<Map<String, AccountProgress>>(emptyMap())
     private var fetchedAtMs = 0L
     private var inFlight: Deferred<Unit>? = null
+    private val resetBurst = longArrayOf(0L, 0L)
 
     /**
      * The account's watched positions, live — what lets ROWS show progress made elsewhere, not only
@@ -97,6 +98,36 @@ class AccountResumePositions(
         if (reconciled.reconciledMs(itemId) == remoteMs) return
         reconciled.reconcile(itemId, remoteMs)
         Diag.log("yt-sync", "seek overrides cached youtube=${remoteMs}ms for ${itemId.value}; it is now acted on")
+    }
+
+    suspend fun overriddenByReset(itemId: MediaItemId) {
+        val (remote, note) = remoteFor(itemId)
+        val remoteMs = remote?.positionMs
+        val alreadyUsedMs = reconciled.reconciledMs(itemId)
+        val outcome = when {
+            remoteMs == null -> "the account holds no position, so there is nothing to keep it from winning back"
+            remoteMs == alreadyUsedMs -> "the account's ${remoteMs}ms was already acted on, so it stays old news"
+            else -> {
+                reconciled.reconcile(itemId, remoteMs)
+                "the account's ${remoteMs}ms of ${remote.durationMs ?: "unknown"} is now acted on, " +
+                    "so it cannot win it back"
+            }
+        }
+        val inBurst = resetsInBurst(now())
+        if (inBurst <= RESETS_LOGGED_IN_FULL || inBurst % RESETS_COUNTED_EVERY == 0) {
+            Diag.log(
+                "yt-sync",
+                "marked unplayed ${itemId.value} (#$inBurst of this burst): $outcome " +
+                    "[youtube=${remoteMs ?: "none"} alreadyUsed=${alreadyUsedMs ?: "none"}]" +
+                    (note?.let { " ($it)" } ?: ""),
+            )
+        }
+    }
+
+    private fun resetsInBurst(atMs: Long): Int = synchronized(resetBurst) {
+        if (atMs - resetBurst[LAST] > RESET_BURST_GAP_MS) resetBurst[COUNT] = 0L
+        resetBurst[LAST] = atMs
+        (++resetBurst[COUNT]).toInt()
     }
 
     /** The position to start [itemId] at, or null for the beginning. */
@@ -252,5 +283,11 @@ class AccountResumePositions(
          * difference between them is the difference between the next item playing and it not.
          */
         const val REMOTE_WAIT_MS = 1_500L
+
+        private const val COUNT = 0
+        private const val LAST = 1
+        private const val RESET_BURST_GAP_MS = 10_000L
+        private const val RESETS_LOGGED_IN_FULL = 5
+        private const val RESETS_COUNTED_EVERY = 100
     }
 }

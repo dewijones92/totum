@@ -10,7 +10,7 @@ internal fun PlayableItem.preloadableUrl(): HttpUrl? = when (val handle = handle
     } else {
         (handle.audioUrl?.takeUnless { it.isPlaylist() } ?: item.mediaUrl)?.takeUnless { it.isPlaylist() }
     }
-    is PlayHandle.LocalVideo -> null
+    is PlayHandle.LocalVideo, is PlayHandle.External -> null
     is PlayHandle.Video -> null
 }
 

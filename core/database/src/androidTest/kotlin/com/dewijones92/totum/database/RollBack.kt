@@ -8,6 +8,7 @@ private val COLUMNS_ADDED_AT: Map<Int, List<Pair<String, String>>> = mapOf(
     26 to ITEM_TABLES.flatMap { listOf(it to "albumId", it to "albumTitle") },
     27 to listOf("downloads" to "downloadedAtEpochMs", "downloads" to "openedAtEpochMs"),
     28 to listOf("queue_items" to "addedAtEpochMs"),
+    29 to listOf("podcast_episodes" to "availableUntilEpochMs"),
 )
 
 internal fun SupportSQLiteDatabase.rollBackTo(version: Int) {

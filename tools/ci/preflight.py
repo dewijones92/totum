@@ -23,6 +23,9 @@ Checks, cheapest first:
    whole string to the semantics tree — so a grep is the only thing that can.
 8. No instrumented test name holds a character dex cannot represent. A comma or an apostrophe in a
    backtick name is legal Kotlin and fine on the JVM, and fails the WHOLE androidTest dex build.
+9. No Compose test builds a coroutine scope on `Dispatchers.Default` or `IO`. The test rule resumes
+   Compose's collectors on whichever thread emits, so a worker-thread scope puts composition on that
+   worker; the race is rare locally and fatal in CI.
 """
 import fnmatch
 import pathlib
@@ -376,6 +379,31 @@ def check_instrumented_test_names_dex() -> int:
     return problems
 
 
+COMPOSE_RULE = re.compile(r"\bcreate(?:Android)?ComposeRule\b")
+WORKER_DISPATCHER = re.compile(r"\bDispatchers\.(?:Default|IO)\b")
+
+
+def worker_dispatchers_in_compose_test(source: str) -> list[str]:
+    code = code_only(source)
+    if not COMPOSE_RULE.search(code):
+        return []
+    return sorted(set(WORKER_DISPATCHER.findall(code)))
+
+
+def check_compose_tests_stay_on_the_main_thread() -> int:
+    problems = 0
+    for path in sorted(ROOT.glob("*/src/androidTest/**/*.kt")) + sorted(ROOT.glob("*/*/src/androidTest/**/*.kt")):
+        for dispatcher in worker_dispatchers_in_compose_test(path.read_text()):
+            problems += fail(
+                f"{path.relative_to(ROOT)}: a Compose test builds a scope on {dispatcher}. Flows it feeds a screen "
+                "then resume Compose's collector, and sometimes its recomposition, on that worker thread, "
+                "which corrupts the slot table (PlayOnPickerTest crashed CI at 48e556f1). Use mainThreadScope()."
+            )
+    if not problems:
+        print("  ok: no Compose test runs its coroutines on a worker thread")
+    return problems
+
+
 AUDIO_WORKFLOW = ROOT / ".github/workflows/audio-quality.yml"
 AUDIO_TESTS = ROOT / "core/sound/src/test/kotlin/com/dewijones92/totum/playback/audioquality"
 PLAYBACK_MAIN = "core/sound/src/main/kotlin/com/dewijones92/totum/playback"
@@ -463,6 +491,7 @@ def main() -> int:
     problems += check_shell_syntax(workflow)
     problems += check_text_wraps_instead_of_truncating()
     problems += check_instrumented_test_names_dex()
+    problems += check_compose_tests_stay_on_the_main_thread()
     problems += check_audio_quality_paths()
     problems += check_exsurge_paths()
     if problems:

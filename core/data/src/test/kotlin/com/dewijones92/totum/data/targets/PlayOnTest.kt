@@ -101,6 +101,32 @@ class PlayOnTest {
     }
 
     @Test
+    fun `a device whose pick starts an app says so, and by hand still wins over it`() {
+        val kodi = PlayOnOption(Target("kodi", "Kodi", TargetKind.TV), TargetPower.ASLEEP, startsApp = true)
+        val kodiByHand = kodi.copy(switchedOnByHand = true)
+
+        assertEquals(PlayOnHint.STARTS_WHEN_PICKED, kodi.hint)
+        assertEquals(PlayOnHint.SWITCH_ON_BY_HAND, kodiByHand.hint)
+        assertEquals(PlayOnHint.NONE, kodi.copy(power = TargetPower.ON).hint)
+    }
+
+    @Test
+    fun `an option carries what the device was listed as able to do`() {
+        val kodi = TargetState(
+            Target("kodi", "Kodi", TargetKind.TV),
+            power = TargetPower.ASLEEP,
+            startsApp = true,
+            canSwitchOff = true,
+        )
+
+        val option = PlayOn.options(listOf(kodi), atHome = true).last()
+
+        assertTrue(option.startsApp)
+        assertTrue(option.canSwitchOff)
+        assertFalse(PlayOn.options(listOf(lg), atHome = true).last().canSwitchOff)
+    }
+
+    @Test
     fun `no last used device means this phone`() {
         val options = PlayOn.options(listOf(lg), atHome = true)
 

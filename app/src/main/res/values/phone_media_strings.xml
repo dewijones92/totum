@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="phone_media_title">📱 On this phone</string>
+    <string name="phone_media_tile_detail">🎞️ Videos, 🎵 music and 🖼️ photos stored on this phone, in Totum</string>
+    <string name="pillar_phone">On this phone</string>
+
+    <string name="phone_tab_videos">🎞️ Videos</string>
+    <string name="phone_tab_audio">🎵 Audio</string>
+    <string name="phone_tab_photos">🖼️ Photos</string>
+    <string name="phone_tab_google">☁️ Google Photos</string>
+    <string name="phone_kind_videos">videos</string>
+    <string name="phone_kind_audio">audio</string>
+    <string name="phone_kind_photos">photos</string>
+
+    <string name="phone_ask_title">🔓 Let Totum see the media on this phone</string>
+    <string name="phone_ask_body">Totum reads the videos, music and photos stored on this phone so they play with its queue, speed, silence skipping, resume and casting. They are read in place and never copied or sent anywhere.</string>
+    <string name="phone_ask_button">🔓 Allow access</string>
+    <string name="phone_blocked_title">🔒 Totum can\'t see %1$s on this phone</string>
+    <string name="phone_blocked_body">Android only lets you change this in Settings: open Totum\'s permissions there and allow Photos and videos and Music and audio.</string>
+    <string name="phone_blocked_button">⚙️ Open Settings</string>
+    <string name="phone_partial_banner">ℹ️ Totum can only see the photos and videos you chose.</string>
+    <string name="phone_partial_more">➕ Choose more</string>
+
+    <string name="phone_search_hint">🔍 Search by name</string>
+    <string name="phone_folder_all">All folders</string>
+    <string name="phone_sort_newest">Newest</string>
+    <string name="phone_sort_oldest">Oldest</string>
+    <string name="phone_sort_title">A to Z</string>
+    <string name="phone_sort_longest">Longest</string>
+    <string name="phone_sort_largest">Largest</string>
+    <string name="phone_empty">📭 Nothing here</string>
+    <string name="phone_empty_search">📭 Nothing matches that</string>
+    <string name="phone_failed">❌ Couldn\'t read your media: %1$s</string>
+    <string name="phone_retry">🔁 Try again</string>
+    <string name="phone_group_videos">📱 Videos on this phone</string>
+    <string name="phone_group_audio">📱 Audio on this phone</string>
+    <string name="phone_group_folder">📱 %1$s</string>
+    <string name="phone_play_note">ℹ️ Files on this phone play here, and are not sent to the Pi\'s speakers or TVs: only this phone can reach them.</string>
+
+    <string name="ops_import_photos">⬇️ Importing from %1$s</string>
+    <plurals name="ops_import_photos_done">
+        <item quantity="one">✅ Imported %1$d item from %2$s</item>
+        <item quantity="other">✅ Imported %1$d items from %2$s</item>
+    </plurals>
+
+    <string name="google_setup_title">⚙️ Google Photos needs one-off setup</string>
+    <string name="google_setup_body">Google only lets an app read photos you pick through its Photos Picker, and that needs a Google Cloud OAuth client made by whoever builds Totum. Nothing is sent to Google until it is set up. The exact steps are in docs/features/phone-media.md.</string>
+    <string name="google_pick_title">☁️ Pick from Google Photos</string>
+    <string name="google_pick_body">Choose photos and videos on Google Photos\' own page. Totum copies just those onto this phone, so they work offline, in the queue and in the viewer.</string>
+    <string name="google_pick_button">➕ Pick from Google Photos</string>
+    <string name="google_signed_in">✅ Signed in to Google Photos</string>
+    <string name="google_sign_out">🚪 Sign out</string>
+    <string name="google_state_signing_in">🔑 Signing in: finish in your browser, then come back to Totum</string>
+    <string name="google_state_creating">⏳ Asking Google Photos for a page to pick from…</string>
+    <string name="google_state_waiting">🌐 Choose in Google Photos, then come back to Totum. Waiting for your choice…</string>
+    <string name="google_state_reading">⏳ Reading your choice: %1$d so far…</string>
+    <string name="google_state_importing">⬇️ Importing %1$d of %2$d: %3$s</string>
+    <string name="google_cancel">✖️ Cancel</string>
+    <string name="google_done_nothing">📭 Nothing was chosen</string>
+    <plurals name="google_done_imported">
+        <item quantity="one">✅ Imported %1$d item</item>
+        <item quantity="other">✅ Imported %1$d items</item>
+    </plurals>
+    <plurals name="google_done_already">
+        <item quantity="one">ℹ️ %1$d was already on this phone</item>
+        <item quantity="other">ℹ️ %1$d were already on this phone</item>
+    </plurals>
+    <plurals name="google_done_failed">
+        <item quantity="one">❌ %1$d could not be imported</item>
+        <item quantity="other">❌ %1$d could not be imported</item>
+    </plurals>
+    <string name="google_failed">❌ %1$s</string>
+    <string name="google_expired">⌛ The Google Photos page timed out before anything was chosen. Pick again.</string>
+    <string name="google_dismiss">👌 OK</string>
+    <string name="google_show_photos">🖼️ Photos</string>
+    <string name="google_show_videos">🎞️ Videos</string>
+
+    <string name="photo_viewer_position">🖼️ %1$d of %2$d</string>
+    <string name="photo_viewer_close">✖️ Close</string>
+    <string name="photo_slideshow_start">▶️ Slideshow</string>
+    <string name="photo_slideshow_stop">⏸️ Pause slideshow</string>
+    <string name="photo_slideshow_seconds">%1$d s</string>
+    <string name="photo_screen_show">🖥️ Show on a screen</string>
+    <string name="photo_screen_pick">🖥️ Show on %1$s</string>
+    <string name="photo_screen_stop">⏹️ Stop showing on %1$s</string>
+    <string name="photo_screen_none">🖥️ No screen is open: open Totum\'s screen page in a browser on your TV or PC to show photos there</string>
+    <string name="photo_screen_working">⏳ Showing %1$s on %2$s</string>
+    <string name="photo_zoom_hint">🔍 Pinch to zoom, double-tap to zoom in and out, swipe for the next photo</string>
+</resources>

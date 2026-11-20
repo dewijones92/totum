@@ -30,6 +30,8 @@ enum class OperationKind(val toastsResult: Boolean = true) {
     HOME_UPLOAD,
     SEND_TO_TARGET,
     WAKE_TARGET,
+    IMPORT_PHOTOS,
+    START_TARGET_APP,
 }
 
 data class Operation(

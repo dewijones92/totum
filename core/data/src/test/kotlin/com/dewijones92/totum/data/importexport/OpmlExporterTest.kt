@@ -1,6 +1,7 @@
 package com.dewijones92.totum.data.importexport
 
 import com.dewijones92.totum.common.HttpUrl
+import com.dewijones92.totum.data.bbc.BbcProgrammes
 import com.dewijones92.totum.domain.MediaSource
 import com.dewijones92.totum.domain.SourceId
 import org.junit.Assert.assertEquals
@@ -33,6 +34,20 @@ class OpmlExporterTest {
         assertTrue(opml.contains("xmlUrl=\"https://feeds.example.com/a.xml\""))
         assertTrue(opml.contains("htmlUrl=\"https://a.example.com\""))
         assertTrue(opml.contains("text=\"A Show\""))
+    }
+
+    @Test
+    fun `a BBC programme is left out because it is not an rss feed other apps could read`() {
+        val opml = exporter.export(
+            listOf(
+                podcast("A Show", "https://feeds.example.com/a.xml"),
+                podcast("Have I Got News for You", BbcProgrammes.feedUrl("b006mkw3").value),
+            ),
+        )
+
+        assertTrue(opml.contains("text=\"A Show\""))
+        assertTrue(opml, !opml.contains("Have I Got News"))
+        assertTrue(opml, !opml.contains("ibl.api.bbci.co.uk"))
     }
 
     @Test

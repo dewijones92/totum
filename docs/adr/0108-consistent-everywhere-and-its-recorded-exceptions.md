@@ -2,7 +2,7 @@
 title: Consistent everywhere, with its exceptions recorded
 kind: adr
 status: accepted
-updated: 2026-11-14
+updated: 2026-11-20
 ---
 
 # 108. Consistent everywhere, with its exceptions recorded
@@ -153,6 +153,15 @@ private spinners, empty-state looks, search-field designs, group membership Undo
 marks on Shorts and later pages, and marks on search results and related videos (a product call: no per-video progress
 call exists).
 
+Recorded exceptions from BBC programmes ([ADR 184](0184-bbc-programmes-are-followable-sources-that-open-in-iplayer.md), 2026-11-20):
+
+- **A BBC episode opens in the iPlayer app (else the browser) instead of playing in Totum.** Its menu has no Play next, Add
+  to queue, Peek, Listen/Watch, Download or Play on…, it never enters the queue (every add path leaves it out and logs
+  it), and a list that holds one plays the rest and skips it. Star, Add to playlist, Share, Not for me, Details and the
+  follow mark are as for any episode.
+- **A BBC programme's page has no Shuffle all and no Inbox toggle**: both exist to fill the queue, which cannot hold its episodes.
+- **A starred or playlisted BBC episode does not carry its "on iPlayer until" date**: those tables have no such column.
+
 ## Consequences
 
 - New work is reviewed against this list; an exception added later is recorded here.
@@ -196,3 +205,9 @@ Recorded exception from the Play on… pass ([ADR 169](0169-play-on-is-a-choice-
 - **Peek stays on this phone whatever device is remembered.** Peek plays one item without touching the queue and opens the
   phone's own full player; a remote device has neither a queue to leave alone nor a player to open (the same reason as the
   Shorts reel). "📡 Play on…" in the item menu is the way to play one item on a device.
+
+Recorded exception from On this phone ([ADR 176](0176-on-this-phone-is-a-source-behind-the-one-player.md), 2026-11-14):
+
+- **A file on the phone has no Download, no Add to group, no "📡 Play on…" and no Send to…** It is already on the phone, it came
+  from no channel or show, and the Pi's targets cannot reach a file only the phone holds (a note on the page says so);
+  `TargetsRepository.take` keeps any batch containing one on the phone. Casting from the phone itself is unchanged.

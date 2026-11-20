@@ -1,5 +1,7 @@
 package com.dewijones92.totum.cli.serve.cast
 
+import com.dewijones92.totum.cli.serve.power.DevicePower
+import com.dewijones92.totum.cli.serve.power.wakeOnLanPower
 import com.dewijones92.totum.cli.serve.sound.ProcessedSound
 import com.dewijones92.totum.cli.serve.targets.EnqueueResult
 import com.dewijones92.totum.cli.serve.targets.TargetDeck
@@ -35,7 +37,7 @@ class WakeThenPlayTest {
     private var answersFromProbe = Int.MAX_VALUE
     private lateinit var deck: TargetDeck
 
-    private fun wake() = TvWake(
+    private fun wake() = wakeOnLanPower(
         label = "LG TV",
         mac = mac,
         broadcasts = listOf("255.255.255.255", "192.168.0.255"),
@@ -52,7 +54,7 @@ class WakeThenPlayTest {
         clock = { now },
     )
 
-    private fun deckWith(wake: TvWake?): TargetDeck {
+    private fun deckWith(wake: DevicePower?): TargetDeck {
         val streams = PiStreams(ProcessedSound("ffmpeg-not-run") { null }, null, 0)
         val player = ChromecastPlayer("LG TV", control, streams, wake = wake, clock = { now })
         player.onLost = { reason -> runBlocking { deck.lost(reason) } }

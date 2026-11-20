@@ -36,6 +36,7 @@ import com.dewijones92.totum.ui.group.GroupActions
 import com.dewijones92.totum.video.AccountSubscriptions
 import com.dewijones92.totum.video.ChannelAccountProgress
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -78,7 +79,7 @@ class ChannelViewModel(
         val accountProgress: suspend (MediaSource.VideoChannel) -> Unit,
     )
 
-    enum class Tab { VIDEOS, SHORTS, PLAYLISTS, SEARCH }
+    enum class Tab { VIDEOS, SHORTS, LIVE, PLAYLISTS, SEARCH }
 
     /**
      * One tab's load state. Paging lives here rather than in three parallel fields: every
@@ -103,6 +104,7 @@ class ChannelViewModel(
         val tab: Tab = Tab.VIDEOS,
         val videos: TabState<MediaItem> = TabState(),
         val shorts: TabState<MediaItem> = TabState(),
+        val live: TabState<MediaItem> = TabState(),
         val playlists: TabState<Playlist> = TabState(),
         /** Results of searching within this channel, and the query they belong to. */
         val searchResults: TabState<MediaItem> = TabState(),
@@ -114,13 +116,16 @@ class ChannelViewModel(
         val resolving: String? = null,
         val artworkUrl: HttpUrl? = null,
         val channelId: String? = null,
-    )
+    ) {
+        val tabs: List<Tab> get() = Tab.entries.filter { it != Tab.LIVE || live.items.isNotEmpty() }
+    }
 
     private data class Content(
         val title: String,
         val tab: Tab = Tab.VIDEOS,
         val videos: TabState<MediaItem> = TabState(),
         val shorts: TabState<MediaItem> = TabState(),
+        val live: TabState<MediaItem> = TabState(),
         val playlists: TabState<Playlist> = TabState(),
         val searchResults: TabState<MediaItem> = TabState(),
         val searchQuery: String = "",
@@ -148,9 +153,10 @@ class ChannelViewModel(
     ) { c, subs, downloadStates, groups ->
         UiState(
             title = c.title,
-            tab = c.tab,
+            tab = if (c.tab == Tab.LIVE && c.live.items.isEmpty()) Tab.VIDEOS else c.tab,
             videos = c.videos,
             shorts = c.shorts,
+            live = c.live,
             playlists = c.playlists,
             searchResults = c.searchResults,
             searchQuery = c.searchQuery,
@@ -194,9 +200,10 @@ class ChannelViewModel(
 
     private val videosTab = TabLens(Tab.VIDEOS, { it.videos }) { c, s -> c.copy(videos = s) }
     private val shortsTab = TabLens(Tab.SHORTS, { it.shorts }) { c, s -> c.copy(shorts = s) }
+    private val liveTab = TabLens(Tab.LIVE, { it.live }) { c, s -> c.copy(live = s) }
     private val playlistsTab = TabLens(Tab.PLAYLISTS, { it.playlists }) { c, s -> c.copy(playlists = s) }
     private val searchTab = TabLens(Tab.SEARCH, { it.searchResults }) { c, s -> c.copy(searchResults = s) }
-    private val refreshable = listOf(videosTab, shortsTab, playlistsTab)
+    private val refreshable = listOf(videosTab, shortsTab, liveTab, playlistsTab)
 
     private val finishedAtMs = mutableMapOf<Tab, Long>()
 
@@ -227,7 +234,7 @@ class ChannelViewModel(
             "opened \"${source.title}\" ${source.channelUrl.value} " +
                 if (channelId != null) "(UC id known: tabs load via InnerTube)" else "(handle only: videos via yt-dlp)",
         )
-        loadVideos(refreshing = false)
+        loadVideos(refreshing = false)?.invokeOnCompletion { loadLive(refreshing = false) }
     }
 
     fun refreshOnEntry() = refreshable.forEach { refreshIfStale(it.tab, "on entry") }
@@ -258,11 +265,14 @@ class ChannelViewModel(
         loadTab(tab, refreshing = true)
     }
 
-    private fun loadTab(tab: Tab, refreshing: Boolean) = when (tab) {
-        Tab.VIDEOS -> loadVideos(refreshing)
-        Tab.SHORTS -> loadShorts(refreshing)
-        Tab.PLAYLISTS -> loadPlaylists(refreshing)
-        Tab.SEARCH -> Unit
+    private fun loadTab(tab: Tab, refreshing: Boolean) {
+        when (tab) {
+            Tab.VIDEOS -> loadVideos(refreshing)
+            Tab.SHORTS -> loadShorts(refreshing)
+            Tab.LIVE -> loadLive(refreshing)
+            Tab.PLAYLISTS -> loadPlaylists(refreshing)
+            Tab.SEARCH -> Unit
+        }
     }
 
     private fun Page<MediaItem>.listedHere(): Page<MediaItem> {
@@ -349,13 +359,13 @@ class ChannelViewModel(
         }
     }
 
-    private fun <T> reload(lens: TabLens<T>, refreshing: Boolean, route: String, fetch: suspend () -> Page<T>?) {
+    private fun <T> reload(lens: TabLens<T>, refreshing: Boolean, route: String, fetch: suspend () -> Page<T>?): Job? {
         val name = lens.tab.name.lowercase()
         if (lens.state(content.value).loading) {
             Diag.log("channel", "\"${source.title}\" $name already loading; not starting another")
-            return
+            return null
         }
-        viewModelScope.launch {
+        return viewModelScope.launch {
             val started = TimeSource.Monotonic.markNow()
             content.update { lens.update(it, lens.state(it).copy(loading = true, error = false)) }
             val page = fetch()
@@ -405,6 +415,24 @@ class ChannelViewModel(
         }
     }
 
+    private fun loadLive(refreshing: Boolean) {
+        val id = channelId ?: run {
+            content.update { it.copy(live = TabState(loaded = true)) }
+            return
+        }
+        reload(liveTab, refreshing, "InnerTube") {
+            when (val r = reader.innerTube.streams(id)) {
+                is ChannelVideos.Success -> r.page.map { it.toMediaItem(source.id) }.listedHere().also {
+                    val verdict = if (it.items.isEmpty()) "hidden, no streams" else "shown, ${it.items.size} stream(s)"
+                    Diag.log("channel", "dewidebug \"${source.title}\" Live tab $verdict (more=${it.hasMore})")
+                }
+                is ChannelVideos.Failure -> null.also {
+                    Diag.warn("channel", "\"${source.title}\" Live tab could not be read: ${r.detail}")
+                }
+            }
+        }
+    }
+
     private fun loadPlaylists(refreshing: Boolean) {
         val id = channelId ?: run {
             content.update { it.copy(playlists = TabState(loaded = true)) }
@@ -428,6 +456,7 @@ class ChannelViewModel(
         when (content.value.tab) {
             Tab.VIDEOS -> pageMore(videosTab) { after -> videoPage(reader.innerTube.videos(id, after)) }
             Tab.SHORTS -> pageMore(shortsTab) { after -> videoPage(reader.innerTube.shorts(id, after)) }
+            Tab.LIVE -> pageMore(liveTab) { after -> videoPage(reader.innerTube.streams(id, after)) }
             Tab.PLAYLISTS -> pageMore(playlistsTab) { after ->
                 (reader.innerTube.playlists(id, after) as? ChannelPlaylists.Success)?.page
             }

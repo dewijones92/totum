@@ -145,6 +145,7 @@ class PlaybackQueue(
     internal val passOver: (PlayableItem) -> String? = { null },
     private val repeatOneOffForRun: (String) -> Boolean = { false },
     private val shield: ItemShield = NoShield,
+    private val openExternally: (PlayableItem, HttpUrl) -> Boolean = { _, _ -> false },
 ) {
     private val _state = MutableStateFlow(QueueSnapshot())
 
@@ -266,17 +267,48 @@ class PlaybackQueue(
 
     /** Adds to the end of the queue, unless it is already queued: then it says so ([QueueNotice.AlreadyQueued]). */
     fun enqueue(item: PlayableItem, group: QueueGroup? = null, local: Boolean = false): Boolean =
-        redirected(listOf(item), QueueMode.END, group, local = local) ||
-            addingUnlessQueued("add-to-end", item) { snapshot, kept ->
-                snapshot.copy(entries = snapshot.entries + QueueEntry(kept, group))
-            }
+        withoutExternal(listOf(item), "add-to-end").isNotEmpty() && (
+            redirected(listOf(item), QueueMode.END, group, local = local) ||
+                addingUnlessQueued("add-to-end", item) { snapshot, kept ->
+                    snapshot.copy(entries = snapshot.entries + QueueEntry(kept, group))
+                }
+            )
 
     /** Inserts so it plays immediately after the current entry, unless it is already queued: then it says so. */
     fun playNext(item: PlayableItem, group: QueueGroup? = null, local: Boolean = false): Boolean =
-        redirected(listOf(item), QueueMode.NEXT, group, local = local) ||
-            addingUnlessQueued("play-next", item) { snapshot, kept ->
-                snapshot.inserted(listOf(QueueEntry(kept, group)))
-            }
+        withoutExternal(listOf(item), "play-next").isNotEmpty() && (
+            redirected(listOf(item), QueueMode.NEXT, group, local = local) ||
+                addingUnlessQueued("play-next", item) { snapshot, kept ->
+                    snapshot.inserted(listOf(QueueEntry(kept, group)))
+                }
+            )
+
+    private fun withoutExternal(items: List<PlayableItem>, why: String): List<PlayableItem> {
+        val (external, queueable) = items.partition { it.handle is PlayHandle.External }
+        if (external.isNotEmpty()) {
+            Diag.log(
+                "queue",
+                "dewidebug $why: ${external.size} of ${items.size} item(s) open in another app and are never " +
+                    "queued (${external.take(LOGGED_EXTERNAL).joinToString { it.item.id.value }})",
+            )
+        }
+        return queueable
+    }
+
+    private fun openTheAskedForExternal(items: List<PlayableItem>, startAt: MediaItemId?) {
+        items.firstOrNull { startAt == null || it.item.id == startAt }?.let { openInTheirOwnApp(it, "play all") }
+    }
+
+    private fun openInTheirOwnApp(item: PlayableItem, why: String): Boolean {
+        val external = item.handle as? PlayHandle.External ?: return false
+        val opened = openExternally(item, external.url)
+        Diag.log(
+            "playback",
+            "dewidebug external $why: \"${item.item.title.take(TITLE_CHARS)}\" ${external.url} -> " +
+                if (opened) "handed to the other app" else "nothing could open it",
+        )
+        return opened
+    }
 
     fun playHere(items: List<PlayableItem>, mode: QueueMode, group: QueueGroup?, startAt: MediaItemId?) {
         Diag.log("queue", "playing ${items.size} item(s) on this phone ($mode): the target did not take them")
@@ -350,6 +382,9 @@ class PlaybackQueue(
 
     fun enqueueAll(items: List<PlayableItem>, group: QueueGroup? = null, local: Boolean = false) {
         if (items.isEmpty()) return Diag.log("queue", "add-to-end of nothing: queue left untouched")
+        val queueable = withoutExternal(items, "add-to-end x${items.size}")
+        if (queueable.isEmpty()) return
+        if (queueable.size != items.size) return enqueueAll(queueable, group, local)
         if (redirected(items, QueueMode.END, group, local = local)) return
         val label = group?.let { " as \"${it.title}\"" }.orEmpty()
         noteAlreadyQueued(items, "add-to-end x${items.size}$label")
@@ -366,7 +401,8 @@ class PlaybackQueue(
         byYou: Boolean = true,
     ): Int {
         val queued = _state.value.entries.mapTo(mutableSetOf()) { it.item.item.id }
-        val fresh = items.distinctBy { it.item.id }.filterNot { it.item.id in queued }
+        val fresh = withoutExternal(items, "add to \"${group.title}\" ($spot)")
+            .distinctBy { it.item.id }.filterNot { it.item.id in queued }
         if (byYou) noteAlreadyQueued(items, "add to \"${group.title}\" ($spot)")
         if (fresh.isEmpty()) {
             Diag.log("queue", "add to \"${group.title}\" ($spot): all ${items.size} already queued, nothing added")
@@ -378,6 +414,9 @@ class PlaybackQueue(
 
     fun playNextAll(items: List<PlayableItem>, group: QueueGroup? = null, local: Boolean = false) {
         if (items.isEmpty()) return Diag.log("queue", "play-next of nothing: queue left untouched")
+        val queueable = withoutExternal(items, "play-next x${items.size}")
+        if (queueable.isEmpty()) return
+        if (queueable.size != items.size) return playNextAll(queueable, group, local)
         if (redirected(items, QueueMode.NEXT, group, local = local)) return
         val label = group?.let { " as \"${it.title}\"" }.orEmpty()
         noteAlreadyQueued(items, "play-next x${items.size}$label")
@@ -406,6 +445,9 @@ class PlaybackQueue(
         reason: PlayReason? = PlayReason.Chosen(ChosenWay.TAP),
         local: Boolean = false,
     ): Boolean {
+        if (item.handle is PlayHandle.External) {
+            return byYou && openInTheirOwnApp(item, "play now")
+        }
         // A repeat of the SAME item within a blink is never a real second request. A report
         // from Dewi's phone showed play-now firing seventeen times in twelve seconds, about
         // every 170ms, alternating between two videos — and since each one resolves, and a
@@ -456,15 +498,19 @@ class PlaybackQueue(
         reason: PlayReason = PlayReason.Chosen(ChosenWay.TAP),
         local: Boolean = false,
     ) {
-        if (items.isEmpty()) return
-        if (redirected(items.distinctBy { it.item.id }, QueueMode.PLAY, group, startAt, byYou, local)) return
+        val queueable = withoutExternal(items, "play-all(${items.size})")
+        if (queueable.isEmpty()) {
+            if (byYou) openTheAskedForExternal(items, startAt)
+            return
+        }
+        if (redirected(queueable.distinctBy { it.item.id }, QueueMode.PLAY, group, startAt, byYou, local)) return
         if (group != null && endsRepeatOne && repeatOneOffForRun(group.title)) {
             _notices.tryEmit(QueueNotice.RepeatOneOff(group.title))
         }
         // Distinct within the run as well as against the queue: a caller can legitimately hand
         // over a list with repeats (a feed showing the same video twice), and re-opening the
         // shorts reel hands over the whole run again every time.
-        val run = items.distinctBy { it.item.id }
+        val run = queueable.distinctBy { it.item.id }
         val ids = run.map { it.item.id }.toSet()
         if (byYou) {
             noteAlreadyQueued(
@@ -499,6 +545,7 @@ class PlaybackQueue(
      * rather than pretending the peeked item was a member.
      */
     suspend fun peek(item: PlayableItem, reason: PlayReason = PlayReason.Chosen(ChosenWay.PEEK)): Boolean {
+        if (item.handle is PlayHandle.External) return openInTheirOwnApp(item, "peek")
         mutate("peek (the queue keeps its place)") {
             it.copy(currentIndex = NOTHING_PLAYING, anchor = it.current?.item?.item?.id ?: it.anchor)
         }
@@ -1226,6 +1273,7 @@ class PlaybackQueue(
                 launcher.playStream(route, queued, startPositionMs, listening = audioNow)
                 true
             }
+            is PlayRoute.External -> openInTheirOwnApp(route.playable, "route")
             is PlayRoute.Refused -> false
         }
     }
@@ -1237,6 +1285,7 @@ internal fun PlayRoute.describe(): String = when (this) {
     is PlayRoute.AudioFile -> "the downloaded audio at $path"
     is PlayRoute.VideoStream -> "streaming the video from $watchUrl"
     is PlayRoute.AudioStream -> if (viaAudioOnlyUrl) "streaming its audio-only version" else "streaming it"
+    is PlayRoute.External -> "opening it in its own app at $url"
     is PlayRoute.Refused -> when (reason) {
         Refusal.NothingToPlay -> "refused: there is nothing to play"
         Refusal.NotOnThisDevice -> "refused: not downloaded and there is no network"
@@ -1266,6 +1315,7 @@ private fun QueueSnapshot.deduplicated(): QueueSnapshot {
  * the storm without swallowing anything intended.
  */
 private const val TITLE_CHARS = 60
+private const val LOGGED_EXTERNAL = 3
 private const val RESTART_BEFORE_PREVIOUS_MS = 5_000L
 
 /** Room for a burst of starts, so a play is never dropped because nobody has collected yet. */

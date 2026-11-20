@@ -3,7 +3,7 @@ title: Playback queue
 kind: feature
 area: playback
 status: shipped
-updated: 2026-11-06
+updated: 2026-11-20
 ---
 
 # Playback queue
@@ -158,7 +158,8 @@ related video follows, not the queue's next"). See ADR 56.
 
 ## New uploads (2026-10-15)
 
-A shuffle-all group keeps receiving its sources' new uploads, next in the group, and sources switched into the inbox
+A shuffle-all group keeps receiving its sources' new uploads, next in the group (when the whole group is behind
+what is playing they join the end of its own section and never play next, 2026-11-20), and sources switched into the inbox
 (their page's 📥 button, Settings → 📥 New uploads, or every subscription) feed a "📥 New" group at the end. Checked
 every 2 hours on Wi-Fi, on opening, or by ⋮ → 🔄 Pull new uploads. See [ADR 59](../adr/0059-new-uploads-flow-into-shuffled-groups-and-an-inbox.md).
 
@@ -269,6 +270,13 @@ those items; "playable offline" is whatever `routeNow` would play from the devic
 ADR 136). Each group header has a line "⏳ 4 h 12 min left at 2x", or "at least" when a length is unknown, counting what the
 queue would still play ([group-time-left.md](group-time-left.md), ADR 138). A group's ⋮ menu has "📤 Share the list of
 titles" ([share-link.md](share-link.md), ADR 134).
+
+## Items that open in another app (2026-11-20)
+
+A BBC iPlayer episode ([ADR 184](../adr/0184-bbc-programmes-are-followable-sources-that-open-in-iplayer.md)) is a `PlayHandle.External`.
+`playNow`, `peek` and `playAll` hand its link to `openExternally` when you asked, and start nothing; an automatic play never opens
+another app. Every add path (`enqueue`, `playNext`, `enqueueAll`, `playNextAll`, `addToGroup`, `playAll`) leaves such items out and logs
+the count, so they never sit in the queue; `route` and `QueueArming` still have a `PlayRoute.External` branch so the `when` is total.
 
 ## Tests owed (2026-11-06 consistency sweep)
 

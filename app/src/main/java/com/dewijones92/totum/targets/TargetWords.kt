@@ -30,7 +30,7 @@ internal class ContextTargetWords(private val context: Context) : TargetWords {
         TroubleKind.NOT_CONNECTED -> context.getString(R.string.target_trouble_not_connected, label)
         TroubleKind.SWITCH_ON -> context.getString(R.string.target_trouble_switch_on, label)
         TroubleKind.SWITCHED_OFF -> context.getString(switchedOff(kind), label)
-        TroubleKind.WONT_WAKE -> context.getString(R.string.target_trouble_wont_wake, label)
+        TroubleKind.WONT_WAKE -> trouble.reason ?: context.getString(R.string.target_trouble_wont_wake, label)
         TroubleKind.COULD_NOT_PLAY -> context.getString(
             R.string.refused_tap,
             title ?: context.getString(R.string.target_trouble_that_item),

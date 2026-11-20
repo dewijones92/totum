@@ -3,7 +3,7 @@ title: Search results arrive per section
 kind: feature
 status: shipped
 area: search
-updated: 2026-11-06
+updated: 2026-11-20
 ---
 
 # Search results arrive per section
@@ -102,6 +102,24 @@ tabs, the default rule); a Compose test for the tab row, the dot and the empty l
 `SongSearchSectionTest.songsSitAboveTheVideoResults` is obsolete (songs and videos are on different tabs now) and
 `SearchSectionStatesTest`/`AudiobookSectionsTest` should drive `SearchContent` through a tab tap.
 
+## Paging: whole pages, one state (2026-11-20)
+
+Report logs on v0.1.927 showed Videos stuck at `8+` however far the list was scrolled, and `VIDEOS=16+` followed at once by
+`VIDEOS=8+`. Two bugs, both fixed with a test seen failing first:
+
+- **Every page was cut to eight.** `RESULTS_PER_SECTION = 8` was passed as `limit`, and `HttpYouTubeSearch.toPage` and
+  `toAccountPage` did `take(limit)`, so an anonymous WEB search (about 19 a page) kept 8 and the continuation then skipped
+  the other 11. The search now returns the whole page and the limit is not applied to it; the list shows everything
+  fetched. `WholePageTest` (the captured WEB sample, which holds more than 8, asked at limit 8, and the captured TV sample asked at limit 1).
+- **Load more was overwritten by the next section to answer.** `loadMoreVideos` wrote the grown list to `results`, but
+  `searchStream` kept its own `state` flow, so a late section (torrents finishing) re-sent the older state and the list
+  went back to one page; `LoadMoreOnScrollToEnd` then saw shown 8 and asked at 8 and stopped for good. `moreMusic` had the
+  same clobber. Load more, the music shelves and every section now write to ONE `MutableStateFlow` (`loaded`) that the
+  stream publishes from. `SearchViewModelTest`: a slow podcast section answering after load more, and after more albums,
+  leaves 16 videos and 15 albums.
+
+Log: `[search] next page -> N returned, T total (more=…)` and `more <shelf> -> N returned, T in all`.
+
 ## Diagnostics
 
 Per section, with its own timing: `"ceuta" torrents after 8412ms -> 12`. "Search was slow" could
@@ -119,3 +137,8 @@ Four of the seven JVM cases were watched failing against the old await-everythin
 The tests hold the clock deliberately (`advanceTimeBy` past the debounce, then `runCurrent`) rather
 than `advanceUntilIdle`, which would run virtual time past the section timeout and report every
 source as unanswered before the test could answer for it.
+
+## 📺 BBC (2026-11-20)
+
+A BBC tab (Everything scope) holds `SearchHit.Programme` results from the iPlayer metadata API, one request per query, programmes
+only. Each row is the podcast row (open the programme's page, ➕ follow). See [bbc-programmes.md](bbc-programmes.md).

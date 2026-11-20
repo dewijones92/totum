@@ -23,9 +23,13 @@ import com.dewijones92.totum.data.targets.TargetsAnswer
 import com.dewijones92.totum.data.targets.TroubleKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
+import com.dewijones92.totum.domain.PhoneMediaEntry
+import com.dewijones92.totum.domain.PhoneMediaIds
+import com.dewijones92.totum.domain.PhoneMediaKind
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
+import com.dewijones92.totum.domain.toPlayableOrNull
 import com.dewijones92.totum.operations.Ended
 import com.dewijones92.totum.operations.OperationEnd
 import com.dewijones92.totum.operations.OperationKind
@@ -183,6 +187,25 @@ class TargetsRepositoryTest {
         assertEquals("b", request.startItemId)
         assertEquals(Requester("me", "My phone"), request.from)
         assertEquals(item("a").toBackup(), request.items.first())
+    }
+
+    @Test
+    fun `a file on this phone is never sent to a selected target, which cannot reach it`() = runTest {
+        api.answer = HomeAnswer.Ok(TargetsAnswer(listOf(tv)))
+        repository.refresh("test")
+        repository.select("lg-tv")
+        val onPhone = PhoneMediaEntry(
+            kind = PhoneMediaKind.VIDEO,
+            key = PhoneMediaIds.keyOf("42", "/storage/emulated/0/Movies/a.mp4"),
+            title = "a",
+            path = "/storage/emulated/0/Movies/a.mp4",
+            uri = "content://media/external/video/media/42",
+        ).toPlayableOrNull()!!
+
+        val taken = repository.take(listOf(item("a"), onPhone), QueueMode.PLAY, null, null)
+
+        assertFalse(taken)
+        assertTrue(api.queued.isEmpty())
     }
 
     @Test
@@ -634,6 +657,28 @@ class TargetsRepositoryTest {
     }
 
     @Test
+    fun `a target whose pick starts an app shows as starting, with the Pi's words on failure`() = runTest {
+        val kodi = tv.copy(startsApp = true)
+        api.answer = HomeAnswer.Ok(TargetsAnswer(listOf(kodi.copy(power = TargetPower.WAKING))))
+
+        repository.refresh("test")
+
+        assertEquals(
+            listOf(OperationKind.START_TARGET_APP to "LG TV"),
+            operations.running.value.map { it.kind to it.subject },
+        )
+
+        api.answer = HomeAnswer.Ok(
+            TargetsAnswer(listOf(kodi.copy(power = TargetPower.ASLEEP, problem = "❌ Kodi didn't start"))),
+        )
+        repository.refresh("test")
+        scope.advanceUntilIdle()
+
+        val end = ended.single { it.kind == OperationKind.START_TARGET_APP }.end
+        assertEquals(OperationEnd.Failed("Kodi didn't start"), end)
+    }
+
+    @Test
     fun `a wake the phone stops hearing about does not sit on the strip for ever`() = runTest {
         api.answer = HomeAnswer.Ok(TargetsAnswer(listOf(tv.copy(power = TargetPower.WAKING))))
         repository.refresh("test")
@@ -883,5 +928,26 @@ class TargetsRepositoryTest {
         assertEquals(listOf("t1", "t2"), ask.itemIds)
         assertEquals("Guitar Recital", ask.title)
         assertEquals(SleepKind.OFF, api.controlled.last().second.sleep!!.kind)
+    }
+
+    @Test
+    fun `a sleep timer does not switch the target off unless asked to`() = runTest {
+        repository.startSleep("lg-tv", 30.minutes)
+        repository.startSleep("lg-tv", 30.minutes, switchOff = true)
+        repository.sleepAfterItems("lg-tv", listOf("t1"), null, switchOff = true)
+
+        assertEquals(
+            listOf(false, true, true),
+            api.controlled.map { it.second.sleep!!.switchOff },
+        )
+    }
+
+    @Test
+    fun `switching a target off is its own command, sent to that target`() = runTest {
+        repository.command("lg-tv", TargetAction.SWITCH_OFF)
+
+        val (id, control) = api.controlled.single()
+        assertEquals("lg-tv", id)
+        assertEquals(TargetAction.SWITCH_OFF, control.action)
     }
 }

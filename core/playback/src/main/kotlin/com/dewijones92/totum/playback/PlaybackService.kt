@@ -271,6 +271,8 @@ public class PlaybackService : MediaSessionService() {
                         .add(SessionCommand(ACTION_QUEUE_PREVIOUS, Bundle.EMPTY))
                         .add(SessionCommand(ACTION_QUEUE_NEXT, Bundle.EMPTY))
                         .add(SessionCommand(ACTION_PLAY_ON_SCREEN, Bundle.EMPTY))
+                        .add(SessionCommand(ACTION_SHOW_PICTURE_ON_SCREEN, Bundle.EMPTY))
+                        .add(SessionCommand(ACTION_CLEAR_SCREEN, Bundle.EMPTY))
                         .add(SessionCommand(ACTION_SCREEN_REFRESH, Bundle.EMPTY))
                         .build(),
                 )
@@ -549,6 +551,12 @@ public class PlaybackService : MediaSessionService() {
         when (action) {
             ACTION_SCREEN_REFRESH -> pc?.refreshPage()
             ACTION_PLAY_ON_SCREEN -> pc?.play(args.getString(EXTRA_SCREEN_ID))
+            ACTION_CLEAR_SCREEN -> pc?.clear(args.getString(EXTRA_SCREEN_ID))
+            ACTION_SHOW_PICTURE_ON_SCREEN -> pc?.showPicture(
+                args.getString(EXTRA_SCREEN_ID),
+                args.getString(EXTRA_PICTURE_PATH),
+                args.getString(EXTRA_PICTURE_TITLE).orEmpty(),
+            )
             else -> return false
         }
         if (pc == null) Diag.warn("screen", "asked $action, but screens are not set up")
@@ -755,6 +763,10 @@ internal const val EXTRA_PRELOAD_AUDIO_URI: String = "audio_uri"
 internal const val EXTRA_PRELOAD_SUBTITLES: String = "subtitles"
 internal const val ACTION_PLAY_ON_SCREEN: String = "com.dewijones92.totum.PLAY_ON_SCREEN"
 internal const val EXTRA_SCREEN_ID: String = "screen_id"
+internal const val ACTION_SHOW_PICTURE_ON_SCREEN: String = "com.dewijones92.totum.SHOW_PICTURE_ON_SCREEN"
+internal const val ACTION_CLEAR_SCREEN: String = "com.dewijones92.totum.CLEAR_SCREEN"
+internal const val EXTRA_PICTURE_PATH: String = "picture_path"
+internal const val EXTRA_PICTURE_TITLE: String = "picture_title"
 internal const val ACTION_SCREEN_REFRESH: String = "com.dewijones92.totum.SCREEN_REFRESH"
 internal const val ACTION_SCREEN_WANTS_AN_ITEM: String = "com.dewijones92.totum.SCREEN_WANTS_AN_ITEM"
 private const val SCREEN_PREFS = "totum_screen"

@@ -10,6 +10,7 @@ import com.dewijones92.totum.cli.serve.cast.BrowserSource
 import com.dewijones92.totum.cli.serve.cast.CastDeviceSource
 import com.dewijones92.totum.cli.serve.cast.CastPlaces
 import com.dewijones92.totum.cli.serve.cast.PiStreams
+import com.dewijones92.totum.cli.serve.cast.PowerConfig
 import com.dewijones92.totum.cli.serve.cast.YtDlpLiveHls
 import com.dewijones92.totum.cli.serve.cast.knownCastsFrom
 import com.dewijones92.totum.cli.serve.cast.knownDevicesFrom
@@ -450,6 +451,10 @@ private fun castDevicesFromEnv(streams: PiStreams, targetsDir: File, airplayDir:
         airplayDir,
         kodiCredentials = System.getenv("TOTUM_KODI_CREDENTIALS")?.takeIf { it.isNotBlank() }?.let(::File),
         kodiDash = System.getenv("TOTUM_KODI_FORMAT").equals("auto", ignoreCase = true),
+    ),
+    PowerConfig.fromEnv(
+        System::getenv,
+        File(System.getenv("TOTUM_DATA") ?: "${System.getProperty("user.home")}/.totum")
     ),
 )
 

@@ -29,10 +29,13 @@ import com.dewijones92.totum.ytdlp.fake.FakeYtDlpEngine
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
@@ -77,6 +80,7 @@ class SearchViewModelTest {
             albums = albumSearch,
             artists = artistSearch,
             books = SearchSource { _, _, _ -> SearchOutcome.Success(Page.last(emptyList())) },
+            bbc = SearchSource { _, _, _ -> SearchOutcome.Success(Page.last(emptyList())) },
         ),
         scope = scope,
         // No home server in these tests: the section is simply absent, which is the common case.
@@ -271,6 +275,73 @@ class SearchViewModelTest {
         assertFalse("the last page must end the scroll", results.canLoadMore)
     }
 
+    @Test
+    fun `a section answering after load more does not undo the loaded page`() = runTest(dispatcher) {
+        val viewModel = viewModel(
+            videoSearch = pagedVideos(
+                listOf(
+                    Page((1..8).map { videoHit("a$it") }, PageToken("t1")),
+                    Page.last((1..8).map { videoHit("b$it") }),
+                ),
+            ),
+            podcastSearch = SearchSource { _, _, _ ->
+                delay(SLOW_SECTION_MILLIS)
+                SearchOutcome.Success(Page.last(listOf(podcastHit)))
+            },
+        )
+        backgroundScope.launch { viewModel.uiState.collect {} }
+        viewModel.search("time")
+        advanceTimeBy(SEARCH_SETTLED_MILLIS)
+        runCurrent()
+        assertEquals(8, shownVideoTitles(viewModel)?.size)
+
+        viewModel.loadMoreVideos()
+        runCurrent()
+        assertEquals(16, shownVideoTitles(viewModel)?.size)
+
+        advanceUntilIdle()
+
+        val results = viewModel.uiState.value.results as Results.Loaded
+        assertTrue("the podcasts did arrive", results.podcasts is SearchSection.Found)
+        assertEquals("the late section re-sent the older state", 16, shownVideoTitles(viewModel)?.size)
+    }
+
+    @Test
+    fun `a section answering after more music does not undo the shelf`() = runTest(dispatcher) {
+        fun album(n: Int) = SearchHit.Album(
+            MusicAlbumRef("MPREb_$n", "Album $n", "Someone", null, MusicReleaseKind.ALBUM, null)
+        )
+        val viewModel = viewModel(
+            albumSearch = SearchSource { _, _, after ->
+                if (after == null) {
+                    SearchOutcome.Success(Page((1..12).map(::album), PageToken("p2")))
+                } else {
+                    SearchOutcome.Success(Page.last((13..15).map(::album)))
+                }
+            },
+            musicSearch = SearchSource { _, _, _ ->
+                delay(SLOW_SECTION_MILLIS)
+                SearchOutcome.Success(Page.last(emptyList()))
+            },
+            scope = SearchScope.MUSIC,
+        )
+        backgroundScope.launch { viewModel.uiState.collect {} }
+        viewModel.search("flamenco")
+        advanceTimeBy(SEARCH_SETTLED_MILLIS)
+        runCurrent()
+        viewModel.moreMusic(MusicShelf.ALBUMS)
+        runCurrent()
+        viewModel.moreMusic(MusicShelf.ALBUMS)
+        runCurrent()
+        fun loaded() = viewModel.uiState.value.results as Results.Loaded
+        assertEquals(15, loaded().albums.itemsOrNull?.items?.size)
+
+        advanceUntilIdle()
+
+        assertEquals("the late section re-sent the older state", 15, loaded().albums.itemsOrNull?.items?.size)
+        assertTrue(loaded().shown(MusicShelf.ALBUMS) > 8)
+    }
+
     /** YouTube does return overlapping pages; a repeat must not double a row. */
     @Test
     fun `an overlapping page does not duplicate rows`() = runTest(dispatcher) {
@@ -417,5 +488,10 @@ class SearchViewModelTest {
         advanceUntilIdle()
 
         assertEquals(emptyList<HistorySlot>(), viewModel.clearHistory())
+    }
+
+    private companion object {
+        const val SLOW_SECTION_MILLIS = 1_000L
+        const val SEARCH_SETTLED_MILLIS = 400L
     }
 }

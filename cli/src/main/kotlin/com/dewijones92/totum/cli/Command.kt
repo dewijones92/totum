@@ -28,6 +28,8 @@ internal sealed interface Command {
 
     data class AirPlayPair(val device: String, val pin: String?) : Command
 
+    data class WebOsPair(val device: String, val pin: String?) : Command
+
     data class AskStateCheck(
         val backup: String,
         val questions: List<String>,
@@ -91,6 +93,9 @@ private fun homeServer(name: String, rest: List<String>, flags: Set<String>): Co
     "airplay-pair" -> rest.joinToString(" ").ifBlank { null }
         ?.let { Command.AirPlayPair(it, flagValue(flags, "--pin=")) }
         ?: Command.Help("airplay-pair needs the device's name (as in TOTUM_AIRPLAY_TARGETS) or its address")
+    "webos-pair" -> rest.joinToString(" ").ifBlank { null }
+        ?.let { Command.WebOsPair(it, flagValue(flags, "--pin=")) }
+        ?: Command.Help("webos-pair needs the TV's name (as in TOTUM_WEBOS_TARGETS)")
     "file-check" -> fileCheck(rest, flags)
     "ask-state-check" -> askStateCheck(rest, flags)
     else -> null

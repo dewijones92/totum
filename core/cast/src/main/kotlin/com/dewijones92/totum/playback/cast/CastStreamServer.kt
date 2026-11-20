@@ -74,7 +74,8 @@ public class CastStreamServer(
 
     private val server = CastHttpServer(
         handle = { request ->
-            alsoServes(request) ?: live.replyTo(request) ?: screens?.replyTo(request) ?: handle(request)
+            alsoServes(request) ?: live.replyTo(request) ?: pictures.replyTo(request)
+                ?: screens?.replyTo(request) ?: handle(request)
         },
     )
 
@@ -89,6 +90,19 @@ public class CastStreamServer(
     private val order = ConcurrentLinkedDeque<String>()
     private val latest = ConcurrentHashMap<String, Session>()
     private val live = LiveCasts()
+    private val pictures = SharedPictures()
+
+    public fun sharePicture(file: File): String? {
+        val base = host.baseUrl(port) ?: run {
+            Diag.warn(
+                "cast",
+                "dewidebug picture ${file.name}: no address a screen can reach (not on Wi-Fi?); not shared",
+            )
+            return null
+        }
+        server.start(port)
+        return pictures.open(file, base, random.token())
+    }
 
     public fun timelineFor(mediaId: String): CastTimeline? = latest[mediaId]?.audio?.timeline
 

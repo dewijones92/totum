@@ -4,6 +4,7 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.home.HomeAnswer
 import com.dewijones92.totum.data.targets.SendTo
 import com.dewijones92.totum.data.targets.request
+import com.dewijones92.totum.domain.isOnThisPhone
 import com.dewijones92.totum.operations.OperationEnd
 import com.dewijones92.totum.operations.OperationKind
 import com.dewijones92.totum.operations.Operations
@@ -27,6 +28,22 @@ class SendToTarget(
         val position = controller.state.value?.positionMs ?: 0
         val plan = SendTo.plan(snapshot, position)
         val label = targets.targetOf(targetId)?.label ?: targetId
+        val onlyHere = plan?.toRemove.orEmpty().map { snapshot.entries[it].item.item }.filter { it.isOnThisPhone }
+        if (onlyHere.isNotEmpty()) {
+            Diag.log(
+                "targets",
+                "send to $label refused: ${onlyHere.size} of the items are files on this phone " +
+                    "(${onlyHere.first().id.value}) that $label cannot reach; they stay on the phone",
+            )
+            scope.launch {
+                operations.track("send:$targetId", OperationKind.SEND_TO_TARGET, label) {
+                    OperationEnd.Failed(
+                        "📱 Files on this phone can't be sent to $label: only this phone can reach them"
+                    )
+                }
+            }
+            return
+        }
         if (plan == null) {
             Diag.log("targets", "send to $label: nothing is playing from the queue, nothing to send")
             return

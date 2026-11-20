@@ -4,7 +4,7 @@ kind: todo
 status: swept 2026-11-13, 3 fixed, 8 open
 area: ui
 priority: medium
-updated: 2026-11-13
+updated: 2026-11-20
 ---
 
 # Consistency leftovers
@@ -28,6 +28,7 @@ Effort: S under an hour, M a few hours, L a day or a schema change.
 | Audit 43: three search-field designs, and the group "add a channel" search has no recent searches | 🔓 open | `SearchScreen.kt:230,304` (pill), `ListFilter.kt:163-196` (`FilterField`), `GroupEditSheet.kt:131,154`, `ChannelScreen.kt:247`, `AskScreen.kt:184,234`, `AddToPlaylist.kt:121`; recents are used by Search, filters, channel, transcript and Ask only | M |
 | Group membership Undo re-adds the channel at the end, not in its old slot | 🔓 open | `GroupEditSheet.kt:71-80` restores through `toggleMember`; `SourceGroupStore.kt:31` only appends. Needs an insert-at API on the store and the Room store | M |
 | Follow-up of finding 95: Shorts tab, later pages and handle-only channels still lack the account's marks | 🔓 open | `ChannelAccountProgress.read` browses one TV page of the channel's Videos tiles and logs `no channel id` for a `/@handle` URL; `ChannelViewModel.loadShorts` and `pageMore` ask nothing | S |
+| Handle-only channels (a `/@handle` URL with no `UC…` id) have no Live tab and no Shorts tab | 🔓 open, found 2026-11-20 | `ChannelViewModel.loadLive` and `loadShorts` mark the tab loaded and empty when `channelId` is null; the yt-dlp fallback resolves the id (`resolvedChannelId`) only for Videos, so resolving it and then loading both tabs would be the fix ([ADR 178](../adr/0178-a-channels-past-streams-are-its-live-tab-found-through-its-tab-list.md)) | S |
 | Search results and related videos show only the marks the history and feeds happened to carry | 🔓 open, needs a decision | their rows come from the web InnerTube, which carries no resume overlay (`HttpYouTubeFeeds.kt:43` and `HttpYouTubePlaylists.kt:45` are the only parsers that feed `SeenProgress`); there is no per-video progress call to ask, so this is a product call, not a bug fix | M |
 
 ## What was checked and is still fixed

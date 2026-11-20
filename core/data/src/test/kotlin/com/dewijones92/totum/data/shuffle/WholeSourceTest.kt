@@ -31,15 +31,19 @@ class WholeSourceTest {
             token to Page(ids.map { item(it) }, next)
         }
 
+    private fun uploadsOnly(pages: SourcePages) = SourcePages { source, part, after ->
+        if (part == SourcePart.UPLOADS) pages.page(source, part, after) else Page.empty()
+    }
+
     @Test
     fun `walks every page of a channel to the end`() = runTest {
         val uploads = pagesOf(listOf("a", "b"), listOf("c", "d"), listOf("e"))
         var progress = 0
-        val gathered = WholeSource({ _, part, after -> if (part == SourcePart.UPLOADS) uploads[after] else null })
+        val gathered = WholeSource(uploadsOnly { _, _, after -> uploads[after] })
             .everything(listOf(channel), includeShorts = false) { progress = it }
 
         assertEquals(listOf("a", "b", "c", "d", "e"), gathered.items.map { it.id.value })
-        assertEquals(3, gathered.pages)
+        assertEquals(3, gathered.pagesByPart[SourcePart.UPLOADS])
         assertEquals(5, progress)
         assertTrue(gathered.unfinished.isEmpty())
     }
@@ -47,7 +51,7 @@ class WholeSourceTest {
     @Test
     fun `shorts are walked only when asked for`() = runTest {
         val source = SourcePages { _, part, _ ->
-            Page.last(listOf(item(if (part == SourcePart.UPLOADS) "video" else "short")))
+            Page.last(listOf(item(if (part == SourcePart.SHORTS) "short" else "video")))
         }
 
         val without = WholeSource(source).everything(listOf(channel), includeShorts = false)
@@ -61,9 +65,11 @@ class WholeSourceTest {
     fun `a page that keeps failing keeps what came before it and says so`() = runTest {
         val uploads = pagesOf(listOf("a", "b"), listOf("c"))
         var asks = 0
-        val gathered = WholeSource({ _, _, after ->
-            if (after == null) uploads[null] else null.also { asks++ }
-        }).everything(listOf(channel), includeShorts = false)
+        val gathered = WholeSource(
+            uploadsOnly { _, _, after ->
+                if (after == null) uploads[null] else null.also { asks++ }
+            }
+        ).everything(listOf(channel), includeShorts = false)
 
         assertEquals(listOf("a", "b"), gathered.items.map { it.id.value })
         assertEquals(3, asks)
@@ -74,9 +80,11 @@ class WholeSourceTest {
     fun `a flaky page is retried and the walk carries on`() = runTest {
         val uploads = pagesOf(listOf("a"), listOf("b"))
         var failedOnce = false
-        val gathered = WholeSource({ _, _, after ->
-            if (after != null && !failedOnce) null.also { failedOnce = true } else uploads[after]
-        }).everything(listOf(channel), includeShorts = false)
+        val gathered = WholeSource(
+            uploadsOnly { _, _, after ->
+                if (after != null && !failedOnce) null.also { failedOnce = true } else uploads[after]
+            }
+        ).everything(listOf(channel), includeShorts = false)
 
         assertEquals(listOf("a", "b"), gathered.items.map { it.id.value })
         assertTrue(gathered.unfinished.isEmpty())
@@ -84,7 +92,7 @@ class WholeSourceTest {
 
     @Test
     fun `a continuation that repeats cannot loop for ever`() = runTest {
-        val gathered = WholeSource({ _, _, _ -> Page(listOf(item("a")), PageToken("same")) })
+        val gathered = WholeSource(uploadsOnly { _, _, _ -> Page(listOf(item("a")), PageToken("same")) })
             .everything(listOf(channel), includeShorts = false)
 
         assertEquals(listOf("a"), gathered.items.map { it.id.value })
@@ -102,5 +110,55 @@ class WholeSourceTest {
 
         assertEquals(setOf("v1", "e1", "shared"), gathered.items.map { it.id.value }.toSet())
         assertEquals(3, gathered.items.size)
+    }
+
+    @Test
+    fun `live streams are walked without being asked for, a page at a time`() = runTest {
+        val lives = pagesOf(listOf("l1", "l2"), listOf("l3"))
+        val gathered = WholeSource({ _, part, after ->
+            when (part) {
+                SourcePart.UPLOADS -> Page.last(listOf(item("v1")))
+                SourcePart.LIVE -> lives[after]
+                SourcePart.SHORTS -> Page.last(listOf(item("s1")))
+            }
+        }).everything(listOf(channel), includeShorts = false)
+
+        assertEquals(listOf("v1", "l1", "l2", "l3"), gathered.items.map { it.id.value })
+        assertEquals(mapOf(SourcePart.UPLOADS to 1, SourcePart.LIVE to 2), gathered.pagesByPart)
+        assertTrue(gathered.unfinished.isEmpty())
+    }
+
+    @Test
+    fun `a channel's live walk starts only when its uploads walk is over`() = runTest {
+        val order = mutableListOf<String>()
+        WholeSource({ _, part, after ->
+            order += "${part.name.lowercase()}:${after?.value ?: "first"}"
+            when {
+                part == SourcePart.UPLOADS && after == null -> Page(listOf(item("v1")), PageToken("more"))
+                else -> Page.last(listOf(item("${part.name}-${after?.value}")))
+            }
+        }).everything(listOf(channel), includeShorts = false)
+
+        assertEquals(listOf("uploads:first", "uploads:more", "live:first"), order)
+    }
+
+    @Test
+    fun `a channel with nothing live costs one empty page and is not reported as unfinished`() = runTest {
+        val gathered = WholeSource(uploadsOnly { _, _, _ -> Page.last(listOf(item("v1"))) })
+            .everything(listOf(channel), includeShorts = false)
+
+        assertEquals(listOf("v1"), gathered.items.map { it.id.value })
+        assertEquals(2, gathered.pages)
+        assertTrue(gathered.unfinished.isEmpty())
+    }
+
+    @Test
+    fun `a live walk that keeps failing keeps the uploads and is reported`() = runTest {
+        val gathered = WholeSource({ _, part, _ ->
+            if (part == SourcePart.LIVE) null else Page.last(listOf(item("v1")))
+        }).everything(listOf(channel), includeShorts = false)
+
+        assertEquals(listOf("v1"), gathered.items.map { it.id.value })
+        assertTrue(gathered.unfinished.single().contains("LIVE"))
     }
 }

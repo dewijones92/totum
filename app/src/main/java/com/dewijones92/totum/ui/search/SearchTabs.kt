@@ -27,6 +27,7 @@ internal enum class SearchTab(@param:StringRes val label: Int) {
     TORRENTS(R.string.search_tab_torrents),
     AUDIOBOOKS(R.string.search_tab_audiobooks),
     PODCASTS(R.string.search_tab_podcasts),
+    BBC(R.string.search_tab_bbc),
     SONGS(R.string.search_tab_songs),
     ALBUMS_AND_ARTISTS(R.string.search_tab_albums_artists),
 }
@@ -86,6 +87,7 @@ internal fun searchTabsFor(results: Results.Loaded, query: String): List<SearchT
     listOf(results.torrents.facts({ it.size }, { false })).together(SearchTab.TORRENTS),
     listOf(mergedBooks(results, query).facts({ it.size }, { false })).together(SearchTab.AUDIOBOOKS),
     listOf(results.podcasts.facts({ it.size }, { false })).together(SearchTab.PODCASTS),
+    listOf(results.programmes.facts({ it.size }, { false })).together(SearchTab.BBC),
     listOf(results.songs.facts({ it.items.size }, { it.hasMore })).together(SearchTab.SONGS),
     listOf(
         results.albums.facts({ it.items.size }, { it.hasMore }),

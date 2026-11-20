@@ -28,6 +28,7 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.okhttp.mockwebserver)
     // The engine fake that ships with the library, so the CLI's tests need no engine of their own.
     testImplementation(project(":lib:ytdlp"))
 }

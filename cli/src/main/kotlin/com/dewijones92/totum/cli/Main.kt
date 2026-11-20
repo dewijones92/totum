@@ -3,6 +3,7 @@ package com.dewijones92.totum.cli
 import com.dewijones92.totum.cli.serve.aiServe
 import com.dewijones92.totum.cli.serve.askStateCheck
 import com.dewijones92.totum.cli.serve.cast.airPlayPair
+import com.dewijones92.totum.cli.serve.cast.webOsPair
 import com.dewijones92.totum.cli.serve.fileCheck
 import com.dewijones92.totum.cli.serve.serveAsk
 import com.dewijones92.totum.cli.serve.sidecars
@@ -64,6 +65,7 @@ internal class Cli(
         is Command.AiServe -> aiServe(command.port, out)
         is Command.Sidecars -> sidecars(command.files, out)
         is Command.AirPlayPair -> airPlayPair(command, out)
+        is Command.WebOsPair -> webOsPair(command, out)
     }
 
     private suspend fun play(command: Command.Play): Int {

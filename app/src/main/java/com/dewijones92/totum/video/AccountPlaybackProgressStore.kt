@@ -13,6 +13,11 @@ internal class AccountPlaybackProgressStore(
     override suspend fun watchedFurtherElsewhereMs(itemId: MediaItemId, playingAtMs: Long, pausedMs: Long?): Long? =
         account.watchedFurtherElsewhereMs(itemId, playingAtMs, pausedMs)
 
+    override suspend fun setPlayed(itemId: MediaItemId, played: Boolean) {
+        if (!played) account.overriddenByReset(itemId)
+        local.setPlayed(itemId, played)
+    }
+
     override suspend fun save(itemId: MediaItemId, positionMs: Long, durationMs: Long?, chosen: Chosen) {
         if (chosen == Chosen.BY_SEEKING) account.overriddenBySeek(itemId)
         local.save(itemId, positionMs, durationMs, chosen)

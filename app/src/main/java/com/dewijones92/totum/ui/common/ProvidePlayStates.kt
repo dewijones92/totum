@@ -25,7 +25,6 @@ internal fun ProvidePlayStates(
     onOpenSource: (MediaSource) -> Unit,
     content: @Composable () -> Unit,
 ) {
-    val store = container.playbackProgressStore
     // The account's watched positions count too, merged by the same rule resume uses — so a video
     // half-watched on the website shows half-watched in every list here (report 0.1.477, 22 Aug).
     val states = remember(container) { container.rowPlayStates }.collectAsStateWithLifecycle(emptyMap())
@@ -36,10 +35,10 @@ internal fun ProvidePlayStates(
     val deviceMarks = remember(container) { container.deviceMarks.marks }.collectAsStateWithLifecycle()
     val liveStates = remember(container) { container.liveStates.states }.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
-    val setPlayed = remember(store, scope) {
+    val setPlayed = remember(container, scope) {
         {
                 id: MediaItemId, played: Boolean ->
-            scope.launch { store.setPlayed(id, played) }
+            scope.launch { container.progressByHand.setPlayed(id, played) }
             Unit
         }
     }

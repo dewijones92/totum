@@ -3,7 +3,7 @@ title: Explore channel content (InnerTube tabs)
 kind: feature
 status: shipped
 area: channel
-updated: 2026-11-13
+updated: 2026-11-20
 ---
 
 # Explore channel content
@@ -30,6 +30,7 @@ channels**:
 | Videos | `EgZ2aWRlb3PyBgQKAjoA` | `lockupViewModel` (`LOCKUP_CONTENT_TYPE_VIDEO`) |
 | Shorts | `EgZzaG9ydHPyBgUKA5oBAA==` | `shortsLockupViewModel` |
 | Playlists | `EglwbGF5bGlzdHPyBgQKAkIA` | `lockupViewModel` (`LOCKUP_CONTENT_TYPE_PLAYLIST`) |
+| Live (2026-11-20) | `EgdzdHJlYW1z8gYECgJ6AA==` | `lockupViewModel` (`LOCKUP_CONTENT_TYPE_VIDEO`, "Streamed 3 days ago") |
 
 Path to items: `contents.twoColumnBrowseResultsRenderer.tabs[selected].tabRenderer.content`
 → Videos/Shorts: `richGridRenderer.contents[].richItemRenderer.content.<renderer>`;
@@ -108,3 +109,22 @@ and `[channel] "<channel>" account progress could not be read` when it fails. Te
 "go to channel" overlay and a channel browsed from Search — passed `{}`, so a channel's playlists
 listed fine there and none of them would open. Both now hold a playlist overlay of their own, in the
 same shape as the channel overlay they sit on.
+
+## A Live tab for past streams (2026-11-20)
+
+A channel's Videos tab does not list its live streams, so a channel that streams (The Tennis Podcast: 30 on its Live tab,
+the newest, `atn53OrYlZU`, not on Videos) looked as if it had never gone live. The page now has a **Live** tab, shown
+only while the channel has streams ([ADR 178](../adr/0178-a-channels-past-streams-are-its-live-tab-found-through-its-tab-list.md)):
+
+- `YouTubeChannel.streams` / `HttpYouTubeChannel.streams`, the Videos parser, a Page with its own continuation.
+- It is asked for **after** the Videos page loads, once on opening and again when the tab is 5 minutes old (the same
+  rule as the other three tabs); a failed read leaves the tab hidden and says why in the log.
+- A channel without a Live tab answers the streams request with its Home or Videos tab selected (1.9 to 2.2 MB for a big
+  channel), so a first page counts only when the selected tab's endpoint ends `/streams`. The tab list in any first page
+  says whether a Live tab exists, and a channel known to have none is never asked.
+- The filter and the list shape (`ShapeControl`) work on it like on Videos and Shorts. Shuffle all walks it
+  ([shuffle-all.md](shuffle-all.md)); a handle-only channel has no Live tab, as it has no Shorts.
+
+Log (`channel`): `"<channel>" Live tab shown, N stream(s) (more=…)` / `hidden, no streams`, `<id> lists a Live tab`,
+`<id> has no Live tab: YouTube answered with another tab`, and every 50 channels a count of tab lists read and Live first
+pages skipped. Tests: `HttpYouTubeChannelStreamsTest`, `ChannelTabsReloadTest` (six new).

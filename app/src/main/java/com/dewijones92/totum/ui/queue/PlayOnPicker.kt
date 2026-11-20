@@ -169,6 +169,7 @@ internal fun PlayOnHintLine(option: PlayOnOption) {
     val hint = when (option.hint) {
         PlayOnHint.NONE -> return
         PlayOnHint.WAKES_WHEN_PICKED -> R.string.play_on_asleep_hint
+        PlayOnHint.STARTS_WHEN_PICKED -> R.string.play_on_starts_app_hint
         PlayOnHint.SWITCH_ON_BY_HAND -> R.string.play_on_by_hand_hint
     }
     Text(stringResource(hint), style = MaterialTheme.typography.bodySmall)

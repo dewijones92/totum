@@ -51,8 +51,10 @@ import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.PlayState
+import com.dewijones92.totum.domain.isOnThisPhone
 import com.dewijones92.totum.domain.offersDownloadChoice
 import com.dewijones92.totum.domain.offersListenAndWatch
+import com.dewijones92.totum.domain.opensExternally
 import com.dewijones92.totum.domain.withArtworkFrom
 import com.dewijones92.totum.music.discoverSeed
 
@@ -101,8 +103,10 @@ fun MediaItemRow(
      * (Related, Notifications, Search). Full media, as a screen's own Download tap fetches; the
      * action sheet's "Download video" covers upgrading an audio-only copy.
      */
-    onDownload: (() -> Unit)? = LocalItemActions.current.bind { chooseDownload(item, pillar, askAnyway = false) },
-    onDeleteDownload: (() -> Unit)? = LocalItemActions.current.bind { deleteDownload(item.id) },
+    onDownload: (() -> Unit)? = LocalItemActions.current.takeUnless { item.isOnThisPhone }
+        .bind { chooseDownload(item, pillar, askAnyway = false) },
+    onDeleteDownload: (() -> Unit)? = LocalItemActions.current.takeUnless { item.isOnThisPhone }
+        .bind { deleteDownload(item.id) },
     /** Defaults to the app-wide offline state, so no screen has to plumb it. */
     downloadState: DownloadState = downloadStateOf(item.id),
     // Everything an item can do defaults to the app-wide capability. A screen has to work
@@ -124,7 +128,8 @@ fun MediaItemRow(
      * automatically): the tick already means "offline", so without this there'd be no
      * way left to ask for the picture too.
      */
-    onDownloadVideo: (() -> Unit)? = LocalItemActions.current.takeIf { item.offersDownloadChoice(pillar) }
+    onDownloadVideo: (() -> Unit)? = LocalItemActions.current
+        .takeIf { item.offersDownloadChoice(pillar) && !item.isOnThisPhone }
         .bind { chooseDownload(item, pillar, askAnyway = false, videoOnly = true) },
     /** Switches between listening and watching (and sets the mode); anything with a picture. */
     onSwitchMode: (() -> Unit)? =
@@ -166,12 +171,19 @@ fun MediaItemRow(
         LocalStartDiscover.current?.takeIf { item.discoverSeed() != null }?.let { start -> { start(item) } },
 ) {
     var showSheet by remember { mutableStateOf(false) }
-    val downloadVideo = onDownloadVideo.onlyWhenAudioOnly(downloadState)
-    val sheetDownload = onDownload.onlyWhenTheControlIsTaken(trailing, downloadState)
-    val sheetDeleteDownload = onDeleteDownload.onlyWhenDownloaded(downloadState)
+    val external = item.opensExternally
+    val playNext = onPlayNext.takeUnless { external }
+    val addToQueue = onAddToQueue.takeUnless { external }
+    val peek = onPeek.takeUnless { external }
+    val switchMode = onSwitchMode.takeUnless { external }
+    val download = onDownload.takeUnless { external }
+    val deleteDownload = onDeleteDownload.takeUnless { external }
+    val downloadVideo = onDownloadVideo.takeUnless { external }.onlyWhenAudioOnly(downloadState)
+    val sheetDownload = download.onlyWhenTheControlIsTaken(trailing, downloadState)
+    val sheetDeleteDownload = deleteDownload.onlyWhenDownloaded(downloadState)
     val hasMenu = listOfNotNull(
-        onPlayInsteadOfCurrent, onPlayNext, onAddToQueue, onAddToPlaylist, onRemoveFromPlaylist, onRemoveFromQueue,
-        onPeek, onStartRadio, onStartDiscover,
+        onPlayInsteadOfCurrent, playNext, addToQueue, onAddToPlaylist, onRemoveFromPlaylist, onRemoveFromQueue,
+        peek, onStartRadio, onStartDiscover,
         downloadVideo, sheetDownload, sheetDeleteDownload, onGoToSource, onSetPlayed, onMoveToTop, onMoveToBottom,
     ).isNotEmpty()
     val id = item.id.value
@@ -184,8 +196,8 @@ fun MediaItemRow(
             .rowCard(tint.orSelected(id), MaterialTheme.shapes.large, cardInset)
             .selectableClicks(
                 id = id,
-                enabled = item.mediaUrl != null || hasMenu,
-                onClick = { if (item.mediaUrl != null) onPlay() },
+                enabled = item.mediaUrl != null || item.isOnThisPhone || hasMenu,
+                onClick = { if (item.mediaUrl != null || item.isOnThisPhone) onPlay() },
                 onLongClick = if (hasMenu) ({ showSheet = true }) else null,
             )
             // Tighter vertically than horizontally: 16dp all round made every row a third taller
@@ -196,7 +208,7 @@ fun MediaItemRow(
         Spacer(Modifier.width(12.dp))
         TitleAndSubtitle(item, face, subtitleLines, pillar, playState, downloadState, followMark, Modifier.weight(1f))
         RowEnd(id, face.title, hasMenu, { showSheet = true }) {
-            TrailingControl(trailing, downloadState, onDownload, onDeleteDownload, item, pillar)
+            TrailingControl(trailing, downloadState, download, deleteDownload, item, pillar)
         }
     }
     if (showSheet) {
@@ -205,16 +217,16 @@ fun MediaItemRow(
         ActionSheet(
             title = face.title,
             onPlayInsteadOfCurrent = onPlayInsteadOfCurrent,
-            onPlayNext = onPlayNext,
-            onAddToQueue = onAddToQueue,
+            onPlayNext = playNext,
+            onAddToQueue = addToQueue,
             onAddToPlaylist = onAddToPlaylist,
             onRemoveFromPlaylist = onRemoveFromPlaylist,
             onRemoveFromQueue = onRemoveFromQueue,
-            onPeek = onPeek,
+            onPeek = peek,
             onDownloadVideo = downloadVideo,
             onDownload = sheetDownload,
             onDeleteDownload = sheetDeleteDownload,
-            onSwitchMode = onSwitchMode,
+            onSwitchMode = switchMode,
             audioMode = audioMode,
             onGoToSource = onGoToSource,
             sourcePillar = pillar,

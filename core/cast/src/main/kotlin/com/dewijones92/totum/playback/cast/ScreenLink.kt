@@ -318,6 +318,9 @@ private fun nowJson(now: NowPlaying?, id: String): String {
         """"playing":${now.playing},"here":${now.onScreen == id}}"""
 }
 
+public fun showPictureCommand(url: String, title: String): String =
+    """{"do":"show","url":${quoted(url)},"title":${quoted(title)}}"""
+
 public fun quoted(text: String): String = buildString {
     append('"')
     text.forEach { c ->

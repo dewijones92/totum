@@ -38,6 +38,10 @@ public interface PlaybackController {
 
     public fun playOnScreen(screenId: String?)
 
+    public fun showPictureOnScreen(screenId: String, picturePath: String, title: String)
+
+    public fun clearScreen(screenId: String)
+
     public val screenWantsAnItem: Flow<Unit> get() = emptyFlow()
 
     public fun refreshScreenPage() {}

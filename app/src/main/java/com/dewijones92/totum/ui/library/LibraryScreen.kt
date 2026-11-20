@@ -94,7 +94,7 @@ import com.dewijones92.totum.ui.trip.TripScreen
 import kotlinx.coroutines.launch
 
 private enum class LibraryPage {
-    HOME, PLAYLISTS, HISTORY, SUBSCRIPTIONS, ACCOUNT, STATS, DOWNLOADS, JELLYFIN, KID_TV, TRIP,
+    HOME, PLAYLISTS, HISTORY, SUBSCRIPTIONS, ACCOUNT, STATS, DOWNLOADS, JELLYFIN, KID_TV, TRIP, PHONE_MEDIA,
 }
 
 @Composable
@@ -140,6 +140,7 @@ fun LibraryScreen(container: AppContainer, modifier: Modifier = Modifier) {
                     onOpenDownloads = { go(LibraryPage.DOWNLOADS) },
                     onOpenKidTv = { go(LibraryPage.KID_TV) },
                     onOpenTrip = { go(LibraryPage.TRIP) },
+                    onOpenPhoneMedia = { go(LibraryPage.PHONE_MEDIA) },
                     onOpenStarred = { openPlaylistId = STARRED_PLAYLIST.value },
                     onOpenGroup = { openGroupId = it },
                     onOpenJellyfin = { go(LibraryPage.JELLYFIN) }.takeIf { container.jellyfin != null },
@@ -176,6 +177,7 @@ private fun LibraryHome(
     onOpenJellyfin: (() -> Unit)?,
     onOpenKidTv: () -> Unit,
     onOpenTrip: () -> Unit,
+    onOpenPhoneMedia: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val groupList by container.sourceGroupStore.observeGroups().collectAsStateWithLifecycle(initialValue = emptyList())
@@ -219,6 +221,7 @@ private fun LibraryHome(
         jellyfin = LibraryJellyfin(onOpenJellyfin),
         kidTv = {
             KidTvTile(container, onSetUp = onOpenKidTv)
+            PhoneMediaTile(onOpen = onOpenPhoneMedia)
             TripTile(container, onOpen = onOpenTrip)
         },
         downloads = DownloadsSummary(downloaded.size, inProgress.size, failed.size),
@@ -283,6 +286,7 @@ private fun LibraryPageContent(
         LibraryPage.JELLYFIN -> JellyfinScreen(container, onBack = onBack, modifier = modifier)
         LibraryPage.KID_TV -> KidTvScreen(container, onBack = onBack, modifier = modifier)
         LibraryPage.TRIP -> TripScreen(container, onBack = onBack, modifier = modifier)
+        LibraryPage.PHONE_MEDIA -> PhoneMediaScreen(container, onBack = onBack, modifier = modifier)
         LibraryPage.HOME -> Unit
     }
 }

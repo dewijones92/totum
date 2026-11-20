@@ -285,7 +285,7 @@ internal class HomeDownloads(
             is PlayHandle.Video -> resolverFor(emptyList()).resolve(item, if (picture) "target-picture" else "speaker")
                 ?.let { if (picture) it.item.mediaUrl else it.audioOnlyUrl ?: it.item.mediaUrl }
             is PlayHandle.Podcast -> handle.audioUrl ?: item.item.mediaUrl
-            is PlayHandle.LocalVideo -> null
+            is PlayHandle.LocalVideo, is PlayHandle.External -> null
         }?.value?.let(rewrites::apply)
         val wait = url?.let { YoungStreamUrl.retryDelayMs(it, System.currentTimeMillis(), errorCount = 1) }
         Diag.log(

@@ -27,9 +27,6 @@ import com.dewijones92.totum.ui.player.LocalTrail
 import com.dewijones92.totum.ui.player.TRAIL_BACK_TAG
 import com.dewijones92.totum.ui.player.TRAIL_SHEET_TAG
 import com.dewijones92.totum.ui.player.TrailTiles
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -58,7 +55,7 @@ class TrailListTest {
     private val container = FakeAppContainer()
     private val trail = PlayTrail().apply { listOf("one", "two", "three").forEach { noted(playable(it)) } }
     private val navigation =
-        TrailNavigation(trail, container.playbackQueue, CoroutineScope(SupervisorJob() + Dispatchers.Default))
+        TrailNavigation(trail, container.playbackQueue, mainThreadScope())
 
     private fun show() {
         composeTestRule.setContent {

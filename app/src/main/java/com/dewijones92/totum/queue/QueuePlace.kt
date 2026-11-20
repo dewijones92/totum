@@ -75,11 +75,26 @@ internal fun QueueSnapshot.addedTo(group: QueueGroup, fresh: List<PlayableItem>,
 }
 
 private fun QueueSnapshot.nextSpotIn(group: QueueGroup): Int {
-    if (entries.none { it.group?.id == group.id }) return entries.size
-    if (place < 0) return entries.indexOfFirst { it.group?.id == group.id }
-    if (entries.getOrNull(place)?.group?.id == group.id) return place + 1
-    val ahead = entries.withIndex().firstOrNull { (i, e) -> i > place && e.group?.id == group.id }?.index
-    return ahead ?: (place + 1)
+    val size = entries.count { it.group?.id == group.id }
+    val (at, why) = when {
+        size == 0 -> entries.size to "the group is not in the queue, so the end"
+        place < 0 -> entries.indexOfFirst { it.group?.id == group.id } to "nothing is playing, so the head of the group"
+        entries.getOrNull(place)?.group?.id == group.id -> (place + 1) to "the group is playing, so straight after it"
+        else -> {
+            val ahead = entries.withIndex().firstOrNull { (i, e) -> i > place && e.group?.id == group.id }?.index
+            if (ahead != null) {
+                ahead to "another item is playing and the group has a run ahead, so the head of that run"
+            } else {
+                (entries.indexOfLast { it.group?.id == group.id } + 1) to
+                    "the whole group is behind the play cursor, so the end of its own section, never next"
+            }
+        }
+    }
+    Diag.log(
+        "uploads",
+        "new items for \"${group.title}\" go at $at: $why [groupSize=$size place=$place queueSize=${entries.size}]",
+    )
+    return at
 }
 
 internal fun groupRestartIndex(snapshot: QueueSnapshot, endedId: MediaItemId): Int? {

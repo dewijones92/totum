@@ -123,7 +123,8 @@ class GroupNews(
         val seen = state.seenAt ?: return
         val now = clock().toEpochMilli()
         val joining = group.members.filter { it.id.value !in state.joined }
-        val joined = state.joined + joining.associate { it.id.value to now }
+        val joinedAt = if (state.joined.isEmpty()) seen else now
+        val joined = state.joined + joining.associate { it.id.value to joinedAt }
         val freshItems = mutableListOf<MediaItem>()
         val freshBy = read.mapValues { (member, items) ->
             if (items == null) return@mapValues state.freshBy[member].orEmpty()
@@ -148,7 +149,8 @@ class GroupNews(
         Diag.log(
             TAG,
             "\"${group.name}\": ${freshBy.values.sumOf { it.size }} new since ${Instant.ofEpochMilli(seen)} " +
-                "($unreadable of ${read.size} member(s) unreadable, ${joining.size} joined now)",
+                "($unreadable of ${read.size} member(s) unreadable, ${joining.size} joined at " +
+                "${Instant.ofEpochMilli(joinedAt)}${if (joinedAt == seen) ", the time the group was seen" else ""})",
         )
     }
 

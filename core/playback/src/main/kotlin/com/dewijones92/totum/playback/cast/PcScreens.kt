@@ -7,6 +7,7 @@ import androidx.core.content.edit
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import com.dewijones92.totum.common.Diag
+import java.io.File
 import java.math.BigInteger
 import java.security.SecureRandom
 
@@ -118,6 +119,35 @@ internal class PcScreens(
         status.connected(CastTv(named?.name ?: "the PC", screenProfile(named)))
         Diag.log(TAG, "playing on screen ${named?.name} ($id) [codecs=${named?.codecs}]")
         session.switchTo(player)
+    }
+
+    fun showPicture(id: String?, path: String?, title: String) {
+        val screenId = id?.takeIf { it.isNotBlank() }
+        val file = path?.takeIf { it.isNotBlank() }?.let(::File)
+        if (screenId == null || file == null) {
+            Diag.warn(TAG, "dewidebug show a picture: screen=$id path=$path is not enough to show anything")
+            return
+        }
+        val named = link.present().firstOrNull { it.id == screenId }
+        if (named == null) {
+            Diag.warn(TAG, "dewidebug show ${file.name}: screen $screenId is not present (gone or never said hello)")
+            return
+        }
+        val url = streams.sharePicture(file)
+        if (url == null) {
+            Diag.warn(TAG, "dewidebug show ${file.name} on ${named.name}: the picture could not be shared")
+            return
+        }
+        if (session.current() === player) player.pause()
+        Diag.log(TAG, "dewidebug showing ${file.name} on ${named.name} ($screenId) as ${url.substringBefore('?')}")
+        link.send(screenId, showPictureCommand(url, title))
+    }
+
+    fun clear(id: String?) {
+        val screenId = id?.takeIf { it.isNotBlank() }
+            ?: return Diag.warn(TAG, "dewidebug clear a screen: no screen named")
+        Diag.log(TAG, "dewidebug clearing the picture on screen $screenId")
+        link.send(screenId, """{"do":"stop"}""")
     }
 
     companion object {

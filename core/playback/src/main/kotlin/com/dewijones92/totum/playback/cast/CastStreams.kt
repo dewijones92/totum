@@ -13,6 +13,7 @@ import com.dewijones92.totum.playback.EXTRA_VIDEO_LADDER
 import com.dewijones92.totum.playback.SilenceCuttingAudioProcessor
 import com.dewijones92.totum.playback.SpeechGate
 import com.dewijones92.totum.playback.VolumeBoost
+import java.io.File
 
 @OptIn(markerClass = [UnstableApi::class])
 internal class CastStreams(
@@ -59,6 +60,8 @@ internal class CastStreams(
         }
 
     fun serveScreens(): String? = server.serveScreens()
+
+    fun sharePicture(file: File): String? = server.sharePicture(file)
 
     fun timelineFor(mediaId: String): CastTimeline? = server.timelineFor(mediaId)
 

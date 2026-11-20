@@ -244,6 +244,8 @@ jobs:
           # literal because this repo is public; absent, the build still succeeds and the app
           # simply asks for a server as it did before.
           TOTUM_HOME_SERVER: ${{ secrets.TOTUM_HOME_SERVER }}
+          TOTUM_PHOTOS_CLIENT_ID: ${{ secrets.TOTUM_PHOTOS_CLIENT_ID }}
+          TOTUM_PHOTOS_CLIENT_SECRET: ${{ secrets.TOTUM_PHOTOS_CLIENT_SECRET }}
         run: |
           ./gradlew assembleRelease --no-daemon \
             -PversionCode=$((100 + GITHUB_RUN_NUMBER)) \

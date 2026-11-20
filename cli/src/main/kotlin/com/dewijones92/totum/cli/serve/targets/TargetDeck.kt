@@ -99,6 +99,7 @@ internal class TargetDeck(
             )
         },
         pause = { lock.withLock { pausePlaying().also { save() } } },
+        switchOff = { lock.withLock { switchedOffBySleep() } },
     )
 
     init {
@@ -126,6 +127,9 @@ internal class TargetDeck(
         starting = starting,
         trouble = problem?.trouble,
         sleep = sleep.state(),
+        startsApp = link.startsApp,
+        canSwitchOff = link.canSwitchOff,
+        powerNote = if ((link.power ?: player.power) == TargetPower.WAKING) link.powerNote else null,
     )
 
     private fun volumeNow(): Int? = volumeControl?.percent ?: player.volumePercent
@@ -303,6 +307,7 @@ internal class TargetDeck(
             TargetAction.REPEAT -> control.repeat?.let(::setRepeat)
             TargetAction.WAKE -> woken()
             TargetAction.SLEEP -> control.sleep?.let { armSleep(it) }
+            TargetAction.SWITCH_OFF -> switchedOff()
         }
         save()
         return state()
@@ -316,6 +321,40 @@ internal class TargetDeck(
         player.pause(true)
         playing = false
     }
+
+    private suspend fun switchedOff() {
+        if (!link.canSwitchOff) {
+            Diag.warn("targets", "${target.id}: switch off asked, but Totum has no way to switch it off")
+            problem = switchOffProblem("Totum has no way to switch it off")
+            return
+        }
+        if (playing || destination != null) {
+            problem = null
+            finish("it was switched off from the phone")
+        }
+        powerOff()
+    }
+
+    private suspend fun switchedOffBySleep() {
+        if (!link.canSwitchOff) {
+            Diag.warn("targets", "${target.id}: the sleep timer wanted it switched off, but Totum cannot")
+            return
+        }
+        if (playing || destination != null) finish("the sleep timer switched it off")
+        powerOff()
+        save()
+    }
+
+    private suspend fun powerOff() {
+        val why = link.switchOff()
+        problem = why?.let(::switchOffProblem)
+        Diag.log("targets", "${target.id}: switch off ${if (why == null) "done" else "failed: $why"}")
+    }
+
+    private fun switchOffProblem(why: String): Problem = TroubleWords.problem(
+        target.label,
+        TargetTrouble(TroubleKind.WONT_WAKE, reason = "❌ ${target.label} didn't switch off: $why"),
+    )
 
     private suspend fun armSleep(ask: TargetSleepAsk) {
         when (ask.kind) {
@@ -408,12 +447,17 @@ internal class TargetDeck(
             problem = null
             reportProgress(finished = true)
         }
-        if (queue.current?.itemId()?.let(sleep::endsWith) == true) {
-            if (next in queue.entries.indices) queue = queue.copy(currentIndex = next)
-            finish("the sleep timer stopped it after $title", report = false, keepPlace = false)
-            return
-        }
+        if (stoppedBySleepTimer(next, title)) return
         startAt(next)
+    }
+
+    private suspend fun stoppedBySleepTimer(next: Int, title: String?): Boolean {
+        if (queue.current?.itemId()?.let(sleep::endsWith) != true) return false
+        val switchOff = sleep.switchesOff()
+        if (next in queue.entries.indices) queue = queue.copy(currentIndex = next)
+        finish("the sleep timer stopped it after $title", report = false, keepPlace = false)
+        if (switchOff && link.canSwitchOff) powerOff()
+        return true
     }
 
     private fun unreachableProblem(): Problem =
@@ -741,6 +785,9 @@ internal class TargetDeck(
             starting = false,
             trouble = null,
             sleep = null,
+            startsApp = false,
+            canSwitchOff = false,
+            powerNote = null,
         ),
         target.id
     )

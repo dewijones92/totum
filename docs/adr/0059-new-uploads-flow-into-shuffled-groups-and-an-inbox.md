@@ -2,7 +2,7 @@
 title: New uploads flow into their shuffled group, or into an inbox
 kind: adr
 status: accepted
-updated: 2026-10-15
+updated: 2026-11-20
 ---
 
 # 59. New uploads flow into their shuffled group, or into an inbox
@@ -26,7 +26,8 @@ at the end of the queue; the inbox switched on per source (page and Settings) or
   each source's newest items (`LatestUploads`: a channel's public RSS feed, a podcast's feed; a channel known only by
   handle pages its uploads), and anything unseen goes next in the group through `PlaybackQueue.addToGroup(…, NEXT)`:
   straight after what is playing when the group is playing, else at the start of the group's next run ahead, else
-  (the group is all behind what is playing) straight after what is playing (Dewi's choice, 2026-10-15). Newest first.
+  (the group is all behind what is playing) at the end of the group's own section (amended 2026-11-20, below).
+  Newest first.
 - A group that has left the queue is forgotten. A shuffle group from before this change is **adopted** from the
   Recently entry of its shuffle, with everything queued, played or started counting as seen, so only genuinely new
   uploads arrive.
@@ -62,3 +63,23 @@ at the end of the queue; the inbox switched on per source (page and Settings) or
 - Logs (`uploads`): every watched group's check (latest, new, added), each adoption, each inbox source's first look,
   every failure; reports carry `uploads.lastCheck`, `uploads.watchedGroups` and `settings.inbox`.
 - Tests: `NewUploadsTest`, `NewUploadsOverTheQueueTest` (the real queue), `AddedToGroupTest`, `PreferenceBackupTest`.
+
+## Amended 2026-11-20: uploads never play next from behind the cursor
+
+Reports of 15, 16 and 18 November: with Peep Show's 1,290-item shuffle group wholly behind the play cursor, every new
+upload was put straight after whatever was playing (the `?: (place + 1)` fallback in `QueuePlace.nextSpotIn`), so
+new uploads of a group that had been played through jumped ahead of the rest of the queue. Dewi chose, from two
+options, that **new uploads join the end of the group's own section and never play next** when the whole group is
+behind the cursor. The other cases are unchanged (the group is playing: straight after it; another item is playing
+and the group has a run ahead: the head of that run; nothing playing: the head of the group; group not in the
+queue: the end). The cursor moves along when the insertion is before it, as for any add.
+
+- Cost accepted: an upload added behind the cursor plays only when the group is repeated or reshuffled, or when it
+  is chosen by hand; it still counts as new and is announced by the group page.
+- Logging: `QueuePlace.nextSpotIn` writes one `uploads` line per add: the index chosen, the branch taken and why,
+  with the group size, the play cursor and the queue size.
+- The `uploads` and `queue` tags are now in the diagnostics report's longer-kept lane (`Breadcrumbs.KEPT_TAGS`),
+  so a report sent a day later still has the new-uploads decisions. The per-source lines of a check are counted, not
+  listed: sources covered by a group, first looks and failed feeds are each one line naming the first five (a
+  1,623-subscription inbox used to write a line per source per check into a lane capped at 1,000 lines).
+- Tests: `AddedToGroupTest` (a group wholly behind the cursor, including 1,290 rows), `BreadcrumbsKeptLaneTest`.

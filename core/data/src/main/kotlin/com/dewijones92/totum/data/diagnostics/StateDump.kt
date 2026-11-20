@@ -28,6 +28,7 @@ public object StateDump {
         "totum_visitor",
         "totum_screen",
         "totum_drive_backup",
+        "google_photos_auth",
         "totum_test_holds",
         "totum_diagnostics",
     )

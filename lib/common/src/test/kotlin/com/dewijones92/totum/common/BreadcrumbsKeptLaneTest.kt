@@ -19,10 +19,10 @@ class BreadcrumbsKeptLaneTest {
 
     @Test
     fun `the side-quest and cast tags are the ones kept longer`() {
-        listOf("Exsurge", "DailyAlarm", "reminders", "cast", "home", "kidlock", "targets").forEach {
+        listOf("Exsurge", "DailyAlarm", "reminders", "cast", "home", "kidlock", "targets", "uploads", "queue").forEach {
             assertTrue(it, it in Breadcrumbs.KEPT_TAGS)
         }
-        listOf("playback", "queue", "resolve", "gesture").forEach { assertFalse(it, it in Breadcrumbs.KEPT_TAGS) }
+        listOf("playback", "resolve", "gesture").forEach { assertFalse(it, it in Breadcrumbs.KEPT_TAGS) }
     }
 
     @Test

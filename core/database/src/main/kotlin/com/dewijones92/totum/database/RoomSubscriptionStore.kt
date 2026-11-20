@@ -98,6 +98,7 @@ public class RoomSubscriptionStore(
         thumbnailUrl = thumbnailUrl?.let(HttpUrl::parse),
         mediaUrl = mediaUrl?.let(::scrubbedRead)?.let(HttpUrl::parse),
         chapters = ChapterJson.decode(chapters),
+        availableUntil = availableUntilEpochMs?.let(Instant::ofEpochMilli),
     )
 
     private fun MediaItem.toEntity() = EpisodeEntity(
@@ -112,5 +113,6 @@ public class RoomSubscriptionStore(
         thumbnailUrl = thumbnailUrl?.value,
         mediaUrl = mediaUrl?.storedValue(),
         chapters = ChapterJson.encode(chapters),
+        availableUntilEpochMs = availableUntil?.toEpochMilli(),
     )
 }
