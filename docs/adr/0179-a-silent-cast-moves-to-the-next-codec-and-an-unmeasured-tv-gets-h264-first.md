@@ -102,12 +102,16 @@ Dewi's reports of 14 to 17 November (v0.1.927):
 
 ## Seen on the emulator (2026-11-20, `totum-api35`, the Shaka stand-in)
 
-With `DEBUG_CAST_SCREEN` making the app treat the target as "Chromecast" (so the move-to-the-TV replay builds the ladder for it): the
-manifest carried `avc1.640028` 1080p and Shaka loaded and played it (`tools/cast-bench/standin/standin.sh start,wait:4 Chromecast`),
-where the unchanged path serves `vp09.00.41.08`; as "Chromecast Ultra" it is still VP9. A client that fetched the video's init and
-index and then nothing was caught by the watch after 8000 ms in the real service (`the TV fetched the picture 8000ms ago and has asked
-for no sound since`), with the begun lines, the receiver-less status lines and the codec decision logged. The re-send itself needs a
-Cast session and was not seen (no real Cast device can be posed as one, see `tools/cast-bench/README.md`).
+- With `DEBUG_CAST_SCREEN` making the app treat the target as "Chromecast" (so the move-to-the-TV replay builds the ladder for it), the
+  manifest carried `avc1.640028` 1080p and Shaka loaded and played it; as "Chromecast Ultra" it stayed `vp09.00.41.08`.
+- A client that fetched the video's init and index and then nothing was caught after 8000 ms in the real service
+  (`the TV fetched the picture 8000ms ago and has asked for no sound since`), and the begun-request lines and the codec decision were logged.
+- That run also showed the codec step finding nothing to step to ("the offered pictures hold no other codec it can show"): the
+  signed-in ladder, like the yt-dlp one, held one codec per height. That is why `VideoQuality.alternates` exists, in both builders.
+- **Not seen after the alternates:** the whole step on the emulator (watchdog, then the other codec, then the strip line). The server
+  half is covered by `CastStreamServerCodecStepTest` and the ladder half by `VideoQualityTest` and
+  `TheSignedInLadderKeepsTheOtherCodecsTest`; the re-send itself needs a Cast session, which nothing here can pose as
+  (see `tools/cast-bench/README.md`).
 
 ## Not verified
 
