@@ -174,6 +174,7 @@ class UrlsTest(unittest.TestCase):
         self.assertEqual("PLAY", request["mode"])
         self.assertTrue(request["loop"])
         self.assertNotIn("repeat", request)
+        self.assertTrue(request["understandsStarting"])
         self.assertEqual({"id": "home-assistant", "label": HA}, request["from"])
         [item] = request["items"]
         self.assertEqual("sound:brown-noise", item["itemId"])

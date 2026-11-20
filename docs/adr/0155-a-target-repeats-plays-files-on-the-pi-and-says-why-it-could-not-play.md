@@ -2,7 +2,7 @@
 title: A target repeats, plays sound files on the Pi, and says why it could not play
 kind: adr
 status: accepted
-updated: 2026-11-07
+updated: 2026-11-20
 ---
 
 # 155. A target repeats, plays sound files on the Pi, and says why it could not play
@@ -72,3 +72,15 @@ which would now play on the phone as well as the Pi), and shows a remaining `pro
   `problem` until then.
 - A TV's failure reason is generic until the Chromecast player reports one.
 - Nothing here has run against a real speaker or TV.
+
+## Amended 2026-11-20: the adapter has been live since 7 November, and now has a contract test
+
+The Consequences above say the adapter was still to be deployed. It was deployed the same day and replaced on 13 November
+(`/var/lib/hermes-audio/audio-ctl.py`, byte for byte `tools/handoff/hermes-audio/audio-ctl.py`, the user unit
+`hermes-audio-ctl` of `pi`, reaching Totum on `127.0.0.1:8772`); [the backlog item](../todos/home-assistant-sounds-through-totum.md)
+records what was read on the Pi and what is still unseen (no HA-driven play has been logged since 8 November). Brought up to
+date with ADRs 152 to 177: its queue requests now say `understandsStarting` (ADR 158) and it reads only fields that still exist.
+Its contract with the real routes is two golden fixtures in `tools/handoff/hermes-audio/fixtures/`, checked from both sides
+(`test_audio_ctl_contract.py`, `HermesAdapterContractTest`), so a change to either the adapter's requests or `GET /targets`
+breaks a test instead of Home Assistant. Live YouTube on a speaker (the jazz station) is built (ADR 156's amendment) but has not
+yet been played through the adapter on a real speaker.

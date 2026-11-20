@@ -46,4 +46,4 @@ tasks.named<Tar>("distTar") { archiveFileName.set("totum-cli.tar") }
 tasks.named<Test>("test") {
     inputs.file(rootProject.file("server/totum-cli/jq-sandbox.sh")).withPropertyName("jqSandboxScript")
     inputs.file(rootProject.file("app/src/main/res/values/strings.xml")).withPropertyName("appStrings")
-}
+    inputs.dir(rootProject.file("tools/handoff/hermes-audio/fixtures")).withPropertyName("hermesAudioFixtures")}
