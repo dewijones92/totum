@@ -117,7 +117,7 @@ class ExsurgeBannerService : Service(), SensorEventListener {
             Diag.log(ExsurgeController.TAG, "dewidebug exsurge steps not counted: no step counter on this device")
             return
         }
-        val moving = state is ExsurgeState.Rising || state is ExsurgeState.OnBreak
+        val moving = state is ExsurgeState.Rising || state is ExsurgeState.OnBreak || state.walkingAt(Instant.now())
         val batching = if (counter.isWakeUpSensor && !moving) WAKE_UP_BATCH_US else 0
         val was = listeningBatchUs
         if (was == batching) return

@@ -40,6 +40,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -52,12 +53,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dewijones92.totum.R
 import com.dewijones92.totum.TotumApplication
 import com.dewijones92.totum.common.Diag
-import com.dewijones92.totum.reminders.kit.ChoiceChips
 import com.dewijones92.totum.reminders.kit.KeepScreenAwake
 import com.dewijones92.totum.reminders.kit.showOverLockScreen
-import com.dewijones92.totum.reminders.minuteChoices
 import com.dewijones92.totum.theme.LocalLaurel
 import com.dewijones92.totum.theme.TotumTheme
+import com.dewijones92.totum.ui.settings.SnappingSlider
 import java.lang.ref.WeakReference
 import java.time.Duration
 
@@ -249,7 +249,7 @@ fun TakeoverScreen(
                     textAlign = TextAlign.Center,
                 )
                 Spacer(Modifier.height(20.dp))
-                BreakChips(view.settings.breakMinutes, onBreakMinutes)
+                BreakSlider(view.settings.breakMinutes, onBreakMinutes)
                 Spacer(Modifier.height(20.dp))
                 TakeoverButtons(
                     destination,
@@ -323,9 +323,9 @@ private fun TakeoverButtons(
         }
     }
     Spacer(Modifier.height(16.dp))
-    MinuteChips(
+    MinutesSlider(
         stringResource(R.string.exsurge_takeover_snooze_length),
-        snoozeChoices(snoozeMinutes),
+        snoozeGrid(snoozeMinutes),
         snoozeMinutes,
         "exsurge-snooze-length",
         onSnoozeMinutes,
@@ -342,34 +342,51 @@ private fun TakeoverButtons(
 }
 
 @Composable
-private fun MinuteChips(title: String, choices: List<Int>, chosen: Int, tag: String, onChoose: (Int) -> Unit) =
-    ChoiceChips(title, choices, chosen, tag, { stringResource(R.string.exsurge_takeover_break_minutes, it) }, onChoose)
-
-@Composable
-private fun BreakChips(chosen: Int, onChoose: (Int) -> Unit) = MinuteChips(
+private fun BreakSlider(minutes: Int, onChoose: (Int) -> Unit) = MinutesSlider(
     stringResource(R.string.exsurge_takeover_break_length),
-    breakChoices(chosen),
-    chosen,
+    breakGrid(),
+    minutes,
     "exsurge-break",
     onChoose,
 )
 
+@Composable
+private fun MinutesSlider(label: String, grid: SliderGrid, value: Int, tag: String, onChoose: (Int) -> Unit) {
+    val resources = LocalResources.current
+    SnappingSlider(
+        label = label,
+        value = value,
+        range = grid.range,
+        step = grid.step,
+        shown = { resources.getQuantityString(R.plurals.exsurge_unit_minutes, it, it) },
+        tag = tag,
+        onCommit = onChoose,
+    )
+}
+
 private fun chooseSnooze(exsurge: ExsurgeController, minutes: Int) {
     Diag.log(ExsurgeController.TAG, "dewidebug exsurge takeover snooze length chosen=${minutes}m")
-    exsurge.updateSettings("takeover chip") { it.copy(snoozeMinutes = minutes) }
+    exsurge.updateSettings("takeover slider: snooze length") { it.copy(snoozeMinutes = minutes) }
 }
 
 private fun chooseBreak(exsurge: ExsurgeController, minutes: Int) {
     Diag.log(ExsurgeController.TAG, "dewidebug exsurge takeover break length chosen=${minutes}m")
-    exsurge.updateSettings("takeover chip") { it.copy(breakMinutes = minutes) }
+    exsurge.updateSettings("takeover slider: break length") { it.copy(breakMinutes = minutes) }
 }
 
-internal fun breakChoices(chosen: Int): List<Int> = minuteChoices(BREAK_CHOICES, chosen)
+internal data class SliderGrid(val range: IntRange, val step: Int)
 
-internal fun snoozeChoices(chosen: Int): List<Int> = minuteChoices(SNOOZE_CHOICES, chosen)
+internal fun breakGrid(): SliderGrid = SliderGrid(ExsurgeSettings.BREAK_RANGE, BREAK_STEP)
 
-private val BREAK_CHOICES = listOf(2, 5, 10, 15)
-private val SNOOZE_CHOICES = listOf(5, 10, 15, 30)
+internal fun snoozeGrid(chosen: Int): SliderGrid {
+    val coarse = SliderGrid(SNOOZE_COARSE_RANGE, SNOOZE_COARSE_STEP)
+    val onTheGrid = chosen in coarse.range && (chosen - coarse.range.first) % coarse.step == 0
+    return if (onTheGrid) coarse else SliderGrid(ExsurgeSettings.SNOOZE_RANGE, BREAK_STEP)
+}
+
+private const val BREAK_STEP = 1
+private const val SNOOZE_COARSE_STEP = 5
+private val SNOOZE_COARSE_RANGE = 5..60
 private val FACE_SIZE = 220.dp
 private const val FACE_SHARE_OF_HEIGHT = 0.3f
 

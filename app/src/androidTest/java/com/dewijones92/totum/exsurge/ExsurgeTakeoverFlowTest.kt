@@ -2,10 +2,12 @@ package com.dewijones92.totum.exsurge
 
 import android.content.Context
 import android.graphics.Bitmap
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -79,7 +81,8 @@ class ExsurgeTakeoverFlowTest {
     @Test
     fun aChosenBreakLengthIsRememberedAndFixedOnTheBreak() {
         ActivityScenario.launch<TakeoverActivity>(TakeoverActivity.intent(context)).use {
-            compose.onNodeWithTag("exsurge-break-10").performScrollTo().performClick()
+            compose.onNodeWithTag("exsurge-break").performScrollTo()
+                .performSemanticsAction(SemanticsActions.SetProgress) { it(10f) }
             compose.waitUntil(5_000) { exsurge.view.value.settings.breakMinutes == 10 }
             compose.onNodeWithTag("exsurge-walk").performScrollTo().performClick()
             compose.waitUntil(5_000) { exsurge.view.value.memory.state !is ExsurgeState.Summoned }
@@ -88,6 +91,20 @@ class ExsurgeTakeoverFlowTest {
         val summons = (state as? ExsurgeState.Rising)?.summons ?: (state as? ExsurgeState.OnBreak)?.summons
         assertEquals("break length on ${state.label()}", 10, summons?.breakMinutes)
         assertEquals(10, exsurge.view.value.settings.breakMinutes)
+    }
+
+    @Test
+    fun aChosenSnoozeLengthIsRememberedAndUsedByTheNextSnooze() {
+        ActivityScenario.launch<TakeoverActivity>(TakeoverActivity.intent(context)).use {
+            compose.onNodeWithTag("exsurge-snooze-length").performScrollTo()
+                .performSemanticsAction(SemanticsActions.SetProgress) { it(15f) }
+            compose.waitUntil(5_000) { exsurge.view.value.settings.snoozeMinutes == 15 }
+            compose.onNodeWithTag("exsurge-snooze").performScrollTo().performClick()
+            compose.waitUntil(5_000) { exsurge.view.value.memory.state is ExsurgeState.Snoozed }
+        }
+        val snoozed = exsurge.view.value.memory.state as ExsurgeState.Snoozed
+        val seconds = java.time.Duration.between(exsurge.view.value.at, snoozed.until).seconds
+        assertEquals(15L, Math.round(seconds / 60.0))
     }
 
     @Test

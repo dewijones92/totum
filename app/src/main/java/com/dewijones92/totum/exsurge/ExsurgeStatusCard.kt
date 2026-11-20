@@ -112,19 +112,7 @@ private fun SurgiusRing(mood: Mood, fraction: Float, modifier: Modifier = Modifi
 
 @Composable
 private fun Countdown(ring: RingReading, view: ExsurgeView) {
-    val caption = when (ring.kind) {
-        RingKind.RISE_IN -> R.string.exsurge_ring_rise_in
-        RingKind.BREAK_LEFT -> R.string.exsurge_ring_break_left
-        RingKind.SNOOZED -> R.string.exsurge_ring_snoozed
-        RingKind.PAUSED -> R.string.exsurge_ring_paused
-        RingKind.ASLEEP -> R.string.exsurge_ring_asleep
-        RingKind.STEPS -> R.string.exsurge_ring_steps
-        RingKind.SUMMONED -> R.string.exsurge_ring_summoned
-        RingKind.OFF -> R.string.exsurge_ring_off
-    }
-    val big = ring.until?.let { countdownText(it, view.at) } ?: (view.banner as? BannerLine.Rising)?.let {
-        "${it.steps}/${it.needed}"
-    }
+    val big = bigCountdown(ring, view)
     big?.let {
         Text(
             it,
@@ -134,12 +122,32 @@ private fun Countdown(ring: RingReading, view: ExsurgeView) {
         )
     }
     Text(
-        stringResource(caption),
+        stringResource(ring.kind.caption),
         style = if (big == null) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.titleSmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         textAlign = TextAlign.Center,
     )
 }
+
+private fun bigCountdown(ring: RingReading, view: ExsurgeView): String? =
+    ring.until?.let { countdownText(it, view.at) } ?: when (val line = view.banner) {
+        is BannerLine.Rising -> "${line.steps}/${line.needed}"
+        is BannerLine.Walking -> "${line.steadyMinutes}/${line.steadyNeeded}"
+        else -> null
+    }
+
+private val RingKind.caption: Int
+    get() = when (this) {
+        RingKind.RISE_IN -> R.string.exsurge_ring_rise_in
+        RingKind.BREAK_LEFT -> R.string.exsurge_ring_break_left
+        RingKind.SNOOZED -> R.string.exsurge_ring_snoozed
+        RingKind.PAUSED -> R.string.exsurge_ring_paused
+        RingKind.ASLEEP -> R.string.exsurge_ring_asleep
+        RingKind.STEPS -> R.string.exsurge_ring_steps
+        RingKind.WALKING -> R.string.exsurge_ring_walking
+        RingKind.SUMMONED -> R.string.exsurge_ring_summoned
+        RingKind.OFF -> R.string.exsurge_ring_off
+    }
 
 @Composable
 private fun RankBadge(stats: ExsurgeStats) {

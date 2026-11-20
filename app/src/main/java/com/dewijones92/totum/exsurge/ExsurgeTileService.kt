@@ -35,9 +35,13 @@ class ExsurgeTileService : TileService() {
         tile.subtitle = when (view.memory.state) {
             ExsurgeState.Off -> getString(R.string.exsurge_tile_off)
             is ExsurgeState.Dormant, is ExsurgeState.Paused -> getString(R.string.exsurge_tile_sleeping)
-            is ExsurgeState.Sitting -> (view.banner as? BannerLine.Sitting)?.summonsAt
-                ?.let { getString(R.string.exsurge_tile_next, TIME.format(it.atZone(view.zone))) }
-                ?: getString(R.string.exsurge_tile_done)
+            is ExsurgeState.Sitting -> when (val line = view.banner) {
+                is BannerLine.Walking -> getString(R.string.exsurge_tile_walking)
+                is BannerLine.Sitting ->
+                    line.summonsAt
+                        ?.let { getString(R.string.exsurge_tile_next, TIME.format(it.atZone(view.zone))) }
+                else -> null
+            } ?: getString(R.string.exsurge_tile_done)
             is ExsurgeState.Summoned, is ExsurgeState.Snoozed -> getString(R.string.exsurge_tile_now)
             is ExsurgeState.Rising, is ExsurgeState.OnBreak -> getString(R.string.exsurge_tile_break)
         }
