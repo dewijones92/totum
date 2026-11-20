@@ -29,6 +29,7 @@ internal class SearchRowActions(
     val onPlayTorrent: (SearchHit.Torrent) -> Unit,
     val onDownloadTorrent: (SearchHit.Torrent) -> Unit,
     val onPlayBook: (SearchHit.Book) -> Unit,
+    val onPlayYours: (SearchHit.Yours) -> Unit,
     val actions: MediaItemActions,
     val onGoToChannel: (MediaItem) -> Unit,
     val more: SearchMore,
@@ -47,6 +48,7 @@ internal class SearchTabView(
 
 internal fun LazyListScope.tabSections(tab: SearchTab?, view: SearchTabView) {
     when (tab) {
+        SearchTab.YOURS -> yoursSection(view.results, view.state, view.rows)
         SearchTab.VIDEOS -> videoSection(view.results, view.state, view.rows)
         SearchTab.TORRENTS -> torrentSection(
             view.results,
@@ -72,7 +74,13 @@ internal fun LazyListScope.tabFooter(info: SearchTabInfo?, view: SearchTabView) 
     if (info != null && info.empty) {
         item {
             val name = stringResource(info.tab.label).lowercase()
-            SectionMessage(stringResource(R.string.search_tab_empty, name, view.query))
+            SectionMessage(
+                if (info.tab == SearchTab.YOURS) {
+                    stringResource(R.string.search_tab_empty_yours, view.query)
+                } else {
+                    stringResource(R.string.search_tab_empty, name, view.query)
+                },
+            )
         }
     }
     if (view.results.loadingMore) {

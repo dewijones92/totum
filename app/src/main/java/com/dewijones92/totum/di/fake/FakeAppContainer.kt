@@ -423,6 +423,7 @@ class FakeAppContainer(
     override val randomStarts: RandomStarts by lazy { RandomStarts(playbackProgressStore, null, applicationScope) }
     override val episodeDownloads: EpisodeDownloads by lazy { EpisodeDownloads(downloadManager, applicationScope) }
     override val audiobookSearchSource: SearchSource = SearchSource { _, _, _ -> SearchOutcome.Success(Page.empty()) }
+    override val yoursSearchSource: SearchSource? = null
     override val audiobookTorrentSource: SearchSource? = null
     override val bookPlayer: BookPlayer by lazy {
         BookPlayer(podcastRepository, playbackQueue, { playbackProgressStore.observeStates().first() }, operations)

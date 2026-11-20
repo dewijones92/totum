@@ -120,6 +120,7 @@ fun SearchScreen(
                 onPlaySong = viewModel::playSong,
                 onPlayTorrent = viewModel::playTorrent,
                 onDownloadTorrent = viewModel::downloadTorrent,
+                onPlayYours = viewModel::playYours,
                 onPlayBook = { book ->
                     viewModel.playBook(
                         book,
@@ -179,6 +180,7 @@ internal fun SearchContent(
     idle: (@Composable () -> Unit)? = null,
     onDownloadTorrent: (SearchHit.Torrent) -> Unit = {},
     onPlayBook: (SearchHit.Book) -> Unit = {},
+    onPlayYours: (SearchHit.Yours) -> Unit = {},
 ) {
     var query by rememberSaveable { mutableStateOf(header.initialQuery) }
     var submitted by rememberSaveable { mutableStateOf(header.initialQuery.trim()) }
@@ -223,6 +225,7 @@ internal fun SearchContent(
                 query = submitted,
                 onDownloadTorrent = onDownloadTorrent,
                 onPlayBook = onPlayBook,
+                onPlayYours = onPlayYours,
             )
         }
     }
@@ -319,9 +322,10 @@ internal fun labelled(emoji: String, titleRes: Int): String = "$emoji " + string
 
 private fun Results.Loaded.selectableItems(): List<MediaItem> =
     (
-        songs.itemsOrNull?.items.orEmpty().take(shown(MusicShelf.SONGS)).map {
-            it.toMediaItem(SearchViewModel.AD_HOC_MUSIC_SOURCE)
-        } +
+        yours.itemsOrNull.orEmpty().map { it.playable.item } +
+            songs.itemsOrNull?.items.orEmpty().take(shown(MusicShelf.SONGS)).map {
+                it.toMediaItem(SearchViewModel.AD_HOC_MUSIC_SOURCE)
+            } +
             videos.itemsOrNull?.items.orEmpty().map { it.toMediaItem(SearchViewModel.AD_HOC_VIDEO_SOURCE) }
         ).distinctBy { it.id }
 
@@ -340,6 +344,7 @@ private fun ResultsList(
     query: String = "",
     onDownloadTorrent: (SearchHit.Torrent) -> Unit = {},
     onPlayBook: (SearchHit.Book) -> Unit = {},
+    onPlayYours: (SearchHit.Yours) -> Unit = {},
 ) {
     val rows = SearchRowActions(
         onSubscribe,
@@ -348,6 +353,7 @@ private fun ResultsList(
         onPlayTorrent,
         onDownloadTorrent,
         onPlayBook,
+        onPlayYours,
         actions,
         onGoToChannel,
         more,

@@ -297,6 +297,7 @@ private fun rememberAskHitRow(container: AppContainer, search: SearchViewModel):
                 Diag.log("ask", "album ${hit.ref.browseId} \"${hit.ref.title}\" opened")
                 openMusic?.invoke(MusicPage.Album(hit.ref.browseId, title = hit.ref.title))
             })
+            is SearchHit.Yours -> Unit
             is SearchHit.Artist -> ArtistRow(
                 hit.ref.name,
                 hit.ref.subtitle,
