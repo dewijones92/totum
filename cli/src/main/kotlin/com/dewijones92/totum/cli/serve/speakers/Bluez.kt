@@ -1,5 +1,6 @@
 package com.dewijones92.totum.cli.serve.speakers
 
+import com.dewijones92.totum.cli.serve.LogOnChange
 import com.dewijones92.totum.cli.serve.targets.FoundTarget
 import com.dewijones92.totum.cli.serve.targets.TargetKit
 import com.dewijones92.totum.cli.serve.targets.TargetLink
@@ -14,7 +15,7 @@ import kotlinx.coroutines.delay
 
 internal data class FoundSpeaker(val speaker: Target, val mac: String)
 
-internal class BluezSpeakers(private val shell: Shell) {
+internal class BluezSpeakers(private val shell: Shell, private val changes: LogOnChange = LogOnChange("speakers")) {
     suspend fun find(): List<FoundSpeaker> {
         val listed = shell.run(listOf("bluetoothctl", "devices", "Paired"))
             ?: shell.run(listOf("bluetoothctl", "paired-devices"))
@@ -26,15 +27,12 @@ internal class BluezSpeakers(private val shell: Shell) {
             FoundSpeaker(Target(idOf(mac), label, TargetKind.SPEAKER), mac).takeIf { AUDIO_SINK in info }
                 .also {
                     if (it == null) {
-                        Diag.log(
-                            "speakers",
-                            "paired $mac \"$label\" is not a speaker (no Audio Sink)"
-                        )
+                        changes.log("not-a-speaker:$mac", "paired $mac \"$label\" is not a speaker (no Audio Sink)")
                     }
                 }
         }
-        Diag.log(
-            "speakers",
+        changes.log(
+            "found",
             "found ${found.size} speaker(s): ${found.joinToString { "${it.speaker.label} ${it.mac}" }}"
         )
         return found
@@ -135,19 +133,18 @@ internal class BluezLink(
 
     override suspend fun present(): Boolean = sinkIndex() != null
 
-    override suspend fun reconnect(): Boolean {
-        if (sinkIndex() != null) return true
+    override suspend fun reconnect(): Reconnect {
+        if (sinkIndex() != null) return Reconnect.LINKED
+        val tried = shell.runKeepingFailure(listOf("bluetoothctl", "connect", mac))
         Diag.log(
             "speakers",
-            "keeping $mac awake: relinking: ${shell.run(
-                listOf("bluetoothctl", "connect", mac)
-            )?.trim()?.lines()?.lastOrNull()}"
+            "keeping $mac awake: relinking: ${tried.said.trim().lines().lastOrNull()}"
         )
         repeat(KEEP_TRIES) {
-            if (sinkIndex() != null) return true
+            if (sinkIndex() != null) return Reconnect.LINKED
             delay(pollMs)
         }
-        return false
+        return if (HOST_DOWN in tried.said.lowercase()) Reconnect.HOST_DOWN else Reconnect.FAILED
     }
 
     override suspend fun sendSignal(signal: KeepAwakeSignal): Boolean = shell.run(
@@ -166,6 +163,7 @@ internal class BluezLink(
         const val KEEP_TRIES = 5
         const val SIGNAL_S = 2
         const val MS_PER_S = 1_000
+        const val HOST_DOWN = "host is down"
     }
 }
 

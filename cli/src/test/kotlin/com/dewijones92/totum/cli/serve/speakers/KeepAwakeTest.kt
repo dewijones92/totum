@@ -1,5 +1,6 @@
 package com.dewijones92.totum.cli.serve.speakers
 
+import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.targets.KeepAwake
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -12,14 +13,19 @@ import java.time.LocalTime
 class KeepAwakeTest {
 
     private class FakeTransport(var isLinked: Boolean = true, var reconnects: Boolean = true) : KeepAwakeTransport {
+        var hostDown = false
         var reconnectTries = 0
         val signals = mutableListOf<KeepAwakeSignal>()
         var signalWorks = true
         override suspend fun linked(): Boolean = isLinked
-        override suspend fun reconnect(): Boolean {
+        override suspend fun reconnect(): Reconnect {
             reconnectTries++
             if (reconnects) isLinked = true
-            return reconnects
+            return when {
+                reconnects -> Reconnect.LINKED
+                hostDown -> Reconnect.HOST_DOWN
+                else -> Reconnect.FAILED
+            }
         }
         override suspend fun sendSignal(signal: KeepAwakeSignal): Boolean {
             signals += signal
@@ -42,6 +48,7 @@ class KeepAwakeTest {
             signalEveryMs = 60_000,
             reconnectEveryMs = 120_000,
             reconnectMaxMs = 480_000,
+            hostDownMaxMs = 3_600_000,
             summaryEvery = 1_000,
         )
 
@@ -124,6 +131,40 @@ class KeepAwakeTest {
         assertEquals(3, transport.reconnectTries)
         assertEquals(emptyList<KeepAwakeSignal>(), transport.signals)
     }
+
+    @Test
+    fun `a speaker that says Host is down is retried less and less often, up to an hour, with one line saying so`() =
+        runBlocking {
+            val logged = mutableListOf<String>()
+            Diag.sink = Diag.Sink { _, _, message, _ -> logged += message }
+            try {
+                transport.isLinked = false
+                transport.reconnects = false
+                transport.hostDown = true
+                val keeper = keeper()
+
+                repeat(3 * 3_600 / 30) {
+                    keeper.beat(busy = false)
+                    now += 30_000
+                }
+
+                assertTrue("tried ${transport.reconnectTries} times in 3 hours", transport.reconnectTries <= 8)
+                assertEquals(1, logged.count { "Host is down" in it })
+                assertEquals(KeepAwake.RECONNECTING, keeper.state)
+
+                transport.hostDown = false
+                transport.isLinked = true
+                keeper.beat(busy = false)
+                assertEquals(1, logged.count { "is back after" in it })
+                transport.isLinked = false
+                now += 120_000
+                val before = transport.reconnectTries
+                keeper.beat(busy = false)
+                assertEquals("the hour-long wait is forgotten", before + 1, transport.reconnectTries)
+            } finally {
+                Diag.sink = Diag.Sink { _, _, _, _ -> }
+            }
+        }
 
     @Test
     fun `when it comes back the wait starts over`() = runBlocking {

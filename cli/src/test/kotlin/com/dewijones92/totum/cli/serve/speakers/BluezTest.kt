@@ -1,5 +1,6 @@
 package com.dewijones92.totum.cli.serve.speakers
 
+import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.targets.TargetPower
 import com.dewijones92.totum.data.targets.TroubleKind
 import kotlinx.coroutines.runBlocking
@@ -108,13 +109,47 @@ class BluezTest {
         val link = BluezLink("54:15:89:76:CD:A4", shell, pollMs = 0, keepAwake = true)
         assertFalse(link.linked())
 
-        assertTrue(link.reconnect())
+        assertEquals(Reconnect.LINKED, link.reconnect())
 
         assertTrue(link.linked())
         assertTrue(shell.ran.contains("bluetoothctl connect 54:15:89:76:CD:A4"))
         val off = FakeShell().apply { linksOnConnect = false }
-        assertFalse(BluezLink("54:15:89:76:CD:A4", off, pollMs = 0).reconnect())
+        assertEquals(Reconnect.FAILED, BluezLink("54:15:89:76:CD:A4", off, pollMs = 0).reconnect())
         assertNull("a keep-awake retry must not change what a play is told", link.unreachable)
+    }
+
+    @Test
+    fun `a reconnect that fails with Host is down says so, even though the command exited non-zero`() = runBlocking {
+        val shell = object : Shell {
+            override suspend fun run(args: List<String>): String? = if (args.firstOrNull() == "pactl") "" else null
+
+            override suspend fun runKeepingFailure(args: List<String>): ShellOutcome =
+                if (args.firstOrNull() == "bluetoothctl") {
+                    ShellOutcome(null, "Failed to connect: org.bluez.Error.Failed\nconnect error: Host is down (112)")
+                } else {
+                    ShellOutcome(run(args))
+                }
+        }
+
+        val answer = BluezLink("54:15:89:76:CD:A4", shell, pollMs = 0, keepAwake = true).reconnect()
+
+        assertEquals(Reconnect.HOST_DOWN, answer)
+    }
+
+    @Test
+    fun `finding the same speakers again, minute after minute, is logged once`() = runBlocking {
+        val logged = mutableListOf<String>()
+        Diag.sink = Diag.Sink { _, _, message, _ -> logged += message }
+        try {
+            val speakers = BluezSpeakers(FakeShell())
+
+            repeat(5) { speakers.find() }
+
+            assertEquals(1, logged.count { "found 1 speaker(s)" in it })
+            assertEquals(1, logged.count { "is not a speaker" in it })
+        } finally {
+            Diag.sink = Diag.Sink { _, _, _, _ -> }
+        }
     }
 
     @Test

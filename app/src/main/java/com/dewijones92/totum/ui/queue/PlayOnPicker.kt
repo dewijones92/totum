@@ -41,20 +41,25 @@ import com.dewijones92.totum.data.targets.PlayOn
 import com.dewijones92.totum.data.targets.PlayOnHint
 import com.dewijones92.totum.data.targets.PlayOnOption
 import com.dewijones92.totum.data.targets.TargetColours
+import com.dewijones92.totum.data.targets.connection
 import com.dewijones92.totum.targets.TargetsRepository
 
 @Composable
 fun PlayOnRow(targets: TargetsRepository, padStatusBar: Boolean, modifier: Modifier = Modifier) {
     if (!targets.available) return
     val lifecycle = LocalLifecycleOwner.current.lifecycle
-    LaunchedEffect(targets, lifecycle) {
-        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) { targets.watchWhile(IDLE_WATCH_MS) }
+    val selected by targets.selected.collectAsStateWithLifecycle()
+    val driving = selected != null
+    LaunchedEffect(targets, lifecycle, driving) {
+        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            targets.watchWhile(if (driving) DRIVING_WATCH_MS else IDLE_WATCH_MS)
+        }
     }
     val options by targets.options.collectAsStateWithLifecycle()
     val address by targets.browserAddress.collectAsStateWithLifecycle()
     val unreachable by targets.homeUnreachable.collectAsStateWithLifecycle()
     if (options.size <= 1 && address == null && !unreachable) return
-    val selected by targets.selected.collectAsStateWithLifecycle()
+    val listed by targets.targets.collectAsStateWithLifecycle()
     val colours by targets.colours.collectAsStateWithLifecycle()
     val current = PlayOn.resolve(selected, options)
     var open by remember { mutableStateOf(false) }
@@ -82,6 +87,7 @@ fun PlayOnRow(targets: TargetsRepository, padStatusBar: Boolean, modifier: Modif
                     colour = TargetColours.of(colours, current.id).asColour(),
                     selected = true,
                     onClick = { open = true },
+                    connection = listed.firstOrNull { it.target.id == current.id }?.connection,
                 )
                 DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
                     PlayOnMenuItems(options, colours, current.id) {
@@ -182,4 +188,5 @@ const val PLAY_ON_ROW_TAG = "play-on-row"
 const val PLAY_ON_OPTION_PREFIX = "play-on-option-"
 const val PLAY_ON_DOT_PREFIX = "play-on-dot-"
 private const val IDLE_WATCH_MS = 10_000L
+private const val DRIVING_WATCH_MS = 3_000L
 private val DOT = 12.dp

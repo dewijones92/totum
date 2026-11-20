@@ -3,10 +3,13 @@ package com.dewijones92.totum.ui
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.longClick
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
 import androidx.test.platform.app.InstrumentationRegistry
 import com.dewijones92.totum.R
 import com.dewijones92.totum.data.backup.BackupItem
@@ -15,6 +18,7 @@ import com.dewijones92.totum.data.home.TargetsApi
 import com.dewijones92.totum.data.targets.Requester
 import com.dewijones92.totum.data.targets.Target
 import com.dewijones92.totum.data.targets.TargetAction
+import com.dewijones92.totum.data.targets.TargetColours
 import com.dewijones92.totum.data.targets.TargetControl
 import com.dewijones92.totum.data.targets.TargetEntry
 import com.dewijones92.totum.data.targets.TargetKind
@@ -27,12 +31,16 @@ import com.dewijones92.totum.targets.TargetsRepository
 import com.dewijones92.totum.theme.TotumTheme
 import com.dewijones92.totum.ui.queue.ADD_BROWSER_HOW_TAG
 import com.dewijones92.totum.ui.queue.ADD_BROWSER_TAG
+import com.dewijones92.totum.ui.queue.CHIPS_MORE_TAG
+import com.dewijones92.totum.ui.queue.CHIP_DOT_TAG
 import com.dewijones92.totum.ui.queue.PLAY_ON_OPTION_PREFIX
+import com.dewijones92.totum.ui.queue.SWATCH_TAG_PREFIX
 import com.dewijones92.totum.ui.queue.TargetChips
 import kotlinx.coroutines.cancel
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -159,6 +167,53 @@ class TargetChipsTest {
     }
 
     @Test
+    fun aDeviceChipHasADotForItsConnectionAndThePhoneChipHasNone() {
+        val tvLinked = tv.copy(linked = true)
+        show(repository(tvLinked, soundbar))
+
+        compose.onNodeWithText("📺 LG TV").assertIsDisplayed()
+        assertEquals(1, compose.onAllNodesWithTag(CHIP_DOT_TAG, useUnmergedTree = true).fetchSemanticsNodes().size)
+        TestShots.take("target-chips")
+    }
+
+    @Test
+    fun aLongPressOnAChipOffersItsColoursAtAFingerSizeAndPicksOne() {
+        val repo = repository(tv, soundbar)
+        show(repo)
+
+        compose.onNodeWithText("📺 LG TV").performTouchInput { longClick() }
+        compose.waitForIdle()
+        val density = compose.density.density
+        TargetColours.palette.indices.forEach { index ->
+            val box = compose.onNodeWithTag(SWATCH_TAG_PREFIX + index).fetchSemanticsNode().boundsInRoot
+            assertTrue("swatch $index is ${box.width / density}dp", box.width / density >= MIN_SWATCH_DP)
+        }
+        val pick = TargetColours.palette.last()
+        compose.onNodeWithTag(SWATCH_TAG_PREFIX + TargetColours.palette.lastIndex).performClick()
+        compose.waitForIdle()
+
+        assertEquals(pick, repo.colours.value["lg-tv"])
+        assertEquals("a long press does not also select the chip", null, repo.selected.value)
+    }
+
+    @Test
+    fun whenThereAreMoreChipsThanFitARowShowsThereIsMoreToScrollTo() {
+        val many = (1..8).map {
+            TargetState(
+                Target("d$it", "Device number $it", TargetKind.SPEAKER),
+                entries = tv.entries
+            )
+        }
+        show(repository(*many.toTypedArray()))
+
+        val hint = compose.onNodeWithTag(CHIPS_MORE_TAG).fetchSemanticsNode().boundsInRoot
+        assertTrue(
+            "the hint is ${hint.height / compose.density.density}dp tall",
+            hint.height / compose.density.density < MAX_ROW_DP
+        )
+    }
+
+    @Test
     fun withNoTargetsThereAreNoChipsAtAll() {
         val repo = repository()
         compose.setContent { TotumTheme { TargetChips(repo) } }
@@ -171,5 +226,7 @@ class TargetChipsTest {
     private companion object {
         const val WAIT_MS = 10_000L
         const val SETTLE_MS = 500L
+        const val MIN_SWATCH_DP = 48
+        const val MAX_ROW_DP = 80
     }
 }

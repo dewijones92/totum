@@ -1,12 +1,12 @@
 package com.dewijones92.totum.ui.queue
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -14,22 +14,28 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
+import androidx.compose.material.icons.automirrored.outlined.VolumeUp
 import androidx.compose.material.icons.filled.Forward30
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay10
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
-import androidx.compose.material3.FilterChip
+import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -37,17 +43,17 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.backup.titleOf
 import com.dewijones92.totum.data.targets.KeepAwake
-import com.dewijones92.totum.data.targets.SoundSettings
 import com.dewijones92.totum.data.targets.TargetAction
 import com.dewijones92.totum.data.targets.TargetColours
 import com.dewijones92.totum.data.targets.TargetControl
@@ -55,18 +61,13 @@ import com.dewijones92.totum.data.targets.TargetEntry
 import com.dewijones92.totum.data.targets.TargetPower
 import com.dewijones92.totum.data.targets.TargetState
 import com.dewijones92.totum.data.targets.VolumeMode
+import com.dewijones92.totum.data.targets.connection
 import com.dewijones92.totum.data.targets.isLive
-import com.dewijones92.totum.data.targets.onATarget
 import com.dewijones92.totum.data.targets.shownLengthMs
-import com.dewijones92.totum.data.targets.showsPicture
 import com.dewijones92.totum.data.targets.toQueueEntry
-import com.dewijones92.totum.data.targets.toSnapshot
-import com.dewijones92.totum.domain.RepeatMode
-import com.dewijones92.totum.playback.VolumeBoost
+import com.dewijones92.totum.playback.SeekSteps
 import com.dewijones92.totum.targets.TargetsRepository
-import com.dewijones92.totum.targets.asTimerState
 import com.dewijones92.totum.ui.common.EmptyState
-import com.dewijones92.totum.ui.common.LabelledCheckbox
 import com.dewijones92.totum.ui.common.LocalItemShield
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.TagBadge
@@ -74,12 +75,6 @@ import com.dewijones92.totum.ui.common.formatClock
 import com.dewijones92.totum.ui.common.liveTagColor
 import com.dewijones92.totum.ui.common.liveTagLabel
 import com.dewijones92.totum.ui.common.rowFacts
-import com.dewijones92.totum.ui.player.LocalCompactTiles
-import com.dewijones92.totum.ui.player.LocalPlayerLinks
-import com.dewijones92.totum.ui.player.PlayerLinks
-import com.dewijones92.totum.ui.player.RepeatTile
-import com.dewijones92.totum.ui.player.SleepTimerControl
-import com.dewijones92.totum.ui.player.endOfGroupSleep
 import com.dewijones92.totum.video.LiveTag
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -88,7 +83,8 @@ fun RemoteQueue(targets: TargetsRepository, id: String, modifier: Modifier = Mod
     val states by targets.targets.collectAsStateWithLifecycle()
     val colours by targets.colours.collectAsStateWithLifecycle()
     val state = states.firstOrNull { it.target.id == id }
-    val colour = TargetColours.of(colours, id).asColour()
+    val colourValue = TargetColours.of(colours, id)
+    val colour = colourValue.asColour()
     if (state == null) {
         EmptyState(
             icon = Icons.AutoMirrored.Filled.QueueMusic,
@@ -98,33 +94,63 @@ fun RemoteQueue(targets: TargetsRepository, id: String, modifier: Modifier = Mod
         )
         return
     }
-    Column(modifier = modifier) {
-        RemoteHeader(targets, state, colour)
+    var controlsOpen by rememberSaveable(id) { mutableStateOf(false) }
+    LazyColumn(modifier = modifier.fillMaxWidth().testTag(REMOTE_LIST_TAG)) {
+        item(key = "now-playing") { RemoteNowPlaying(targets, state, colour) }
+        item(key = "controls") {
+            RemoteControls(targets, state, colourValue, open = controlsOpen) {
+                Diag.log("targets", "${state.target.id}: the remote's controls are now ${if (it) "open" else "closed"}")
+                controlsOpen = it
+            }
+        }
         if (state.entries.isEmpty()) {
-            EmptyState(
-                icon = Icons.AutoMirrored.Filled.QueueMusic,
-                headline = stringResource(R.string.target_empty_headline, state.target.label),
-                supportingText = stringResource(R.string.target_empty_hint),
-            )
+            item(key = "empty") {
+                EmptyState(
+                    icon = Icons.AutoMirrored.Filled.QueueMusic,
+                    headline = stringResource(R.string.target_empty_headline, state.target.label),
+                    supportingText = stringResource(R.string.target_empty_hint),
+                    modifier = Modifier.heightIn(min = EMPTY_MIN_HEIGHT),
+                )
+            }
         } else {
-            RemoteEntries(targets, state, colour)
+            item(key = "queue-heading") {
+                Text(
+                    stringResource(R.string.target_queue_heading, state.target.label, state.entries.size),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(start = 16.dp, top = 12.dp, end = 16.dp, bottom = 4.dp)
+                        .testTag(REMOTE_QUEUE_HEADING_TAG),
+                )
+            }
+            itemsIndexed(state.entries, key = { index, entry -> "${entry.item.itemId}#$index" }) { index, entry ->
+                val previous = state.entries.getOrNull(index - 1)
+                val group = entry.groupId
+                if (group != null && group != previous?.groupId) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(start = 16.dp, top = 12.dp, end = 16.dp, bottom = 4.dp),
+                    ) {
+                        Box(Modifier.size(GROUP_DOT).background(colour, CircleShape))
+                        Text(
+                            text = entry.groupTitle ?: group,
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.padding(start = 8.dp),
+                        )
+                    }
+                }
+                val playing = index == state.at
+                RemoteRow(targets, state.target.id, index, entry, playing = playing, deckPlaying = state.playing)
+            }
         }
     }
 }
 
 @Composable
-private fun RemoteHeader(targets: TargetsRepository, state: TargetState, colour: androidx.compose.ui.graphics.Color) {
+private fun RemoteNowPlaying(targets: TargetsRepository, state: TargetState, colour: Color) {
     val id = state.target.id
-    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
-        Text(
-            text = when {
-                state.current == null -> stringResource(R.string.target_idle, state.target.label)
-                state.playing -> stringResource(R.string.target_now_playing, state.target.label)
-                else -> stringResource(R.string.target_paused, state.target.label)
-            },
-            style = MaterialTheme.typography.titleMedium,
-            color = colour,
-        )
+    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp).testTag(REMOTE_CARD_TAG)) {
+        RemoteHeading(targets, state, colour)
         state.current?.let { current ->
             Text(LocalItemShield.current.titleOf(current.item), style = MaterialTheme.typography.bodyLarge)
             if (state.isLive) {
@@ -135,11 +161,36 @@ private fun RemoteHeader(targets: TargetsRepository, state: TargetState, colour:
         RemotePower(targets, state)
         RemoteKeepAwake(state)
         RemoteTrouble(targets, state)
-        RemoteControls(targets, state)
-        RemoteRepeat(targets, state)
-        RemoteSleep(targets, state)
-        RemoteSound(targets, state)
-        RemoteColours(targets, id)
+        RemoteTransport(targets, state, colour)
+        RemoteVolume(targets, state, colour)
+    }
+    LaunchedEffect(id, state.connection, state.playing, state.current == null) {
+        Diag.log(
+            "targets",
+            "$id: remote card shows ${state.connection} playing=${state.playing} at=${state.at} " +
+                "of ${state.entries.size} power=${state.power} linked=${state.linked} keepAwake=${state.keepAwake}",
+        )
+    }
+}
+
+@Composable
+private fun RemoteHeading(targets: TargetsRepository, state: TargetState, colour: Color) {
+    val words = when {
+        state.current == null -> stringResource(R.string.target_idle, state.target.label)
+        state.playing -> stringResource(R.string.target_now_playing, state.target.label)
+        else -> stringResource(R.string.target_paused, state.target.label)
+    }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(HEADING_DOT).background(colour, CircleShape))
+        Text(
+            text = stringResource(R.string.target_heading_with_link, words, state.connection.words()),
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(start = 8.dp).weight(1f).testTag(REMOTE_HEADING_TAG),
+        )
+        IconButton(onClick = { targets.command(state.target.id, TargetAction.STOP) }) {
+            Icon(Icons.Filled.Stop, stringResource(R.string.target_stop))
+        }
     }
 }
 
@@ -149,12 +200,7 @@ private fun RemoteSeek(targets: TargetsRepository, state: TargetState, duration:
     var dragging by remember { mutableStateOf<Float?>(null) }
     val shown = dragging ?: state.positionMs.toFloat().coerceIn(0f, duration.toFloat())
     Row(verticalAlignment = Alignment.CenterVertically) {
-        IconButton(
-            onClick = {
-                val to = (state.positionMs - SEEK_BACK_MS).coerceAtLeast(0)
-                targets.act(id, TargetControl(TargetAction.SEEK, positionMs = to))
-            },
-        ) { Icon(Icons.Filled.Replay10, stringResource(R.string.target_seek_back)) }
+        Text(formatClock(shown.toLong().milliseconds), style = MaterialTheme.typography.bodySmall)
         Slider(
             value = shown,
             onValueChange = { dragging = it },
@@ -163,24 +209,128 @@ private fun RemoteSeek(targets: TargetsRepository, state: TargetState, duration:
                 dragging = null
             },
             valueRange = 0f..duration.toFloat(),
-            colors = SliderDefaults.colors(thumbColor = colour, activeTrackColor = colour),
-            modifier = Modifier.weight(1f),
+            colors = remoteSliderColours(colour),
+            modifier = Modifier.weight(1f).padding(horizontal = 4.dp),
         )
-        IconButton(
-            onClick = {
-                val to = (state.positionMs + SEEK_FORWARD_MS).coerceAtMost(duration)
-                targets.act(id, TargetControl(TargetAction.SEEK, positionMs = to))
-            },
-        ) { Icon(Icons.Filled.Forward30, stringResource(R.string.target_seek_forward)) }
+        Text(formatClock(duration.milliseconds), style = MaterialTheme.typography.bodySmall)
     }
-    Text(
-        stringResource(
-            R.string.target_position,
-            formatClock(shown.toLong().milliseconds),
-            formatClock(duration.milliseconds),
-        ),
-        style = MaterialTheme.typography.bodySmall,
-    )
+}
+
+@Composable
+private fun remoteSliderColours(colour: Color) = SliderDefaults.colors(
+    thumbColor = colour,
+    activeTrackColor = colour,
+    inactiveTrackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+)
+
+@Composable
+private fun RemoteTransport(targets: TargetsRepository, state: TargetState, colour: Color) {
+    val id = state.target.id
+    val duration = state.shownLengthMs
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceEvenly,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        IconButton(onClick = { targets.command(id, TargetAction.PREVIOUS) }) {
+            Icon(Icons.Filled.SkipPrevious, stringResource(R.string.target_previous))
+        }
+        IconButton(onClick = { seekBy(targets, state, -SeekSteps.BACK_MS, duration) }, enabled = duration != null) {
+            Icon(Icons.Filled.Replay10, stringResource(R.string.target_seek_back))
+        }
+        if (state.starting) {
+            val starting = stringResource(R.string.target_bar_starting)
+            CircularProgressIndicator(
+                strokeWidth = 2.dp,
+                modifier = Modifier.size(PLAY_SIZE).padding(PLAY_SPINNER_PAD)
+                    .semantics { contentDescription = starting },
+            )
+        } else {
+            FilledIconButton(
+                onClick = { targets.command(id, if (state.playing) TargetAction.PAUSE else TargetAction.PLAY) },
+                colors = IconButtonDefaults.filledIconButtonColors(
+                    containerColor = colour,
+                    contentColor = colour.readableOn(),
+                ),
+                modifier = Modifier.size(PLAY_SIZE).testTag(REMOTE_PLAY_TAG),
+            ) {
+                Icon(
+                    if (state.playing) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                    stringResource(if (state.playing) R.string.target_pause else R.string.target_play),
+                    modifier = Modifier.size(PLAY_ICON),
+                )
+            }
+        }
+        IconButton(onClick = { seekBy(targets, state, SeekSteps.FORWARD_MS, duration) }, enabled = duration != null) {
+            Icon(Icons.Filled.Forward30, stringResource(R.string.target_seek_forward))
+        }
+        IconButton(onClick = { targets.command(id, TargetAction.NEXT) }) {
+            Icon(Icons.Filled.SkipNext, stringResource(R.string.target_next))
+        }
+    }
+}
+
+@Composable
+private fun RemoteVolume(targets: TargetsRepository, state: TargetState, colour: Color) {
+    val id = state.target.id
+    var volume by remember(state.volume) { mutableStateOf(state.volume?.toFloat()) }
+    var why by remember { mutableStateOf(false) }
+    val label = when (state.volumeMode) {
+        VolumeMode.HARDWARE -> R.string.target_volume_label_speaker
+        VolumeMode.SOFTWARE -> R.string.target_volume_label_software
+        null -> R.string.target_volume_label_unknown
+    }
+    val reason = when (state.volumeMode) {
+        VolumeMode.HARDWARE -> R.string.target_volume_why_speaker
+        VolumeMode.SOFTWARE -> R.string.target_volume_why_software
+        null -> R.string.target_volume_why_unknown
+    }
+    val sliderName = stringResource(R.string.target_volume_slider)
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(
+            Icons.AutoMirrored.Outlined.VolumeUp,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Slider(
+            value = volume ?: 0f,
+            onValueChange = { volume = it },
+            onValueChangeFinished = {
+                volume?.let { targets.act(id, TargetControl(TargetAction.VOLUME, volume = it.toInt())) }
+            },
+            valueRange = 0f..VOLUME_MAX,
+            colors = remoteSliderColours(colour),
+            modifier = Modifier.weight(1f).padding(horizontal = 4.dp).semantics { contentDescription = sliderName },
+        )
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.semantics(mergeDescendants = true) {}.testTag(REMOTE_VOLUME_TAG),
+        ) {
+            Text(
+                volume?.let { stringResource(R.string.target_volume_percent, it.toInt()) } ?: "—",
+                style = MaterialTheme.typography.labelLarge,
+            )
+            Text(stringResource(label), style = MaterialTheme.typography.labelSmall)
+        }
+        IconButton(onClick = { why = true }) {
+            Icon(Icons.Outlined.Info, stringResource(R.string.target_volume_why))
+        }
+    }
+    if (why) {
+        AlertDialog(
+            onDismissRequest = { why = false },
+            text = { Text(stringResource(reason)) },
+            confirmButton = {
+                TextButton(onClick = { why = false }) { Text(stringResource(R.string.target_volume_why_ok)) }
+            },
+        )
+    }
+}
+
+private fun seekBy(targets: TargetsRepository, state: TargetState, deltaMs: Long, duration: Long?) {
+    val top = duration ?: return
+    val to = (state.positionMs + deltaMs).coerceIn(0, top)
+    targets.act(state.target.id, TargetControl(TargetAction.SEEK, positionMs = to))
 }
 
 @Composable
@@ -220,172 +370,6 @@ private fun RemoteKeepAwake(state: TargetState) {
         null -> null
     }
     if (line != null) Text(stringResource(line, state.target.label), style = MaterialTheme.typography.bodySmall)
-}
-
-@Composable
-private fun RemoteControls(targets: TargetsRepository, state: TargetState) {
-    val id = state.target.id
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        IconButton(onClick = { targets.command(id, TargetAction.PREVIOUS) }) {
-            Icon(Icons.Filled.SkipPrevious, stringResource(R.string.target_previous))
-        }
-        IconButton(onClick = { targets.command(id, if (state.playing) TargetAction.PAUSE else TargetAction.PLAY) }) {
-            Icon(
-                if (state.playing) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                stringResource(if (state.playing) R.string.target_pause else R.string.target_play),
-            )
-        }
-        IconButton(onClick = { targets.command(id, TargetAction.NEXT) }) {
-            Icon(Icons.Filled.SkipNext, stringResource(R.string.target_next))
-        }
-        TextButton(
-            onClick = { targets.command(id, TargetAction.STOP) }
-        ) { Text("⏹️ " + stringResource(R.string.target_stop)) }
-    }
-    var volume by remember(state.volume) { mutableStateOf(state.volume?.toFloat()) }
-    val volumeLine = when (state.volumeMode) {
-        VolumeMode.HARDWARE -> R.string.target_volume_speaker
-        VolumeMode.SOFTWARE -> R.string.target_volume_software
-        null -> R.string.target_volume
-    }
-    Text(
-        volume?.let { stringResource(volumeLine, it.toInt()) }
-            ?: stringResource(R.string.target_volume_unknown),
-        style = MaterialTheme.typography.bodySmall,
-    )
-    Slider(
-        value = volume ?: 0f,
-        onValueChange = { volume = it },
-        onValueChangeFinished = {
-            volume?.let { targets.act(id, TargetControl(TargetAction.VOLUME, volume = it.toInt())) }
-        },
-        valueRange = 0f..VOLUME_MAX,
-    )
-}
-
-@Composable
-private fun RemoteRepeat(targets: TargetsRepository, state: TargetState) {
-    CompositionLocalProvider(LocalCompactTiles provides true) {
-        RepeatTile(
-            mode = state.repeat,
-            onSetMode = { targets.act(state.target.id, TargetControl(TargetAction.REPEAT, repeat = it)) },
-            modifier = Modifier.padding(vertical = 4.dp),
-            options = RepeatMode.entries.filter { it.onATarget },
-        )
-    }
-}
-
-@Composable
-private fun RemoteSleep(targets: TargetsRepository, state: TargetState) {
-    val id = state.target.id
-    val snapshot = remember(state.entries, state.at) { state.entries.toSnapshot(state.at) }
-    var switchOff by rememberSaveable(id) { mutableStateOf(false) }
-    val switchesOff = switchOff && state.canSwitchOff
-    val endOfGroup = remember(snapshot, switchesOff) {
-        endOfGroupSleep(snapshot.entries, snapshot.currentIndex) { ids, title ->
-            targets.sleepAfterItems(id, ids.map { it.value }, title, switchesOff)
-        }
-    }
-    CompositionLocalProvider(
-        LocalCompactTiles provides true,
-        LocalPlayerLinks provides PlayerLinks(endOfGroup = endOfGroup),
-    ) {
-        SleepTimerControl(
-            state = state.sleep.asTimerState(),
-            onStart = { targets.startSleep(id, it, switchesOff) },
-            onStopAfterItem = {
-                state.current?.item?.itemId?.let { current ->
-                    targets.sleepAfterItems(id, listOf(current), null, switchesOff)
-                }
-            },
-            onCancel = { targets.cancelSleep(id) },
-            modifier = Modifier.padding(vertical = 4.dp),
-        )
-    }
-    if (state.canSwitchOff) {
-        LabelledCheckbox(
-            checked = switchOff,
-            label = stringResource(R.string.target_sleep_switch_off, state.target.label),
-            onChange = { switchOff = it },
-        )
-    }
-    if (state.sleep?.switchesOff == true) {
-        Text(
-            stringResource(R.string.target_sleep_will_switch_off, state.target.label),
-            style = MaterialTheme.typography.bodySmall,
-        )
-    }
-}
-
-@Composable
-private fun RemoteSound(targets: TargetsRepository, state: TargetState) {
-    val id = state.target.id
-    val picture = state.showsPicture
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        FilterChip(
-            enabled = !picture,
-            selected = state.sound.skipSilence,
-            onClick = {
-                targets.act(
-                    id,
-                    TargetControl(TargetAction.SOUND, sound = state.sound.copy(skipSilence = !state.sound.skipSilence))
-                )
-            },
-            label = { Text(stringResource(R.string.target_skip_silence)) },
-        )
-        val boosted = state.sound.boost != VolumeBoost.OFF
-        FilterChip(
-            enabled = !picture,
-            selected = boosted,
-            onClick = {
-                val next: SoundSettings = state.sound.copy(boost = if (boosted) VolumeBoost.OFF else VolumeBoost.AUTO)
-                targets.act(id, TargetControl(TargetAction.SOUND, sound = next))
-            },
-            label = { Text(stringResource(R.string.target_boost)) },
-        )
-    }
-    if (picture) {
-        Text(
-            stringResource(R.string.target_sound_picture_note, state.target.label),
-            style = MaterialTheme.typography.bodySmall,
-        )
-    }
-}
-
-@Composable
-private fun RemoteColours(targets: TargetsRepository, id: String) {
-    var open by remember { mutableStateOf(false) }
-    TextButton(onClick = { open = !open }) { Text(stringResource(R.string.target_colour)) }
-    if (open) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            TargetColours.palette.forEach { swatch ->
-                Box(
-                    Modifier.size(SWATCH).clip(CircleShape).background(swatch.asColour())
-                        .clickable { targets.recolour(id, swatch) },
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun RemoteEntries(targets: TargetsRepository, state: TargetState, colour: androidx.compose.ui.graphics.Color) {
-    val id = state.target.id
-    LazyColumn(Modifier.fillMaxWidth()) {
-        itemsIndexed(state.entries, key = { index, entry -> "${entry.item.itemId}#$index" }) { index, entry ->
-            val previous = state.entries.getOrNull(index - 1)
-            val group = entry.groupId
-            if (group != null && group != previous?.groupId) {
-                Text(
-                    text = entry.groupTitle ?: group,
-                    style = MaterialTheme.typography.titleSmall,
-                    color = colour,
-                    modifier = Modifier.padding(start = 16.dp, top = 12.dp, end = 16.dp, bottom = 4.dp),
-                )
-            }
-            RemoteRow(targets, id, index, entry, playing = index == state.at, deckPlaying = state.playing)
-        }
-    }
 }
 
 @Composable
@@ -435,7 +419,17 @@ private fun RemoteRow(
 }
 
 const val REMOTE_ROW_TAG = "remote-queue-row"
+const val REMOTE_LIST_TAG = "remote-queue-list"
+const val REMOTE_CARD_TAG = "remote-card"
+const val REMOTE_HEADING_TAG = "remote-heading"
+const val REMOTE_PLAY_TAG = "remote-play"
+const val REMOTE_VOLUME_TAG = "remote-volume"
+const val REMOTE_CONTROLS_TAG = "remote-controls"
+const val REMOTE_QUEUE_HEADING_TAG = "remote-queue-heading"
 private const val VOLUME_MAX = 100f
-private const val SEEK_BACK_MS = 10_000L
-private const val SEEK_FORWARD_MS = 30_000L
-private val SWATCH = 28.dp
+private val PLAY_SIZE = 56.dp
+private val PLAY_ICON = 30.dp
+private val PLAY_SPINNER_PAD = 14.dp
+private val HEADING_DOT = 12.dp
+private val GROUP_DOT = 10.dp
+private val EMPTY_MIN_HEIGHT = 240.dp

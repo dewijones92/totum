@@ -2,13 +2,15 @@
 title: A speaker can be kept awake by the Pi, and its volume slider is the speaker's own
 kind: adr
 status: accepted
-updated: 2026-11-14
+updated: 2026-11-20
 ---
 
 # 165. A speaker can be kept awake by the Pi, and its volume slider is the speaker's own
 
 - Status: Accepted (built and unit-tested; not yet seen on the real Soundmic)
 - Date: 2026-11-13
+- Amended by: [ADR 180](0180-the-selected-device-owns-the-dock-bar-and-the-remote-page-is-a-card-over-its-list.md) (the BlueZ 5.55 transport path
+  `dev_MAC/sepN/fdN`, which the volume had never found, and the keep-awake back-off on "Host is down")
 - Amends: [ADR 116](0116-speaker-queues-play-on-the-pi.md) (a speaker is linked only while playing),
   [ADR 152](0152-a-target-is-anything-the-pi-plays-to-and-each-has-its-own-queue.md) (the volume rule),
   [ADR 158](0158-targets-end-of-batch-fixes.md) (`TOTUM_SPEAKERS_SWITCHED_ON_BY_HAND`)
@@ -115,3 +117,13 @@ ever raises a speaker or a TV, and a slider move is never louder than what was a
 - **Tests:** `SpeakerVolumeTest` (a stale read-back with mpv turned down, one with the speaker below the request, a
   fade that fades mpv and leaves the hardware alone, one that restores raw 2 not 3, a speaker that never reports back,
   a speaker that has gone).
+
+## Amended 2026-11-20 ([ADR 180](0180-the-selected-device-owns-the-dock-bar-and-the-remote-page-is-a-card-over-its-list.md))
+
+- **The transport pattern was wrong for BlueZ 5.55, so the speaker's own volume never worked.** The Pi puts an A2DP transport at
+  `/org/bluez/hciN/dev_MAC/sepN/fdN`; `BluezTransport` looked for `dev_MAC/fdN` and always fell back ("the speaker's own is not available:
+  no A2DP transport"). It now matches `dev_MAC(/sep\d+)?/fd\d+`, the old layout stays a test case, and when nothing matches the device's own
+  bus lines are logged (once per change, `LogOnChange`). This was the "not seen on a real device" risk this ADR named.
+- **Keep-awake backs off further when the speaker says "Host is down".** The wait doubles up to an hour (it was capped at ten minutes for any
+  failure), one line says so when it starts and one when the speaker is back, and the wait resets then. The Soundmic made 458 failed
+  reconnects while switched off. `Shell.runKeepingFailure` carries `bluetoothctl`'s failure text, which `run` hid behind `null`.

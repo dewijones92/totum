@@ -6,7 +6,9 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -25,6 +27,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ProgressIndicatorDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -36,6 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -52,7 +56,6 @@ import com.dewijones92.totum.ui.cast.CastStrip
  * Persistent now-playing bar shown above the bottom navigation whenever
  * something is queued — identical for podcast episodes and videos.
  */
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun MiniPlayerBar(
     state: PlaybackState,
@@ -67,58 +70,100 @@ fun MiniPlayerBar(
     var menuOpen by remember { mutableStateOf(false) }
     var showWhy by remember { mutableStateOf(false) }
     if (showWhy) WhyIsThisPlayingDialog(state, "mini player") { showWhy = false }
+    val showsProgress = !liveNow(state.itemId, state.contentKind)
+    NowPlayingBarFrame(
+        onClick = onExpand,
+        modifier = modifier,
+        onLongClick = { menuOpen = true },
+        strips = {
+            CastStrip(state, Modifier.padding(start = 10.dp, end = 10.dp, top = 8.dp))
+            PictureOfferStrip(Modifier.padding(start = 10.dp, end = 10.dp, top = 8.dp))
+        },
+        // Artwork, because this bar is the app's most-seen surface and a row of text
+        // gives no sense of what is playing. The pillar glyph rides on the corner
+        // rather than taking a slot of its own.
+        artwork = { ArtworkWithPillarBadge(state) },
+        text = { NowPlayingText(state, starting, modifier = it) },
+        afterText = {
+            WhyIsThisPlayingMenu(menuOpen, onDismiss = { menuOpen = false }, onAsk = { showWhy = true })
+        },
+        controls = {
+            SwitchListeningButton("mini player", Modifier.size(COMPACT_BUTTON))
+            ExploreToggle("mini player", Modifier.size(COMPACT_BUTTON))
+            if (onSkipNext != null) SkipPreviousButton(Modifier.size(COMPACT_BUTTON))
+            // The bar is where you spend most of the time, and it was the one
+            // surface that showed nothing while stalled — so a stall here was
+            // indistinguishable from the app simply having stopped.
+            PlayPauseOrBuffering(state, starting != null, onTogglePlayPause, buffering)
+            // Skip-next belongs here now the queue is the spine: reaching the next item
+            // otherwise means opening the full player to press one button.
+            onSkipNext?.let { skip ->
+                IconButton(onClick = skip, modifier = Modifier.size(COMPACT_BUTTON)) {
+                    Icon(Icons.Filled.SkipNext, contentDescription = stringResource(R.string.skip_to_next))
+                }
+            }
+        },
+        footer = {
+            ActiveModesRow("mini player", onExpand, Modifier.padding(start = 12.dp, end = 12.dp, bottom = 6.dp))
+        },
+        progress = if (showsProgress) {
+            { state.progressAt(live?.value) ?: 0f }
+        } else {
+            null
+        },
+    )
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+internal fun NowPlayingBarFrame(
+    onClick: () -> Unit,
+    artwork: @Composable () -> Unit,
+    text: @Composable (Modifier) -> Unit,
+    controls: @Composable RowScope.() -> Unit,
+    progress: (() -> Float)?,
+    modifier: Modifier = Modifier,
+    onLongClick: (() -> Unit)? = null,
+    strips: @Composable ColumnScope.() -> Unit = {},
+    afterText: @Composable () -> Unit = {},
+    footer: @Composable ColumnScope.() -> Unit = {},
+    progressColor: Color? = null,
+) {
     Surface(
         modifier = modifier
             .fillMaxWidth()
-            .combinedClickable(onClick = onExpand, onLongClick = { menuOpen = true }),
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick),
         color = Color.Transparent,
     ) {
         Column {
-            CastStrip(state, Modifier.padding(start = 10.dp, end = 10.dp, top = 8.dp))
-            PictureOfferStrip(Modifier.padding(start = 10.dp, end = 10.dp, top = 8.dp))
+            strips()
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(start = 10.dp, end = 10.dp, top = 10.dp),
             ) {
-                // Artwork, because this bar is the app's most-seen surface and a row of text
-                // gives no sense of what is playing. The pillar glyph rides on the corner
-                // rather than taking a slot of its own.
-                ArtworkWithPillarBadge(state)
-                NowPlayingText(state, starting, modifier = Modifier.weight(1f))
-                WhyIsThisPlayingMenu(menuOpen, onDismiss = { menuOpen = false }, onAsk = { showWhy = true })
+                artwork()
+                text(Modifier.weight(1f))
+                afterText()
             }
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 modifier = Modifier.fillMaxWidth().padding(start = 6.dp, end = 6.dp, top = 4.dp, bottom = 6.dp),
-            ) {
-                SwitchListeningButton("mini player", Modifier.size(COMPACT_BUTTON))
-                ExploreToggle("mini player", Modifier.size(COMPACT_BUTTON))
-                if (onSkipNext != null) SkipPreviousButton(Modifier.size(COMPACT_BUTTON))
-                // The bar is where you spend most of the time, and it was the one
-                // surface that showed nothing while stalled — so a stall here was
-                // indistinguishable from the app simply having stopped.
-                PlayPauseOrBuffering(state, starting != null, onTogglePlayPause, buffering)
-                // Skip-next belongs here now the queue is the spine: reaching the next item
-                // otherwise means opening the full player to press one button.
-                onSkipNext?.let { skip ->
-                    IconButton(onClick = skip, modifier = Modifier.size(COMPACT_BUTTON)) {
-                        Icon(Icons.Filled.SkipNext, contentDescription = stringResource(R.string.skip_to_next))
-                    }
-                }
-            }
-            ActiveModesRow("mini player", onExpand, Modifier.padding(start = 12.dp, end = 12.dp, bottom = 6.dp))
+                content = controls,
+            )
+            footer()
             // Hairline rather than the default indicator, which is thick enough to read as a
             // control you could drag. This is a status line, so it should whisper.
-            if (!liveNow(state.itemId, state.contentKind)) {
+            if (progress != null) {
                 LinearProgressIndicator(
-                    progress = { state.progressAt(live?.value) ?: 0f },
+                    progress = progress,
                     modifier = Modifier
                         .padding(horizontal = 16.dp)
                         .padding(bottom = 8.dp)
                         .fillMaxWidth()
                         .height(PROGRESS_HEIGHT)
                         .clip(CircleShape),
+                    color = progressColor ?: ProgressIndicatorDefaults.linearColor,
                     trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
                     gapSize = 0.dp,
                     drawStopIndicator = {},
@@ -163,16 +208,29 @@ private fun PlayPauseOrBuffering(
 /** Artwork with the pillar glyph on its corner, so marking video-vs-podcast costs no width. */
 @Composable
 private fun ArtworkWithPillarBadge(state: PlaybackState) {
-    Box {
+    ArtworkWithBadge(
+        url = state.artworkUrl?.let(HttpUrl::parse),
+        playing = state.isPlaying,
+        glyph = shownAs(state.itemId, state.kind, state.contentKind).icon,
+    )
+}
+
+@Composable
+internal fun ArtworkWithBadge(
+    url: HttpUrl?,
+    playing: Boolean,
+    glyph: ImageVector,
+    modifier: Modifier = Modifier,
+    blurred: Boolean = false,
+) {
+    Box(modifier) {
         MediaThumbnail(
-            url = state.artworkUrl?.let(HttpUrl::parse),
+            url = url,
             contentDescription = null,
             modifier = Modifier.size(ARTWORK),
             shape = RoundedCornerShape(12.dp),
+            blurred = blurred,
         )
-        // Equaliser while playing, pillar glyph otherwise: the badge answers "what is this"
-        // when stopped and "it is running" when not, which is the more useful thing at a
-        // glance and costs no extra space.
         Box(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
@@ -181,7 +239,10 @@ private fun ArtworkWithPillarBadge(state: PlaybackState) {
                 .padding(BADGE_INSET),
             contentAlignment = Alignment.Center,
         ) {
-            if (state.isPlaying) {
+            // Equaliser while playing, pillar glyph otherwise: the badge answers "what is this"
+            // when stopped and "it is running" when not, which is the more useful thing at a
+            // glance and costs no extra space.
+            if (playing) {
                 PlayingEqualiser(
                     playing = true,
                     color = MaterialTheme.colorScheme.primary,
@@ -189,7 +250,7 @@ private fun ArtworkWithPillarBadge(state: PlaybackState) {
                 )
             } else {
                 Icon(
-                    imageVector = shownAs(state.itemId, state.kind, state.contentKind).icon,
+                    imageVector = glyph,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

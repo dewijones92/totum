@@ -118,3 +118,18 @@ public object SendTo {
         )
     }
 }
+
+public enum class TargetConnection { LINKED, READY, WAKING, ASLEEP, RECONNECTING, PROBLEM }
+
+public val TargetState.connection: TargetConnection
+    get() = when {
+        power == TargetPower.ASLEEP -> TargetConnection.ASLEEP
+        power == TargetPower.WAKING -> TargetConnection.WAKING
+        keepAwake == KeepAwake.RECONNECTING -> TargetConnection.RECONNECTING
+        trouble != null || problem != null -> TargetConnection.PROBLEM
+        linked || playing || keepAwake == KeepAwake.KEPT -> TargetConnection.LINKED
+        else -> TargetConnection.READY
+    }
+
+public fun List<TargetState>.barFor(selected: String?): TargetState? =
+    firstOrNull { it.target.id == selected }?.takeIf { it.current != null }

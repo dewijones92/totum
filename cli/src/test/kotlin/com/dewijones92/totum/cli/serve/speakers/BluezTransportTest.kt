@@ -1,5 +1,6 @@
 package com.dewijones92.totum.cli.serve.speakers
 
+import com.dewijones92.totum.common.Diag
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -46,7 +47,7 @@ class BluezTransportTest {
             val answer = BluezTransport("00:11:22:33:44:55", shell).volume()
 
             assertEquals(TransportVolume.Level(64), answer)
-            val wanted = "busctl --system get-property org.bluez /org/bluez/hci0/dev_00_11_22_33_44_55/fd3 " +
+            val wanted = "busctl --system get-property org.bluez /org/bluez/hci0/dev_00_11_22_33_44_55/sep1/fd3 " +
                 "org.bluez.MediaTransport1 Volume"
             assertEquals(wanted, shell.ran.last())
         }
@@ -60,7 +61,7 @@ class BluezTransportTest {
         assertEquals(TransportVolume.Level(90), answer)
         assertTrue(
             shell.ran.any {
-                it == "busctl --system set-property org.bluez /org/bluez/hci0/dev_00_11_22_33_44_55/fd3 " +
+                it == "busctl --system set-property org.bluez /org/bluez/hci0/dev_00_11_22_33_44_55/sep1/fd3 " +
                     "org.bluez.MediaTransport1 Volume q 96"
             },
         )
@@ -75,6 +76,41 @@ class BluezTransportTest {
         assertTrue(answer is TransportVolume.Unavailable)
         assertTrue(shell.ran.none { "set-property" in it })
     }
+
+    @Test
+    fun `an older BlueZ that puts the transport straight under the device is found too`() = runBlocking {
+        val shell = BusShell(
+            tree = "/org/bluez\n/org/bluez/hci0/dev_00_11_22_33_44_55\n/org/bluez/hci0/dev_00_11_22_33_44_55/fd3\n",
+        )
+
+        val answer = BluezTransport("00:11:22:33:44:55", shell).volume()
+
+        assertEquals(TransportVolume.Level(64), answer)
+        assertTrue(shell.ran.last().contains("/org/bluez/hci0/dev_00_11_22_33_44_55/fd3 "))
+    }
+
+    @Test
+    fun `when no transport matches, the device's own lines from the tree are logged so the layout can be read`() =
+        runBlocking {
+            val logged = mutableListOf<String>()
+            Diag.sink = Diag.Sink { _, _, message, _ -> logged += message }
+            try {
+                val shell = BusShell(
+                    tree = "/org/bluez\n/org/bluez/hci0/dev_00_11_22_33_44_55\n" +
+                        "/org/bluez/hci0/dev_00_11_22_33_44_55/sep1\n" +
+                        "/org/bluez/hci0/dev_00_11_22_33_44_55/sep1/odd9\n" +
+                        "/org/bluez/hci0/dev_AA_BB_CC_DD_EE_FF/sep1\n",
+                )
+
+                BluezTransport("00:11:22:33:44:55", shell).volume()
+
+                val line = logged.single { "no A2DP transport" in it }
+                assertTrue(line, "dev_00_11_22_33_44_55/sep1/odd9" in line)
+                assertTrue(line, "AA_BB" !in line)
+            } finally {
+                Diag.sink = Diag.Sink { _, _, _, _ -> }
+            }
+        }
 
     @Test
     fun `another device's transport is never used`() = runBlocking {
@@ -106,7 +142,7 @@ class BluezTransportTest {
 
     private companion object {
         const val TREE = "/org/bluez\n/org/bluez/hci0\n/org/bluez/hci0/dev_00_11_22_33_44_55\n" +
-            "/org/bluez/hci0/dev_00_11_22_33_44_55/sep1\n/org/bluez/hci0/dev_00_11_22_33_44_55/fd3\n" +
+            "/org/bluez/hci0/dev_00_11_22_33_44_55/sep1\n/org/bluez/hci0/dev_00_11_22_33_44_55/sep1/fd3\n" +
             "/org/bluez/hci0/dev_AA_BB_CC_DD_EE_FF\n/org/bluez/hci0/dev_AA_BB_CC_DD_EE_FF/sep1\n"
     }
 }

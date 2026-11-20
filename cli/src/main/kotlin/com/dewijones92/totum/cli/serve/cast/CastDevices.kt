@@ -1,5 +1,6 @@
 package com.dewijones92.totum.cli.serve.cast
 
+import com.dewijones92.totum.cli.serve.LogOnChange
 import com.dewijones92.totum.cli.serve.targets.FoundTarget
 import com.dewijones92.totum.cli.serve.targets.TargetKit
 import com.dewijones92.totum.cli.serve.targets.TargetSource
@@ -181,6 +182,7 @@ internal class CastDeviceSource(
 ) : TargetSource {
 
     private val powers = DevicePowers(devices, powerConfig, extraBroadcasts)
+    private val changes = LogOnChange("cast-target")
 
     override suspend fun find(fresh: Boolean): List<FoundTarget> = devices.map { device ->
         FoundTarget(Target(device.id, device.name, device.kind)) {
@@ -190,8 +192,8 @@ internal class CastDeviceSource(
             TargetKit(ChromecastPlayer(device.name, control, streams, power), CastLink(device.host, control, power))
         }
     }.also {
-        Diag.log(
-            "cast-target",
+        changes.log(
+            "configured",
             "configured ${it.size} cast target(s): " + devices.joinToString { device ->
                 "${device.name}=${device.describe()} over ${device.order.first().word} first"
             },

@@ -69,6 +69,8 @@ import com.dewijones92.totum.ui.player.rememberWatchActions
 import com.dewijones92.totum.ui.podcasts.PodcastsScreen
 import com.dewijones92.totum.ui.queue.GroupDownloadAsk
 import com.dewijones92.totum.ui.queue.QueueScreen
+import com.dewijones92.totum.ui.queue.TargetNowPlayingBar
+import com.dewijones92.totum.ui.queue.rememberSelectedRemote
 import com.dewijones92.totum.ui.settings.DriveBackupPrompt
 import com.dewijones92.totum.ui.shorts.ShortsReelScreen
 import com.dewijones92.totum.ui.videos.VideosScreen
@@ -283,9 +285,33 @@ private fun BottomBar(
         mapOf(TopLevelDestination.Library to fresh, TopLevelDestination.Podcasts to newEpisodes),
         selected,
     )
+    val remote = rememberSelectedRemote(container.targets)
     SteadyPlayback(
         container.playbackController
-    ) { state -> DockFor(state, starting, selected, onTogglePlayPause, onExpand, onSelect, onSkipNext, badges) }
+    ) { state ->
+        DockFor(
+            state,
+            starting,
+            selected,
+            onTogglePlayPause,
+            onExpand,
+            onSelect,
+            onSkipNext,
+            badges,
+            remote?.let { shown ->
+                {
+                    TargetNowPlayingBar(
+                        container.targets,
+                        shown,
+                        onOpen = {
+                            Diag.log("nav", "tab $selected -> Queue: the ${shown.state.target.label} bar was tapped")
+                            onSelect(TopLevelDestination.Queue)
+                        },
+                    )
+                }
+            },
+        )
+    }
 }
 
 @Suppress("LongParameterList")
@@ -299,6 +325,7 @@ private fun DockFor(
     onSelect: (TopLevelDestination) -> Unit,
     onSkipNext: () -> Unit,
     badges: Map<TopLevelDestination, Int>,
+    remoteBar: (@Composable () -> Unit)?,
 ) {
     Dock(
         state = state,
@@ -314,6 +341,7 @@ private fun DockFor(
         onExpand = onExpand,
         onSkipNext = onSkipNext,
         badges = badges,
+        remoteBar = remoteBar,
     )
 }
 
