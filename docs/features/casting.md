@@ -143,6 +143,7 @@ manifest and the VP9 video's init and index and then nothing; audio-only casts w
 
 - **H.264 first for a model `CastScreen.of` does not recognise** (`CastScreen.order`; the LG, the Ultra and a PC screen keep VP9
   or AV1 first). The phone's own ladder while casting follows the same order.
+- **The cast ladder holds both codecs** (`VideoQuality.alternates`): without it the codec step had no other rung to move to.
 - **Start watchdog.** The TV has fetched the picture and asked for no sound in 8 s (`TvStartWatch`): the item is re-sent at its
   place with the next codec (`CastStreamServer.stepDownCodec`, `CastStepDownWatch.tvDidNotStart`), at most twice, never when
   no other codec is offered. The strip says "📺 <TV> didn't start VP9, trying H.264". The refusal is held for the cast, and

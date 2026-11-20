@@ -29,6 +29,10 @@ shown. `model` makes Totum judge formats as that Cast device (`"Google Nest Mini
 `model=none` through `adb shell am broadcast -a com.dewijones92.totum.DEBUG_CAST_SERVE -p com.dewijones92.totum --es
 model none` clears it. Needs Node and `playwright-core` in `C:\edge-cdp` (see the WslEdgeDriver rig).
 
+`am broadcast -a com.dewijones92.totum.DEBUG_CAST_SCREEN -p com.dewijones92.totum --es model "'Chromecast'"` (or `none`) makes the app
+treat the cast target as that model, so the move-to-the-TV replay builds the ladder for it (wait for `replay for the TV=` in the log,
+then start the stand-in); without it the stand-in judges formats as the model but the item's own ladder is the phone's.
+
 It covers the receiving side: manifest, segments, seeks, start time, subtitles, sound only. It cannot cover the Cast
 session (queue moves, the TV remote, ends): Android checks a Cast device's Google-signed certificate, so nothing
 here can pose as one.

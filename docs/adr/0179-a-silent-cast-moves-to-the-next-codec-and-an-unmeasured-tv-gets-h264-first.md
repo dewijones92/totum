@@ -49,6 +49,12 @@ Dewi's reports of 14 to 17 November (v0.1.927):
   strip says "📺 <TV> didn't start VP9, trying H.264" (`CastCodecStep`, carried in the session extras next to
   `castDroppedFrom`). At most twice per item; never when no other codec is offered or every codec the model is thought to
   take has been tried (so two refusals cannot ping-pong); never where nothing can re-send (the Pi).
+- **The ladder carries the other codecs.** The quality ladder holds one entry per height, chosen by the screen's codec preference,
+  so the cast service was only ever offered one codec per height and the step above would have found nothing to step to (seen on
+  the emulator: "the offered pictures hold no other codec it can show"). `VideoQuality` now carries `alternates`, the same height in
+  each other decodable codec family built by the same sound and durability rules, and `castLadder()` offers them too. Nothing else
+  reads them: the quality menu, downloads and the phone's own pick see the primary, unchanged; the cast's one probe still reads
+  only the best rung.
 - **The refusal is remembered per model, but only once it is believed.** `CodecRefusals` holds a refusal as *tentative*
   for the rest of the cast; it becomes *confirmed*, and is saved (`PrefsRefusalStore`), only when the TV then asks for
   sound from the session sent with the other codec. A slow Wi-Fi that tripped the watchdog once therefore does not take a
@@ -93,6 +99,15 @@ Dewi's reports of 14 to 17 November (v0.1.927):
   the start watch is not armed.
 - The controller-side no-tracks check cannot tell a file with no tracks that plays silently from a file the controller
   merely cannot see tracks for; both are now treated as playing. The service-side track log is there to tell them apart.
+
+## Seen on the emulator (2026-11-20, `totum-api35`, the Shaka stand-in)
+
+With `DEBUG_CAST_SCREEN` making the app treat the target as "Chromecast" (so the move-to-the-TV replay builds the ladder for it): the
+manifest carried `avc1.640028` 1080p and Shaka loaded and played it (`tools/cast-bench/standin/standin.sh start,wait:4 Chromecast`),
+where the unchanged path serves `vp09.00.41.08`; as "Chromecast Ultra" it is still VP9. A client that fetched the video's init and
+index and then nothing was caught by the watch after 8000 ms in the real service (`the TV fetched the picture 8000ms ago and has asked
+for no sound since`), with the begun lines, the receiver-less status lines and the codec decision logged. The re-send itself needs a
+Cast session and was not seen (no real Cast device can be posed as one, see `tools/cast-bench/README.md`).
 
 ## Not verified
 

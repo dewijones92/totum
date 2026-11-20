@@ -13,6 +13,8 @@ nothing. Audio-only casts work. Decision, reuse and consequences: [ADR 179](../a
 - Built: H.264 first for an unrecognised model; the 8 s start watchdog and the codec step-down; the refusal remembered per model once
   the other codec plays; the receiver's status and errors logged; begun and in-flight relay requests logged; the route-selected
   watch with Retry; `NoTracksWatch` quiet while playing; a DNS failure waits for the network.
+- Found while checking on the emulator: the ladder held one codec per height, so the codec step had nothing to step to; fixed with
+  `VideoQuality.alternates`.
 - **Reused:** `CastStepDownWatch`'s re-send (now `resend`), `CastTvPort`/`TvVideos`/`CastStatus`' extras for the strip line,
   `CastReach`'s timer (`castLater` is its old private one, moved), `CastRungs`/`CastLadder` for choosing the next rung,
   `SnackbarOffers` for the Retry, `NetworkStatus.awaitOnline` for the wait.
