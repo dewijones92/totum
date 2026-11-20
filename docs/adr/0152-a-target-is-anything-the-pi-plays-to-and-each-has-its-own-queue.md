@@ -2,14 +2,16 @@
 title: A target is anything the Pi plays to, and each has its own queue
 kind: adr
 status: accepted
-updated: 2026-11-07
+updated: 2026-11-20
 ---
 
 # 152. A target is anything the Pi plays to, and each has its own queue
 
 - Status: Accepted
 - Date: 2026-11-07
-- Amended by: [ADR 169](0169-play-on-is-a-choice-that-remembers-the-last-device.md) (the choice of device outlives the Queue tab)
+- Amended by: [ADR 169](0169-play-on-is-a-choice-that-remembers-the-last-device.md) (the choice of device outlives the Queue tab),
+  [ADR 180](0180-the-selected-device-owns-the-dock-bar-and-the-remote-page-is-a-card-over-its-list.md) (the selected device's bar is on every
+  tab, the remote page is a compact card over one list, colour moves to a chip long-press, and a Chromecast is 📽️)
 - Amends: [ADR 116](0116-speaker-queues-play-on-the-pi.md) (a speaker becomes one kind of target; `/speakers` becomes
   `/targets`)
 

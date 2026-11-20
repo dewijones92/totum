@@ -4,7 +4,7 @@ kind: todo
 status: built 2026-11-07, Batch A (tests written 2026-11-07; device checks owed)
 batch: A (2026-11), phase 7
 priority: high
-updated: 2026-11-13
+updated: 2026-11-20
 ---
 
 # 📡 The Pi plays to any TV, browser or speaker; the phone is a remote
@@ -36,7 +36,9 @@ Extends ADR 116's speaker decisions ("a thin layer … just like a different que
 - **A colour per target**: phone tangerine as today; every other device gets its own colour automatically, editable
   in that device's menu; used on its chip, queue header, mini-player pill and notification.
 - **Play / Queue / Shuffle all go to the target being looked at**; a long press picks another.
-- **Mini player**: the phone's item plus one pill per other target ("📺 Bluey · 🔈 Vivaldi"); a tap opens that queue.
+- **Mini player**: the phone's item plus one pill per other target ("📺 Bluey · 🔈 Vivaldi"); a tap opens that queue. (Built differently on
+  2026-11-20, [ADR 180](../adr/0180-the-selected-device-owns-the-dock-bar-and-the-remote-page-is-a-card-over-its-list.md): the chosen device's own
+  bar replaces the phone's on every tab; no pills.)
   **Notifications**: one per active target, each with its own controls.
 - **"Send to TV" from what the phone plays** moves that item plus the rest of its group, and the phone pauses.
 

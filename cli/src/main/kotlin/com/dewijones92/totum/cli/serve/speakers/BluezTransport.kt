@@ -41,7 +41,7 @@ internal class BluezTransport(private val mac: String, private val shell: Shell)
             val ours = lines.filter { it.contains(device, ignoreCase = true) }
             noTransport.log(
                 mac,
-                "dewidebug $mac: no A2DP transport among ${lines.size} bus object(s); the device's own: " +
+                "$mac: no A2DP transport among ${lines.size} bus object(s); the device's own: " +
                     ours.joinToString(" | ").ifEmpty { "none" }
             )
         }

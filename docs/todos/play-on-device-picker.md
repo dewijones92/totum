@@ -4,7 +4,7 @@ kind: todo
 status: built 2026-11-13 (unit tests green; instrumented tests written and compiled; nothing run on a real TV, soundbar or the Soundmic)
 batch: B (2026-11), P4
 priority: high
-updated: 2026-11-14
+updated: 2026-11-20
 ---
 
 > **Follow-ups done 2026-11-13 ([ADR 170](../adr/0170-a-browser-is-a-target-the-pi-plays-to-found-by-opening-its-address.md)):** a device
@@ -47,5 +47,6 @@ Decision and design: [ADR 169](../adr/0169-play-on-is-a-choice-that-remembers-th
   Needs Dewi's call on a tighter signal (the Pi's LAN address from the phone, or a Wi-Fi name).
 - Device checks owed: LG TV woken from the picker and from a play with the picker untouched; the LG soundbar linked by a
   play; the Soundmic message with it off; the colour badge on a row playing on the TV.
-- Not built: a notification or pill per device; the mini and full player showing a remote device's item (ADR 152's open
-  item); Peek on a device (an exception, ADR 108).
+- Not built: a notification or pill per device (lock-screen controls: [target-bar-everywhere](target-bar-everywhere.md)); the full player
+  showing a remote device's item; Peek on a device (an exception, ADR 108). The mini player became the chosen device's bar on 2026-11-20
+  ([ADR 180](../adr/0180-the-selected-device-owns-the-dock-bar-and-the-remote-page-is-a-card-over-its-list.md)).

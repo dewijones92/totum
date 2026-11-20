@@ -46,6 +46,7 @@ fun Dock(
     onSkipNext: () -> Unit,
     modifier: Modifier = Modifier,
     badges: Map<TopLevelDestination, Int> = emptyMap(),
+    remoteBar: (@Composable () -> Unit)? = null,
 ) {
     CountRecompositions("dock")
     Surface(
@@ -59,25 +60,29 @@ fun Dock(
             .fillMaxWidth(),
     ) {
         Column {
-            if (state == null && starting != null) {
-                StartingBar(starting)
-                HorizontalDivider(
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = DOCK_BORDER_ALPHA),
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                )
-            }
-            state?.let {
-                MiniPlayerBar(
-                    state = it,
-                    starting = starting,
-                    onTogglePlayPause = onTogglePlayPause,
-                    onExpand = onExpand,
-                    onSkipNext = onSkipNext,
-                )
-                HorizontalDivider(
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = DOCK_BORDER_ALPHA),
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                )
+            if (remoteBar != null) {
+                remoteBar()
+            } else {
+                if (state == null && starting != null) {
+                    StartingBar(starting)
+                    HorizontalDivider(
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = DOCK_BORDER_ALPHA),
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                    )
+                }
+                state?.let {
+                    MiniPlayerBar(
+                        state = it,
+                        starting = starting,
+                        onTogglePlayPause = onTogglePlayPause,
+                        onExpand = onExpand,
+                        onSkipNext = onSkipNext,
+                    )
+                    HorizontalDivider(
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = DOCK_BORDER_ALPHA),
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                    )
+                }
             }
             DockNavigation(selected, onSelect, badges)
         }

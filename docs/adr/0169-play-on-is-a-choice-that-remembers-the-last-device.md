@@ -2,7 +2,7 @@
 title: Play on… is one choice that remembers the last device, offered everywhere, with home devices always listed
 kind: adr
 status: accepted
-updated: 2026-11-14
+updated: 2026-11-20
 ---
 
 # 169. Play on… is one choice that remembers the last device, offered everywhere, with home devices always listed
@@ -12,6 +12,8 @@ updated: 2026-11-14
 - Amended by: [ADR 170](0170-a-browser-is-a-target-the-pi-plays-to-found-by-opening-its-address.md) (the Browser target slots in
   as this ADR said it would; a device switched on by hand is worded as such; one rule for a device's colour)
 - Amended 2026-11-14: one picker per screen (the last section below)
+- Amended by: [ADR 180](0180-the-selected-device-owns-the-dock-bar-and-the-remote-page-is-a-card-over-its-list.md) (the mini player is the selected
+  device's bar while it has something to show; the picker's chip carries its connection dot)
 - Amends: [ADR 152](0152-a-target-is-anything-the-pi-plays-to-and-each-has-its-own-queue.md) (the choice of device no
   longer ends with the Queue tab; "looking at a target" and "where plays go" become one remembered choice)
 
@@ -78,7 +80,9 @@ lists every configured TV, Chromecast and paired Bluetooth speaker whether it is
   (every 2 s on the Queue tab as before), so rows can show it.
 - **Not built, and why.** The phone's media notification stays the phone's (it is the phone's own media session; a
   per-device notification or pill is the mini-player-per-target item ADR 152 left open). The mini player and full player
-  show the phone's item, not a remote device's; a remote item's colour is on its row and in the Queue tab. **Peek**
+  show the phone's item, not a remote device's; a remote item's colour is on its row and in the Queue tab. **Superseded in part by
+  [ADR 180](0180-the-selected-device-owns-the-dock-bar-and-the-remote-page-is-a-card-over-its-list.md): while the chosen device has something
+  to show, the dock's bar is that device's (the full player stays the phone's).** **Peek**
   (play without touching the queue, opening the phone's player) stays on the phone, like the Shorts reel
   ([ADR 108](0108-consistent-everywhere-and-its-recorded-exceptions.md)).
 

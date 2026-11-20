@@ -21,7 +21,7 @@ public enum class TargetKind(
     PHONE(true, "📱 Phone", reachableAway = true),
     SPEAKER(false, "🔈 Speaker"),
     TV(true, "📺 TV"),
-    CHROMECAST(true, "📺 Chromecast"),
+    CHROMECAST(true, "📽️ Chromecast"),
     BROWSER(true, "🖥️ Browser"),
 }
 

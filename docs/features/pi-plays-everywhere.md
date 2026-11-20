@@ -13,6 +13,19 @@ The Pi holds one queue per target and plays it; the phone shows and controls tho
 colours, who reports to YouTube) and [ADR 153](../adr/0153-the-pi-runs-the-phones-sound-processing.md) (the phone's own
 sound processing on the Pi). Brief: [pi-plays-everywhere.md](../todos/pi-plays-everywhere.md).
 
+## The selected device's bar and the remote page (ADR 180, 2026-11-20)
+
+- **A bar for the chosen device on every tab.** While the device picked in Play on… has something to show, the dock's bar is that device's,
+  not the phone's mini player: its art, `📺 LG TV · ▶️ Playing`, the title, back 10, a filled play/pause, forward 30 and skip, tinted and
+  bordered in the device's colour. A tap opens its remote page. An idle chosen device leaves the phone's own bar alone.
+- **The remote page is one scrolling list.** A compact card first (a heading that names the link state, the title, a seek bar with elapsed
+  and total at its ends, previous, back 10, play/pause, forward 30, next, volume with its owner and an info tap for the reason; Stop is an
+  icon at the heading's end), then a "⚙️ Controls" row (Repeat, Sleep, Skip silences, Boost, Colour, all the player's own tiles), then
+  "📋 Up next on LG TV · 54" and the queue.
+- **Chips carry a connection dot** (linked, ready, waking, reconnecting, asleep, problem), hint at more chips off the edge, wear a glyph
+  per kind (📱 🔈 📺 📽️ 🖥️), and a long-press opens the colour choices (48 dp swatches).
+- Not built: lock-screen and notification controls for a device ([todo](../todos/target-bar-everywhere.md)).
+
 ## What it does
 
 - **Queue tab, chips on top.** 📱 This phone, then a chip for each target that has a queue (coloured, with its kind's

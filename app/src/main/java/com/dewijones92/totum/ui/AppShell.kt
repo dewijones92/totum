@@ -49,6 +49,8 @@ import com.dewijones92.totum.ui.common.MusicPage
 import com.dewijones92.totum.ui.common.ProvidePlayStates
 import com.dewijones92.totum.ui.common.RequestNotificationPermissionOnce
 import com.dewijones92.totum.ui.common.ShellBanners
+import com.dewijones92.totum.ui.queue.rememberSelectedRemote
+import com.dewijones92.totum.ui.queue.TargetNowPlayingBar
 import com.dewijones92.totum.ui.common.SteadyPlayback
 import com.dewijones92.totum.ui.common.rememberSnackbarOffers
 import com.dewijones92.totum.ui.library.LibraryScreen
@@ -269,9 +271,33 @@ private fun BottomBar(
         mapOf(TopLevelDestination.Library to fresh, TopLevelDestination.Podcasts to newEpisodes),
         selected,
     )
+    val remote = rememberSelectedRemote(container.targets)
     SteadyPlayback(
         container.playbackController
-    ) { state -> DockFor(state, starting, selected, onTogglePlayPause, onExpand, onSelect, onSkipNext, badges) }
+    ) { state ->
+        DockFor(
+            state,
+            starting,
+            selected,
+            onTogglePlayPause,
+            onExpand,
+            onSelect,
+            onSkipNext,
+            badges,
+            remote?.let { shown ->
+                {
+                    TargetNowPlayingBar(
+                        container.targets,
+                        shown,
+                        onOpen = {
+                            Diag.log("nav", "tab $selected -> Queue: the ${shown.state.target.label} bar was tapped")
+                            onSelect(TopLevelDestination.Queue)
+                        },
+                    )
+                }
+            },
+        )
+    }
 }
 
 @Suppress("LongParameterList")
@@ -285,6 +311,7 @@ private fun DockFor(
     onSelect: (TopLevelDestination) -> Unit,
     onSkipNext: () -> Unit,
     badges: Map<TopLevelDestination, Int>,
+    remoteBar: (@Composable () -> Unit)?,
 ) {
     Dock(
         state = state,
@@ -300,6 +327,7 @@ private fun DockFor(
         onExpand = onExpand,
         onSkipNext = onSkipNext,
         badges = badges,
+        remoteBar = remoteBar,
     )
 }
 

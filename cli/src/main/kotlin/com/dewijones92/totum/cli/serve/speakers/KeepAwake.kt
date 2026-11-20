@@ -177,7 +177,7 @@ internal class KeepAwakeKeeper(
                     hostDownSince = now
                     Diag.log(
                         "speakers",
-                        "$id: dewidebug the speaker answers \"Host is down\" (switched off or out of range), so " +
+                        "$id: the speaker answers \"Host is down\" (switched off or out of range), so " +
                             "reconnects back off to at most ${hostDownMaxMs / MS_PER_MIN} min; first retry in " +
                             "${reconnectWaitMs / MS_PER_MIN} min, and the wait resets when it is seen again"
                     )
@@ -192,8 +192,9 @@ internal class KeepAwakeKeeper(
         hostDownSince = null
         Diag.log(
             "speakers",
-            "$id: dewidebug the speaker is back after ${(now - since) / MS_PER_MIN} min of \"Host is down\" " +
-                "($hostDownFailures failed reconnect(s)); the reconnect wait is back to ${reconnectEveryMs / MS_PER_MIN} min"
+            "$id: the speaker is back after ${(now - since) / MS_PER_MIN} min of \"Host is down\" " +
+                "($hostDownFailures failed reconnect(s)); the reconnect wait is back to " +
+                "${reconnectEveryMs / MS_PER_MIN} min"
         )
         hostDownFailures = 0
     }
