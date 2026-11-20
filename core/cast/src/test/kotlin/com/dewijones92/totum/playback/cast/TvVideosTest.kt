@@ -1,6 +1,8 @@
 package com.dewijones92.totum.playback.cast
 
 import com.dewijones92.totum.domain.QualityLabel
+import com.dewijones92.totum.domain.VideoCodecFamily
+import com.dewijones92.totum.playback.CastCodecStep
 import com.dewijones92.totum.playback.CastProblem
 import com.dewijones92.totum.playback.CastStage
 import org.junit.Assert.assertEquals
@@ -25,6 +27,12 @@ class TvVideosTest {
             droppedFrom: Map<String, Int>,
         ) {
             published += Published(refused, sent, fetchingHeights, droppedFrom)
+        }
+
+        val codecSteps = mutableListOf<Map<String, CastCodecStep>>()
+
+        override fun codecSteps(steps: Map<String, CastCodecStep>) {
+            codecSteps += steps
         }
 
         override fun problem(now: CastProblem?) = Unit
@@ -116,5 +124,26 @@ class TvVideosTest {
         val last = tv.published.last()
         assertEquals(emptyMap<String, QualityLabel>(), last.sent)
         assertEquals(emptyMap<String, String>(), last.refused)
+    }
+
+    @Test
+    fun `a codec step is published, and forgotten with the item`() {
+        val step = CastCodecStep(VideoCodecFamily.VP9, VideoCodecFamily.AVC)
+
+        videos.codecStepped("a", step)
+        assertEquals(mapOf("a" to step), tv.codecSteps.last())
+
+        videos.forget("a")
+        assertEquals(emptyMap<String, CastCodecStep>(), tv.codecSteps.last())
+    }
+
+    @Test
+    fun `a codec step names what was refused and what comes next, and survives the extras bundle`() {
+        val step = CastCodecStep(VideoCodecFamily.VP9, VideoCodecFamily.AVC)
+
+        assertEquals(step, CastCodecStep.decode(step.encode()))
+        assertEquals(CastCodecStep(VideoCodecFamily.VP9, null), CastCodecStep.decode("VP9>"))
+        assertEquals(null, CastCodecStep.decode("nonsense"))
+        assertEquals(null, CastCodecStep.decode(null))
     }
 }

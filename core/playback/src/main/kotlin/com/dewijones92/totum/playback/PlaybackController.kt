@@ -274,6 +274,7 @@ public data class PlaybackState(
     val castVideoHeight: Int? = null,
     val castVideoCodec: VideoCodecFamily? = null,
     val castDroppedFrom: Int? = null,
+    val castCodecStep: CastCodecStep? = null,
     val castFetchHeight: Int? = null,
     val castProblem: CastProblem? = null,
     val castFailure: String? = null,

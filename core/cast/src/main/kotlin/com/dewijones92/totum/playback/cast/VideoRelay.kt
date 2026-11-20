@@ -217,6 +217,8 @@ public class VideoRelay(
 
     public fun heldBytes(): Long = synchronized(lock) { prefetches.sumOf { it.bytes } }
 
+    public fun noteInFlight(): Boolean = log.noteInFlight()
+
     override fun close() {
         synchronized(lock) {
             prefetches.forEach { it.result.cancel(true) }

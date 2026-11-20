@@ -1,6 +1,7 @@
 package com.dewijones92.totum.playback.cast
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -8,8 +9,9 @@ class RelayLogTest {
 
     private var clock = 1_000_000L
     private val lines = mutableListOf<String>()
+    private val begun = mutableListOf<String>()
 
-    private fun log() = RelayLog("t", { clock }, { lines += it })
+    private fun log() = RelayLog("t", { clock }, { (if ("begun #" in it) begun else lines) += it })
 
     private fun RelayLog.request(
         bytes: Long = 4_000_000,
@@ -95,5 +97,51 @@ class RelayLogTest {
         r.done(10, aborted = false)
 
         assertEquals(1, lines.size)
+    }
+
+    @Test
+    fun `a request is said to have begun before it finishes, for the first three`() {
+        val l = log()
+
+        val first = l.begin("bytes=0-219")
+        repeat(5) { l.begin("bytes=$it-${it + 9}") }
+
+        assertEquals(3, begun.size)
+        assertEquals("t video request begun #1 range=bytes=0-219 (1 in flight)", begun[0])
+        assertTrue(begun[2], begun[2].contains("(3 in flight)"))
+        assertTrue(lines.toString(), lines.isEmpty())
+        first.done(0, aborted = true)
+    }
+
+    @Test
+    fun `a request that never finishes is still visible as in flight`() {
+        val l = log()
+        l.begin("bytes=0-219")
+        clock += 12_000
+
+        val said = l.noteInFlight()
+
+        assertTrue(said)
+        val line = lines.single()
+        assertTrue(line, line.contains("1 request(s) still in flight, the oldest for 12000ms (range=bytes=0-219)"))
+        assertEquals(1, l.inFlightNow())
+    }
+
+    @Test
+    fun `nothing is said when nothing is in flight`() {
+        val l = log()
+        l.request()
+
+        assertFalse(l.noteInFlight())
+        assertEquals(0, l.inFlightNow())
+    }
+
+    @Test
+    fun `a finished request is no longer in flight`() {
+        val l = log()
+        val r = l.begin("bytes=0-9")
+        r.done(10, aborted = false)
+
+        assertFalse(l.noteInFlight())
     }
 }

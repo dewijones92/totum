@@ -185,7 +185,8 @@ class VideoPlaybackLauncher(
     }
 
     private fun VideoResolver.Resolved.castLadder(): List<VideoRung> =
-        qualities.filter { it.audioUrl != null }.map { VideoRung(it.videoUrl, it.height, it.codec) }
+        qualities.flatMap { listOf(it) + it.alternates }.filter { it.audioUrl != null }
+            .map { VideoRung(it.videoUrl, it.height, it.codec) }
 
     private fun switchState(picture: Picture, listening: Boolean) =
         QualityState(canListen = picture == Picture.YES, listening = listening && picture != Picture.NO)

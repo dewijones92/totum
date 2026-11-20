@@ -1234,6 +1234,10 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             lookupStore = FileLookupStore(File(context.cacheDir, "lookups")),
             streamStatus = StreamStatus(httpClient)::of,
             liveStates = liveStates,
+            online = networkStatus::isOnline,
+            awaitOnline = { timeoutMs ->
+                kotlinx.coroutines.withTimeoutOrNull(timeoutMs) { networkStatus.awaitOnline() } != null
+            },
         )
     }
 

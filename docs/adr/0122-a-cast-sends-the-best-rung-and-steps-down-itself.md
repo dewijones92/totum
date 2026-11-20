@@ -2,12 +2,14 @@
 title: A cast sends the best picture the target can show, and steps down itself
 kind: adr
 status: accepted
-updated: 2026-11-06
+updated: 2026-11-20
 ---
 
 # 122. A cast sends the best picture the target can show, and steps down itself
 
-- Status: Accepted (amends [ADR 68](0068-cast-a-stream-the-phone-serves.md), which offered a ladder of up to three rungs)
+- Status: Accepted (amends [ADR 68](0068-cast-a-stream-the-phone-serves.md), which offered a ladder of up to three rungs;
+  amended by [ADR 179](0179-a-silent-cast-moves-to-the-next-codec-and-an-unmeasured-tv-gets-h264-first.md): an unrecognised model prefers H.264 to VP9 at the same height, and a TV that fetches the picture
+  and goes quiet is stepped to the next codec as well as to a lower height)
 - Date: 2026-11-06
 
 ## Context
@@ -25,7 +27,7 @@ the receiver's own adaptation cannot be relied on.
   height only when a codec was unknown) and keeps the first the target can really show. Fewer probes than the ladder
   needed (it read up to six). When no offered rung is readable the phone's own flowing URL is probed as before; the
   rung's URL, not the phone's, is what the manifest relays.
-- **`CastScreen` is the target profile.** It gains per-codec maximum heights (`codecHeights`) and one ranking
+- **`CastScreen` is the target profile** (its codec `order` is VP9 first for a measured TV, H.264 first for an unrecognised model, ADR 179). It gains per-codec maximum heights (`codecHeights`) and one ranking
   (`preference`). The LG (webOS, OLED/QNED/NANO 2020 on): VP9 and HEVC to 2160p, H.264 to 1080p only, never AV1; the
   Chromecast Ultra as measured in ADR 68: VP9, HEVC and H.264 to 1080p, no AV1. A PC screen reports its own: the page
   asks `MediaCapabilities.decodingInfo` for each codec at 2160, 1440, 1080 and 720 and says `VP9:2160+AV1:2160+AVC:1080`

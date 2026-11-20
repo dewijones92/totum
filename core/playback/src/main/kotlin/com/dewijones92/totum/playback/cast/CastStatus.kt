@@ -6,6 +6,7 @@ import android.os.Looper
 import androidx.media3.session.MediaSession
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.domain.QualityLabel
+import com.dewijones92.totum.playback.CastCodecStep
 import com.dewijones92.totum.playback.CastProblem
 import com.dewijones92.totum.playback.CastStage
 
@@ -19,6 +20,7 @@ internal class CastStatus(private val session: () -> MediaSession?) : CastTvPort
     private var sent: Map<String, QualityLabel> = emptyMap()
     private var fetchingHeights: Map<String, Int> = emptyMap()
     private var droppedFrom: Map<String, Int> = emptyMap()
+    private var codecSteps: Map<String, CastCodecStep> = emptyMap()
     private var problem: CastProblem? = null
     private var failure: Pair<String, String>? = null
     private var stage: Triple<String, CastStage, Int?>? = null
@@ -38,6 +40,14 @@ internal class CastStatus(private val session: () -> MediaSession?) : CastTvPort
             this.sent = sent
             this.fetchingHeights = fetchingHeights
             this.droppedFrom = droppedFrom
+            publish()
+        }
+    }
+
+    override fun codecSteps(steps: Map<String, CastCodecStep>) {
+        main.post {
+            if (codecSteps == steps) return@post
+            codecSteps = steps
             publish()
         }
     }
@@ -93,6 +103,7 @@ internal class CastStatus(private val session: () -> MediaSession?) : CastTvPort
             sent = emptyMap()
             fetchingHeights = emptyMap()
             droppedFrom = emptyMap()
+            codecSteps = emptyMap()
             problem = null
             failure = null
             stage = null
@@ -126,6 +137,10 @@ internal class CastStatus(private val session: () -> MediaSession?) : CastTvPort
         putBundle(EXTRA_CAST_SENT_HEIGHT, Bundle().apply { sent.forEach { (id, label) -> putInt(id, label.height) } })
         putBundle(EXTRA_CAST_SENT_CODEC, Bundle().apply { sent.forEach { (id, label) -> putFamily(id, label) } })
         putBundle(EXTRA_CAST_DROPPED_FROM, Bundle().apply { droppedFrom.forEach(::putInt) })
+        putBundle(
+            EXTRA_CAST_CODEC_STEP,
+            Bundle().apply { codecSteps.forEach { (id, step) -> putString(id, step.encode()) } }
+        )
     }
 
     private fun Bundle.putFamily(id: String, label: QualityLabel) {
@@ -138,6 +153,7 @@ internal class CastStatus(private val session: () -> MediaSession?) : CastTvPort
         const val EXTRA_CAST_SENT_HEIGHT: String = "cast_sent_height"
         const val EXTRA_CAST_SENT_CODEC: String = "cast_sent_codec"
         const val EXTRA_CAST_DROPPED_FROM: String = "cast_dropped_from"
+        const val EXTRA_CAST_CODEC_STEP: String = "cast_codec_step"
         const val EXTRA_CAST_PROBLEM: String = "cast_problem"
         const val EXTRA_CAST_FAILED_ITEM: String = "cast_failed_item"
         const val EXTRA_CAST_FAILED_REASON: String = "cast_failed_reason"

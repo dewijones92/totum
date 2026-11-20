@@ -18,6 +18,7 @@ import com.dewijones92.totum.domain.SkipSegment
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.titleIsKnown
 import com.dewijones92.totum.innertube.player.LiveCheck
+import com.dewijones92.totum.innertube.player.NetworkUnreachable
 import com.dewijones92.totum.innertube.player.PlayerDetails
 import com.dewijones92.totum.innertube.player.UpcomingLive
 import com.dewijones92.totum.innertube.player.chaptersFromDescription
@@ -83,7 +84,11 @@ class VideoResolver(
     private val lookupStore: LookupStore? = null,
     private val streamStatus: suspend (HttpUrl) -> Int? = { null },
     private val liveStates: LiveStates? = null,
+    online: () -> Boolean = { true },
+    awaitOnline: suspend (timeoutMs: Long) -> Boolean = { true },
 ) {
+    private val network = ResolveNetwork(online, awaitOnline, now)
+
     /**
      * The most recently resolved video, reused until it goes stale.
      *
@@ -259,6 +264,15 @@ class VideoResolver(
         }
         fromStore(watchUrl, asked)?.takeIf { titleKnown || it.item.titleIsKnown }?.let { return it }
         val startedAt = now()
+        val id = watchUrl.youTubeVideoId() ?: watchUrl.value.takeLast(ID_CHARS)
+        if (!network.isOnline() && !network.waitFor(id, asked, "the phone is offline")) {
+            Diag.warn(
+                "resolve",
+                "$id ($asked): still offline, so neither YouTube nor yt-dlp was asked; " +
+                    "that says nothing about the video",
+            )
+            return null
+        }
         overSabr(watchUrl, sourceId, asked, startedAt)?.let { return it }
         // Signed in, the account answers first (ADR 50). Otherwise extraction, with the anonymous player
         // response only as a fallback. Asking YouTube first was
@@ -275,8 +289,16 @@ class VideoResolver(
         // kept and still earns its place — [fromDirectStreams] is what finally made
         // age-restricted videos play, via the recovery path below.
         val request = PlayerRequest(watchUrl.youTubeVideoId().orEmpty(), sourceId, watchUrl, asked, startedAt)
-        return bySignedInFirst(request, titleKnown)
-            ?: byExtraction(watchUrl, sourceId, asked, startedAt)
+        val signedIn = try {
+            bySignedInFirst(request, titleKnown)
+        } catch (unreachable: NetworkUnreachable) {
+            val retry = network.askAgain(request.id, asked, unreachable) { bySignedInFirst(request, titleKnown) }
+            when (retry) {
+                is ResolveNetwork.Retry.GaveUp -> return null
+                is ResolveNetwork.Retry.Answer -> retry.value
+            }
+        }
+        return signedIn ?: byExtraction(watchUrl, sourceId, asked, startedAt)
     }
 
     private suspend fun bySignedInFirst(request: PlayerRequest, titleKnown: Boolean): Resolved? {
@@ -284,6 +306,7 @@ class VideoResolver(
         val asked = request.asked
         val fast = playerStreams ?: return null
         val response = runCatching { fast.signedInFor(id, describe = !titleKnown) }.getOrElse { failure ->
+            if (failure is NetworkUnreachable) throw failure
             Diag.warn("resolve", "$id: the signed-in ask threw; trying yt-dlp", failure)
             null
         } ?: return null
@@ -335,6 +358,7 @@ class VideoResolver(
                 extractionSaidAgeRestricted = extraction.toString().contains("confirm your age", true),
                 extractionSaidBotCheck = extraction.toString().contains("not a bot", true) ||
                     extraction.toString().contains("bot check", true),
+                extractionSaidNetwork = (extraction as? ExtractionResult.Failure.Network)?.detail,
             )
         }
         val wanted = wantedAudio(chosen = null)
@@ -544,6 +568,7 @@ class VideoResolver(
         startedAt: Long,
         extractionSaidAgeRestricted: Boolean,
         extractionSaidBotCheck: Boolean = false,
+        extractionSaidNetwork: String? = null,
     ): Resolved? {
         val id = watchUrl.youTubeVideoId() ?: return null
         val fast = playerStreams ?: return null
@@ -555,7 +580,9 @@ class VideoResolver(
             // were refused, so age restriction is a wall rather than a missing credential.
             // Saying "unavailable" for something YouTube plays perfectly well in a browser
             // invites another day of chasing it.
-            val why = if (extractionSaidBotCheck) {
+            val why = if (extractionSaidNetwork != null) {
+                "the network failed during extraction ($extractionSaidNetwork), which says nothing about the video"
+            } else if (extractionSaidBotCheck) {
                 "refused by YouTube's bot check, and the signed-in route gave nothing (signed out?)"
             } else if (extractionSaidAgeRestricted) {
                 "age-restricted — YouTube refuses it to this app even signed in"

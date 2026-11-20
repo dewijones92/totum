@@ -4,6 +4,7 @@ import com.dewijones92.totum.common.AudioTrackTag
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.common.audioLanguagePreference
 import com.dewijones92.totum.domain.QualityLabel
+import com.dewijones92.totum.domain.VideoCodecFamily
 import com.dewijones92.totum.ytdlp.MediaFormat
 import com.dewijones92.totum.ytdlp.MediaMetadata
 import com.dewijones92.totum.ytdlp.audioTag
@@ -34,6 +35,7 @@ public data class VideoQuality(
      * a muxed stream chosen by a different rule was what played, in German.
      */
     val audio: AudioTrackTag = AudioTrackTag.Unknown,
+    val alternates: List<VideoQuality> = emptyList(),
 )
 
 /**
@@ -85,6 +87,28 @@ public fun MediaMetadata.videoQualities(
         .map { it.audioTag }
         .maxWithOrNull(byAudio) ?: AudioTrackTag.Unknown
 
+    fun qualityOf(height: Int, decodable: List<MediaFormat>): VideoQuality? {
+        // Stable sort, so among equally-good sound the codec order the caller gave survives.
+        val muxed = decodable.filter { it.hasAudio }
+            .sortedWith(compareByDescending(byAudio) { it.audioTag })
+            .firstOrNull()
+        val videoOnly = decodable.firstOrNull { !it.hasAudio }
+        val muxedSoundsRight = muxed != null && byAudio.compare(muxed.audioTag, bestSound) >= 0
+        val mergeSoundsRight = bestAudio != null && byAudio.compare(bestAudio.audioTag, bestSound) >= 0
+        val merged = videoOnly?.takeIf { mergeSoundsRight }
+        return when {
+            muxedSoundsRight -> muxed!!.asQuality(height, audio = null)
+            merged != null -> merged.asQuality(height, bestAudio)
+            // Everything at this height speaks a language you did not ask for, and there is
+            // no video-only stream to pair with the audio you did. Dropping the height is
+            // right: **the ladder is the ladder for the track you are listening to.** It was
+            // offered anyway at first, and the auto-pick — which takes the tallest — went
+            // straight back to the German dub the fix was supposed to stop. Choose that
+            // track in the audio menu and its own heights appear.
+            else -> null
+        }
+    }
+
     return formats
         .filter { it.hasVideo && it.height != null && it.url != null }
         .filter { support.canDecode(it.videoCodec, it.width, it.height) }
@@ -100,25 +124,12 @@ public fun MediaMetadata.videoQualities(
                 compareByDescending<MediaFormat> { it.isDurable }
                     .thenBy { support.preference(it.videoCodec, it.width, it.height) },
             )
-            // Stable sort, so among equally-good sound the codec order above survives.
-            val muxed = decodable.filter { it.hasAudio }
-                .sortedWith(compareByDescending(byAudio) { it.audioTag })
-                .firstOrNull()
-            val videoOnly = decodable.firstOrNull { !it.hasAudio }
-            val muxedSoundsRight = muxed != null && byAudio.compare(muxed.audioTag, bestSound) >= 0
-            val mergeSoundsRight = bestAudio != null && byAudio.compare(bestAudio.audioTag, bestSound) >= 0
-            val merged = videoOnly?.takeIf { mergeSoundsRight }
-            when {
-                muxedSoundsRight -> muxed!!.asQuality(height, audio = null)
-                merged != null -> merged.asQuality(height, bestAudio)
-                // Everything at this height speaks a language you did not ask for, and there is
-                // no video-only stream to pair with the audio you did. Dropping the height is
-                // right: **the ladder is the ladder for the track you are listening to.** It was
-                // offered anyway at first, and the auto-pick — which takes the tallest — went
-                // straight back to the German dub the fix was supposed to stop. Choose that
-                // track in the audio menu and its own heights appear.
-                else -> null
-            }
+            val best = qualityOf(height, decodable) ?: return@mapNotNull null
+            val family = VideoCodecFamily.of(best.codec)
+            val others = decodable.filter { VideoCodecFamily.of(it.videoCodec) != family }
+                .groupBy { VideoCodecFamily.of(it.videoCodec) }.values
+                .mapNotNull { qualityOf(height, it) }
+            best.copy(alternates = others)
         }
         .sortedByDescending { it.height }
 }

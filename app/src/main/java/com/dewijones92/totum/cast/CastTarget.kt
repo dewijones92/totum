@@ -1,6 +1,7 @@
 package com.dewijones92.totum.cast
 
 import android.content.Context
+import androidx.mediarouter.media.MediaRouter
 import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.di.AppContainer
@@ -10,12 +11,16 @@ import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.QualityLabel
 import com.dewijones92.totum.operations.showingEach
 import com.dewijones92.totum.playback.PlaybackState
+import com.dewijones92.totum.playback.cast.PlayServices
+import com.dewijones92.totum.playback.cast.SessionStartWatch
 import com.dewijones92.totum.queue.playForAScreen
 import com.google.android.gms.cast.CastStatusCodes
 import com.google.android.gms.cast.framework.CastContext
 import com.google.android.gms.cast.framework.CastSession
 import com.google.android.gms.cast.framework.SessionManagerListener
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
@@ -38,10 +43,71 @@ object CastTarget {
 
     val screen: CastScreen? get() = current.value
 
+    data class SilentStart(val device: String, val routeId: String?)
+
+    private val silent = MutableSharedFlow<SilentStart>(extraBufferCapacity = 1)
+
+    val silentStarts: SharedFlow<SilentStart> = silent
+
+    @Volatile private var appContext: Context? = null
+
+    @Volatile private var lastRoute: MediaRouter.RouteInfo? = null
+
+    private val startWatch = SessionStartWatch { device, waitedMs -> nothingHappened(device, waitedMs) }
+
+    private val routes = object : MediaRouter.Callback() {
+        override fun onRouteSelected(
+            router: MediaRouter,
+            route: MediaRouter.RouteInfo,
+            reason: Int,
+        ) {
+            val context = appContext ?: return
+            val merged = runCatching { CastContext.getSharedInstance(context).mergedSelector }.getOrNull()
+            if (route.isDefault || merged == null || !route.matchesSelector(merged)) return
+            lastRoute = route
+            Diag.log(
+                "cast",
+                "dewidebug the cast route ${route.name} (${route.id}) was selected (reason $reason); " +
+                    "waiting ${SessionStartWatch.WAIT_MS}ms for the Cast framework to say anything about a session",
+            )
+            startWatch.routeSelected(route.name)
+        }
+    }
+
+    private fun nothingHappened(device: String, waitedMs: Long) {
+        val context = appContext
+        val castContext = context?.let { runCatching { CastContext.getSharedInstance(it) }.getOrNull() }
+        Diag.warn(
+            "cast",
+            "dewidebug the cast route $device was selected ${waitedMs}ms ago and the Cast framework has said nothing " +
+                "(no session starting, started or failed) [castState=${castContext?.castState ?: "no Cast context"} " +
+                "currentSession=${castContext?.sessionManager?.currentCastSession != null} " +
+                "${context?.let(PlayServices::describe) ?: "no context"}]",
+        )
+        Diag.saveTrail("cast-drop", "route $device selected, no session callback in ${waitedMs}ms")
+        silent.tryEmit(SilentStart(device, lastRoute?.id))
+    }
+
+    fun retry(context: Context, start: SilentStart) {
+        val router = MediaRouter.getInstance(context)
+        val route = router.routes.firstOrNull { it.id == start.routeId } ?: run {
+            Diag.warn("cast", "dewidebug retry: the route ${start.device} is not on offer any more")
+            return
+        }
+        Diag.log("cast", "dewidebug retry: selecting ${route.name} again (${route.id})")
+        router.unselect(MediaRouter.UNSELECT_REASON_STOPPED)
+        router.selectRoute(route)
+    }
+
     private val listener = object : SessionManagerListener<CastSession> {
-        override fun onSessionStarted(session: CastSession, sessionId: String) = casting(session, "started")
-        override fun onSessionResumed(session: CastSession, wasSuspended: Boolean) =
+        override fun onSessionStarted(session: CastSession, sessionId: String) {
+            startWatch.sessionCallback()
+            casting(session, "started")
+        }
+        override fun onSessionResumed(session: CastSession, wasSuspended: Boolean) {
+            startWatch.sessionCallback()
             casting(session, "resumed (was suspended=$wasSuspended)")
+        }
         override fun onSessionEnded(session: CastSession, error: Int) {
             val code = CastCodes.name(error)
             Diag.log("cast", "session ENDED on ${deviceOf(session)}: code $code")
@@ -53,9 +119,12 @@ object CastTarget {
             Diag.warn("cast", "session SUSPENDED on ${deviceOf(session)}: reason $why; the TV may still be playing")
             Diag.saveTrail("cast-drop", "session suspended, reason $why")
         }
-        override fun onSessionStarting(session: CastSession) =
+        override fun onSessionStarting(session: CastSession) {
+            startWatch.sessionCallback()
             Diag.log("cast", "session starting on ${deviceOf(session)}")
+        }
         override fun onSessionStartFailed(session: CastSession, error: Int) {
+            startWatch.sessionCallback()
             val code = CastCodes.name(error)
             Diag.warn("cast", "session START FAILED on ${deviceOf(session)}: code $code")
             Diag.saveTrail("cast-drop", "session failed to start with code $code")
@@ -63,9 +132,12 @@ object CastTarget {
         }
         override fun onSessionEnding(session: CastSession) =
             Diag.log("cast", "session ending on ${deviceOf(session)}: connected=${session.isConnected}")
-        override fun onSessionResuming(session: CastSession, sessionId: String) =
+        override fun onSessionResuming(session: CastSession, sessionId: String) {
+            startWatch.sessionCallback()
             Diag.log("cast", "session resuming on ${deviceOf(session)}")
+        }
         override fun onSessionResumeFailed(session: CastSession, error: Int) {
+            startWatch.sessionCallback()
             val code = CastCodes.name(error)
             Diag.warn("cast", "session RESUME FAILED on ${deviceOf(session)}: code $code")
             Diag.saveTrail("cast-drop", "session failed to resume with code $code")
@@ -73,15 +145,31 @@ object CastTarget {
         }
     }
 
+    fun pretendTo(screen: CastScreen?) {
+        Diag.log("cast", "dewidebug debug: the app now treats the cast target as ${screen?.label ?: "the phone"}")
+        current.value = screen
+        deviceName.value = screen?.let { "stand-in ${it.model}" }
+    }
+
     private fun deviceOf(session: CastSession): String =
         "${session.castDevice?.friendlyName ?: "an unknown device"} (${session.castDevice?.modelName ?: "?"})"
 
     fun watch(context: Context) {
+        appContext = context.applicationContext
         runCatching {
-            val sessions = CastContext.getSharedInstance(context).sessionManager
+            val castContext = CastContext.getSharedInstance(context)
+            val sessions = castContext.sessionManager
             sessions.currentCastSession?.let { casting(it, "already running") }
             sessions.addSessionManagerListener(listener, CastSession::class.java)
-        }.onFailure { Diag.warn("cast", "Cast is not available on this device; formats stay the phone's", it) }
+            castContext.mergedSelector?.let { MediaRouter.getInstance(context).addCallback(it, routes) }
+            Diag.log("cast", "dewidebug Cast is available in the app [${PlayServices.describe(context)}]")
+        }.onFailure {
+            Diag.warn(
+                "cast",
+                "Cast is not available on this device; formats stay the phone's [${PlayServices.describe(context)}]",
+                it,
+            )
+        }
     }
 
     private fun casting(session: CastSession, how: String) {

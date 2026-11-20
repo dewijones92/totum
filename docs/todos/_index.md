@@ -14,6 +14,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [📺 BBC programmes follow-ups](bbc-programmes-follow-ups.md) | search | low | open 2026-11-20 (iPlayer app route unseen, BBC Sounds, more than 50 episodes) |
 | [📱 On this phone follow-ups](phone-media-follow-ups.md) | library | medium | open 2026-11-14 (Show on the TV, phone files to the Pi, search hits) |
 | [Batch A, November 2026: the plan and its order](batch-a-2026-11.md) | batch | high | decided 2026-11-06 |
+| [📺 Video casts to the generic Chromecasts go silent](generic-chromecast-goes-silent.md) | casting | high | built 2026-11-20, Batch C (ADR 179; unit tests; not run on a real generic Chromecast) |
 | [Consistency leftovers (ADR 108)](consistency-leftovers.md) | ui | medium | swept 2026-11-13: 3 fixed, 8 open |
 | [🎥 Totum recorder](totum-recorder.md) | app | medium | built 2026-11-06, Batch A (tests written 2026-11-07: the pure rules and the stores; not run on a device) |
 | [🔴 LIVE everywhere, kept up to date](live-tag-everywhere.md) | video | medium | built 2026-11-06, Batch A (tests written 2026-11-07; not seen on a device) |

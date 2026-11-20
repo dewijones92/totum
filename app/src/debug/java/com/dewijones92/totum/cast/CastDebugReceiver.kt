@@ -9,6 +9,7 @@ import androidx.mediarouter.media.MediaRouteSelector
 import androidx.mediarouter.media.MediaRouter
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.playback.cast.CastStandIn
+import com.dewijones92.totum.playback.cast.standInScreen
 import com.google.android.gms.cast.CastMediaControlIntent
 import com.google.android.gms.cast.framework.CastContext
 
@@ -18,6 +19,9 @@ class CastDebugReceiver : BroadcastReceiver() {
         Diag.log("cast", "dewidebug DEBUG broadcast action=${intent.action} name=${intent.getStringExtra("name")}")
         when (intent.action) {
             ACTION_CAST -> castTo(app, intent.getStringExtra("name").orEmpty())
+            ACTION_SCREEN -> CastTarget.pretendTo(
+                intent.getStringExtra("model")?.takeIf { it != "none" }?.let(::standInScreen),
+            )
             ACTION_STOP -> CastContext.getSharedInstance(app).sessionManager.endCurrentSession(true)
             ACTION_SERVE -> Diag.log(
                 "cast",
@@ -61,6 +65,7 @@ class CastDebugReceiver : BroadcastReceiver() {
         const val ACTION_CAST = "com.dewijones92.totum.DEBUG_CAST"
         const val ACTION_STOP = "com.dewijones92.totum.DEBUG_CAST_STOP"
         const val ACTION_SERVE = "com.dewijones92.totum.DEBUG_CAST_SERVE"
+        const val ACTION_SCREEN = "com.dewijones92.totum.DEBUG_CAST_SCREEN"
         const val MAX_TRIES = 40
         const val TRY_MS = 500L
     }

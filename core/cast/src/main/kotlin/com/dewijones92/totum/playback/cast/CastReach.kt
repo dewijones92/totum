@@ -2,13 +2,11 @@ package com.dewijones92.totum.playback.cast
 
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.playback.CastProblem
-import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 
 public class CastReach(
     private val tvs: CastTvPort,
     private val now: () -> Long = System::currentTimeMillis,
-    private val later: (Long, () -> Unit) -> Unit = defaultLater(),
+    private val later: (Long, () -> Unit) -> Unit = castLater("cast-reach"),
     private val vpnInTheWay: () -> Boolean = { false },
 ) {
 
@@ -65,15 +63,5 @@ public class CastReach(
         const val WAIT_MS = 12_000L
         const val MS_PER_S = 1_000L
         const val TOKEN_SHOWN = 6
-
-        fun defaultLater(): (Long, () -> Unit) -> Unit {
-            val timer = Executors.newSingleThreadScheduledExecutor {
-                Thread(
-                    it,
-                    "cast-reach"
-                ).apply { isDaemon = true }
-            }
-            return { delayMs, run -> timer.schedule(run, delayMs, TimeUnit.MILLISECONDS) }
-        }
     }
 }

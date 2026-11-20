@@ -1,5 +1,7 @@
 package com.dewijones92.totum.video
 
+import com.dewijones92.totum.domain.CastScreen
+import com.dewijones92.totum.domain.VideoCodecFamily
 import com.dewijones92.totum.ytdlp.MediaFormat
 import com.dewijones92.totum.ytdlp.MediaMetadata
 import org.junit.Assert.assertEquals
@@ -177,5 +179,41 @@ class VideoQualityTest {
 
     private companion object {
         val WANT_ENGLISH = listOf("en")
+    }
+
+    @Test
+    fun `a height keeps the other decodable codecs as alternates, so a cast that must change codec has one`() {
+        val meta = metadata(video(1080, "vp09.00.40.08"), video(1080, "avc1.64001e"), video(720, "avc1.4d401f"), audio)
+
+        val qualities = meta.videoQualities(VideoCodecSupport.Permissive)
+
+        val top = qualities.first { it.height == 1080 }
+        assertEquals(1, top.alternates.size)
+        assertEquals(
+            setOf(VideoCodecFamily.VP9, VideoCodecFamily.AVC),
+            (listOf(top) + top.alternates).map { VideoCodecFamily.of(it.codec) }.toSet(),
+        )
+        assertEquals(1080, top.alternates.single().height)
+        assertTrue(top.alternates.single().audioUrl != null)
+        assertTrue(qualities.first { it.height == 720 }.alternates.isEmpty())
+    }
+
+    @Test
+    fun `while casting to a model nobody has measured the H264 stream leads and VP9 is the alternate`() {
+        val meta = metadata(video(1080, "vp09.00.40.08"), video(1080, "avc1.64001e"), audio)
+        val generic = CastAwareCodecSupport(VideoCodecSupport.Permissive) { CastScreen.of("Chromecast") }
+
+        val top = meta.videoQualities(generic).single()
+
+        assertEquals("avc1.64001e", top.codec)
+        assertEquals(listOf("vp09.00.40.08"), top.alternates.map { it.codec })
+    }
+
+    @Test
+    fun `a codec the screen cannot decode is not kept as an alternate`() {
+        val meta = metadata(video(1080, "avc1.64001e"), video(1080, "av01.0.08M.08"), audio)
+        val noAv1 = VideoCodecSupport { codec, _, _ -> codec?.startsWith("av01") != true }
+
+        assertTrue(meta.videoQualities(noAv1).single().alternates.isEmpty())
     }
 }

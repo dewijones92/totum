@@ -1,5 +1,6 @@
 package com.dewijones92.totum.playback.cast
 
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 
 public class RelayLog(
@@ -15,6 +16,8 @@ public class RelayLog(
     public enum class Source { UPSTREAM, MEMORY }
 
     private val inFlight = AtomicInteger()
+    private val running = ConcurrentHashMap.newKeySet<Request>()
+    private var begun = 0
     private var requests = 0
     private var logged = 0
     private var windowStartedAt = clock()
@@ -27,13 +30,16 @@ public class RelayLog(
     private var windowFirstByteMs = 0L
 
     public inner class Request(private val range: String?) {
-        private val startedAt = clock()
+        internal val startedAt = clock()
+        internal val asked: String get() = range ?: "none"
         private var firstByteAt = NOT_YET
         private var source = Source.UPSTREAM
         private var finished = false
 
         init {
             inFlight.incrementAndGet()
+            running += this
+            noteBegun(range)
         }
 
         public fun firstByte(from: Source = Source.UPSTREAM) {
@@ -46,6 +52,7 @@ public class RelayLog(
                 if (finished) return
                 finished = true
                 inFlight.decrementAndGet()
+                running -= this
                 val end = clock()
                 val first = if (firstByteAt == NOT_YET) end else firstByteAt
                 finish(
@@ -79,6 +86,28 @@ public class RelayLog(
     }
 
     public fun begin(range: String?): Request = Request(range)
+
+    @Synchronized
+    private fun noteBegun(range: String?) {
+        begun++
+        if (begun > logFirst) return
+        sink("$label video request begun #$begun range=${range ?: "none"} (${inFlight.get()} in flight)")
+    }
+
+    public fun inFlightNow(): Int = inFlight.get()
+
+    public fun noteInFlight(): Boolean {
+        val now = clock()
+        val open = running.toList()
+        if (open.isEmpty()) return false
+        val oldest = open.minBy { it.startedAt }
+        sink(
+            "$label video relay: ${open.size} request(s) still in flight, the oldest for ${now - oldest.startedAt}ms " +
+                "(range=${oldest.asked}); none of them has finished, so nothing says whether the TV is waiting " +
+                "on us or on the video's own host",
+        )
+        return true
+    }
 
     private fun finish(f: Finished) {
         requests++

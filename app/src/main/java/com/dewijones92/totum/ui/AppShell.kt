@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
@@ -25,6 +26,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.dewijones92.totum.R
+import com.dewijones92.totum.cast.CastTarget
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.di.fake.FakeAppContainer
@@ -124,6 +127,17 @@ fun AppShell(
     OpenVideoOnLandscape(shell?.hasVideo == true, shell?.itemId?.value, shortsReel == null, openPlayer)
     AnswerOpenPlayerRequests(openPlayerRequest, controller, openPlayer)
     LaunchedEffect(openMusicPage) { openMusicPage?.let(tabs::open) }
+    val castContext = LocalContext.current
+    LaunchedEffect(Unit) {
+        CastTarget.silentStarts.collect { start ->
+            offers.offer(
+                castContext.getString(R.string.cast_start_silent, start.device),
+                castContext.getString(R.string.cast_start_retry),
+                "cast",
+                SnackbarDuration.Long,
+            ) { CastTarget.retry(castContext, start) }
+        }
+    }
     AnswerDownloadsRequests(consume = false) {
         Diag.log("nav", "Downloads asked for: switching to the Library from ${selected.name}")
         selected = TopLevelDestination.Library

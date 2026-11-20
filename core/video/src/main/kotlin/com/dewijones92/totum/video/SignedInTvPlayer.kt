@@ -103,6 +103,10 @@ class SignedInTvPlayer(
             Diag.log("resolve", "dewidebug $videoId $client player response progress ${progressKeys(body)}")
             PlayerResponseParser.parse(body)
         }
+        if (response is InnerTubeResponse.Failure && response.unreachable) {
+            Diag.warn("resolve", "$videoId as $client -> the network is unreachable (${response.detail})")
+            return PlayerResult.Failure(response.detail, unreachable = true)
+        }
         if (parsed !is PlayerResult.Success) {
             // WHAT it said, not just that it failed. Concluding "refused" from a null was the
             // mistake that made age restriction look impossible for two rounds.

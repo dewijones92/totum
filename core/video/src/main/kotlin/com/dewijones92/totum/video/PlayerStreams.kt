@@ -6,10 +6,12 @@ import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.common.audioLanguagePreference
 import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.QualityLabel
+import com.dewijones92.totum.domain.VideoCodecFamily
 import com.dewijones92.totum.innertube.browse.InnerTubeClient
 import com.dewijones92.totum.innertube.browse.InnerTubeResponse
 import com.dewijones92.totum.innertube.browse.parsed
 import com.dewijones92.totum.innertube.player.LiveCheck
+import com.dewijones92.totum.innertube.player.NetworkUnreachable
 import com.dewijones92.totum.innertube.player.PlayableFormat
 import com.dewijones92.totum.innertube.player.PlayerClient
 import com.dewijones92.totum.innertube.player.PlayerResponseParser
@@ -227,6 +229,10 @@ class InnerTubePlayerStreams(
         // or a dead network makes this path undebuggable from a report.
         val outcome = account.playerFor(videoId, describe)
         outcome.noteIfUpcoming(videoId, "the signed-in TV client")
+        if (outcome is PlayerResult.Failure && outcome.unreachable) {
+            Diag.warn("resolve", "$videoId: the signed-in TV client could not reach YouTube (${outcome.detail})")
+            throw NetworkUnreachable(outcome.detail)
+        }
         val signedIn = outcome as? PlayerResult.Success
         Diag.log(
             "resolve",
@@ -337,6 +343,7 @@ class InnerTubePlayerStreams(
  * carries only a mime type), so a shared function would be a shared function with two
  * disjoint halves. What IS shared is [VideoQuality], which is the part that matters.
  */
+@Suppress("CyclomaticComplexMethod")
 internal fun StreamingData.videoQualities(
     wanted: List<String> = emptyList(),
     support: VideoCodecSupport = VideoCodecSupport.Permissive,
@@ -363,11 +370,10 @@ internal fun StreamingData.videoQualities(
             // A muxed stream needs no merge, so prefer it — but only while its sound is what you
             // asked for; otherwise pair video with the best audio, exactly as the yt-dlp path does.
             val muxed = atHeight.filter { it.carriesSound }.bestSounding(wanted)
-            val videoOnly = atHeight.filterNot { it.carriesSound }.sortedWith(
-                compareBy<PlayableFormat> { support.preference(it.videoCodec, it.width, it.height) }
-                    .thenByDescending { it.bitrate ?: 0 },
-            ).firstOrNull()
-            when {
+            val videoOnlyOrder = compareBy<PlayableFormat> { support.preference(it.videoCodec, it.width, it.height) }
+                .thenByDescending { it.bitrate ?: 0 }
+            val videoOnly = atHeight.filterNot { it.carriesSound }.sortedWith(videoOnlyOrder).firstOrNull()
+            val best = when {
                 muxed != null && byAudio.compare(muxed.audioTag, bestSound) >= 0 ->
                     muxed.url?.let { quality(height, it, null, muxed.audioTag, muxed.videoCodec) }
                 // Nothing at this height speaks the language you asked for and there is no
@@ -378,6 +384,8 @@ internal fun StreamingData.videoQualities(
                     videoOnly.url?.let { quality(height, it, audio.url, audio.audioTag, videoOnly.videoCodec) }
                 else -> null
             }
+            val soundRight = audio != null && byAudio.compare(audio.audioTag, bestSound) >= 0
+            best?.copy(alternates = if (soundRight) atHeight.alternatesTo(best, audio, videoOnlyOrder) else emptyList())
         }
         .sortedByDescending { it.height }
 }
@@ -396,6 +404,22 @@ private const val LIVE_LABEL_HEIGHT = 1080
 
 private fun quality(height: Int, url: HttpUrl, audioUrl: HttpUrl?, audio: AudioTrackTag, codec: String?) =
     VideoQuality("$height", QualityLabel.of(height, codec).text, height, url, audioUrl, codec = codec, audio = audio)
+
+private fun List<PlayableFormat>.alternatesTo(
+    primary: VideoQuality,
+    audio: PlayableFormat?,
+    order: Comparator<PlayableFormat>,
+): List<VideoQuality> {
+    audio ?: return emptyList()
+    val family = VideoCodecFamily.of(primary.codec)
+    return filterNot { it.carriesSound }
+        .filter { VideoCodecFamily.of(it.videoCodec) != family }
+        .groupBy { VideoCodecFamily.of(it.videoCodec) }.values
+        .mapNotNull { sameCodec -> sameCodec.sortedWith(order).firstOrNull() }
+        .mapNotNull { other ->
+            other.url?.let { quality(primary.height, it, audio.url, audio.audioTag, other.videoCodec) }
+        }
+}
 
 /** Best audio-only stream, for "Listen" mode and as the merge partner for a video-only one. */
 internal fun StreamingData.bestAudioUrl(wanted: List<String> = emptyList()): HttpUrl? = liveManifestUrl

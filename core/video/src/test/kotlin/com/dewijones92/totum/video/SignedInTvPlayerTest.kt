@@ -30,7 +30,7 @@ class SignedInTvPlayerTest {
 
     @After fun tearDown() = server.close()
 
-    private fun player(): SignedInTvPlayer {
+    private fun player(playerUrl: String = server.url("/player").toString()): SignedInTvPlayer {
         val http = OkHttpClient()
         return SignedInTvPlayer(
             youTubeAccount = YouTubeAccount(FakeYouTubeAuth(), InMemoryTokenStore(TOKENS), nowEpochSeconds = { 0 }),
@@ -41,7 +41,7 @@ class SignedInTvPlayerTest {
             ),
             innerTubeClient = InnerTubeClient(
                 http,
-                playerUrl = server.url("/player").toString(),
+                playerUrl = playerUrl,
                 nextUrl = server.url("/next").toString(),
             ),
             nSolver = NSolver { challenges, _ -> challenges.associateWith { "solved" } },
@@ -67,6 +67,16 @@ class SignedInTvPlayerTest {
         assertEquals("UC4wKw34XH0pzeeBZ8xT29Eg", result?.details?.channelId)
         assertEquals(2712L, result?.details?.lengthSeconds)
     }
+
+    @Test
+    fun `a player ask that cannot reach YouTube says the network is unreachable, not that nothing came back`() =
+        runBlocking {
+            timestampSource()
+
+            val result = player(playerUrl = "http://127.0.0.1:1/player").playerFor("vid", describe = false)
+
+            assertTrue(result.toString(), result is PlayerResult.Failure && result.unreachable)
+        }
 
     @Test
     fun `a row that already has its title spares the watch page`() = runBlocking {
