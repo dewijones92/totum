@@ -3,7 +3,7 @@ title: 🏠 Downloads at home (the Pi fetches; the phone copies when you ask)
 kind: feature
 status: built — proven end to end 2026-10-31; the 2026-11-13 retry, Move to Phone and filing fixes (ADR 168) are unit-tested but not run against the live TorrServer; playing from the Pi's copy before the phone has its own is not yet proven live
 area: downloads
-updated: 2026-11-14
+updated: 2026-11-20
 ---
 
 # 🏠 Downloads at home
@@ -63,6 +63,11 @@ phone now, or when you turn on the setting below. ADR 110.
 `HomeTorrentJobsTest`, `HomeFilingTest`, `HomeRoutesTest` on the Pi in `:cli`). What is not confirmed on a device or the real Pi:
 the 2026-11-13 work below (ADR 168 says the TorrServer drop-and-re-add is "not run against the live TorrServer") and playing
 from the Pi's copy before the phone has its own.*
+
+*Filing survives a failed write (2026-11-20): `HomeFiling` logs a record it cannot write (`filing: ... failed, so filing carries on with
+the next one`) instead of letting the exception end its coroutine, which in `totum serve` ended the whole server. Found as a CI flake:
+a test removed its temp folder while that write was still running; `HomeFilingTest`, `HomeTorrentJobsTest` and `YouTubeGateTest` now
+join their background scope before it goes.*
 
 Built and unit-tested on both sides, and proven end to end on 2026-10-31 (v0.1.807 on the Pi, the emulator as the
 phone): a podcast episode sent home (8.8 MB in 2 s), announced "🏠 Ready at home" and copied over Wi-Fi through
