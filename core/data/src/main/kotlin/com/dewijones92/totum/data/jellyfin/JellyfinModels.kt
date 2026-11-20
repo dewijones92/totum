@@ -56,6 +56,7 @@ public data class JellyfinListing(
     val items: List<JellyfinItem>,
     val total: Int? = null,
     val next: Int? = null,
+    val search: String? = null,
 )
 
 public const val JELLYFIN_SOURCE: String = JellyfinIds.SOURCE

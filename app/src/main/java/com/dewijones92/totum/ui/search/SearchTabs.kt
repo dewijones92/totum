@@ -18,11 +18,13 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
+import com.dewijones92.totum.data.search.SearchHit
 import com.dewijones92.totum.data.search.SearchSection
 import com.dewijones92.totum.ui.common.WrappingTabs
 import com.dewijones92.totum.ui.search.SearchViewModel.Results
 
 internal enum class SearchTab(@param:StringRes val label: Int) {
+    YOURS(R.string.search_tab_yours),
     VIDEOS(R.string.search_tab_videos),
     TORRENTS(R.string.search_tab_torrents),
     AUDIOBOOKS(R.string.search_tab_audiobooks),
@@ -82,7 +84,15 @@ private fun List<Facts>.together(tab: SearchTab): SearchTabInfo? {
     )
 }
 
+private fun Results.Loaded.yoursWorthATab(): SearchSection<List<SearchHit.Yours>> = when (val section = yours) {
+    SearchSection.Searching -> SearchSection.Absent
+    is SearchSection.Found ->
+        if (section.items.isEmpty() && section.notes.isEmpty()) SearchSection.Absent else section
+    else -> section
+}
+
 internal fun searchTabsFor(results: Results.Loaded, query: String): List<SearchTabInfo> = listOfNotNull(
+    listOf(results.yoursWorthATab().facts({ it.size }, { false })).together(SearchTab.YOURS),
     listOf(results.videos.facts({ it.items.size }, { it.hasMore })).together(SearchTab.VIDEOS),
     listOf(results.torrents.facts({ it.size }, { false })).together(SearchTab.TORRENTS),
     listOf(mergedBooks(results, query).facts({ it.size }, { false })).together(SearchTab.AUDIOBOOKS),

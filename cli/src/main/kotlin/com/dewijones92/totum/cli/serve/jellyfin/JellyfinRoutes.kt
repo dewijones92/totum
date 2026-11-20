@@ -45,6 +45,8 @@ internal class JellyfinRoutes(private val browse: JellyfinBrowse) : Routes {
     }
 
     private fun browse(exchange: HttpExchange) {
+        val search = exchange.query("search")
+        if (search != null) return search(exchange, search)
         val parent = exchange.query("parent")
         if (parent != null && !JELLYFIN_ID.matches(parent)) {
             Diag.warn("jellyfin", "browse refused: not an item id")
@@ -53,6 +55,23 @@ internal class JellyfinRoutes(private val browse: JellyfinBrowse) : Routes {
         val start = exchange.query("start")?.toIntOrNull()?.coerceAtLeast(0) ?: 0
         val listing = try {
             browse.listing(parent, start)
+        } catch (failure: JellyfinFailure) {
+            return exchange.reply(
+                BAD_GATEWAY,
+                """{"error":${TargetsJson.encodeToString(String.serializer(), failure.message.orEmpty())}}""",
+            )
+        }
+        exchange.reply(OK, TargetsJson.encodeToString(JellyfinListing.serializer(), listing))
+    }
+
+    private fun search(exchange: HttpExchange, raw: String) {
+        val term = raw.trim().take(MAX_SEARCH)
+        if (term.isEmpty()) {
+            Diag.warn("jellyfin", "search refused: nothing to search for")
+            return exchange.reply(BAD_REQUEST, """{"error":"❌ nothing to search for"}""")
+        }
+        val listing = try {
+            browse.search(term)
         } catch (failure: JellyfinFailure) {
             return exchange.reply(
                 BAD_GATEWAY,
@@ -96,6 +115,7 @@ internal class JellyfinRoutes(private val browse: JellyfinBrowse) : Routes {
         const val NO_BODY = -1L
         const val CHUNKED = 0L
         const val BUFFER = 64 * 1024
+        const val MAX_SEARCH = 100
         val COPIED = listOf("Content-Type", "Content-Range", "Accept-Ranges")
         val IMAGE_HEADERS = listOf("Content-Type", "Cache-Control")
     }

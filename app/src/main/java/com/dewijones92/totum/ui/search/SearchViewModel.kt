@@ -153,6 +153,7 @@ class SearchViewModel(
             val torrents: SearchSection<List<SearchHit.Torrent>>,
             val books: SearchSection<List<SearchHit.Book>> = SearchSection.Absent,
             val bookTorrents: SearchSection<List<SearchHit.Torrent>> = SearchSection.Absent,
+            val yours: SearchSection<List<SearchHit.Yours>> = SearchSection.Absent,
             val programmes: SearchSection<List<SearchHit.Programme>> = SearchSection.Absent,
             val loadingMore: Boolean = false,
         ) : Results {
@@ -173,7 +174,8 @@ class SearchViewModel(
             val stillSearching: Boolean
                 get() = podcasts.isSearching || videos.isSearching || songs.isSearching || torrents.isSearching ||
                     albums.isSearching || artists.isSearching || books.isSearching || bookTorrents.isSearching ||
-                    programmes.isSearching
+                    programmes.isSearching ||
+                    yours.isSearching
         }
     }
 
@@ -402,6 +404,16 @@ class SearchViewModel(
 
     private fun CoroutineScope.launchEverythingOnlySections(run: SearchRun, query: SearchQuery) {
         if (!everything) return
+        sources.yours?.let { yours ->
+            launch {
+                run.section<List<SearchHit.Yours>>(
+                    name = "yours",
+                    updates = { yours.updates(query, YOURS_RESULTS) },
+                    into = { loaded, s -> loaded.copy(yours = s) },
+                    select = { it.page.items.filterIsInstance<SearchHit.Yours>() },
+                )
+            }
+        }
         launch {
             run.section<List<SearchHit.Book>>(
                 name = "audiobooks",
@@ -455,6 +467,7 @@ class SearchViewModel(
             books = only(everything),
             programmes = only(everything),
             bookTorrents = only(everything && torrents?.bookSearch != null),
+            yours = only(everything && sources.yours != null),
         )
     }
 
@@ -485,10 +498,23 @@ class SearchViewModel(
         play(hit.watchUrl, hit.toMediaItem(AD_HOC_MUSIC_SOURCE))
     }
 
-    private fun play(watchUrl: HttpUrl, item: MediaItem) {
+    fun playYours(hit: SearchHit.Yours) {
+        Diag.log(
+            "search",
+            "dewidebug yours: play \"${hit.title}\" (${hit.playable.item.id.value}) from search, held in ${hit.places}",
+        )
+        play(hit.playable.item.id.value, hit.playable)
+    }
+
+    private fun play(watchUrl: HttpUrl, item: MediaItem) = play(
+        watchUrl.value,
+        PlayableItem(item, PlayHandle.Video(watchUrl))
+    )
+
+    private fun play(key: String, playable: PlayableItem) {
         viewModelScope.launch {
-            playAttempt.value = PlayAttempt(resolving = watchUrl.value)
-            val played = queue.playNow(PlayableItem(item, PlayHandle.Video(watchUrl)), quiet = true)
+            playAttempt.value = PlayAttempt(resolving = key)
+            val played = queue.playNow(playable, quiet = true)
             playAttempt.value = if (played) PlayAttempt() else PlayAttempt(failed = true)
         }
     }
@@ -704,6 +730,7 @@ class SearchViewModel(
         private const val RESULTS_PER_SECTION = 8
         private const val TORRENT_RESULTS = 40
         private const val BOOK_RESULTS = 40
+        private const val YOURS_RESULTS = 200
         private const val BBC_RESULTS = 25
 
         /** A music search answers about 20 a page; a shelf keeps the lot and shows [RESULTS_PER_SECTION] at a time. */
@@ -744,6 +771,7 @@ class SearchViewModel(
                         albums = container.musicAlbumSearchSource,
                         artists = container.musicArtistSearchSource,
                         books = container.audiobookSearchSource,
+                        yours = container.yoursSearchSource,
                         bbc = container.bbcSearchSource,
                     ),
                     torrents = TorrentServices.from(container),
@@ -817,7 +845,8 @@ private fun SearchSection<*>.describe(): String = when (this) {
         is Page<*> -> "${found.items.size} (more=${found.hasMore})"
         is Collection<*> -> "${found.size}"
         else -> "found"
-    } + if (stillWaitingFor.isEmpty()) "" else ", still waiting for $stillWaitingFor"
+    } + (if (stillWaitingFor.isEmpty()) "" else ", still waiting for $stillWaitingFor") +
+        if (notes.isEmpty()) "" else ", notes $notes"
     is SearchSection.Failed -> "FAILED: $detail"
     SearchSection.Searching -> "still searching"
     SearchSection.Absent -> "absent"

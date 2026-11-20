@@ -7,6 +7,7 @@ import com.dewijones92.totum.data.torrent.TorrentCategory
 import com.dewijones92.totum.data.torrent.TorrentLink
 import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaSource
+import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.innertube.music.MusicAlbumRef
 import com.dewijones92.totum.innertube.music.MusicArtistRef
 import com.dewijones92.totum.innertube.music.MusicSong
@@ -45,7 +46,8 @@ public fun interface SearchSource {
 public sealed interface SearchOutcome {
     public data class Success(
         val page: Page<SearchHit>,
-        val stillWaitingFor: List<String> = emptyList()
+        val stillWaitingFor: List<String> = emptyList(),
+        val notes: List<String> = emptyList(),
     ) : SearchOutcome
     public data class Failure(val detail: String, val slow: Boolean = false) : SearchOutcome
 }
@@ -133,6 +135,22 @@ public sealed interface SearchHit {
         val feedUrl: HttpUrl,
         val pid: String,
     ) : SearchHit
+
+    /**
+     * Something you already have, wherever it is: on this phone, at home, in the Jellyfin library.
+     *
+     * Not a fourth pillar: it carries the [playable] each place already hands out, so it plays, queues and goes
+     * offline through the machinery that exists. [places] says where, because the same film can be in two places at
+     * once and the row must say so rather than list it twice.
+     */
+    public data class Yours(
+        public val playable: PlayableItem,
+        public val places: Set<YourPlace>,
+    ) : SearchHit {
+        override val title: String get() = playable.item.title
+        override val subtitle: String? get() = playable.item.author
+        override val artworkUrl: HttpUrl? get() = playable.item.thumbnailUrl
+    }
 
     /** A subscribable podcast feed. */
     public data class Podcast(

@@ -76,6 +76,7 @@ import com.dewijones92.totum.data.podcast.PodcastRepository
 import com.dewijones92.totum.data.podcast.subscribedSources
 import com.dewijones92.totum.data.queue.QueueStore
 import com.dewijones92.totum.data.search.FallbackSearchSource
+import com.dewijones92.totum.data.search.HomeHoldings
 import com.dewijones92.totum.data.search.InnerTubeMusicAlbumSearchSource
 import com.dewijones92.totum.data.search.InnerTubeMusicArtistSearchSource
 import com.dewijones92.totum.data.search.InnerTubeMusicSearchSource
@@ -84,6 +85,7 @@ import com.dewijones92.totum.data.search.ItunesPodcastSearchSource
 import com.dewijones92.totum.data.search.SearchHistoryStore
 import com.dewijones92.totum.data.search.SearchSource
 import com.dewijones92.totum.data.search.TorrentSearchSource
+import com.dewijones92.totum.data.search.YoursSearchSource
 import com.dewijones92.totum.data.search.YtDlpVideoSearchSource
 import com.dewijones92.totum.data.shuffle.WholeSource
 import com.dewijones92.totum.data.source.DefaultSourceLocator
@@ -671,6 +673,7 @@ interface AppContainer {
     val queueSkips: QueueSkips
     val episodeDownloads: EpisodeDownloads
     val audiobookSearchSource: SearchSource
+    val yoursSearchSource: SearchSource?
 
     val bbcSearchSource: SearchSource
     val audiobookTorrentSource: SearchSource?
@@ -2079,6 +2082,21 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
 
     override val audiobookSearchSource: SearchSource by lazy { ArchiveBookSearchSource(textFetcher) }
 
+    override val yoursSearchSource: SearchSource? by lazy {
+        YoursSearchSource(
+            onPhone = { downloadManager.observeDownloaded().first() },
+            atHome = homeDownloads.takeIf { it.available }?.let { home ->
+                {
+                    val jobs = home.jobsRead.value ?: run {
+                        home.refresh("search")
+                        home.jobsRead.value
+                    }
+                    jobs?.let { HomeHoldings.Read(it.values.toList()) } ?: HomeHoldings.NotRead
+                }
+            },
+            jellyfin = jellyfin,
+        )
+    }
     override val bbcSearchSource: SearchSource by lazy { BbcSearchSource(textFetcher) }
 
     override val audiobookTorrentSource: SearchSource? by lazy {

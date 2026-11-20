@@ -24,7 +24,11 @@ public sealed interface SearchSection<out T> {
     public data object Searching : SearchSection<Nothing>
 
     /** It answered. [items] may still be empty, which is a real answer and not a failure. */
-    public data class Found<T>(val items: T, val stillWaitingFor: List<String> = emptyList()) : SearchSection<T>
+    public data class Found<T>(
+        val items: T,
+        val stillWaitingFor: List<String> = emptyList(),
+        val notes: List<String> = emptyList(),
+    ) : SearchSection<T>
 
     /**
      * It could not answer, and why.
@@ -53,7 +57,7 @@ public sealed interface SearchSection<out T> {
 
 /** The same state about a different shape — lets a paged section render as a plain list. */
 public fun <T, R> SearchSection<T>.map(transform: (T) -> R): SearchSection<R> = when (this) {
-    is SearchSection.Found -> SearchSection.Found(transform(items))
+    is SearchSection.Found -> SearchSection.Found(transform(items), stillWaitingFor, notes)
     is SearchSection.Failed -> this
     SearchSection.Searching -> SearchSection.Searching
     SearchSection.Absent -> SearchSection.Absent
@@ -67,6 +71,6 @@ public fun <T, R> SearchSection<T>.map(transform: (T) -> R): SearchSection<R> = 
  */
 public fun <T> SearchOutcome.asSection(select: (SearchOutcome.Success) -> T): SearchSection<T> =
     when (this) {
-        is SearchOutcome.Success -> SearchSection.Found(select(this), stillWaitingFor)
+        is SearchOutcome.Success -> SearchSection.Found(select(this), stillWaitingFor, notes)
         is SearchOutcome.Failure -> SearchSection.Failed(detail, slow)
     }

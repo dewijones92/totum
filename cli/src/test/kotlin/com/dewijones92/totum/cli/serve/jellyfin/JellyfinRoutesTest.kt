@@ -142,6 +142,39 @@ class JellyfinRoutesTest {
     }
 
     @Test
+    fun `a search asks Jellyfin for films and episodes by the term, encoded, and echoes the term back`() {
+        val answer = get("/jellyfin/browse?search=spinal%20tap%20%26%20co")
+
+        val listing = TargetsJson.decodeFromString(JellyfinListing.serializer(), String(answer.body()))
+        assertEquals(200, answer.statusCode())
+        assertEquals("spinal tap & co", listing.search)
+        assertEquals("MediaBrowser Token=\"secret-key\"", authorizations.single())
+        val sent = asked.single()
+        assertTrue(sent, sent.startsWith("/Items?Recursive=true&IncludeItemTypes=Movie,Episode"))
+        assertTrue(sent, sent.contains("&Limit=50"))
+        assertTrue(sent, sent.endsWith("&SearchTerm=spinal%20tap%20%26%20co"))
+        assertFalse(String(answer.body()).contains("secret-key"))
+    }
+
+    @Test
+    fun `a blank search is refused before Jellyfin is asked`() {
+        val refused = get("/jellyfin/browse?search=%20%20")
+
+        assertEquals(400, refused.statusCode())
+        assertTrue(asked.isEmpty())
+    }
+
+    @Test
+    fun `a search with Jellyfin not answering is a bad gateway with the reason`() {
+        listBody = "<html>sign in</html>"
+
+        val answer = get("/jellyfin/browse?search=heat")
+
+        assertEquals(502, answer.statusCode())
+        assertTrue(String(answer.body()), String(answer.body()).contains("not a library listing"))
+    }
+
+    @Test
     fun `a stream is Jellyfin's own file, with the player's range passed through and sent back`() {
         val whole = get("/jellyfin/stream/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.mp4")
         val part = get("/jellyfin/stream/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.mp4", range = "bytes=10-19")

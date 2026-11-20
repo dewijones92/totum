@@ -14,6 +14,7 @@ import java.net.URLEncoder
 
 public interface JellyfinApi {
     public suspend fun browse(parent: String?, start: Int = 0): HomeAnswer<JellyfinListing>
+    public suspend fun search(term: String): HomeAnswer<JellyfinListing> = HomeAnswer.No(HomePiCall.NEEDS_UPDATING)
     public fun streamUrl(item: JellyfinItem): HttpUrl
     public fun imageUrl(item: JellyfinItem): HttpUrl? = null
 }
@@ -32,6 +33,13 @@ public class JellyfinClient(
             parent?.let { "parent=${URLEncoder.encode(it, Charsets.UTF_8)}" },
             "start=$start".takeIf { start > 0 },
         ).joinToString("&").let { if (it.isEmpty()) "" else "?$it" }
+        return pi.call("GET /jellyfin/browse$query", Request.Builder().url("$base/jellyfin/browse$query").get()) {
+            TargetsJson.decodeFromString(JellyfinListing.serializer(), it)
+        }
+    }
+
+    override suspend fun search(term: String): HomeAnswer<JellyfinListing> {
+        val query = "?search=${URLEncoder.encode(term, Charsets.UTF_8)}"
         return pi.call("GET /jellyfin/browse$query", Request.Builder().url("$base/jellyfin/browse$query").get()) {
             TargetsJson.decodeFromString(JellyfinListing.serializer(), it)
         }
