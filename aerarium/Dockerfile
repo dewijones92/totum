@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.28
-FROM node:24-bookworm-slim AS build
+FROM node:26-bookworm-slim AS build
 WORKDIR /src
 RUN corepack enable
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
@@ -10,7 +10,7 @@ RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store pnpm install
 COPY . .
 RUN pnpm --filter @aerarium/server --filter @aerarium/web build
 
-FROM node:24-alpine AS runtime
+FROM node:26-alpine AS runtime
 RUN apk add --no-cache tini
 WORKDIR /app
 COPY --from=build /src/apps/server/dist/server.mjs ./server/server.mjs
