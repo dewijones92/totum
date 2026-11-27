@@ -205,3 +205,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 194 | ["Best" means the best this device decodes, and a playback failure says why and offers a way out](0194-best-means-the-best-this-device-decodes-and-a-failure-says-why-and-offers-a-way-out.md) | Accepted |
 | 195 | [Play next stacks in the order you chose it, behind the last play next](0195-play-next-stacks-in-the-order-you-chose.md) | Accepted |
 | 196 | [The treat button puts a chosen film or playlist on a TV for a while, and the Pi ends it](0196-the-treat-button-puts-a-film-on-the-tv-for-a-while-and-the-pi-ends-it.md) | Accepted |
+| 197 | [The auto-downloader counts every skip, and restarts a download that says it is running when nothing is](0197-the-auto-downloader-counts-every-skip-and-restarts-a-download-nothing-is-running.md) | Accepted |
