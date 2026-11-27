@@ -22,18 +22,27 @@ import com.dewijones92.totum.common.Breadcrumbs
  * Every one of those was a guess about which log line implies which fact. The line now states the
  * fact, so there is nothing left to guess.
  */
-public fun pathTakenFrom(trail: List<Breadcrumbs.Entry>): String {
-    val played = trail.lastOrNull { it.tag == PLAYBACK && it.message.startsWith(PLAY_PREFIX) }
-        ?: return "unknown — nothing recorded a played URL"
+public fun pathTakenFrom(trail: List<Breadcrumbs.Entry>, itemId: String? = null): String {
+    val plays = trail.filter { it.tag == PLAYBACK && PLAY_LINE.containsMatchIn(it.message) }
+    if (plays.isEmpty()) return "unknown — nothing recorded a played URL"
+    val played = if (itemId == null) {
+        plays.last()
+    } else {
+        plays.lastOrNull { PLAY_LINE.find(it.message)?.groupValues?.get(1) == itemId }
+            ?: return "unknown — the trail has no play line for $itemId (it crossed over gaplessly or scrolled out)"
+    }
     val marked = played.message.substringAfterLast(MARKER, missingDelimiterValue = "")
     return marked.substringBefore(']').ifBlank { "unknown — that play recorded no route" }
 }
 
-/** The live trail. */
-public fun pathTaken(): String = pathTakenFrom(Breadcrumbs.snapshot())
+/** What was recorded when [itemId] was handed to the player, else what the live trail still says. */
+public fun pathTaken(itemId: String? = null): String =
+    itemId?.let(PlayRoutes::of) ?: pathTakenFrom(Breadcrumbs.snapshot(), itemId)
 
 private const val PLAYBACK = "playback"
-private const val PLAY_PREFIX = "play "
+
+/** `play <id> from <uri>`: a play/pause request ("play or pause asked by…") has no `from` after its id. */
+private val PLAY_LINE = Regex("""^play (\S+) from """)
 
 /**
  * Matches `PlaybackRoute.ROUTE_MARKER`. Duplicated rather than shared because `:app` reads what

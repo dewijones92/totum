@@ -33,6 +33,26 @@ public fun routeOf(uri: String, fromDisk: Boolean): String = when {
 }
 
 /**
+ * The route each item was last handed to the player by, kept apart from the breadcrumb trail.
+ *
+ * The trail is a bounded buffer that scrolls: a play started an hour ago is gone from it, and a gapless
+ * crossover writes no play line at all, so reading the route back out of the trail left `playing.route`
+ * "unknown" in 23 of 24 reports. A fact recorded when it is decided does not scroll out.
+ */
+public object PlayRoutes {
+    private const val KEPT = 64
+    private val routes = object : LinkedHashMap<String, String>(KEPT, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String>?): Boolean = size > KEPT
+    }
+
+    public fun record(itemId: String, route: String) {
+        synchronized(routes) { routes[itemId] = route }
+    }
+
+    public fun of(itemId: String): String? = synchronized(routes) { routes[itemId] }
+}
+
+/**
  * The play breadcrumb, built in ONE place so the reader cannot drift from the writer.
  *
  * `pathTakenFrom` in `:app` parses this, and its tests build their fixtures with this same function.
