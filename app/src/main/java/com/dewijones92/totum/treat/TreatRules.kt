@@ -30,6 +30,7 @@ object TreatRules {
             fadeSeconds = if (choice.fade) fadeSeconds else 0,
             switchOff = end == TreatEnd.SWITCH_OFF,
             stop = end == TreatEnd.STOP,
+            treat = true,
         )
         return TreatPlan(ask, end, fellBack)
     }

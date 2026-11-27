@@ -28,6 +28,8 @@ Decision: [ADR 196](../adr/0196-the-treat-button-puts-a-film-on-the-tv-for-a-whi
   and the treat stops it instead; the toast when it starts says so once.
 - **While it runs:** a progress-strip entry, "🧸 Toy Story on LG TV" with "⏳ 12 min left, then it switches off" and **Stop**, and
   a silent notification that counts down by itself. Stop cancels the timer and stops the TV.
+- **A film shorter than the time** still ends with the chosen end: when its last item ends the home server hands the TV
+  back and, if the end is "switch off", switches it off (hand-set sleep timers are not touched; they end with the playback).
 - **The app-icon shortcut "🧸 Treat on the TV"** does what a tap on the tile does.
 - **Locking the phone or closing the app changes nothing:** the timer runs on the home server. Reopening the app finds the
   treat again and shows it.
@@ -56,7 +58,6 @@ timer on … fires`. The report's state block carries `treat.pin`, `treat.tv`, `
 
 - Not run on a real TV. First check, daytime: Toy Story pinned from Jellyfin on the LG for 5 minutes; fade, pause, switch off,
   and the strip and notification; then again with the phone locked and the app swiped away.
-- A film shorter than the time leaves the TV on and handed back, because the Pi's timer ends with the playback.
 - Only TVs the home server lists. Kid TV's phone-cast route remains for the rest.
 - Android does not let an app keep the strip alive after it is killed; the timer and the notification's countdown do carry on.
 

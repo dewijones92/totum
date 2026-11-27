@@ -65,6 +65,7 @@ public data class TargetSleepAsk(
     val title: String? = null,
     val switchOff: Boolean = false,
     val stop: Boolean = false,
+    val treat: Boolean = false,
 )
 
 @Serializable

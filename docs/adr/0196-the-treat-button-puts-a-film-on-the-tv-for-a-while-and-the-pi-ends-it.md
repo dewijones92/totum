@@ -55,9 +55,12 @@ the LG off over webOS. The point of the feature is that it ends by itself, so th
 
 ## Consequences
 
-- If the film is shorter than the time, the Pi releases the timer when the queue ends and the TV is left on and handed
-  back. Not fixed here: ADR 166's timer ends with the playback it was set for, and changing that touches the sleep
-  timer people set by hand.
+- A film shorter than the time still ends with the chosen end action. The treat's timer carries a flag
+  (`TargetSleepAsk.treat`, set only by the treat button); when the last item ends before the countdown does, the deck
+  takes that timer (`DeckSleep.takeTreat`, which also puts a faded volume back), hands the target back and, when the end is
+  "switch off" and the TV can be switched off, switches it off. Hand-set sleep timers have no flag and keep ADR 166's
+  behaviour: they end with the playback they were set for. An earlier item ending changes nothing, and a failed last item
+  counts as an end. "Pause" has nothing left to pause at that point, so it only hands the target back, as stop does.
 - The LG must be paired for webOS (`totum webos-pair`, the orchestrator's job) for "switch off" to be possible;
   until then the button falls back to stop and says so.
 - Only TVs and Chromecasts the Pi lists are offered. Away from home the Pi is not reachable and the button says so.
@@ -70,4 +73,5 @@ and targets are offered), `TreatTest` (a tap with nothing chosen, a tap with the
 a one-off that leaves the defaults alone, saved defaults, the fall back and its status, a timer that cannot be set, a TV
 that refuses, a TV the Pi does not list, the strip entry and Stop, stopping from the tile, time up, an early end, a
 restart), `TargetDeckStopTimerTest` (the Pi's stop step: pause, stop, hand back; and that without the flag it only
-pauses).
+pauses), `TargetDeckTreatEndsEarlyTest` (a film that ends before the timer: switch off, stop, a TV that cannot be switched
+off, the first of two parts ending, and a hand-set timer that must not switch off).

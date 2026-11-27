@@ -45,6 +45,7 @@ internal class DeckSleep(
         val ramp: FadeRamp,
         val switchOff: Boolean,
         val stop: Boolean,
+        val treat: Boolean,
     ) {
         var job: Job? = null
         var fade: VolumeFade? = null
@@ -72,6 +73,7 @@ internal class DeckSleep(
             ramp = FadeRamp(if (timed) minOf(fade, total) else fade),
             switchOff = ask.switchOff,
             stop = ask.stop,
+            treat = ask.treat,
         )
         armed = sleep
         Diag.log(
@@ -94,6 +96,19 @@ internal class DeckSleep(
     }
 
     fun switchesOff(): Boolean = armed?.switchOff == true
+
+    suspend fun takeTreat(): Boolean? {
+        val sleep = armed?.takeIf { it.treat } ?: return null
+        armed = null
+        sleep.job?.cancel()
+        restore(sleep, "the treat's last item ended before its countdown")
+        Diag.log(
+            "sleep",
+            "dewidebug treat timer on $label taken early: the last item ended with the countdown still running " +
+                "(switchOff=${sleep.switchOff} stop=${sleep.stop})",
+        )
+        return sleep.switchOff
+    }
 
     fun endsWith(itemId: String): Boolean =
         armed?.takeIf { it.kind == SleepKind.AFTER_ITEMS }?.itemIds?.lastOrNull() == itemId

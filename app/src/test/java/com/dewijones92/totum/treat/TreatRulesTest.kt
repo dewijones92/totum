@@ -31,6 +31,7 @@ class TreatRulesTest {
         assertEquals(20, plan.ask.fadeSeconds)
         assertTrue(plan.ask.switchOff)
         assertFalse(plan.ask.stop)
+        assertTrue("only the treat's timer is a treat, so hand-set timers are left alone", plan.ask.treat)
         assertFalse(plan.fellBack)
     }
 

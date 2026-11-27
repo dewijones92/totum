@@ -26,6 +26,5 @@ locked and the app swiped away.
 
 ## Not done
 
-- A film shorter than the time leaves the TV on (the Pi releases the timer when the queue ends; ADR 196).
 - A TV the Pi does not list (a phone-only cast route) is not offered; Kid TV still covers it.
 - No Settings page entry and no Quick Settings tile; the Library tile and the app-icon shortcut are the doors.

@@ -477,8 +477,18 @@ internal class TargetDeck(
             problem = null
             reportProgress(finished = true)
         }
-        if (stoppedBySleepTimer(next, title)) return
+        if (stoppedBySleepTimer(next, title) || endedTheTreat(next, title)) return
         startAt(next)
+    }
+
+    private suspend fun endedTheTreat(next: Int, title: String?): Boolean {
+        if (next in queue.entries.indices) return false
+        val switchOff = sleep.takeTreat() ?: return false
+        finish("the treat's last item ended before its timer: $title", report = false, keepPlace = false)
+        val off = switchOff && link.canSwitchOff
+        Diag.log("targets", "${target.id}: the treat ended with its film; switch off asked=$switchOff doing it=$off")
+        if (off) powerOff()
+        return true
     }
 
     private suspend fun stoppedBySleepTimer(next: Int, title: String?): Boolean {

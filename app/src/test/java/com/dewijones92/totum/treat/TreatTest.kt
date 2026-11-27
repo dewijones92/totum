@@ -146,7 +146,14 @@ class TreatTest {
         val (id, ask) = h.armed.single()
         assertEquals("lg", id)
         assertEquals(
-            TargetSleepAsk(SleepKind.AFTER_TIME, seconds = 15 * 60, fadeSeconds = 20, switchOff = true, stop = false),
+            TargetSleepAsk(
+                SleepKind.AFTER_TIME,
+                seconds = 15 * 60,
+                fadeSeconds = 20,
+                switchOff = true,
+                stop = false,
+                treat = true,
+            ),
             ask,
         )
         val on = treat.status.value as TreatStatus.On
