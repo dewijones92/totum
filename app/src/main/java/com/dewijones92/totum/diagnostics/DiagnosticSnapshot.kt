@@ -126,6 +126,7 @@ internal class DiagnosticSnapshot(
         put("settings.silenceMode", settings.silenceMode.name)
         put("settings.autoPlayNext", settings.autoPlayNext.toString())
         put("settings.repeatMode", settings.repeatMode.name)
+        put("settings.reportGesture", settings.reportGesture.toString())
         put("settings.autoDownloadQueue", settings.autoDownloadQueue.toString())
         put("settings.autoDownloadWifiOnly", settings.autoDownloadWifiOnly.toString())
         put("settings.wifiMaxHeight", settings.wifiMaxHeight.toString())

@@ -32,6 +32,7 @@ import com.dewijones92.totum.ui.common.MusicPage
 import com.dewijones92.totum.ui.common.RequestNotificationPermissionOnce
 import com.dewijones92.totum.ui.common.mayAskForNotifications
 import com.dewijones92.totum.ui.common.rememberTickingNow
+import com.dewijones92.totum.ui.report.QuickReportHost
 import kotlinx.coroutines.launch
 
 /**
@@ -75,16 +76,18 @@ class MainActivity : FragmentActivity() {
             TotumTheme {
                 CompositionLocalProvider(LocalNow provides rememberTickingNow()) {
                     TapCircles {
-                        AppShell(
-                            container,
-                            openPlayerRequest = openPlayerRequest.intValue,
-                            openMusicPage = openMusicPage.value,
-                            askForNotifications = if (mayAsk.value) {
-                                { RequestNotificationPermissionOnce() }
-                            } else {
-                                {}
-                            },
-                        )
+                        QuickReportHost(container) {
+                            AppShell(
+                                container,
+                                openPlayerRequest = openPlayerRequest.intValue,
+                                openMusicPage = openMusicPage.value,
+                                askForNotifications = if (mayAsk.value) {
+                                    { RequestNotificationPermissionOnce() }
+                                } else {
+                                    {}
+                                },
+                            )
+                        }
                     }
                 }
             }

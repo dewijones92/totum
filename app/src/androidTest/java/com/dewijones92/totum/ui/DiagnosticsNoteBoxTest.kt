@@ -90,6 +90,34 @@ class DiagnosticsNoteBoxTest {
         assertEquals(TYPED, JSONObject(written!!.readText()).optString("note"))
     }
 
+    /**
+     * Report 20261121T061944: after one report the row stayed disabled until the app was killed.
+     * Two reports, one after the other, through the same screen, each with its own note.
+     */
+    @Test
+    fun aSecondReportCanBeSentAfterTheFirst() {
+        val before = DiagnosticsStore.pending(context).toSet()
+
+        settings()
+        repeat(TWO_REPORTS) { round ->
+            val row = if (round == 0) {
+                compose.onNodeWithText(SEND)
+            } else {
+                compose.onNodeWithText(SAVED, substring = true)
+            }
+            row.performScrollTo().performClick()
+            compose.onNodeWithTag("diagnostics-note").assertIsDisplayed().performTextInput("report number ${round + 1}")
+            compose.onAllNodesWithText(SEND).onLast().performClick()
+            compose.waitUntil(REPORT_WRITTEN_MS) {
+                DiagnosticsStore.pending(context).count { it !in before } > round
+            }
+        }
+
+        val notes = DiagnosticsStore.pending(context).filter { it !in before }
+            .map { JSONObject(it.readText()).optString("note") }
+        assertEquals(setOf("report number 1", "report number 2"), notes.toSet())
+    }
+
     /** Cancelling must not send: a half-written thought is not a report. */
     @Test
     fun cancellingSendsNothing() {
@@ -108,5 +136,6 @@ class DiagnosticsNoteBoxTest {
         const val TYPED = "tapped the WarFronts video and it jumped to another one"
         const val REPORT_WRITTEN_MS = 10_000L
         const val SAVED = "Diagnostics saved"
+        const val TWO_REPORTS = 2
     }
 }

@@ -4,6 +4,9 @@
     <string name="playback_switch_to_talk">Switch to talk</string>
     <string name="playback_queue_previous">Previous in the queue</string>
     <string name="playback_queue_next">Next in the queue</string>
+    <string name="playback_remote_back">Back 10 seconds</string>
+    <string name="playback_remote_forward">Forward 30 seconds</string>
+    <string name="playback_remote_next">Next on the device</string>
     <string name="playback_notification_live">🔴 LIVE</string>
     <string name="playback_notification_was_live">⏺️ WAS LIVE</string>
     <string name="playback_notification_repeat_one">🔂 Repeating this one</string>

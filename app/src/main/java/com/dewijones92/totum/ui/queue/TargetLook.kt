@@ -1,5 +1,6 @@
 package com.dewijones92.totum.ui.queue
 
+import androidx.annotation.StringRes
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Cast
 import androidx.compose.material.icons.outlined.Language
@@ -14,6 +15,7 @@ import androidx.compose.ui.res.stringResource
 import com.dewijones92.totum.R
 import com.dewijones92.totum.data.targets.TargetConnection
 import com.dewijones92.totum.data.targets.TargetKind
+import com.dewijones92.totum.data.targets.TargetState
 
 internal fun TargetKind.icon(): ImageVector = when (this) {
     TargetKind.PHONE -> Icons.Outlined.PhoneAndroid
@@ -21,6 +23,13 @@ internal fun TargetKind.icon(): ImageVector = when (this) {
     TargetKind.TV -> Icons.Outlined.Tv
     TargetKind.CHROMECAST -> Icons.Outlined.Cast
     TargetKind.BROWSER -> Icons.Outlined.Language
+}
+
+@StringRes
+internal fun TargetState.statusRes(): Int = when {
+    starting -> R.string.target_status_starting
+    playing -> R.string.target_status_playing
+    else -> R.string.target_status_paused
 }
 
 @Composable

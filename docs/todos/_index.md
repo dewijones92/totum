@@ -27,7 +27,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [A live stream that hasn't started says so](live-starts-soon.md) | playback | medium | built 2026-11-06, Batch A (tests owed for the parser, the wait schedule and the watcher; the registry and the refused-tap toast have tests; not seen on a device) |
 | [📡 The Pi plays to any TV, browser or speaker](pi-plays-everywhere.md) | casting/pi | high | built 2026-11-07, Batch A (tests written 2026-11-07; device checks owed) |
 | [▶️ Play on… on every play and queue action](play-on-device-picker.md) | casting/pi | high | built 2026-11-13, Batch B P4 (unit tests green; instrumented tests written and compiled; nothing run on a real TV, soundbar or the Soundmic) |
-| [🎛️ Control the selected Pi device from every tab](target-bar-everywhere.md) | casting/pi | high | built 2026-11-20, Batch C task D (screenshots at two sizes; lock-screen controls not built) |
+| [🎛️ Control the selected Pi device from every tab](target-bar-everywhere.md) | casting/pi | high | built 2026-11-20, Batch C tasks D and M (screenshots at two sizes; lock-screen and notification controls built, ADR 188, emulator only) |
 | [🖥️ A browser is a Play on… target (open the Pi's address in any browser)](browser-target.md) | casting/pi | high | built 2026-11-13, Batch B P9 (home network only; away from home decided, not built; real-device checks owed) |
 | [📺 Cast to Apple TV (AirPlay) and DLNA players too](cast-to-airplay-and-dlna.md) | casting/pi | medium | built 2026-11-14 (ADRs 174 and 175, picture and a Kodi control); real LG and Kodi tests owed |
 | [⏻ Switch the LG off, put it on an input, start Kodi when Android has killed it](webos-and-kodi-power.md) | casting/pi | medium | built 2026-11-20 (ADR 177, fakes only); real LG and Fire Stick checks owed |
@@ -70,6 +70,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [The mini player shows every mode that is on](sticky-modes-row.md) | player | high | built 2026-11-06, Batch A (ADR 125); tests to follow |
 | [Why is this playing?](why-is-this-playing.md) | player | medium | built 2026-11-06, Batch A (tests written 2026-11-07; emulator look owed) |
 | [What's new after an update](whats-new-card.md) | app | medium | built 2026-11-06, Batch A (ADR 130); first card needs a CI release carrying the notes; tests to follow |
+| [Hold the top-right corner to send a report](corner-hold-report.md) | diagnostics | high | built 2026-11-27, Batch C; a phone run over live video to follow |
 | [A Quick Settings tile sends a Totum report](send-report-tile.md) | diagnostics | medium | built 2026-11-06, Batch A; tests and a device run to follow |
 | [Search in Settings](settings-search.md) | settings | low | built 2026-11-06, Batch A; tests to follow |
 | [Update straight from the banner](in-app-updater.md) | app | high | built 2026-11-06, Batch A (ADR 130); tests and a device run to follow |
