@@ -35,6 +35,7 @@ internal class DeckSleep(
     private val playback: () -> SleepPlayback,
     private val pause: suspend () -> Unit,
     private val switchOff: suspend () -> Unit = {},
+    private val stop: suspend () -> Unit = {},
 ) {
     private class Armed(
         val kind: SleepKind,
@@ -43,6 +44,7 @@ internal class DeckSleep(
         val title: String?,
         val ramp: FadeRamp,
         val switchOff: Boolean,
+        val stop: Boolean,
     ) {
         var job: Job? = null
         var fade: VolumeFade? = null
@@ -69,13 +71,15 @@ internal class DeckSleep(
             title = ask.title,
             ramp = FadeRamp(if (timed) minOf(fade, total) else fade),
             switchOff = ask.switchOff,
+            stop = ask.stop,
         )
         armed = sleep
         Diag.log(
             "sleep",
             "dewidebug sleep timer armed on $label: ${ask.kind} " +
                 (if (timed) "in $total" else "after ${ask.itemIds.size} item(s) ending ${ask.itemIds.lastOrNull()}") +
-                ", fade ${sleep.ramp.length}" + if (sleep.switchOff) ", then switch it off" else "",
+                ", fade ${sleep.ramp.length}" +
+                if (sleep.switchOff) ", then switch it off" else if (sleep.stop) ", then stop it" else "",
         )
         sleep.job = scope.launch { if (timed) countDown(sleep) else watchItems(sleep) }
     }
@@ -218,6 +222,9 @@ internal class DeckSleep(
         if (sleep.switchOff) {
             Diag.log("sleep", "dewidebug sleep timer on $label: the volume is back, now switching it off")
             switchOff()
+        } else if (sleep.stop) {
+            Diag.log("sleep", "dewidebug sleep timer on $label: the volume is back, now stopping it")
+            stop()
         }
     }
 

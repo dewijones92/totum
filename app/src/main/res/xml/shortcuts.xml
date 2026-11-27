@@ -44,4 +44,15 @@
             android:targetPackage="com.dewijones92.totum"
             android:targetClass="com.dewijones92.totum.MainActivity" />
     </shortcut>
+    <shortcut
+        android:shortcutId="treat"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/treat_shortcut_short"
+        android:shortcutLongLabel="@string/treat_shortcut_long">
+        <intent
+            android:action="com.dewijones92.totum.TREAT"
+            android:targetPackage="com.dewijones92.totum"
+            android:targetClass="com.dewijones92.totum.MainActivity" />
+    </shortcut>
 </shortcuts>

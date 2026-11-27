@@ -1,7 +1,7 @@
 ---
 title: Architecture decision records
 kind: index
-updated: 2026-11-20
+updated: 2026-11-27
 ---
 
 # Architecture decision records
@@ -196,3 +196,5 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 185 | [Long ones are built from what is cached, and fill in lengths lazily](0185-long-ones-are-built-from-what-is-cached-and-fill-in-lengths-lazily.md) | Accepted |
 | 186 | [One fetch per item: a playing stream is its own download, and nothing swaps a healthy stream for a file](0186-one-fetch-per-item-a-playing-stream-is-its-own-download.md) | Accepted |
 | 187 | [A running Jellyfin app is a target the Pi drives by item id, and it takes only Jellyfin items](0187-a-running-jellyfin-app-is-a-target-the-pi-drives-by-item-id.md) | Accepted |
+| 195 | [Play next stacks in the order you chose it, behind the last play next](0195-play-next-stacks-in-the-order-you-chose.md) | Accepted |
+| 196 | [The treat button puts a chosen film or playlist on a TV for a while, and the Pi ends it](0196-the-treat-button-puts-a-film-on-the-tv-for-a-while-and-the-pi-ends-it.md) | Accepted |

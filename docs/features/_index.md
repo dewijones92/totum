@@ -1,7 +1,7 @@
 ---
 title: Features
 kind: index
-updated: 2026-11-20
+updated: 2026-11-27
 ---
 
 # Features
@@ -17,6 +17,8 @@ alone until they need more.
 | 🧳 Trip mode: say when you leave and how many per group; on Wi-Fi the phone fetches the next few of every queue group as one strip task and copies what the Pi has ready through the Pi copy path | downloads | built 2026-11-07, Batch A (ADR 149; tests written; not run on a device) | [trip-mode.md](trip-mode.md) |
 | 🧘 Long ones: a Library tile and page of unwatched videos over 20 minutes from what you follow, newest first, 12 at most and 2 per channel, lengths found lazily and kept for good | library | built 2026-11-20 (ADR 185; unit tests; device screenshots in the doc) | [long-ones.md](long-ones.md) |
 | 👶📺 Kid TV: a Library tile casts a chosen pinned playlist to a chosen TV in kid mode with one tap (1x, no silence skipping, the playlist loops, the phone stays free); choices on a page | casting/kids | built 2026-11-07, Batch A (ADR 148; tests written; not run on a TV) | [kid-tv-button.md](kid-tv-button.md) |
+| 🧸 The treat button: a Library tile (and an app-icon shortcut) puts a chosen pinned playlist or film on a chosen TV for 5 to 90 minutes (default 15), then the home server switches the TV off, pauses or stops; saved defaults, a sheet for this-time changes, a strip entry and a countdown notification | casting/pi | built 2026-11-27, Batch C task V (ADR 196; unit tests; not run on a real TV) | [treat-button.md](treat-button.md) |
+| ▶️ Play next stacks: Play next on A, B, C plays A, B, C, on the phone's queue and on a Pi target's | queue | built 2026-11-27, Batch C task V (ADR 195; unit tests) | [playback-queue.md](playback-queue.md#play-next-stacks-adr-195) |
 | A draft post and demo-video script for an AI subreddit, in `docs/drafts/` (never posted) | publishing | built 2026-11-07, Batch A (drafts only) | [subreddit-draft.md](subreddit-draft.md) |
 | ❤️ Sponsor Totum: a Settings row that opens the sponsor page, drawn only when the build carries a usable https link (`totum.sponsorUrl`) | publishing | live 2026-11-13, Batch B (ADR 147; the link is https://ko-fi.com/totum) | [sponsor-button.md](sponsor-button.md) |
 | Licence and reporting: GPL-3.0 with third-party notices; reports go to the Pi only from a phone signed in to the home server, everyone else gets 🐙 Report on GitHub (a redacted preview, copied, the new-issue form opened) | publishing | built 2026-11-07, Batch A (ADR 146; tests written 2026-11-07; device checks owed) | [licence-and-reports.md](licence-and-reports.md) |

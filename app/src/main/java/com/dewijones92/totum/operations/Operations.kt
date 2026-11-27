@@ -32,6 +32,7 @@ enum class OperationKind(val toastsResult: Boolean = true) {
     WAKE_TARGET,
     IMPORT_PHOTOS,
     START_TARGET_APP,
+    TREAT,
 }
 
 data class Operation(
@@ -46,6 +47,7 @@ data class Operation(
     val startedAtMs: Long = 0,
     val starting: Boolean = false,
     val retry: Retrying? = null,
+    val detail: String? = null,
 )
 
 data class Retrying(val attempt: Int, val of: Int, val atMs: Long, val reason: String)
@@ -136,6 +138,10 @@ class Operations(private val clock: () -> Long = System::currentTimeMillis) {
                     }
                 }
             }
+        }
+
+        fun detail(text: String?) {
+            live.update { list -> list.map { op -> if (op.id == id) op.copy(detail = text) else op } }
         }
 
         fun retrying(retry: Retrying?) {

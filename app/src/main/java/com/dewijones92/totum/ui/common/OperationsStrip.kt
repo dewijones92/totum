@@ -140,11 +140,15 @@ private fun OperationRow(operation: Operation, onCancel: (Long) -> Unit) {
                 Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                 detailOf(operation).forEach { Text(it, style = MaterialTheme.typography.bodySmall) }
             }
-            val cancelWhat = stringResource(R.string.ops_cancel_what, operation.subject)
+            val treat = operation.kind == OperationKind.TREAT
+            val cancelWhat = stringResource(
+                if (treat) R.string.ops_stop_what else R.string.ops_cancel_what,
+                operation.subject,
+            )
             TextButton(
                 onClick = { onCancel(operation.id) },
                 modifier = Modifier.semantics { contentDescription = cancelWhat },
-            ) { Text(stringResource(R.string.ops_cancel)) }
+            ) { Text(stringResource(if (treat) R.string.ops_stop else R.string.ops_cancel)) }
         }
         val step = operation.step
         val steps = operation.steps
@@ -193,10 +197,12 @@ private fun titleOf(operation: Operation): String = when (operation.kind) {
     OperationKind.WAKE_TARGET -> stringResource(R.string.ops_wake_target, operation.subject)
     OperationKind.IMPORT_PHOTOS -> stringResource(R.string.ops_import_photos, operation.subject)
     OperationKind.START_TARGET_APP -> stringResource(R.string.ops_start_target_app, operation.subject)
+    OperationKind.TREAT -> stringResource(R.string.ops_treat, operation.subject)
 }
 
 @Composable
 private fun detailOf(operation: Operation): List<String> = buildList {
+    operation.detail?.let { add(it) }
     if (operation.playing) add(stringResource(R.string.ops_playing))
     if (operation.starting) add(stringResource(R.string.ops_starting, operation.subject))
     operation.retry?.let { retry ->
@@ -247,8 +253,14 @@ fun resultText(context: Context, ended: Ended): String = when (val end = ended.e
         ended.subject,
     )
     is OperationEnd.Failed -> context.getString(R.string.ops_failed, ended.subject, end.why)
-    is OperationEnd.Cancelled ->
-        context.getString(if (end.playing) R.string.ops_cancelled_playing else R.string.ops_cancelled, ended.subject)
+    is OperationEnd.Cancelled -> context.getString(
+        when {
+            ended.kind == OperationKind.TREAT -> R.string.ops_treat_stopped
+            end.playing -> R.string.ops_cancelled_playing
+            else -> R.string.ops_cancelled
+        },
+        ended.subject,
+    )
 }
 
 private fun doneText(kind: OperationKind, partial: Boolean): Int = when (kind) {
@@ -263,6 +275,7 @@ private fun doneText(kind: OperationKind, partial: Boolean): Int = when (kind) {
     OperationKind.WAKE_TARGET -> R.plurals.ops_wake_done
     OperationKind.IMPORT_PHOTOS -> R.plurals.ops_import_photos_done
     OperationKind.START_TARGET_APP -> R.plurals.ops_start_app_done
+    OperationKind.TREAT -> R.plurals.ops_treat_done
 }
 
 private const val SHOW_AFTER_MS = 1_000L

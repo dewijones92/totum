@@ -1,7 +1,7 @@
 ---
 title: Backlog
 kind: index
-updated: 2026-11-20
+updated: 2026-11-27
 ---
 
 # Backlog
@@ -11,6 +11,9 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 
 | Item | Area | Priority | Status |
 |---|---|---|---|
+| [🔴 An infrared blaster so Totum can act as a remote, and more Bluetooth around the house](ir-blaster-and-home-bluetooth.md) | casting/pi | high | idea 2026-11-27 (Dewi: top of the next backlog, refine later; the LG in deep standby answered neither wake-on-LAN nor CEC) |
+| [🧸 The treat button: a film on the TV for a while, then off](treat-button.md) | casting/pi | medium | built 2026-11-27, Batch C task V (ADR 196; unit tests; not run on a real TV) |
+| [Play next stacks in the order you chose it](play-next-stacks.md) | queue | medium | built 2026-11-27, Batch C task V (ADR 195; unit tests on the phone queue and a Pi target) |
 | [One fetch per item, the stream is the download](one-fetch-per-item.md) | downloads/playback | high | built 2026-11-20 (ADR 186; instrumented evidence, not yet seen on the phone) |
 | [📺 BBC programmes follow-ups](bbc-programmes-follow-ups.md) | search | low | open 2026-11-20 (iPlayer app route unseen, BBC Sounds, more than 50 episodes) |
 | [📱 On this phone follow-ups](phone-media-follow-ups.md) | library | medium | open 2026-11-14 (Show on the TV, phone files to the Pi, search hits) |

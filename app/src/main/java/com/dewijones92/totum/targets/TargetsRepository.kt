@@ -378,7 +378,7 @@ class TargetsRepository(
         var state = accepted
         if (state.starting) {
             progress?.report(starting = true)
-            state = awaitStart(play) ?: return fallBack(play, STOPPED_ANSWERING, removeFromPi = true)
+            state = awaitStart(play.id, play.label) ?: return fallBack(play, STOPPED_ANSWERING, removeFromPi = true)
             progress?.report(starting = false)
         }
         val asked = play.items.mapTo(HashSet()) { it.item.id.value }
@@ -397,26 +397,55 @@ class TargetsRepository(
         }
     }
 
-    private suspend fun awaitStart(play: Redirected): TargetState? {
+    suspend fun awaitStart(id: String, label: String): TargetState? {
         var waited = 0L
         var misses = 0
         while (waited < START_WATCH_CAP_MS) {
             delay(START_POLL_MS)
             waited += START_POLL_MS
-            if (refresh("watching ${play.label} start")) {
+            if (refresh("watching $label start")) {
                 misses = 0
-                val state = live.value.firstOrNull { it.target.id == play.id }
+                val state = live.value.firstOrNull { it.target.id == id }
                 if (state != null && !state.starting) {
-                    Diag.log("targets", "${play.label} finished starting after ${waited}ms: playing=${state.playing}")
+                    Diag.log("targets", "$label finished starting after ${waited}ms: playing=${state.playing}")
                     return state
                 }
             } else if (++misses >= START_WATCH_MISSES) {
-                Diag.warn("targets", "${play.label}: $misses reads in a row failed while it was starting; giving up")
+                Diag.warn("targets", "$label: $misses reads in a row failed while it was starting; giving up")
                 return null
             }
         }
-        Diag.warn("targets", "${play.label} was still starting after ${waited}ms; giving up on it")
-        return live.value.firstOrNull { it.target.id == play.id }
+        Diag.warn("targets", "$label was still starting after ${waited}ms; giving up on it")
+        return live.value.firstOrNull { it.target.id == id }
+    }
+
+    suspend fun playOnly(
+        id: String,
+        items: List<PlayableItem>,
+        group: QueueGroup?,
+        why: String,
+    ): HomeAnswer<TargetState> {
+        Diag.log(
+            "targets",
+            "$id: ${items.size} item(s) sent to play and nothing else, with no fall back to the phone ($why)",
+        )
+        val request = TargetQueueRequest(
+            items = items.map { it.toBackup() },
+            mode = QueueMode.REPLACE,
+            groupId = group?.id,
+            groupTitle = group?.title,
+            from = requester(),
+            startItemId = items.firstOrNull()?.item?.id?.value,
+        )
+        return queue(id, request)
+    }
+
+    suspend fun endPlayback(id: String): HomeAnswer<TargetState> {
+        val cancelled = control(id, TargetControl(TargetAction.SLEEP, sleep = TargetSleepAsk(SleepKind.OFF)))
+        if (cancelled is HomeAnswer.No) {
+            Diag.warn("targets", "$id: its timer could not be cancelled before stopping it: ${cancelled.reason}")
+        }
+        return control(id, TargetControl(TargetAction.STOP))
     }
 
     private suspend fun fallBack(play: Redirected, why: String, removeFromPi: Boolean): OperationEnd {
@@ -462,7 +491,7 @@ class TargetsRepository(
 
     fun cancelSleep(id: String) = sleep(id, TargetSleepAsk(SleepKind.OFF))
 
-    private fun fadeSeconds(): Int = sleepFade().inWholeSeconds.toInt()
+    fun fadeSeconds(): Int = sleepFade().inWholeSeconds.toInt()
 
     private fun sleep(id: String, ask: TargetSleepAsk) {
         Diag.log(

@@ -1,7 +1,7 @@
 ---
 title: Testing
 kind: reference
-updated: 2026-11-20
+updated: 2026-11-27
 ---
 
 # Testing
@@ -1114,6 +1114,9 @@ briefly broken, then the code put back. Instrumented classes were compiled (`:ap
 | Work-app quiet hours, groups, change notices | JVM + instrumented | `WorkAppsSettingsTest`, `WorkAppsQuietHubTest`; `BatchAStoresTest` (`SnoozedKeys`) |
 | 🎥 Recorder pure pieces | JVM + instrumented | `RecorderPureRulesTest`; `BatchAStoresTest` (`RecorderChoiceStore`) |
 | Kid TV | JVM + instrumented | `KidTvTest`, `KidModeTest`; `KidTvWordsTest` |
+| ▶️ Play next stacks (ADR 195, 27 Nov 2026): A, B, C play in that order, with nothing playing, in bulk, as a group, from Move up, from a group header, on a Pi target; the chain starts again when the playing item changes, the last one is removed or sits behind the playing item; Play now on a target never lands behind the chain. 11 of the first 13 failed against the old rule (`expected:<[playing, a, b, c, x, y]> but was:<[playing, c, b, a, x, y]>`), 5 of 8 on the phone; the guards for the resets passed against it too | JVM | `:core:data` `PlayNextStacksInOrderTest`; `:app` `PlayNextStacksOnThePhoneTest`, `QueueBulkEditsTest` (its one-at-a-time oracle now plays next in order); `:cli` `TargetDeckPlayNextStackTest` |
+| 🧸 The treat button (ADR 196, 27 Nov 2026): the defaults (15 min, switch off, fade), the exact timer request for the defaults and for a this-time override that leaves the saved defaults alone, saved defaults, the stop fall back for a TV that cannot be switched off (and that it is said once), a timer that cannot be set stops the TV, a TV that refuses is not stopped, a TV the Pi does not list, the strip entry with its time left and Stop, stopping from the tile, time up, an early end, a restart; the Pi's stop step (pause, stop, hand back; without the flag it only pauses). Not seen failing: new behaviour with no old code to run against | JVM | `:app` `TreatRulesTest`, `TreatTest`; `:cli` `TargetDeckStopTimerTest` |
+| ⏻ A switch off that worked is not reported as "no way to switch it off" (27 Nov 2026, the LG over webOS: `CastLink.switchOff` turned the success `null` into the failure text) | JVM | `:cli` `CastLinkSwitchOffTest` |
 | Trip mode | JVM | `TripPlanTest`, `TripModeTest`, `EpisodeBatchEndTest` (the batch it starts) |
 | Frame-rate stamp, WebM/MKV | JVM | `FrameRateFromSampleTimesTest` (whole-millisecond times), `StampsFrameRateTest`, `EvenRefreshTest` |
 

@@ -24,6 +24,7 @@ import com.dewijones92.totum.pins.HomeScreenShortcuts
 import com.dewijones92.totum.pins.PinPlayed
 import com.dewijones92.totum.recorder.TapCircles
 import com.dewijones92.totum.theme.TotumTheme
+import com.dewijones92.totum.treat.TreatRequests
 import com.dewijones92.totum.ui.AppShell
 import com.dewijones92.totum.ui.ask.AskRequests
 import com.dewijones92.totum.ui.common.LocalNow
@@ -93,6 +94,7 @@ class MainActivity : FragmentActivity() {
         if (!restored) handleOpenPlayer(intent, via = "onCreate")
         if (!restored) DownloadsRequests.handle(intent, via = "onCreate")
         if (!restored) AskRequests.handle(intent, via = "onCreate")
+        if (!restored) TreatRequests.handle(intent, this, container.treat, via = "onCreate")
         handleShareIntent(intent, via = "onCreate", restored = restored)
     }
 
@@ -106,6 +108,7 @@ class MainActivity : FragmentActivity() {
         handleOpenPlayer(intent, via = "onNewIntent")
         DownloadsRequests.handle(intent, via = "onNewIntent")
         AskRequests.handle(intent, via = "onNewIntent")
+        TreatRequests.handle(intent, this, container.treat, via = "onNewIntent")
         handleShareIntent(intent, via = "onNewIntent", restored = false)
     }
 

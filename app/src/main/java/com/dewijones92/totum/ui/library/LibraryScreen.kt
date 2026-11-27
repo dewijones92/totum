@@ -224,6 +224,7 @@ private fun LibraryHome(
         jellyfin = LibraryJellyfin(onOpenJellyfin),
         kidTv = {
             KidTvTile(container, onSetUp = onOpenKidTv)
+            TreatTile(container)
             PhoneMediaTile(onOpen = onOpenPhoneMedia)
             TripTile(container, onOpen = onOpenTrip)
             LongOnesTile(container, onOpen = onOpenLongOnes)

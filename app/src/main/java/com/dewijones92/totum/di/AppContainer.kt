@@ -339,6 +339,9 @@ import com.dewijones92.totum.targets.RequesterIdentity
 import com.dewijones92.totum.targets.SendToTarget
 import com.dewijones92.totum.targets.TargetsRepository
 import com.dewijones92.totum.targets.withPlayOn
+import com.dewijones92.totum.treat.Treat
+import com.dewijones92.totum.treat.treatFor
+import com.dewijones92.totum.treat.withTreat
 import com.dewijones92.totum.trip.TripMode
 import com.dewijones92.totum.trip.tripModeFor
 import com.dewijones92.totum.ui.ask.AskLatest
@@ -479,6 +482,7 @@ interface AppContainer {
     val pendingDownloadDeletes: PendingDownloadDeletes? get() = null
     val kidLock: KidLock
     val kidTv: KidTv? get() = null
+    val treat: Treat? get() = null
     val tripMode: TripMode? get() = null
     val longOnes: LongOnes? get() = null
     val downloadChooser: DownloadChooser
@@ -1121,7 +1125,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                 pinStore
             ).withRecent(recentActions).withNotForMe(notForMe).withBedtime(bedtime).withWorkApps(workApps)
                 .withDailyAlarms(dailyAlarms).withRecorderChoices(RecorderChoiceStore(context))
-                .withKidTv(kidTv).withPhoneUse(phoneUse).withPlayOn { targets },
+                .withKidTv(kidTv).withTreat(treat).withPhoneUse(phoneUse).withPlayOn { targets },
             appVersion = BuildConfig.VERSION_NAME,
             extras = BackupService.Extras(
                 groups = sourceGroupStore,
@@ -1151,6 +1155,8 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     override val kidLock: KidLock = KidLock()
 
     override val kidTv: KidTv by lazy { kidTvFor(this, context) }
+
+    override val treat: Treat by lazy { treatFor(this, context) }
 
     override val tripMode: TripMode by lazy { tripModeFor(this, context) }
 
@@ -1551,7 +1557,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                     exsurge.diagnostics + ExsurgeLiveUpdate.diagnostics(context) + dailyAlarms.diagnostics +
                         workApps.diagnostics + bedtime.diagnostics + phoneUse.diagnostics +
                         RecorderDiagnostics.values(context) +
-                        listCounts() + kidTv.diagnostics + tripMode.diagnostics
+                        listCounts() + kidTv.diagnostics + treat.diagnostics + tripMode.diagnostics
                 },
                 appUpdate = { appUpdate.diagnostics() + appInstaller.diagnostics() + whatsNew.diagnostics() },
                 polite = { polite.diagnostics() + ("explore.on" to exploreMode.on.value.toString()) },
@@ -1612,6 +1618,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         followSkipRequests(this, context)
         announceScreens(this, httpClient, context)
         followLiveStarts(this, context)
+        treat.resume()
         liveRefresher.start()
         screenReadiness = startScreenReady(context) { playbackController.refreshScreenPage() }
         startDriveBackups(this)
