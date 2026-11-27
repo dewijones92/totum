@@ -24,12 +24,16 @@ class WebOsTvTest {
 
     private val tv = FakeSsapServer()
     private val logged = Collections.synchronizedList(mutableListOf<String>())
+    private val warned = Collections.synchronizedList(mutableListOf<String>())
     private lateinit var keyFile: java.io.File
 
     @Before
     fun setUp() {
         keyFile = tmp.newFolder("webos").resolve("webos-lg-tv.json")
-        Diag.sink = Diag.Sink { _, _, message, error -> logged += message + (error?.message ?: "") }
+        Diag.sink = Diag.Sink { level, _, message, error ->
+            logged += message + (error?.message ?: "")
+            if (level == Diag.Level.WARN) warned += message
+        }
     }
 
     @After
@@ -89,6 +93,48 @@ class WebOsTvTest {
 
         val tookMs = (System.nanoTime() - began) / NANOS_PER_MS
         assertTrue("took ${tookMs}ms: the close was noticed, not waited out", tookMs < CLOSE_NOTICED_WITHIN_MS)
+    }
+
+    @Test
+    fun `a TV that closes the line with 1008 just after we switched it off is not reported as unavailable`() =
+        runBlocking {
+            val set = paired()
+            assertNull(set.powerOff())
+            tv.closeNewConnectionsWith = POLICY_VIOLATION
+
+            val panel = set.panelOn()
+
+            assertNull(panel)
+            assertTrue(
+                logged.joinToString("\n"),
+                logged.any { "the TV closed the connection as it switched off" in it }
+            )
+            assertEquals(warned.joinToString("\n"), emptyList<String>(), warned.filter { "unavailable" in it })
+        }
+
+    @Test
+    fun `a close that follows no switch off of ours is still reported as the TV being unreachable`() = runBlocking {
+        val set = paired()
+        tv.closeNewConnectionsWith = POLICY_VIOLATION
+
+        assertNull(set.panelOn())
+
+        val unreachable = "webOS control unavailable, it could not be reached: the TV closed the connection (1008)"
+        assertTrue(warned.joinToString("\n"), warned.any { unreachable in it })
+    }
+
+    @Test
+    fun `a close long after our switch off is not taken as part of it`() = runBlocking {
+        var clock = 0L
+        WebOsKeys(keyFile).write(WebOsKey(tv.clientKey, null))
+        val set = WebOsTv("LG TV", OkWebOsDial(listOf(tv.url)), WebOsKeys(keyFile), now = { clock })
+        assertNull(set.powerOff())
+        clock += 10 * 60_000L
+        tv.closeNewConnectionsWith = POLICY_VIOLATION
+
+        assertNull(set.panelOn())
+
+        assertTrue(warned.joinToString("\n"), warned.any { "the TV closed the connection (1008)" in it })
     }
 
     @Test
@@ -215,5 +261,6 @@ class WebOsTvTest {
     private companion object {
         const val NANOS_PER_MS = 1_000_000L
         const val CLOSE_NOTICED_WITHIN_MS = 4_000L
+        const val POLICY_VIOLATION = 1008
     }
 }

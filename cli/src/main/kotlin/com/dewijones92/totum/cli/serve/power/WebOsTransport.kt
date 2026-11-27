@@ -32,6 +32,8 @@ internal fun interface WebOsDial {
     fun open(pinnedCert: String?): WebOsLine
 }
 
+internal class WebOsClosedByTv(val code: Int, message: String) : IOException(message)
+
 internal class PinnedTrust(private val pinned: String?) : X509TrustManager {
     @Volatile var seen: String? = null
         private set
@@ -106,12 +108,12 @@ internal class OkWebOsDial(
                 }
 
                 override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
-                    inbox.add(Gone("the TV closed the connection ($code)"))
+                    inbox.add(Gone("the TV closed the connection ($code)", code))
                     webSocket.close(NORMAL_CLOSE, "")
                 }
 
                 override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
-                    inbox.add(Gone("the TV closed the connection ($code)"))
+                    inbox.add(Gone("the TV closed the connection ($code)", code))
                 }
 
                 override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
@@ -132,7 +134,7 @@ internal class OkWebOsDial(
     private fun schemeOf(url: String): String =
         url.substringBefore("://") + "://" + url.substringAfter("://").substringBefore('/')
 
-    private class Gone(val why: String)
+    private class Gone(val why: String, val code: Int? = null)
 
     private class OkLine(
         private val socket: WebSocket,
@@ -142,17 +144,22 @@ internal class OkWebOsDial(
         override val certSeen: String? get() = trust.seen
 
         override fun send(message: JsonObject) {
-            if (!socket.send(message.toString())) throw IOException("the TV's connection is closed")
+            if (socket.send(message.toString())) return
+            val closed = (inbox.peek() as? Gone)?.takeIf { it.code != null }
+            throw closed?.let { goneAsFailure(it) } ?: IOException("the TV's connection is closed")
         }
 
         override fun receive(timeoutMs: Long): JsonObject? {
             val item = inbox.poll(timeoutMs, TimeUnit.MILLISECONDS) ?: return null
             if (item is Gone) {
                 inbox.add(item)
-                throw IOException(item.why)
+                throw goneAsFailure(item)
             }
             return item as JsonObject
         }
+
+        private fun goneAsFailure(item: Gone): IOException =
+            item.code?.let { WebOsClosedByTv(it, item.why) } ?: IOException(item.why)
 
         override fun close() {
             socket.close(NORMAL_CLOSE, "")

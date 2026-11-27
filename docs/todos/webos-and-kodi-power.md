@@ -3,7 +3,7 @@ title: ⏻ Switch the LG off, put it on an input, and start Kodi on the Fire Sti
 kind: todo
 status: built 2026-11-20 (ADR 177, proved against a fake SSAP server and a fake adb shell); real-device checks owed
 priority: medium
-updated: 2026-11-20
+updated: 2026-11-27
 ---
 
 # ⏻ Switch the LG off, put it on an input, and start Kodi on the Fire Stick
@@ -27,3 +27,9 @@ off, then a sleep timer with the checkbox ticked; and a play to Kodi after force
 answer: that the LG accepts the signed registration manifest (the unsigned one is tried when it refuses), that it reports
 `Active Standby` or `Suspend` while off, that `system/turnOff` is allowed for a PIN-paired key, and that the Pi's adb key is the
 one the stick authorises.
+
+## The `(1008)` line after a switch off (2026-11-27)
+
+Done: a close the TV makes within two minutes of Totum's own successful switch off is logged at INFO as "the TV closed the
+connection as it switched off" and does not mark webOS unavailable (ADR 177, amended 2026-11-27). Still to see on the real LG:
+whether 1008 is what it sends every time, and how long after `turnOff` it comes.
