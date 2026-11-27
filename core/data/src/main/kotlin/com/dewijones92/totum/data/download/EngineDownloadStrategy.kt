@@ -34,6 +34,7 @@ public class EngineDownloadStrategy(
      */
     private val preferredAudioLanguages: () -> List<String> = { emptyList() },
     private val videoCodecsToAvoid: (maxHeight: Int?) -> List<String> = { emptyList() },
+    private val bestHeight: () -> Int? = { null },
 ) : DownloadStrategy {
 
     override fun download(item: PlayableItem, target: File, audioOnly: Boolean): Flow<DownloadState> =
@@ -58,7 +59,8 @@ public class EngineDownloadStrategy(
             val selector = selectorFor(audioOnly, maxHeight)
             Diag.log(
                 "download",
-                "${item.item.id.value} yt-dlp selector $selector [audioOnly=$audioOnly maxHeight=$maxHeight]",
+                "${item.item.id.value} yt-dlp selector $selector [audioOnly=$audioOnly maxHeight=$maxHeight " +
+                    "deviceBestHeight=${bestHeight() ?: "uncapped"}]",
             )
             val request = DownloadRequest(
                 url = url,
@@ -108,7 +110,7 @@ public class EngineDownloadStrategy(
      * because most videos have exactly one audio track and must be unaffected.
      */
     private fun selectorFor(audioOnly: Boolean, maxHeight: Int?): String {
-        val capped = maxHeight?.takeIf { !audioOnly }
+        val capped = (maxHeight ?: bestHeight()).takeIf { !audioOnly }
         val codecs = if (audioOnly) "" else videoCodecsToAvoid(capped).joinToString("") { "[vcodec!^=?$it]" }
 
         /** Best video + best audio, merged; falls back to the best single stream. */

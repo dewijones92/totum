@@ -26,6 +26,13 @@ class BreadcrumbsKeptLaneTest {
     }
 
     @Test
+    fun `the radio, discover, download, fullscreen, codec and advance tags are kept longer too`() {
+        listOf("radio", "discover", "download", "fullscreen", "codec", "advance").forEach {
+            assertTrue(it, it in Breadcrumbs.KEPT_TAGS)
+        }
+    }
+
+    @Test
     fun `a cast line outlives a flood of playback lines that evicts the playback lines before it`() {
         Breadcrumbs.record("playback", "the first playback line")
         Breadcrumbs.record("cast", "the TV dropped the session (2055)")

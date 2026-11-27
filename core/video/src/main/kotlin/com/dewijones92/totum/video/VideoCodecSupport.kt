@@ -63,10 +63,24 @@ internal fun String?.codecPreference(hardware: Boolean = false): Int {
 
 fun VideoCodecSupport.codecsToAvoid(height: Int?): List<String> {
     val width = height?.let { it * WIDE / TALL }
-    return VideoCodecFamily.entries.filter { family ->
-        val probe = family.prefixes.first()
-        !canDecode(probe, width, height) || family == VideoCodecFamily.AV1 && !isHardware(probe, width, height)
-    }.flatMap { it.prefixes }
+    return VideoCodecFamily.entries.filter { family -> !usable(family, width, height) }.flatMap { it.prefixes }
+}
+
+private fun VideoCodecSupport.usable(family: VideoCodecFamily, width: Int?, height: Int?): Boolean {
+    val probe = family.prefixes.first()
+    return canDecode(probe, width, height) && !(family == VideoCodecFamily.AV1 && !isHardware(probe, width, height))
+}
+
+private val HEIGHT_LADDER = listOf(4320, 2160, 1440, 1080, 720, 480, 360, 240, 144)
+
+fun VideoCodecSupport.reach(family: VideoCodecFamily): Int? =
+    HEIGHT_LADDER.firstOrNull { height -> canDecode(family.prefixes.first(), height * WIDE / TALL, height) }
+
+fun VideoCodecSupport.bestHeight(): Int? {
+    val top = HEIGHT_LADDER.firstOrNull { height ->
+        VideoCodecFamily.entries.any { family -> usable(family, height * WIDE / TALL, height) }
+    }
+    return top?.takeUnless { it == HEIGHT_LADDER.first() }
 }
 
 private const val WIDE = 16

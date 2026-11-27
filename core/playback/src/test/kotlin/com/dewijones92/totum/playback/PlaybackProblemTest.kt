@@ -1,5 +1,6 @@
 package com.dewijones92.totum.playback
 
+import com.dewijones92.totum.domain.VideoCodecFamily
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -19,10 +20,42 @@ class PlaybackProblemTest {
         val problem = problemOf("ERROR_CODE_DECODING_FAILED", format)
 
         assertEquals(
-            PlaybackProblem.CannotDecode(TrackKind.VIDEO, "HEVC 10-bit", "ERROR_CODE_DECODING_FAILED"),
+            PlaybackProblem.CannotDecode(
+                TrackKind.VIDEO,
+                "HEVC 10-bit",
+                "ERROR_CODE_DECODING_FAILED",
+                formatSupported = false,
+                mimeType = "video/hevc",
+                width = 1920,
+                height = 800,
+            ),
             problem,
         )
         assertTrue(problem.isPicture)
+    }
+
+    private val eac3Message = "MediaCodecAudioRenderer error, index=1, " +
+        "format=Format(2, null, null, audio/eac3, ec-3, -1, null, [-1, -1, -1.0, null], [6, 48000, null]), " +
+        "format_supported=YES"
+
+    @Test
+    fun `a decoder failure on a format the phone says it supports is the decoder stopping`() {
+        val problem = problemOf("ERROR_CODE_DECODING_FAILED", ErroredFormat.fromMessage(eac3Message))
+
+        assertTrue(problem is PlaybackProblem.CannotDecode)
+        problem as PlaybackProblem.CannotDecode
+        assertTrue(problem.decoderStopped)
+        assertEquals(TrackKind.AUDIO, problem.track)
+        assertEquals("E-AC-3", problem.format)
+        assertNull(problem.width)
+    }
+
+    @Test
+    fun `a format the phone does not support is not a stopped decoder`() {
+        val problem = problemOf("ERROR_CODE_DECODING_FAILED", ErroredFormat.fromMessage(emulatorMessage))
+
+        assertFalse((problem as PlaybackProblem.CannotDecode).decoderStopped)
+        assertEquals(VideoCodecFamily.HEVC, problem.codecFamily)
     }
 
     @Test
@@ -36,7 +69,11 @@ class PlaybackProblemTest {
             "ERROR_CODE_DECODING_FORMAT_EXCEEDS_CAPABILITIES",
             "ERROR_CODE_DECODING_FORMAT_UNSUPPORTED",
         ).forEach { name ->
-            assertEquals(name, PlaybackProblem.CannotDecode(TrackKind.VIDEO, "HEVC", name), problemOf(name, format))
+            assertEquals(
+                name,
+                PlaybackProblem.CannotDecode(TrackKind.VIDEO, "HEVC", name, mimeType = "video/hevc"),
+                problemOf(name, format),
+            )
         }
         assertEquals(
             PlaybackProblem.Failed("ERROR_CODE_IO_FILE_NOT_FOUND"),
@@ -59,7 +96,15 @@ class PlaybackProblemTest {
     fun `a sound the phone cannot decode is not a picture problem`() {
         val problem = problemOf("ERROR_CODE_DECODING_FAILED", ErroredFormat("audio/eac3", "ec-3"))
 
-        assertEquals(PlaybackProblem.CannotDecode(TrackKind.AUDIO, "E-AC-3", "ERROR_CODE_DECODING_FAILED"), problem)
+        assertEquals(
+            PlaybackProblem.CannotDecode(
+                TrackKind.AUDIO,
+                "E-AC-3",
+                "ERROR_CODE_DECODING_FAILED",
+                mimeType = "audio/eac3",
+            ),
+            problem,
+        )
         assertFalse(problem.isPicture)
     }
 
