@@ -15,7 +15,7 @@ class VideoLengths(
     private val now: () -> Long = System::currentTimeMillis,
 ) {
     sealed interface Looked {
-        data class Known(val length: Duration, val asked: Boolean) : Looked
+        data class Known(val length: Duration, val asked: Boolean, val endedStream: Boolean = false) : Looked
         data class NotNow(val why: String, val reason: Reason, val asked: Boolean) : Looked
     }
 
@@ -47,9 +47,14 @@ class VideoLengths(
         }
         val took = now() - started
         return when (answer) {
-            is LengthCheck.Known -> Looked.Known(answer.seconds.seconds, asked = true).also {
+            is LengthCheck.Known -> Looked.Known(
+                answer.seconds.seconds,
+                asked = true,
+                endedStream = answer.wasLive
+            ).also {
                 kept.put(mapOf(id to answer.seconds.toString()))
-                val said = "${answer.seconds}s via ${answer.via} in ${took}ms"
+                val said = "${answer.seconds}s via ${answer.via} in ${took}ms" +
+                    if (answer.wasLive) " (a stream that ended)" else ""
                 Diag.log(TAG, "dewidebug length of $id: $said (kept for good)")
             }
             is LengthCheck.LiveNow -> notNow(id, "🔴 live now", Reason.LIVE_OR_UPCOMING, LIVE_HOLD_MS, took)

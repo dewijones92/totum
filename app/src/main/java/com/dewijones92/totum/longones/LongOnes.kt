@@ -49,7 +49,7 @@ class LongOnesSources(
     val pool: suspend () -> LongOnesPool,
     val playStates: suspend () -> Map<MediaItemId, PlayState>,
     val withoutNotForMe: (List<MediaItem>) -> List<MediaItem>,
-    val liveNow: (MediaItem) -> Boolean,
+    val liveStream: (MediaItem) -> Boolean,
     val freeLength: suspend (MediaItem) -> Duration?,
 )
 
@@ -62,6 +62,7 @@ data class LongOnesLimits(
 class LongOnes(
     private val sources: LongOnesSources,
     private val lengths: VideoLengths,
+    private val streams: KnownStreams,
     private val unmetered: () -> Boolean,
     private val limits: LongOnesLimits = LongOnesLimits(),
     private val now: () -> Long = System::currentTimeMillis,
@@ -89,6 +90,7 @@ class LongOnes(
         var pick = LongOnesPick(emptyList(), emptyList(), 0, 0, 0)
         val tried = mutableSetOf<MediaItemId>()
         val outcomes = Outcomes()
+        val streamsFound = mutableSetOf<MediaItemId>()
         var wifi = false
 
         fun waiting(): Int = pick.unknownLength.count { it.id !in tried }
@@ -116,7 +118,8 @@ class LongOnes(
     }
 
     private fun repick(round: Round) {
-        round.pick = pickLongOnes(round.eligible, { round.known[it.id] }, limits.rules)
+        val candidates = round.eligible.filter { it.id !in round.streamsFound }
+        round.pick = pickLongOnes(candidates, { round.known[it.id] }, limits.rules)
     }
 
     private suspend fun lookUpBatch(why: String, round: Round): Boolean {
@@ -136,15 +139,36 @@ class LongOnes(
             round.outcomes.note(looked)
             if (looked is VideoLengths.Looked.Known) round.known[item.id] = looked.length
         }
+        val found = answers.filter { (_, looked) -> looked.isLiveStream() }.map { it.first.id }
+        if (found.isNotEmpty()) {
+            round.streamsFound += found
+            streams.keep(found.map { it.value }, "length check")
+            Diag.log(
+                TAG,
+                "dewidebug refresh ($why): ${found.size} look-up(s) turned out to be live streams, left out: " +
+                    found.joinToString { it.value },
+            )
+        }
         repick(round)
         return true
+    }
+
+    suspend fun noteLiveStreams(ids: Collection<String>, via: String) {
+        val added = streams.keep(ids, via)
+        if (added > 0) Diag.log(TAG, "dewidebug $via: $added of ${ids.size} listed item(s) were new live streams")
+    }
+
+    private fun VideoLengths.Looked.isLiveStream(): Boolean = when (this) {
+        is VideoLengths.Looked.Known -> endedStream
+        is VideoLengths.Looked.NotNow -> reason == VideoLengths.Reason.LIVE_OR_UPCOMING
     }
 
     private suspend fun eligible(all: List<MediaItem>): Eligible {
         val played = sources.playStates()
         val unplayed = all.filter { it.id !in played }
         val kept = sources.withoutNotForMe(unplayed)
-        val unlive = kept.filterNot(sources.liveNow)
+        streams.keep(kept.filter(sources.liveStream).map { it.id.value }, "the live registry or the item's kind")
+        val unlive = kept.filterNot { sources.liveStream(it) || streams.has(it.id.value) }
         return Eligible(unlive, all.size - unplayed.size, unplayed.size - kept.size, kept.size - unlive.size)
     }
 
@@ -191,10 +215,12 @@ class LongOnes(
         val pick = round.pick
         val line = "refresh ($why): pool=${gathered.all.size} (uploads=${gathered.uploads.size} " +
             "feed=${gathered.feed.size} episodes=${gathered.episodes.size}) eligible=${eligible.items.size} " +
-            "(left out: played=${eligible.played} notForMe=${eligible.notForMe} liveNow=${eligible.live}) " +
+            "(left out: played=${eligible.played} notForMe=${eligible.notForMe} liveStreams=${eligible.live} " +
+            "streamsFoundByLookUp=${round.streamsFound.size}) " +
             "lengthsKnown=${round.known.size} askedYouTube=${outcomes.asked} (known=${outcomes.known} " +
             "liveOrUpcoming=${outcomes.live} none=${outcomes.none} unknown=${outcomes.unknown}) " +
             "chosen=${pick.chosen.size}/${limits.rules.limit} tooShort=${pick.tooShort} " +
+            "tooLong=${pick.tooLong} " +
             "heldBackByTheCap=${pick.heldBack} lengthsStillUnknown=${round.waiting()} " +
             "waitingForWifi=${round.wifi} in ${facts.elapsedMs}ms"
         Diag.log(TAG, "dewidebug $line")
