@@ -33,6 +33,7 @@ class AnIPlayerEpisodeOpensElsewhereAndNeverQueuesTest {
     private val controller = FakePlaybackController()
     private val opened = mutableListOf<Pair<String, HttpUrl>>()
     private var canOpen = true
+    private val markedPlayed = mutableListOf<MediaItemId>()
 
     private fun queue() = PlaybackQueue(
         controller = controller,
@@ -47,6 +48,7 @@ class AnIPlayerEpisodeOpensElsewhereAndNeverQueuesTest {
             opened += item.item.title to url
             canOpen
         },
+        markPlayed = { markedPlayed += it },
     )
 
     private fun episode(pid: String, title: String): PlayableItem {
@@ -135,5 +137,34 @@ class AnIPlayerEpisodeOpensElsewhereAndNeverQueuesTest {
         queue.enqueueAll(listOf(one, podcast, two))
 
         assertEquals(listOf("pod-1"), queue.state.value.entries.map { it.item.item.id.value })
+    }
+
+    @Test
+    fun `a successful hand-off marks the episode played through the progress seam`() = runTest(dispatcher) {
+        val queue = queue()
+
+        queue.playNow(one)
+        queue.peek(two)
+        advanceUntilIdle()
+
+        assertEquals(listOf(one.item.id, two.item.id), markedPlayed)
+    }
+
+    @Test
+    fun `a failed hand-off does not mark the episode played`() = runTest(dispatcher) {
+        canOpen = false
+
+        queue().playNow(one)
+        advanceUntilIdle()
+
+        assertTrue(markedPlayed.isEmpty())
+    }
+
+    @Test
+    fun `an automatic play opens nothing and marks nothing`() = runTest(dispatcher) {
+        queue().playNow(one, byYou = false)
+        advanceUntilIdle()
+
+        assertTrue(markedPlayed.isEmpty())
     }
 }

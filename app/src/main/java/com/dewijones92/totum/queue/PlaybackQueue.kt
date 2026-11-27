@@ -155,6 +155,7 @@ class PlaybackQueue(
     private val repeatOneOffForRun: (String) -> Boolean = { false },
     private val shield: ItemShield = NoShield,
     private val openExternally: (PlayableItem, HttpUrl) -> Boolean = { _, _ -> false },
+    private val markPlayed: suspend (MediaItemId) -> Unit = {},
     seriesRun: suspend (MediaItem) -> JellyfinSeriesRun? = { null },
 ) {
     private val seriesRuns = SeriesRuns(seriesRun, offline)
@@ -327,8 +328,13 @@ class PlaybackQueue(
         Diag.log(
             "playback",
             "dewidebug external $why: \"${item.item.title.take(TITLE_CHARS)}\" ${external.url} -> " +
-                if (opened) "handed to the other app" else "nothing could open it",
+                if (opened) {
+                    "handed to the other app, marked played"
+                } else {
+                    "nothing could open it, not marked played"
+                },
         )
+        if (opened) scope.launch { markPlayed(item.item.id) }
         return opened
     }
 
