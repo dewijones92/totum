@@ -13,6 +13,7 @@ public data class DiscoverStep(
     val pagesAsked: Int,
     val dry: Boolean,
     val failure: String? = null,
+    val reason: String? = null,
 )
 
 @Suppress("TooManyFunctions")
@@ -36,8 +37,12 @@ public class DiscoverWalk(
     private var recentres = 0
     private var recentredThisStep = false
     private var failureThisStep: String? = null
+    private var askedThisStep = 0
+    private var passedThroughThisStep = 0
 
     public val steps: Int get() = productiveSteps
+
+    public val seedSimilarCount: Int get() = similarOf[seed.id]?.size ?: 0
 
     public val last: DiscoverArtist? get() = picked.lastOrNull()
 
@@ -52,47 +57,135 @@ public class DiscoverWalk(
         songWanted: (MusicSong) -> Boolean = { true },
         onPick: (DiscoverPick) -> Unit = {},
     ): DiscoverStep {
-        val limit = if (productiveSteps == 0) FIRST_HOP_LIMIT else MAX_HOP
-        var asked = 0
+        askedThisStep = 0
+        passedThroughThisStep = 0
         failureThisStep = null
         if (!seeded) {
-            asked++
-            if (!readSeed(page)) return DiscoverStep(emptyList(), asked, dry = false, failure = failureThisStep)
+            askedThisStep++
+            if (!readSeed(page)) {
+                return DiscoverStep(emptyList(), askedThisStep, dry = false, failure = failureThisStep)
+            }
         }
+        val inputs = StepInputs(pages, page, taste, songWanted, onPick)
+        val startLimit = if (productiveSteps == 0) FIRST_HOP_LIMIT else MAX_HOP
+        val gathered = gather(inputs, startLimit)
+        val picks = gathered.picks
+        if (picks.isNotEmpty()) productiveSteps++
+        val failure = failureThisStep.takeIf { picks.isEmpty() }
+        val dry = picks.isEmpty() && gathered.ranOut && failure == null
+        val result = DiscoverStep(picks, askedThisStep, dry, failure, if (dry) dryReason(taste) else null)
+        logStep(result, pages, gathered.limit)
+        return result
+    }
+
+    private class StepInputs(
+        val pages: Int,
+        val page: suspend (String) -> MusicResult<MusicArtist>,
+        val taste: DiscoverTaste,
+        val songWanted: (MusicSong) -> Boolean,
+        val onPick: (DiscoverPick) -> Unit,
+    )
+
+    private class Gathered(val picks: List<DiscoverPick>, val ranOut: Boolean, val limit: Int)
+
+    private suspend fun gather(inputs: StepInputs, startLimit: Int): Gathered {
         val picks = mutableListOf<DiscoverPick>()
+        var limit = startLimit
         var fetched = 0
         var ranOut = false
         recentredThisStep = false
-        while (fetched < pages && !ranOut) {
-            val choice = chooseOrRecentre(limit, taste)
+        while (fetched < inputs.pages && !ranOut) {
+            val choice = chooseOrRecentre(limit, inputs.taste, inputs.page)
+            if (passedThroughThisStep > 0) limit = maxOf(limit, MAX_HOP)
             if (choice == null) {
                 ranOut = true
             } else {
                 fetched++
-                asked++
-                visit(choice, page, songWanted)?.let { pick ->
+                askedThisStep++
+                visit(choice, inputs.page, inputs.songWanted)?.let { pick ->
                     picks += pick
-                    onPick(pick)
+                    inputs.onPick(pick)
                 }
             }
         }
-        if (picks.isNotEmpty()) productiveSteps++
-        val failure = failureThisStep.takeIf { picks.isEmpty() }
-        val dry = picks.isEmpty() && ranOut && failure == null
-        Diag.log(
-            TAG,
-            "\"$label\" step: ${picks.size} song(s) from $asked page(s) asked (at most $pages, plus the seed's " +
-                "the first time), hop limit $limit, $productiveSteps productive step(s), " +
-                "${frontier.size} artist(s) known, dry=$dry" + (failure?.let { ", failure=$it" } ?: ""),
-        )
-        return DiscoverStep(picks, asked, dry, failure)
+        return Gathered(picks, ranOut, limit)
     }
 
-    private fun chooseOrRecentre(limit: Int, taste: DiscoverTaste): Candidate? {
+    private fun logStep(step: DiscoverStep, pages: Int, limit: Int) {
+        Diag.log(
+            TAG,
+            "\"$label\" step: ${step.picks.size} song(s) from ${step.pagesAsked} page(s) asked (at most $pages, " +
+                "plus the seed's the first time, plus $passedThroughThisStep heard artist(s) read only to get " +
+                "through), hop limit $limit, $productiveSteps productive step(s), ${frontier.size} artist(s) " +
+                "known, dry=${step.dry}" + (step.failure?.let { ", failure=$it" } ?: "") +
+                (step.reason?.let { ", reason=$it" } ?: ""),
+        )
+    }
+
+    private fun dryReason(taste: DiscoverTaste): String {
+        val near = similarOf[seed.id].orEmpty()
+        if (near.isEmpty()) return "no similar artists for ${seed.name}"
+        val heard = near.count { heardWhy(it, taste) != null }
+        return if (heard == near.size) {
+            "all ${near.size} near artists were heard recently, and none of them lists anyone new"
+        } else {
+            "nothing new left near ${seed.name} that is not already heard or used"
+        }
+    }
+
+    private suspend fun chooseOrRecentre(
+        limit: Int,
+        taste: DiscoverTaste,
+        page: suspend (String) -> MusicResult<MusicArtist>,
+    ): Candidate? {
         choose(limit, taste)?.let { return it }
+        if (passThrough(limit, taste, page) > 0) choose(maxOf(limit, MAX_HOP), taste)?.let { return it }
         if (recentredThisStep) return null
         recentredThisStep = true
         return if (recentre()) choose(limit, taste) else null
+    }
+
+    private suspend fun passThrough(
+        limit: Int,
+        taste: DiscoverTaste,
+        page: suspend (String) -> MusicResult<MusicArtist>,
+    ): Int {
+        val room = PASS_THROUGH_PAGES - passedThroughThisStep
+        if (room <= 0) return 0
+        val heard = frontier.values.filter {
+            it.hop <= limit && it.hop < MAX_HOP && !similarOf.containsKey(it.artist.id) &&
+                !spent.containsKey(it.artist.id) && heardWhy(it.artist, taste) != null
+        }.take(room)
+        var read = 0
+        heard.forEach { candidate ->
+            val artist = candidate.artist
+            askedThisStep++
+            when (val answer = page(artist.id)) {
+                is MusicResult.Failure -> {
+                    spent[artist.id] = "its page failed (${answer.detail})"
+                    Diag.warn(
+                        TAG,
+                        "\"$label\": heard artist ${artist.name} (${artist.id}) could not be read: ${answer.detail}",
+                    )
+                }
+                is MusicResult.Success -> {
+                    read++
+                    passedThroughThisStep++
+                    spent[artist.id] = "heard recently; read only to reach further"
+                    absorb(artist, candidate.hop, answer.value.similar.map { DiscoverArtist(it.browseId, it.name) })
+                    Diag.log(
+                        TAG,
+                        "\"$label\": ${artist.name} (${artist.id}) was heard (${heardWhy(artist, taste)}); read only " +
+                            "to pass through, ${answer.value.similar.size} similar artist(s) now in reach, " +
+                            "no song offered",
+                    )
+                }
+            }
+        }
+        if (heard.isEmpty()) {
+            Diag.log(TAG, "\"$label\": nothing in range and no heard artist left to pass through")
+        }
+        return read
     }
 
     private suspend fun readSeed(page: suspend (String) -> MusicResult<MusicArtist>): Boolean {
@@ -222,8 +315,10 @@ public class DiscoverWalk(
         Diag.log(TAG, "\"$label\": skipped ${shown.ifEmpty { "none by name" }}$more$earlier")
     }
 
-    private fun skipReason(artist: DiscoverArtist, taste: DiscoverTaste): String? = when {
-        spent.containsKey(artist.id) -> spent.getValue(artist.id)
+    private fun skipReason(artist: DiscoverArtist, taste: DiscoverTaste): String? =
+        spent[artist.id] ?: heardWhy(artist, taste)
+
+    private fun heardWhy(artist: DiscoverArtist, taste: DiscoverTaste): String? = when {
         isLast(artist) -> "same artist as the last pick"
         recentlyOffered(artist) -> ALREADY_OFFERED
         else -> taste.recentWhy(artist)
@@ -242,6 +337,7 @@ public class DiscoverWalk(
         public const val TOP_SONGS: Int = 5
         public const val MAX_HOP: Int = 2
         public const val SESSION_MEMORY: Int = 40
+        public const val PASS_THROUGH_PAGES: Int = 3
         private const val FIRST_HOP_LIMIT = 1
         private const val LISTED = 8
         private const val ALREADY_OFFERED = "already offered in this session"
