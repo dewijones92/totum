@@ -51,8 +51,7 @@ internal class RemoteSessionBridge(
         RemoteSessionHost.commands = RemoteCommands(::send)
         val facts = combine(targets.targets, targets.selected, targets.colours) { listed, selected, colours ->
             val decision = listed.barDecision(selected)
-            val colour = decision.state?.let { TargetColours.of(colours, it.target.id) }
-            decision.state?.toRemoteFacts(colour ?: TargetColours.PHONE, statusLine)
+            decision.state?.let { it.toRemoteFacts(TargetColours.of(colours, it.target.id), statusLine) }
         }.distinctUntilChanged()
         scope.launch {
             facts.collect { next ->
