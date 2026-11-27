@@ -113,6 +113,7 @@ interface AppPreferences {
     fun setTidyAfterDays(days: Int)
     fun setDataLimitMb(megabytes: Int)
     fun setSendReportsToHome(enabled: Boolean)
+    fun setReportGesture(enabled: Boolean)
 
     data class Settings(
         val wifiMaxHeight: Int = DEFAULT_WIFI_MAX_HEIGHT,
@@ -193,6 +194,7 @@ interface AppPreferences {
         val tidyAfterDays: Int = DEFAULT_TIDY_AFTER_DAYS,
         val dataLimitMb: Int = 0,
         val sendReportsToHome: Boolean = true,
+        val reportGesture: Boolean = true,
     )
 
     companion object {
@@ -266,6 +268,7 @@ class SharedPrefsAppPreferences(context: Context) : AppPreferences {
             tidyAfterDays = prefs.getInt(KEY_TIDY_AFTER_DAYS, AppPreferences.DEFAULT_TIDY_AFTER_DAYS),
             dataLimitMb = prefs.getInt(KEY_DATA_LIMIT_MB, 0),
             sendReportsToHome = prefs.getBoolean(KEY_SEND_REPORTS_HOME, true),
+            reportGesture = prefs.getBoolean(KEY_REPORT_GESTURE, true),
         ),
     )
     init {
@@ -415,6 +418,11 @@ class SharedPrefsAppPreferences(context: Context) : AppPreferences {
             it.copy(sendReportsToHome = enabled)
         }
 
+    override fun setReportGesture(enabled: Boolean): Unit =
+        change("reportGesture", enabled, { putBoolean(KEY_REPORT_GESTURE, enabled) }) {
+            it.copy(reportGesture = enabled)
+        }
+
     override fun setInboxAll(enabled: Boolean): Unit =
         change("inboxAll", enabled, { putBoolean(KEY_INBOX_ALL, enabled) }) { it.copy(inboxAll = enabled) }
 
@@ -503,6 +511,7 @@ class SharedPrefsAppPreferences(context: Context) : AppPreferences {
         const val KEY_TIDY_AFTER_DAYS = "tidy_after_days"
         const val KEY_DATA_LIMIT_MB = "data_limit_mb"
         const val KEY_SEND_REPORTS_HOME = "send_reports_to_home"
+        const val KEY_REPORT_GESTURE = "report_gesture"
         const val KEY_INBOX_SOURCES = "inbox_sources"
         const val KEY_QUIET_GROUPS = "quiet_groups"
         const val KEY_YOUTUBE_ALERTS = "youtube_upload_alerts"
@@ -571,6 +580,7 @@ class InMemoryAppPreferences : AppPreferences {
     override fun setTidyAfterDays(days: Int) = _settings.update { it.copy(tidyAfterDays = days) }
     override fun setDataLimitMb(megabytes: Int) = _settings.update { it.copy(dataLimitMb = megabytes) }
     override fun setSendReportsToHome(enabled: Boolean) = _settings.update { it.copy(sendReportsToHome = enabled) }
+    override fun setReportGesture(enabled: Boolean) = _settings.update { it.copy(reportGesture = enabled) }
 }
 
 fun <T> AppPreferences.setting(scope: CoroutineScope, pick: (AppPreferences.Settings) -> T): StateFlow<T> =

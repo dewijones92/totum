@@ -5,6 +5,8 @@ import com.dewijones92.totum.common.HomeServerAuth
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.runBlocking
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
@@ -106,6 +108,26 @@ class DiagnosticsUploaderTest {
             assertEquals(dumpBytes.toList(), second.body?.toByteArray()?.toList())
             assertEquals("application/gzip", second.headers["Content-Type"])
         }
+
+    @Test
+    fun `two sends started together post a waiting report once`() = runBlocking {
+        server.enqueue(
+            MockResponse.Builder().code(202).body("""{"id":"$REPORT_ID"}""")
+                .headersDelay(300, TimeUnit.MILLISECONDS).build(),
+        )
+        answer(202)
+        val file = report("diagnostics")
+        val uploader = uploader(listOf(file))
+
+        val both = listOf(
+            async(Dispatchers.Default) { uploader.upload(becauseSomeoneAsked = true) },
+            async(Dispatchers.Default) { uploader.upload(becauseSomeoneAsked = true) },
+        ).awaitAll()
+
+        assertEquals(2, server.requestCount)
+        assertEquals(1, both.sumOf { it.sent })
+        assertFalse(file.exists())
+    }
 
     @Test
     fun `with the setting off nothing is posted automatically, and the report waits on the phone`() = runBlocking {

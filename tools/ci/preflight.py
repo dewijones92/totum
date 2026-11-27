@@ -273,6 +273,9 @@ ALLOWED_MAXLINES = {
     "app/src/main/java/com/dewijones92/totum/ui/settings/DiagnosticsNoteDialog.kt": (
         ["maxLines = 6"], "minLines/maxLines on a text INPUT, which scrolls rather than truncating",
     ),
+    "app/src/main/java/com/dewijones92/totum/ui/report/QuickReportSheet.kt": (
+        ["maxLines = 6"], "minLines/maxLines on a text INPUT, which scrolls rather than truncating",
+    ),
     "app/src/main/java/com/dewijones92/totum/ui/player/FullPlayer.kt": (
         ["maxLines = if (expanded) Int.MAX_VALUE else DESCRIPTION_COLLAPSED_LINES"],
         "the description collapses behind an explicit 'Show more', and clips rather than dotting",

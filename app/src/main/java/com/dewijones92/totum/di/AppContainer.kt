@@ -130,9 +130,13 @@ import com.dewijones92.totum.diagnostics.DiagnosticsUploader
 import com.dewijones92.totum.diagnostics.EncodedScreenshot
 import com.dewijones92.totum.diagnostics.HomeReports
 import com.dewijones92.totum.diagnostics.InstallId
+import com.dewijones92.totum.diagnostics.ReportFate
 import com.dewijones92.totum.diagnostics.ReportSink
+import com.dewijones92.totum.diagnostics.ReportSubmitter
 import com.dewijones92.totum.diagnostics.StateDumpSource
 import com.dewijones92.totum.diagnostics.UploaderHomeReports
+import com.dewijones92.totum.diagnostics.announceReport
+import com.dewijones92.totum.diagnostics.fate
 import com.dewijones92.totum.diagnostics.featureDiagnostics
 import com.dewijones92.totum.diagnostics.installAndroidLogSink
 import com.dewijones92.totum.diagnostics.installFlightRecorder
@@ -544,7 +548,13 @@ interface AppContainer {
      * Captures the app's current state and event trail and sends it, with no crash
      * involved — for "this behaved wrongly", which is how most bugs actually present.
      */
-    fun sendDiagnostics(note: String, screenshots: List<EncodedScreenshot> = emptyList())
+    fun sendDiagnostics(
+        note: String,
+        screenshots: List<EncodedScreenshot> = emptyList(),
+        onDone: (ReportFate) -> Unit = {},
+    )
+
+    val reportSubmitter: ReportSubmitter
 
     val homeReports: HomeReports
 
@@ -1635,8 +1645,18 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
 
     override val homeReports: HomeReports by lazy { UploaderHomeReports(diagnosticsUploader, stateDumps) }
 
-    override fun sendDiagnostics(note: String, screenshots: List<EncodedScreenshot>) =
-        sendDiagnostics(crashReporter, diagnosticsUploader, note, screenshots)
+    override fun sendDiagnostics(note: String, screenshots: List<EncodedScreenshot>, onDone: (ReportFate) -> Unit) =
+        sendDiagnostics(crashReporter, diagnosticsUploader, note, screenshots, onDone)
+
+    override val reportSubmitter: ReportSubmitter by lazy {
+        ReportSubmitter(
+            scope = applicationScope,
+            send = this::sendDiagnostics,
+            operations = operations,
+            subject = context.getString(R.string.send_report_working),
+            announce = { fate -> announceReport(context, fate) },
+        )
+    }
 
     override fun startQueueAutoDownload() {
         followSkipRequests(this, context)
@@ -2475,13 +2495,17 @@ private fun sendDiagnostics(
     uploader: DiagnosticsUploader,
     note: String,
     screenshots: List<EncodedScreenshot>,
+    onDone: (ReportFate) -> Unit,
 ) {
-    reporter.reportDiagnostics(note, screenshots)
+    if (reporter.reportDiagnostics(note, screenshots) == null) {
+        Diag.warn("diagnostics", "dewidebug the report could not be written, so there is nothing to send")
+        return onDone(ReportFate.NotWritten)
+    }
     // `sendDiagnosticsNow`, not `uploadPending`: somebody tapped a button, so the EMULATOR
     // suppression does not apply — an emulator is where this app gets debugged, and a button
     // that silently did nothing while the UI said so would be worse than the noise it avoided.
     // A test run is still suppressed either way; the flood came through this exact path.
-    uploader.sendDiagnosticsNow()
+    uploader.sendDiagnosticsNow { outcome -> onDone(outcome.fate()) }
 }
 
 private const val TEST_HOLDS_PREFS = "totum_test_holds"

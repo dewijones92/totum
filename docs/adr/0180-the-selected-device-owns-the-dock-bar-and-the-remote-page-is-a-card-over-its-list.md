@@ -50,8 +50,8 @@ switched off.
 - **Tapping the bar opens that device's remote page** (the Queue tab, which already shows the selected device's page).
 - **The bar polls while it is shown.** The Play on row asks the Pi every 3 s while a device is selected (10 s while the phone is the
   choice), so the bar's state is at most a few seconds old on tabs that have no chips of their own.
-- **Lock-screen and notification controls are not built.** The phone's media notification is still the phone's own session; a per-device
-  notification is [todo](../todos/target-bar-everywhere.md).
+- **Lock-screen and notification controls** were not built here; they are [ADR 188](0188-the-selected-device-is-a-second-media-session-for-the-lock-screen-and-notification.md),
+  a second media session whose existence follows this ADR's `barFor` rule.
 
 ### The remote page
 

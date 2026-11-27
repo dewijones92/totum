@@ -494,7 +494,14 @@ class FakeAppContainer(
     override fun sendDiagnostics(
         note: String,
         screenshots: List<com.dewijones92.totum.diagnostics.EncodedScreenshot>,
-    ) = Unit
+        onDone: (com.dewijones92.totum.diagnostics.ReportFate) -> Unit,
+    ) = onDone(com.dewijones92.totum.diagnostics.ReportFate.Sent)
+
+    override val reportSubmitter: com.dewijones92.totum.diagnostics.ReportSubmitter =
+        com.dewijones92.totum.diagnostics.ReportSubmitter(
+            scope = applicationScope,
+            send = this::sendDiagnostics,
+        )
 
     override val homeReports: com.dewijones92.totum.diagnostics.HomeReports =
         com.dewijones92.totum.diagnostics.NoHomeReports
