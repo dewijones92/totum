@@ -34,9 +34,11 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dewijones92.totum.R
 import com.dewijones92.totum.bedtime.BedtimeScreen
+import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.dailyalarms.DailyAlarmsScreen
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.diagnostics.diagnosticsNote
+import com.dewijones92.totum.diagnostics.rowText
 import com.dewijones92.totum.phoneuse.PhoneUseScreen
 import com.dewijones92.totum.settings.AppPreferences
 import com.dewijones92.totum.ui.common.BackHeader
@@ -44,10 +46,6 @@ import com.dewijones92.totum.ui.common.ListThenDetail
 import com.dewijones92.totum.ui.importexport.ImportExportScreen
 import com.dewijones92.totum.ui.kidtv.KidTvScreen
 import com.dewijones92.totum.workapps.WorkAppsQuietScreen
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 /** One selectable video-quality cap for the per-network preference. */
 private data class QualityOption(val label: String, val height: Int)
@@ -164,6 +162,14 @@ private fun MainSettings(
         AnchoredRow(SettingsRow.HOME_SERVER) { HomeServerRow(container) }
         AnchoredRow(SettingsRow.CHECK_CONTENT) { CheckForContentRow(container) }
         AnchoredRow(SettingsRow.SEND_DIAGNOSTICS) { DiagnosticsRow(container) }
+        AnchoredRow(SettingsRow.REPORT_GESTURE) {
+            SwitchRow(
+                label = stringResource(R.string.settings_report_gesture),
+                summary = stringResource(R.string.settings_report_gesture_summary),
+                checked = settings.reportGesture,
+                onCheckedChange = prefs::setReportGesture,
+            )
+        }
         if (settings.signedInToHome()) {
             AnchoredRow(SettingsRow.SEND_REPORTS_HOME) { SendReportsHomeRow(container, settings) }
             AnchoredRow(SettingsRow.SEND_STATE) { SendStateRow(container) }
@@ -303,12 +309,14 @@ private fun ViewDiagnosticsRow(onOpen: () -> Unit) {
     }
 }
 
-private val diagnosticsSaving = MutableStateFlow(false)
-
 @Composable
 private fun DiagnosticsRow(container: AppContainer) {
-    var sent by rememberSaveable { mutableStateOf(false) }
-    val saving by diagnosticsSaving.collectAsStateWithLifecycle()
+    val submitter = container.reportSubmitter
+    val saving by submitter.inFlight.collectAsStateWithLifecycle()
+    val last by submitter.last.collectAsStateWithLifecycle()
+    val completed by submitter.completed.collectAsStateWithLifecycle()
+    val completedOnArrival = remember { submitter.completed.value }
+    val reportedHere = completed > completedOnArrival
     var asking by rememberSaveable { mutableStateOf(false) }
     val fallback = stringResource(R.string.settings_diagnostics_note)
     val appSettings by container.appPreferences.settings.collectAsStateWithLifecycle()
@@ -319,21 +327,8 @@ private fun DiagnosticsRow(container: AppContainer) {
             container = container,
             onDismiss = { asking = false },
             onSendToPi = { typed, screenshots ->
-                // The label says SAVED, not sent, and that is the whole point: it is set once the
-                // report is written, before the upload has even started, so "Diagnostics sent" was a
-                // claim the app could not possibly have checked — and offline, or on a 5xx, it
-                // was simply false. What HAS happened by here is true and is what matters: the
-                // report is written to disk, and every launch retries it until the sink accepts
-                // it. Dewi has to be able to believe this row; it is the one he uses to tell us
-                // something is wrong.
                 asking = false
-                diagnosticsSaving.value = true
-                container.applicationScope.launch {
-                    val note = diagnosticsNote(typed, fallback)
-                    withContext(Dispatchers.IO) { container.sendDiagnostics(note, screenshots) }
-                    diagnosticsSaving.value = false
-                    sent = true
-                }
+                submitter.submit(diagnosticsNote(typed, fallback), screenshots, "Settings")
             },
         )
     }
@@ -342,15 +337,18 @@ private fun DiagnosticsRow(container: AppContainer) {
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(enabled = !sent && !saving) { asking = true }
+            .clickable {
+                Diag.log("diagnostics", "dewidebug Settings report row tapped (in flight=$saving, last=$last)")
+                asking = true
+            }
             .padding(horizontal = 16.dp, vertical = 12.dp),
     ) {
         Column(Modifier.weight(1f)) {
             Text(
                 text = stringResource(
                     when {
-                        sent -> R.string.settings_diagnostics_sent
-                        saving -> R.string.settings_diagnostics_saving
+                        saving > 0 -> R.string.settings_diagnostics_saving
+                        reportedHere && !toGitHub -> last?.rowText() ?: R.string.settings_diagnostics_send
                         toGitHub -> R.string.report_github_row
                         else -> R.string.settings_diagnostics_send
                     },

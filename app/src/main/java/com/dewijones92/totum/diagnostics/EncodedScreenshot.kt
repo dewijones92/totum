@@ -35,25 +35,34 @@ suspend fun encodeScreenshot(resolver: ContentResolver, uri: Uri, index: Int): E
             val decoded = resolver.openInputStream(uri)?.use {
                 BitmapFactory.decodeStream(it, null, BitmapFactory.Options().apply { inSampleSize = sample })
             } ?: return@runCatching null
-            val (w, h) = scaledToFit(decoded.width, decoded.height)
-            val scaled = if (w == decoded.width) decoded else decoded.scale(w, h)
-            val jpeg = jpegOf(scaled, QUALITY).let { if (it.size > TARGET_BYTES) jpegOf(scaled, LOWER_QUALITY) else it }
-            Diag.log(
-                "diagnostics",
-                "screenshot ${index + 1}: ${bounds.outWidth}x${bounds.outHeight} -> ${w}x$h, ${jpeg.size}B"
-            )
-            EncodedScreenshot(
-                "screenshot-${index + 1}.jpg",
-                w,
-                h,
-                jpeg.size,
-                Base64.encodeToString(jpeg, Base64.NO_WRAP)
-            )
+            encodeBitmap(decoded, index, "${bounds.outWidth}x${bounds.outHeight}")
         }.getOrElse { failure ->
             Diag.warn("diagnostics", "screenshot ${index + 1} could not be read", failure)
             null
         }
     }
+
+suspend fun encodeCapturedBitmap(bitmap: Bitmap, index: Int): EncodedScreenshot? =
+    withContext(Dispatchers.Default) {
+        runCatching { encodeBitmap(bitmap, index, "${bitmap.width}x${bitmap.height}") }.getOrElse { failure ->
+            Diag.warn("diagnostics", "screenshot ${index + 1} could not be encoded", failure)
+            null
+        }
+    }
+
+private fun encodeBitmap(decoded: Bitmap, index: Int, original: String): EncodedScreenshot {
+    val (w, h) = scaledToFit(decoded.width, decoded.height)
+    val scaled = if (w == decoded.width) decoded else decoded.scale(w, h)
+    val jpeg = jpegOf(scaled, QUALITY).let { if (it.size > TARGET_BYTES) jpegOf(scaled, LOWER_QUALITY) else it }
+    Diag.log("diagnostics", "screenshot ${index + 1}: $original -> ${w}x$h, ${jpeg.size}B")
+    return EncodedScreenshot(
+        "screenshot-${index + 1}.jpg",
+        w,
+        h,
+        jpeg.size,
+        Base64.encodeToString(jpeg, Base64.NO_WRAP),
+    )
+}
 
 private fun jpegOf(bitmap: Bitmap, quality: Int): ByteArray =
     ByteArrayOutputStream().also { bitmap.compress(Bitmap.CompressFormat.JPEG, quality, it) }.toByteArray()
