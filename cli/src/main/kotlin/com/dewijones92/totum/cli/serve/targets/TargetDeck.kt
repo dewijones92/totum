@@ -8,6 +8,7 @@ import com.dewijones92.totum.data.queue.appendingAll
 import com.dewijones92.totum.data.queue.insertingAllNext
 import com.dewijones92.totum.data.queue.removingAll
 import com.dewijones92.totum.data.queue.removingAt
+import com.dewijones92.totum.data.targets.CaptionsAsk
 import com.dewijones92.totum.data.targets.KeepAwake
 import com.dewijones92.totum.data.targets.QueueMode
 import com.dewijones92.totum.data.targets.Requester
@@ -15,6 +16,7 @@ import com.dewijones92.totum.data.targets.SleepKind
 import com.dewijones92.totum.data.targets.SoundSettings
 import com.dewijones92.totum.data.targets.Target
 import com.dewijones92.totum.data.targets.TargetAction
+import com.dewijones92.totum.data.targets.TargetCaptions
 import com.dewijones92.totum.data.targets.TargetControl
 import com.dewijones92.totum.data.targets.TargetEntry
 import com.dewijones92.totum.data.targets.TargetPower
@@ -35,6 +37,7 @@ import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.RepeatMode
 import com.dewijones92.totum.domain.picture
 import com.dewijones92.totum.domain.skipsSilence
+import com.dewijones92.totum.playback.CaptionChoice
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -81,6 +84,8 @@ internal class TargetDeck(
     private var resolveMs = 0L
     private var sound = SoundSettings()
     private var repeat = RepeatMode.OFF
+    private var captionChoice = CaptionChoice()
+    private var drops = 0
     private var startedAtMs = 0L
     private val provenance = Provenances()
     private var reachedAhead: String? = null
@@ -131,6 +136,12 @@ internal class TargetDeck(
         canSwitchOff = link.canSwitchOff,
         powerNote = if ((link.power ?: player.power) == TargetPower.WAKING) link.powerNote else null,
         plays = player.plays,
+        captions = TargetCaptions(
+            on = captionChoice.on,
+            language = captionChoice.language,
+            offered = player.captionsOffered,
+            shown = player.captionsShown,
+        ),
     )
 
     private fun volumeNow(): Int? = volumeControl?.percent ?: player.volumePercent
@@ -328,6 +339,7 @@ internal class TargetDeck(
             TargetAction.WAKE -> woken()
             TargetAction.SLEEP -> control.sleep?.let { armSleep(it) }
             TargetAction.SWITCH_OFF -> switchedOff()
+            TargetAction.CAPTIONS -> control.captions?.let(::changeCaptions)
         }
         save()
         return state()
@@ -480,6 +492,15 @@ internal class TargetDeck(
         return true
     }
 
+    private fun clearReachProblem() {
+        val stale = problem?.takeIf { it.trouble.kind in REACH_TROUBLES } ?: return
+        problem = null
+        Diag.log(
+            "targets",
+            "${target.id}: it is playing, so the earlier ${stale.trouble.kind} problem is cleared (\"${stale.text}\")",
+        )
+    }
+
     private fun unreachableProblem(): Problem =
         TroubleWords.problem(target.label, link.unreachable ?: TargetTrouble(TroubleKind.NOT_CONNECTED))
 
@@ -497,6 +518,22 @@ internal class TargetDeck(
         problem = null
         link.release()
         Diag.log("targets", "${target.id}: woken and reachable at $reached; nothing queued to play")
+    }
+
+    private fun changeCaptions(ask: CaptionsAsk) {
+        val next = if (ask.on) {
+            CaptionChoice(on = true, language = ask.language ?: captionChoice.language)
+        } else {
+            captionChoice.copy(on = false)
+        }
+        Diag.log(
+            "targets",
+            "${target.id}: captions ${if (captionChoice.on) captionChoice.language else "off"} -> " +
+                "${if (next.on) next.language else "off"} from the phone, playing=$playing " +
+                "offered=${player.captionsOffered}",
+        )
+        captionChoice = next
+        player.showCaptions(next.languageOrNull)
     }
 
     private fun setRepeat(wanted: RepeatMode) {
@@ -548,8 +585,18 @@ internal class TargetDeck(
                 reportProgress(finished = false)
                 captureThePlace()
                 save()
+                logLink()
             }
         }
+    }
+
+    private fun logLink() {
+        val report = player.linkReport() ?: return
+        Diag.log(
+            "targets",
+            "dewidebug ${target.id}: link $report; keep-awake reconnects ${keeper?.reconnectsDone ?: "n/a"} done " +
+                "and ${keeper?.reconnectsFailed ?: "n/a"} failed, connection drops while playing: $drops",
+        )
     }
 
     suspend fun watch() {
@@ -604,6 +651,7 @@ internal class TargetDeck(
             "${target.id}: connection lost ($reason) while ${if (playing) "playing" else "linked"} " +
                 "${entry?.item?.item?.title}; stopping and keeping the place at ${placeMs}ms",
         )
+        drops++
         playing = false
         starting = false
         problem = TroubleWords.problem(
@@ -727,6 +775,8 @@ internal class TargetDeck(
             lastSeenMs = null
             movedAtMs = clock()
             startedAtMs = clock()
+            clearReachProblem()
+            player.showCaptions(captionChoice.languageOrNull)
             Diag.log(
                 "targets",
                 "${target.id}: playing $at/${queue.entries.size} ${item.item.title} on $reached " +
@@ -822,6 +872,7 @@ internal class TargetDeck(
             startsApp = false,
             canSwitchOff = false,
             powerNote = null,
+            captions = TargetCaptions(captionChoice.on, captionChoice.language),
         ),
         target.id
     )
@@ -831,6 +882,7 @@ internal class TargetDeck(
         queue = saved.entries.toSnapshot(saved.at)
         sound = saved.sound
         repeat = saved.repeat.takeIf { it.onATarget } ?: RepeatMode.OFF
+        captionChoice = CaptionChoice(on = saved.captions.on, language = saved.captions.language)
         provenance.restore(saved.entries)
         placeMs = saved.positionMs.takeIf { queue.current != null } ?: 0
         Diag.log("targets", "${target.id}: restored ${queue.entries.size} item(s), paused at ${queue.currentIndex}")
@@ -842,6 +894,13 @@ private const val MAX_VOLUME = 100
 private const val MIN_REPEAT_PLAY_MS = 2_000L
 
 private const val STALL_MS = 20_000L
+
+private val REACH_TROUBLES = setOf(
+    TroubleKind.NOT_CONNECTED,
+    TroubleKind.SWITCH_ON,
+    TroubleKind.SWITCHED_OFF,
+    TroubleKind.WONT_WAKE,
+)
 
 private fun QueueEntry.itemId(): String = item.item.id.value
 

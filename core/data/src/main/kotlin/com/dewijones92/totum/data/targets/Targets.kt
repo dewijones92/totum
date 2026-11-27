@@ -10,6 +10,7 @@ import com.dewijones92.totum.data.queue.QueueGroup
 import com.dewijones92.totum.data.queue.QueueSnapshot
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.RepeatMode
+import com.dewijones92.totum.playback.DEFAULT_CAPTION_LANGUAGE
 import com.dewijones92.totum.playback.SleepFade
 import com.dewijones92.totum.playback.VolumeBoost
 import kotlinx.serialization.Serializable
@@ -38,6 +39,17 @@ public data class Requester(val id: String, val label: String)
 public data class SoundSettings(val skipSilence: Boolean = false, val boost: VolumeBoost = VolumeBoost.OFF) {
     val changesSound: Boolean get() = skipSilence || boost != VolumeBoost.OFF
 }
+
+@Serializable
+public data class TargetCaptions(
+    val on: Boolean = true,
+    val language: String = DEFAULT_CAPTION_LANGUAGE,
+    val offered: List<String> = emptyList(),
+    val shown: String? = null,
+)
+
+@Serializable
+public data class CaptionsAsk(val on: Boolean, val language: String? = null)
 
 @Serializable
 public data class TargetEntry(
@@ -144,6 +156,7 @@ public data class TargetState(
     val canSwitchOff: Boolean = false,
     val powerNote: String? = null,
     val plays: TargetPlays = TargetPlays.ANYTHING,
+    val captions: TargetCaptions = TargetCaptions(),
 ) {
     val current: TargetEntry? get() = entries.getOrNull(at)
 }
@@ -187,6 +200,7 @@ public enum class TargetAction {
     WAKE,
     SLEEP,
     SWITCH_OFF,
+    CAPTIONS,
 }
 
 @Serializable
@@ -201,6 +215,7 @@ public data class TargetControl(
     val itemIds: List<String>? = null,
     val sleep: TargetSleepAsk? = null,
     val stopIfCurrent: Boolean = false,
+    val captions: CaptionsAsk? = null,
 )
 
 public fun QueueEntry.toTargetEntry(from: Requester? = null, ownerId: String? = null): TargetEntry = TargetEntry(

@@ -27,13 +27,8 @@ internal class TotumCastTrackSelector : CastTrackSelector() {
         return request.buildResultUpon().setSelections(ImmutableSet.copyOf(kept + listOfNotNull(text))).build()
     }
 
-    private fun pick(texts: List<TrackGroup>, wanted: List<String>): TrackGroup? {
-        val languages = wanted.map(::normal)
-        return languages.firstNotNullOfOrNull { language -> texts.firstOrNull { normal(it) == language } }
-            ?: languages.firstNotNullOfOrNull { language ->
-                texts.firstOrNull { normal(it).substringBefore('-') == language.substringBefore('-') }
-            }
-    }
+    private fun pick(texts: List<TrackGroup>, wanted: List<String>): TrackGroup? =
+        CaptionPick.indexOf(texts.map(::normal), wanted.map(::normal))?.let(texts::get)
 
     private fun normal(group: TrackGroup): String = normal(group.getFormat(0).language.orEmpty())
 
