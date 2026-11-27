@@ -49,17 +49,19 @@ class PublishedAgeTest {
     }
 
     @Test
-    fun `a date with no time of day is Today, Yesterday or the day, never hours`() {
+    fun `a date with no time of day is Today, Yesterday or whole days and more, never hours`() {
         val morning = Instant.parse("2026-11-25T06:03:00Z")
         val utc = java.time.ZoneOffset.UTC
         val lastNight = PublishedAge.ofDay(java.time.LocalDate.of(2026, 11, 24))
 
         assertEquals("Yesterday", PublishedAge.text(lastNight, morning, utc))
         assertEquals("Today", PublishedAge.text(PublishedAge.ofDay(java.time.LocalDate.of(2026, 11, 25)), morning, utc))
-        val earlier = PublishedAge.ofDay(java.time.LocalDate.of(2026, 11, 23))
-        val lastYear = PublishedAge.ofDay(java.time.LocalDate.of(2025, 11, 30))
-        assertEquals("23 Nov", PublishedAge.text(earlier, morning, utc))
-        assertEquals("30 Nov 2025", PublishedAge.text(lastYear, morning, utc))
+        val earlier = PublishedAge.ofDay(java.time.LocalDate.of(2026, 11, 20))
+        val lastQuarter = PublishedAge.ofDay(java.time.LocalDate.of(2026, 8, 25))
+        val lastYear = PublishedAge.ofDay(java.time.LocalDate.of(2025, 11, 20))
+        assertEquals("5 days ago", PublishedAge.text(earlier, morning, utc))
+        assertEquals("3 months ago", PublishedAge.text(lastQuarter, morning, utc))
+        assertEquals("1 year ago", PublishedAge.text(lastYear, morning, utc))
     }
 
     @Test

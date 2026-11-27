@@ -5,8 +5,7 @@ import java.time.Instant
 import java.time.LocalTime
 import java.time.ZoneId
 import java.time.ZoneOffset
-import java.time.format.DateTimeFormatter
-import java.util.Locale
+import java.time.temporal.ChronoUnit
 
 /**
  * When a thing was published, as a relative age — the one rule that reads YouTube's wording and the
@@ -48,12 +47,7 @@ public object PublishedAge {
 
     private val WORDING_BEATS_THE_DAY = Duration.ofDays(2)
 
-    /**
-     * A date that is only a day ([ofDay]: noon UTC) as "Today", "Yesterday" or "23 Nov", judged
-     * against the viewer's own day, and anything with a real time in YouTube's own words and units
-     * ("2 hours ago"). A day-only date can never honestly say hours: it showed "18 hours ago" for a
-     * video that was a few hours old, because the watch page's Pacific-time day was read as UTC.
-     */
+    /** "2 hours ago" for [publishedAt] as seen from [now], in YouTube's own words and units. */
     public fun text(publishedAt: Instant, now: Instant, zone: ZoneId = ZoneId.systemDefault()): String =
         if (isDayOnly(publishedAt)) dayText(publishedAt, now, zone) else ageText(publishedAt, now)
 
@@ -63,16 +57,13 @@ public object PublishedAge {
     private fun dayText(publishedAt: Instant, now: Instant, zone: ZoneId): String {
         val day = publishedAt.atOffset(ZoneOffset.UTC).toLocalDate()
         val today = now.atZone(zone).toLocalDate()
+        val days = ChronoUnit.DAYS.between(day, today)
         return when {
-            !day.isBefore(today) -> "Today"
-            day == today.minusDays(1) -> "Yesterday"
-            day.year == today.year -> DAY_ONLY.format(day)
-            else -> DAY_ONLY_WITH_YEAR.format(day)
+            days <= 0 -> "Today"
+            days == 1L -> "Yesterday"
+            else -> ageText(now.minus(Duration.ofDays(days)), now)
         }
     }
-
-    private val DAY_ONLY = DateTimeFormatter.ofPattern("d MMM", Locale.UK)
-    private val DAY_ONLY_WITH_YEAR = DateTimeFormatter.ofPattern("d MMM yyyy", Locale.UK)
 
     private fun ageText(publishedAt: Instant, now: Instant): String {
         val elapsed = Duration.between(publishedAt, now).coerceAtLeast(Duration.ZERO)

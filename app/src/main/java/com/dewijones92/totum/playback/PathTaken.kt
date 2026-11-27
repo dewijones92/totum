@@ -35,13 +35,11 @@ public fun pathTakenFrom(trail: List<Breadcrumbs.Entry>, itemId: String? = null)
     return marked.substringBefore(']').ifBlank { "unknown — that play recorded no route" }
 }
 
-/** What was recorded when [itemId] was handed to the player, else what the live trail still says. */
 public fun pathTaken(itemId: String? = null): String =
     itemId?.let(PlayRoutes::of) ?: pathTakenFrom(Breadcrumbs.snapshot(), itemId)
 
 private const val PLAYBACK = "playback"
 
-/** `play <id> from <uri>`: a play/pause request ("play or pause asked by…") has no `from` after its id. */
 private val PLAY_LINE = Regex("""^play (\S+) from """)
 
 /**

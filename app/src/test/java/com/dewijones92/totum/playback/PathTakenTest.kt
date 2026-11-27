@@ -81,11 +81,6 @@ class PathTakenTest {
         assertEquals("hls", pathTakenFrom(trail))
     }
 
-    /**
-     * 23 of 24 diagnostics reports of 20-27 Nov 2026 (v0.1.944) said "that play recorded no route":
-     * the reader took the LAST breadcrumb that began with "play ", and "play or pause asked by the
-     * app at 3631421ms" begins with it too, so any play/pause after the play hid its route.
-     */
     @Test
     fun `a play or pause request after the play does not hide its route`() {
         val trail = trailOf(
