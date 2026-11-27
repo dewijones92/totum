@@ -1,7 +1,7 @@
 ---
 title: 🔊 Home Assistant's brown noise, jazz and shows play through Totum
 kind: todo
-status: adapter LIVE on the Pi since 2026-11-07 (redeployed 2026-11-13); brought up to date and contract-tested 2026-11-20; jazz switched to SomaFM Sonic Universe 2026-11-27 (code and tests done, redeploy owed, runbook below); first real HA-driven play on a speaker still unseen
+status: adapter LIVE on the Pi since 2026-11-07 (redeployed 2026-11-13); brought up to date and contract-tested 2026-11-20; jazz switched to SomaFM Sonic Universe 2026-11-27 and redeployed the same evening (dot-files 384b9f6); jazz played on the soundbar through the adapter for 2 min; HA's own switches, brown noise looping and the Soundmic still unseen
 batch: A (2026-11), C (2026-11)
 priority: high
 updated: 2026-11-27
@@ -123,7 +123,7 @@ state (after a restart it reads everything from `GET /targets`, and anything pla
 1. **From the laptop, copy the new file** to the dot-files copy (the Pi's tracked source of the deployed file):
    `scp tools/handoff/hermes-audio/audio-ctl.py pi@192.168.0.19:code/dot-files/hermes-audio/audio-ctl.py`
 2. **On the Pi, check it parses and note the state before** (read only):
-   `python3 -m py_compile ~/code/dot-files/hermes-audio/audio-ctl.py && grep -c 'station:jazz' ~/code/dot-files/hermes-audio/audio-ctl.py`
+   `python3 -m py_compile ~/code/dot-files/hermes-audio/audio-ctl.py && grep -c 'sonicuniverse' ~/code/dot-files/hermes-audio/audio-ctl.py`
    (expect `1` or more), `curl -s 127.0.0.1:8099/status`, `curl -s 127.0.0.1:8772/health`,
    `md5sum /var/lib/hermes-audio/audio-ctl.py` (the md5 of what is live now, for the roll-back note).
 3. **Check the station answers the Pi's own mpv, before swapping anything** (a 10-second read, no sound: a null audio device):
@@ -165,4 +165,17 @@ state (after a restart it reads everything from `GET /targets`, and anything pla
 
 Brown noise, jazz and a show each start from HA on each speaker at the speaker's own low level, appear in Totum's queue, stop
 from HA and from the phone, and `switch.brown_noise` / `switch.jazz` report the right state; brown noise still loops after
-5 minutes. Not yet seen on a real speaker.
+5 minutes.
+
+**Run 2026-11-27, 21:26-21:30 (steps 1-7 on the soundbar):**
+- The Pi's own mpv read the station: `Audio --aid=1 (mp3 2ch 44100Hz)`, an `icy-title`, `exit=124`.
+- After the swap, the live file and the dot-files copy match (md5 `018145f4…`). The old file is kept as
+  `audio-ctl.py.pre-20261127` (md5 `9b81ad32…`).
+- `POST /play/jazz?speaker=soundbar` linked the soundbar at its own volume (5, `HARDWARE`). The adapter said `playing`
+  with `media.station=jazz` for 2 minutes and logged no error.
+- Totum logged `station:jazz: Podcast picture=false -> a stream` and `mpv … on bluez_sink.54_15_89_76_CD_A4.a2dp_sink`, then
+  progress lines added by 🏠 Home Assistant to 123 s.
+- `POST /stop` left the soundbar's other 175 entries.
+- The step-2 grep for `station:jazz` counts 0, because the id is built as `f"station:{name}"`; it now greps the URL.
+
+**Still not seen:** HA's own `switch.jazz` and `switch.brown_noise`, brown noise looping past 5 minutes, a show, and the Soundmic.
