@@ -4,6 +4,7 @@ import com.dewijones92.totum.data.download.DownloadEvent
 import com.dewijones92.totum.data.download.DownloadManager
 import com.dewijones92.totum.data.download.DownloadRecord
 import com.dewijones92.totum.data.download.RetryPlan
+import com.dewijones92.totum.data.download.StrandedDownloads
 import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.DownloadedMedia
 import com.dewijones92.totum.domain.MediaItem
@@ -55,7 +56,36 @@ public class FakeDownloadManager : DownloadManager {
      * stays in progress.
      */
     public fun setDownloading(id: MediaItemId, downloadedBytes: Long, totalBytes: Long?) {
+        stranded -= id
         downloads.update { it + (id to DownloadState.Downloading(downloadedBytes, totalBytes)) }
+    }
+
+    private val stranded = mutableSetOf<MediaItemId>()
+
+    public val recovered: MutableList<MediaItemId> = mutableListOf()
+
+    public fun strand(id: MediaItemId, downloadedBytes: Long = 0, totalBytes: Long? = null) {
+        stranded += id
+        downloads.update { it + (id to DownloadState.Downloading(downloadedBytes, totalBytes)) }
+    }
+
+    override suspend fun recoverStranded(): StrandedDownloads {
+        val found = stranded.toList()
+        stranded.clear()
+        val restarted = mutableListOf<MediaItemId>()
+        val dropped = mutableListOf<MediaItemId>()
+        found.forEach { id ->
+            recovered += id
+            val item = known.value[id]
+            if (item == null) {
+                downloads.update { it - id }
+                dropped += id
+            } else {
+                download(item, audioOnly = true)
+                restarted += id
+            }
+        }
+        return StrandedDownloads(restarted, dropped = dropped)
     }
 
     /**

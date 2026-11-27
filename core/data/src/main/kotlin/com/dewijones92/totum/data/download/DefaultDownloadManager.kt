@@ -9,6 +9,7 @@ import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayableItem
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -22,6 +23,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 
@@ -143,6 +145,10 @@ public class DefaultDownloadManager(
     private val upgrading = ConcurrentHashMap<MediaItemId, Kept>()
     private val runningLock = Mutex()
 
+    private val recovery = Mutex()
+
+    private val stopping = mutableSetOf<MediaItemId>()
+
     init {
         // A "Downloading" record at startup means the process died mid-download. Its coroutine is
         // gone, so nothing will ever move it -- but DELETING it, which is what happened until
@@ -166,21 +172,45 @@ public class DefaultDownloadManager(
                 Diag.warn("download", "a file being sent in when the process stopped left ${half.name}; cleared")
                 half.delete()
             }
-            store.observeAll().first()
-                .filterValues { it is DownloadState.Downloading }
-                .keys.forEach { id ->
-                    val request = store.request(id)
-                    if (request == null) {
-                        Diag.warn("download", "dropping interrupted download ${id.value}: no record of what it was")
-                        store.remove(id)
-                    } else {
-                        resumeOrFail(request)
-                    }
-                }
+            recoverStranded()
         }
     }
 
-    private suspend fun resumeOrFail(request: DownloadRequest) {
+    override suspend fun recoverStranded(): StrandedDownloads = recovery.withLock {
+        val restarted = mutableListOf<MediaItemId>()
+        val failed = mutableListOf<MediaItemId>()
+        val dropped = mutableListOf<MediaItemId>()
+        store.observeAll().first()
+            .filterValues { it is DownloadState.Downloading }
+            .keys.forEach { id ->
+                if (!isStranded(id)) return@forEach
+                val request = store.request(id)
+                if (request == null) {
+                    Diag.warn("download", "dropping interrupted download ${id.value}: no record of what it was")
+                    store.remove(id)
+                    dropped += id
+                } else if (resumeOrFail(request)) {
+                    restarted += id
+                } else {
+                    failed += id
+                }
+            }
+        StrandedDownloads(restarted, failed, dropped)
+    }
+
+    private suspend fun isStranded(id: MediaItemId): Boolean = runningLock.withLock {
+        id !in stopping && !running.containsKey(id) && store.get(id) is DownloadState.Downloading
+    }
+
+    private suspend fun takeRunning(id: MediaItemId): Job? = runningLock.withLock {
+        running.remove(id).also { stopping += id }
+    }
+
+    private suspend fun doneStopping(id: MediaItemId) {
+        withContext(NonCancellable) { runningLock.withLock { stopping -= id } }
+    }
+
+    private suspend fun resumeOrFail(request: DownloadRequest): Boolean {
         val id = request.item.item.id
         val title = request.item.item.title
         if (!mayResumeNow()) {
@@ -190,7 +220,7 @@ public class DefaultDownloadManager(
                     "left for Retry",
             )
             store.put(request.item, DownloadState.Failed(INTERRUPTED), request.audioOnly)
-            return
+            return false
         }
         val attempt = notes.resumedOnceMore(id)
         if (attempt > MAX_RESUMES) {
@@ -199,7 +229,7 @@ public class DefaultDownloadManager(
                 "\"$title\" was interrupted by the app stopping again (fresh start $attempt); left for Retry",
             )
             store.put(request.item, DownloadState.Failed(INTERRUPTED), request.audioOnly)
-            return
+            return false
         }
         val height = notes.height(id)
         Diag.log(
@@ -209,6 +239,7 @@ public class DefaultDownloadManager(
         )
         store.remove(id)
         download(request.item, request.audioOnly, height)
+        return true
     }
 
     override suspend fun download(item: PlayableItem, audioOnly: Boolean, maxHeight: Int?) {
@@ -311,7 +342,15 @@ public class DefaultDownloadManager(
 
     override suspend fun cancel(id: MediaItemId) {
         retries.forget(id)
-        val job = runningLock.withLock { running.remove(id) }
+        val job = takeRunning(id)
+        try {
+            cancelStopped(id, job)
+        } finally {
+            doneStopping(id)
+        }
+    }
+
+    private suspend fun cancelStopped(id: MediaItemId, job: Job?) {
         upgrading.remove(id)?.let { kept ->
             job?.cancelAndJoin()
             File(downloadDir, id.upgradeFileName()).let {
@@ -381,10 +420,19 @@ public class DefaultDownloadManager(
 
     override suspend fun delete(id: MediaItemId) {
         retries.forget(id)
+        val job = takeRunning(id)
+        try {
+            deleteStopped(id, job)
+        } finally {
+            doneStopping(id)
+        }
+    }
+
+    private suspend fun deleteStopped(id: MediaItemId, job: Job?) {
         // Stop it first if it is still going. Without this the coroutine outlived the delete and
         // wrote its next progress update straight back, so the row reappeared seconds later and the
         // bytes kept arriving — a deletion that undid itself.
-        runningLock.withLock { running.remove(id) }?.cancelAndJoin()
+        job?.cancelAndJoin()
         (store.get(id) as? DownloadState.Downloaded)?.let { File(it.localPath).delete() }
         // Also whatever a cancelled-mid-flight download left behind, which has no record naming it —
         // including the part-fetched file, which would otherwise be resumed by a later download of

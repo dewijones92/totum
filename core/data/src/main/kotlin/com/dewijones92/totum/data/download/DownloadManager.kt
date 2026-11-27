@@ -96,4 +96,6 @@ public interface DownloadManager {
     public suspend fun markUnreadable(id: MediaItemId, why: String)
 
     public fun retryPlans(): Flow<Map<MediaItemId, RetryPlan>> = flowOf(emptyMap())
+
+    public suspend fun recoverStranded(): StrandedDownloads
 }
