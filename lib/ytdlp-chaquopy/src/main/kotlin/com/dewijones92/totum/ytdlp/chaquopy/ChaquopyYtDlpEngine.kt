@@ -9,15 +9,19 @@ import com.dewijones92.totum.common.Vitals
 import com.dewijones92.totum.ytdlp.ChannelResult
 import com.dewijones92.totum.ytdlp.DownloadEvent
 import com.dewijones92.totum.ytdlp.DownloadRequest
+import com.dewijones92.totum.ytdlp.EngineState
 import com.dewijones92.totum.ytdlp.EngineVersions
 import com.dewijones92.totum.ytdlp.ExtractionResult
 import com.dewijones92.totum.ytdlp.FfmpegMerge
+import com.dewijones92.totum.ytdlp.PlayerWarmth
 import com.dewijones92.totum.ytdlp.VideoSearchResult
 import com.dewijones92.totum.ytdlp.YtDlpEngine
 import com.dewijones92.totum.ytdlp.bridge.AUTO_CAPTION_LANGUAGES
 import com.dewijones92.totum.ytdlp.bridge.parseChannel
 import com.dewijones92.totum.ytdlp.bridge.parseDownloadCompletion
+import com.dewijones92.totum.ytdlp.bridge.parseEngineState
 import com.dewijones92.totum.ytdlp.bridge.parseExtraction
+import com.dewijones92.totum.ytdlp.bridge.parsePlayerWarmth
 import com.dewijones92.totum.ytdlp.bridge.parseSearch
 import com.dewijones92.totum.ytdlp.bridge.parseSolvedN
 import com.dewijones92.totum.ytdlp.bridge.parseVersions
@@ -91,6 +95,16 @@ public class ChaquopyYtDlpEngine(
             check(jsRuntimeConfigured)
             Diag.log("engine", "warmed: ${bridge.callAttr("warm_up")}")
         }
+    }
+
+    override suspend fun warmPlayer(playerUrl: String): PlayerWarmth = withContext(dispatcher) {
+        check(jsRuntimeConfigured)
+        timed("warm player") { parsePlayerWarmth(bridge.callAttr("prepare_player", playerUrl).toString()) }
+    }
+
+    override suspend fun engineState(): EngineState = withContext(dispatcher) {
+        check(jsRuntimeConfigured)
+        parseEngineState(bridge.callAttr("engine_state").toString())
     }
 
     override suspend fun versions(): EngineVersions = withContext(dispatcher) {

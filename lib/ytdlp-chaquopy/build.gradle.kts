@@ -48,6 +48,7 @@ dependencies {
     testImplementation(libs.junit)
 
     androidTestImplementation(libs.junit)
+    androidTestImplementation(testFixtures(project(":lib:ytdlp")))
     androidTestImplementation(libs.androidx.test.core)
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.androidx.test.runner)
