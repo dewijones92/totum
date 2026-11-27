@@ -133,3 +133,16 @@ public val TargetState.connection: TargetConnection
 
 public fun List<TargetState>.barFor(selected: String?): TargetState? =
     firstOrNull { it.target.id == selected }?.takeIf { it.current != null }
+
+public data class BarDecision(val state: TargetState?, val why: String)
+
+public fun List<TargetState>.barDecision(selected: String?): BarDecision {
+    val state = barFor(selected)
+    val why = when {
+        selected == null -> "this phone is the chosen device"
+        state != null -> "${state.target.label} is chosen and has ${state.entries.size} queued, at=${state.at}"
+        none { it.target.id == selected } -> "$selected is chosen but the Pi does not list it"
+        else -> "$selected is chosen but has nothing playing or queued to show"
+    }
+    return BarDecision(state, why)
+}

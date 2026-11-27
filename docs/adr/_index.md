@@ -196,4 +196,8 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 185 | [Long ones are built from what is cached, and fill in lengths lazily](0185-long-ones-are-built-from-what-is-cached-and-fill-in-lengths-lazily.md) | Accepted |
 | 186 | [One fetch per item: a playing stream is its own download, and nothing swaps a healthy stream for a file](0186-one-fetch-per-item-a-playing-stream-is-its-own-download.md) | Accepted |
 | 187 | [A running Jellyfin app is a target the Pi drives by item id, and it takes only Jellyfin items](0187-a-running-jellyfin-app-is-a-target-the-pi-drives-by-item-id.md) | Accepted |
+<<<<<<< HEAD
 | 190 | [Hold the top-right corner to send a report, and one report never blocks the next](0190-hold-the-top-right-corner-to-send-a-report-and-a-report-never-blocks-the-next.md) | Accepted |
+=======
+| 188 | [The selected device is a second media session beside the phone's, so the lock screen and the notification control it](0188-the-selected-device-is-a-second-media-session-for-the-lock-screen-and-notification.md) | Accepted |
+>>>>>>> worktree-agent-aad2a97117bbb44b6

@@ -28,6 +28,7 @@ import com.dewijones92.totum.settings.AppPreferences
 import com.dewijones92.totum.settings.NetworkStatus
 import com.dewijones92.totum.stats.ListenRecorder
 import com.dewijones92.totum.stats.recordFinishedDownloads
+import com.dewijones92.totum.targets.startRemoteSession
 import com.dewijones92.totum.ui.common.homeServerAwareImageLoader
 import com.dewijones92.totum.uploads.NewUploadsWorker
 import kotlinx.coroutines.delay
@@ -69,6 +70,7 @@ class TotumApplication : Application(), SingletonImageLoader.Factory {
         container.listeningSwitcher.start()
         startGapless(container, NetworkStatus(this)::isMetered)
         startCastScreens(container, this)
+        startRemoteSession(container, this)
         // Periodically check every subscription (both pillars) and notify on new content.
         NewContentWorker.schedule(this)
         NewUploadsWorker.schedule(this)
