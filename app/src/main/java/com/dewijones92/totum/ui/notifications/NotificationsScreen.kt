@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
+import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.searchableText
 import com.dewijones92.totum.ui.common.BackHeader
@@ -45,13 +46,25 @@ fun NotificationsScreen(
     // Snapshot the new uploads on open; marking them seen clears the badge but
     // must not empty the list the user is looking at.
     val uploads = remember { viewModel.snapshotUploads() }
-    LaunchedEffect(Unit) { viewModel.markAllSeen() }
+    LaunchedEffect(Unit) {
+        Diag.log(
+            "notifications",
+            "dewidebug New uploads opened: ${uploads.size} row(s), ${uploads.count { it.unread }} unread, " +
+                "${uploads.count { !it.unread }} already seen; this is the first page of the subscriptions feed " +
+                "and no further page is asked for, so the list ends at its last row",
+        )
+        viewModel.markAllSeen()
+    }
 
     Surface(modifier = modifier.fillMaxSize()) {
         Column {
             val listFilter = rememberListFilter("notifications")
             val shape = rememberListShape("notifications")
-            BackHeader(stringResource(R.string.notifications_title), onBack) {
+            BackHeader(
+                stringResource(R.string.notifications_title),
+                onBack,
+                subtitle = stringResource(R.string.notifications_subtitle),
+            ) {
                 ShapeControl(shape)
                 FilterToggle(listFilter, uploads.size)
             }

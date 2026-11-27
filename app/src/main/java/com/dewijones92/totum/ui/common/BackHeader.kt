@@ -1,5 +1,6 @@
 package com.dewijones92.totum.ui.common
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -27,6 +28,7 @@ import com.dewijones92.totum.R
 fun BackHeader(
     title: String,
     onBack: () -> Unit,
+    subtitle: String? = null,
     trailing: @Composable () -> Unit = {},
 ) {
     Row(
@@ -36,13 +38,20 @@ fun BackHeader(
             .padding(start = 12.dp, end = 8.dp, top = 10.dp, bottom = 6.dp),
     ) {
         BackButton(onBack)
-        Text(
-            text = title,
-            style = MaterialTheme.typography.headlineSmall,
+        Column(
             modifier = Modifier
                 .weight(1f)
                 .padding(horizontal = 12.dp),
-        )
+        ) {
+            Text(text = title, style = MaterialTheme.typography.headlineSmall)
+            if (subtitle != null) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
         trailing()
         CastingAction()
     }
