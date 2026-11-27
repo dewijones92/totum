@@ -113,4 +113,30 @@ class LockupParserTest {
             withViews.first().viewsText!!.contains("view", ignoreCase = true),
         )
     }
+
+    private fun lockupWith(vararg rows: List<String>): String {
+        val metadataRows = rows.joinToString(",") { parts ->
+            """{"metadataParts":[${parts.joinToString(",") { """{"text":{"content":"$it"}}""" }}]}"""
+        }
+        return """{"contents":[{"lockupViewModel":{"contentType":"LOCKUP_CONTENT_TYPE_VIDEO","contentId":"vid00000001",
+            "metadata":{"lockupMetadataViewModel":{"title":{"content":"A video"},
+            "metadata":{"contentMetadataViewModel":{"metadataRows":[$metadataRows]}}}}}}]}"""
+    }
+
+    @Test
+    fun `a bare compact count beside a date is the view count`() {
+        val video = LockupParser.videos(lockupWith(listOf("Some Channel"), listOf("107K", "3d ago"))).items.single()
+
+        assertEquals("107K views", video.viewsText)
+        assertEquals("3d ago", video.publishedText)
+        assertEquals("Some Channel", video.author)
+    }
+
+    @Test
+    fun `a bare count with no channel line is still the view count and never the author`() {
+        val video = LockupParser.videos(lockupWith(listOf("24K", "8h ago"))).items.single()
+
+        assertEquals("24K views", video.viewsText)
+        assertEquals(null, video.author)
+    }
 }

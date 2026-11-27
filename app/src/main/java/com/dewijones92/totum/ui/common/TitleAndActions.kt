@@ -28,6 +28,11 @@ internal fun TitleAndActions(
     itemAlignment: Alignment.Vertical = Alignment.CenterVertically,
     title: @Composable (Modifier) -> Unit,
     actions: @Composable () -> Unit,
+    standardActions: @Composable () -> Unit = {
+        CastingAction()
+        AskAction()
+        SearchAction()
+    },
 ) {
     FlowRow(
         horizontalArrangement = Arrangement.End,
@@ -36,11 +41,7 @@ internal fun TitleAndActions(
     ) {
         title(Modifier.weight(1f).widthIn(min = titleWidth))
         actions()
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            CastingAction()
-            AskAction()
-            SearchAction()
-        }
+        Row(verticalAlignment = Alignment.CenterVertically) { standardActions() }
     }
 }
 

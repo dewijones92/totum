@@ -32,6 +32,19 @@ public fun routeOf(uri: String, fromDisk: Boolean): String = when {
     else -> "a direct url"
 }
 
+public object PlayRoutes {
+    private const val KEPT = 64
+    private val routes = object : LinkedHashMap<String, String>(KEPT, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String>?): Boolean = size > KEPT
+    }
+
+    public fun record(itemId: String, route: String) {
+        synchronized(routes) { routes[itemId] = route }
+    }
+
+    public fun of(itemId: String): String? = synchronized(routes) { routes[itemId] }
+}
+
 /**
  * The play breadcrumb, built in ONE place so the reader cannot drift from the writer.
  *

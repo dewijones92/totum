@@ -82,7 +82,11 @@ internal class DiagnosticSnapshot(
             // different situations producing the same line is the thing this field exists to stop.
             put(
                 "playing.route",
-                if (state == null) "-" else runCatching { pathTaken() }.getOrElse { "unknown" },
+                if (state == null) {
+                    "-"
+                } else {
+                    runCatching { pathTaken(state.itemId.value) }.getOrElse { "unknown (${it.javaClass.simpleName})" }
+                },
             )
             put("playing.speed", state?.speed?.toString() ?: "-")
             put("playing.skipSilence", state?.skipSilence?.toString() ?: "-")

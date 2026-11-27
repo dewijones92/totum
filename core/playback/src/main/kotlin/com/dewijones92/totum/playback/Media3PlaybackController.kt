@@ -406,7 +406,9 @@ public class Media3PlaybackController(
             Diag.log("playback", "${item.id.value} starts paused: it was paused while being re-fetched")
         }
         val mergedAudio = audioUrl?.let { " + audio ${it.value.forLog()}" }.orEmpty()
-        Diag.log("playback", playBreadcrumb(item.id.value, uri.forLog(), mergedAudio, routeOf(uri, localPath != null)))
+        val route = routeOf(uri, localPath != null)
+        PlayRoutes.record(item.id.value, route)
+        Diag.log("playback", playBreadcrumb(item.id.value, uri.forLog(), mergedAudio, route))
         onPlay(item, kind)
         // Each play() claims a generation; only the latest one commits its state and
         // media item. Guards against two quick play() calls (double-tap, queue
@@ -812,6 +814,13 @@ public class Media3PlaybackController(
                         val context = ItemContext.of(item, kind, skipSegments, subtitles)
                         nextInLine.arm(NextInLine.Armed(context, uri, audioUrl?.value))
                         Diag.log("gapless", "${item.id.value} waits behind $playing, starting at ${startMs}ms")
+                        Diag.log(
+                            "gapless",
+                            "dewidebug armed ${item.id.value}: media3 item " +
+                                "title=${media3Item.mediaMetadata.title.quoted()} " +
+                                "artwork=${media3Item.mediaMetadata.artworkUri ?: "none"} " +
+                                "[queue row title=\"${item.title}\" thumbnail=${item.thumbnailUrl?.value ?: "none"}]",
+                        )
                     }
                 }
             }
@@ -866,10 +875,20 @@ public class Media3PlaybackController(
         lastDurationMs = null
         becameCurrent(next.context)
         Vitals.add("playback.gaplessHandovers")
+        val route = routeOf(next.uri, next.uri.startsWith("file:"))
+        PlayRoutes.record(next.context.id, route)
         Diag.log(
             "gapless",
             "crossed from $from to ${next.context.id} at ${old.positionMs}ms " +
-                "(${if (finished) "it ended" else "skipped to next"}) — nothing rebuilt",
+                "(${if (finished) "it ended" else "skipped to next"}) — nothing rebuilt [route=$route]",
+        )
+        val crossed = new.mediaItem?.mediaMetadata
+        val current = controller.currentMediaItem?.mediaMetadata
+        Diag.log(
+            "gapless",
+            "dewidebug crossover to ${next.context.id}: media3 item title=${crossed?.title.quoted()} " +
+                "artwork=${crossed?.artworkUri ?: "none"}; the controller's current item says " +
+                "title=${current?.title.quoted()} artwork=${current?.artworkUri ?: "none"}",
         )
         if (new.mediaItemIndex > 0) controller.removeMediaItems(0, new.mediaItemIndex)
         _events.tryEmit(PlaybackEvent.CrossedOver(MediaItemId(next.context.id), MediaItemId(from), finished))
@@ -1429,6 +1448,7 @@ public class Media3PlaybackController(
         val current = currentMediaItem?.takeIf { it.mediaId.isNotBlank() }
         if (current != null) {
             castLoad.seen(current.mediaId, current, currentPosition.takeIf { !remote })
+            noteBlankTitle(current)
             return itemState(current)
         }
         if (!remote || castDeviceName == null) return null
@@ -1466,6 +1486,27 @@ public class Media3PlaybackController(
         if (deviceInfo.playbackType != DeviceInfo.PLAYBACK_TYPE_REMOTE) return null
         if (!isCommandAvailable(Player.COMMAND_GET_DEVICE_VOLUME)) return null
         return CastVolume.of(deviceVolume, deviceInfo.maxVolume, isDeviceMuted)
+    }
+
+    private var blankTitleLoggedFor: String? = null
+
+    private fun CharSequence?.quoted(): String = this?.let { "\"$it\"" } ?: "none"
+
+    private fun noteBlankTitle(current: Media3MediaItem) {
+        val blank = current.mediaMetadata.title.isNullOrBlank()
+        if (!blank) {
+            if (blankTitleLoggedFor == current.mediaId) blankTitleLoggedFor = null
+            return
+        }
+        if (blankTitleLoggedFor == current.mediaId) return
+        blankTitleLoggedFor = current.mediaId
+        Diag.warn(
+            "playback",
+            "dewidebug the session's item ${current.mediaId} has a blank title " +
+                "[artwork=${current.mediaMetadata.artworkUri ?: "none"} " +
+                "artist=${current.mediaMetadata.artist ?: "none"}]; " +
+                "the app shows the queue row's instead",
+        )
     }
 
     private fun MediaController.itemState(current: Media3MediaItem): PlaybackState =

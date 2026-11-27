@@ -54,6 +54,7 @@ import com.dewijones92.totum.ui.common.ProvidePlayStates
 import com.dewijones92.totum.ui.common.RequestNotificationPermissionOnce
 import com.dewijones92.totum.ui.common.ShellBanners
 import com.dewijones92.totum.ui.common.SteadyPlayback
+import com.dewijones92.totum.ui.common.rememberFacedFrom
 import com.dewijones92.totum.ui.common.rememberSnackbarOffers
 import com.dewijones92.totum.ui.library.LibraryScreen
 import com.dewijones92.totum.ui.motion.sharedXAxis
@@ -290,9 +291,11 @@ private fun BottomBar(
     )
     val dock = rememberDockShown(container.targets, onQueueTab = selected == TopLevelDestination.Queue)
     val remote = (dock as? DockShown.Remote)?.remote
+    val row by container.playbackQueue.nowPlaying.collectAsStateWithLifecycle()
     SteadyPlayback(
         container.playbackController
-    ) { state ->
+    ) { session ->
+        val state = rememberFacedFrom(session, row?.item, "mini player")
         DockFor(
             state,
             starting,
@@ -360,8 +363,10 @@ private fun FullPlayerHost(
     watchViewModel: WatchViewModel,
     onDismiss: () -> Unit,
 ) {
-    SteadyPlayback(controller) { current ->
-        current?.let { FullPlayerFor(it, controller, container, watchViewModel, onDismiss) }
+    val row by container.playbackQueue.nowPlaying.collectAsStateWithLifecycle()
+    SteadyPlayback(controller) { session ->
+        rememberFacedFrom(session, row?.item, "full player")
+            ?.let { FullPlayerFor(it, controller, container, watchViewModel, onDismiss) }
     }
 }
 

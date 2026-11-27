@@ -115,6 +115,68 @@ class DiscoverWalkTest {
         assertEquals("both distances turn up once widened: $later", setOf(1, 2), hops)
     }
 
+    private fun heard(vararg ids: String) =
+        DiscoverTaste(recent = ids.map { TasteMark(id = it, name = null, why = "listened to in the last 14 days") })
+
+    @Test
+    fun `when every near artist was heard, their pages are read to reach hop two and none is offered from them`() =
+        runBlocking {
+            val graph = Graph(
+                Graph.Node("S", listOf("A", "B", "C")),
+                Graph.Node("A", listOf("D")),
+                Graph.Node("B", listOf("E")),
+                Graph.Node("C", listOf("F")),
+                Graph.Node("D", emptyList()),
+                Graph.Node("E", emptyList()),
+                Graph.Node("F", emptyList()),
+            )
+
+            val step = walk().step(pages = 2, graph::page, heard("A", "B", "C"))
+
+            assertTrue("something was found: $step", step.picks.isNotEmpty())
+            val unheard = setOf("D", "E", "F")
+            assertTrue("only the unheard two hops out: ${step.artists()}", step.artists().all { it in unheard })
+            assertTrue(step.picks.all { it.hop == 2 })
+            val heardNear = setOf("A", "B", "C")
+            assertTrue("a heard page was read to get through: ${graph.asked}", graph.asked.any { it in heardNear })
+            assertFalse("never a song from a heard artist", step.artists().any { it in setOf("A", "B", "C") })
+            assertEquals(step.pagesAsked, graph.asked.size)
+        }
+
+    @Test
+    fun `reading heard artists to pass through is capped, so a long list is not a flood of requests`() = runBlocking {
+        val near = (1..10).map { "H$it" }
+        val graph = Graph(
+            Graph.Node("S", near),
+            *near.map { Graph.Node(it, listOf("X-$it")) }.toTypedArray(),
+            *near.map { Graph.Node("X-$it", emptyList()) }.toTypedArray(),
+        )
+
+        walk().step(pages = 2, graph::page, heard(*near.toTypedArray()))
+
+        val passThroughs = graph.asked.count { it in near }
+        assertTrue("read $passThroughs heard pages", passThroughs <= DiscoverWalk.PASS_THROUGH_PAGES)
+    }
+
+    @Test
+    fun `a dry step says why, whether the seed lists nobody or everyone near was heard`() = runBlocking {
+        val lonely = Graph(Graph.Node("S", emptyList()))
+        val nobody = walk().step(pages = 2, lonely::page, DiscoverTaste.NOTHING)
+
+        assertTrue(nobody.dry)
+        assertEquals("no similar artists for Artist S", nobody.reason)
+
+        val crowded = Graph(
+            Graph.Node("S", listOf("A", "B")),
+            Graph.Node("A", emptyList()),
+            Graph.Node("B", emptyList()),
+        )
+        val everyoneHeard = walk().step(pages = 2, crowded::page, heard("A", "B"))
+
+        assertTrue(everyoneHeard.dry)
+        assertEquals("all 2 near artists were heard recently, and none of them lists anyone new", everyoneHeard.reason)
+    }
+
     @Test
     fun `artists played or liked recently are skipped, by id and by name`() = runBlocking {
         val graph = Graph(

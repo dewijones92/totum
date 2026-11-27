@@ -3,7 +3,7 @@ title: New-content notifications
 kind: feature
 area: notifications
 status: shipped
-updated: 2026-11-04
+updated: 2026-11-27
 ---
 
 # 🔔 New-content notifications
@@ -25,3 +25,13 @@ Logs: `[content] N source(s) not notified: alerts off (youTube=… podcasts=…)
 not notified: this group's notifications are off`.
 
 Tests: `NewContentAlertsTest`, `GroupNewsTest` (a quiet group), `PreferenceBackupTest`, `NewContentCheckTest`.
+
+## 2026-11-27: a group's new video is announced even if the group was opened first
+
+Report 20261124T060317: a video went public at 06:00:27, the group was opened at 06:01:14, and the 07:00 check never
+announced it. `GroupNews` now judges by video id: announced once, published after the member joined the group, within 48 h
+(`[group] … announce check: read N item(s): A announced, B not announced (already announced …, no date …, published before
+the group or member was first looked at …, older than 48 h …, group's notifications off …, notification could not be
+posted …)`). Opening still clears "🆕 N". `group` is a kept log tag. See
+[ADR 95](../adr/0095-groups-say-whats-new-and-live-in-the-library.md) and
+[ADR 192](../adr/0192-one-watch-page-parse-fills-views-everywhere.md). Tests: `GroupNewsTest`.

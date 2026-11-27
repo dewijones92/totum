@@ -8,9 +8,11 @@ import com.dewijones92.totum.data.discover.TasteMark
 import com.dewijones92.totum.data.history.fake.InMemoryPlayHistoryStore
 import com.dewijones92.totum.data.sponsorblock.SkipSegmentSource
 import com.dewijones92.totum.innertube.history.fake.FakeYouTubeWatchHistory
+import com.dewijones92.totum.innertube.music.ArtistLink
 import com.dewijones92.totum.innertube.music.MusicArtist
 import com.dewijones92.totum.innertube.music.MusicArtistRef
 import com.dewijones92.totum.innertube.music.MusicSong
+import com.dewijones92.totum.innertube.music.RadioBatch
 import com.dewijones92.totum.innertube.music.fake.FakeYouTubeMusicCatalogue
 import com.dewijones92.totum.operations.OperationEnd
 import com.dewijones92.totum.operations.Operations
@@ -208,8 +210,65 @@ class MusicDiscoverTest {
 
         assertFalse(started)
         assertTrue(rig.queue.state.value.entries.isEmpty())
-        assertEquals(listOf<OperationEnd>(OperationEnd.Nothing), ended)
+        assertEquals(listOf<OperationEnd>(OperationEnd.NothingBecause("no similar artists for Artist S")), ended)
         assertTrue(rig.recent.recent.value.isEmpty())
+        watcher.cancel()
+        rig.work.cancel()
+    }
+
+    private fun composerRig(
+        scope: TestScope,
+        credits: List<ArtistLink>,
+        radioSongs: List<MusicSong> = emptyList(),
+    ): Rig {
+        val seedSong = song("S", 1).copy(artists = credits)
+        val catalogue = FakeYouTubeMusicCatalogue(
+            artistsById = listOf(
+                artist("S", emptyList()),
+                artist("P", listOf("A", "B")),
+                artist("A", emptyList()),
+                artist("B", emptyList()),
+            ).associateBy { it.browseId },
+            radioBatches = listOf(RadioBatch(listOf(seedSong) + radioSongs, null)),
+        )
+        return Rig(scope, catalogue)
+    }
+
+    @Test
+    fun `a composer with no similar artists falls back to the other artists credited on the song`() = runTest {
+        val rig = composerRig(this, listOf(ArtistLink("S", "Artist S"), ArtistLink("P", "Artist P")))
+
+        val started = rig.radio.startDiscover(
+            DiscoverSeed("Fur Elise", artistId = "S", artistName = "Artist S", songId = "S1"),
+        )
+        advanceUntilIdle()
+
+        assertTrue(started)
+        val authors = rig.authors().toSet()
+        val neighbours = setOf("Artist A", "Artist B")
+        assertTrue("songs came from P's neighbours: $authors", authors.isNotEmpty() && authors.all { it in neighbours })
+        assertTrue("P's page was read: ${rig.catalogue.artistRequests}", "P" in rig.catalogue.artistRequests)
+        rig.work.cancel()
+    }
+
+    @Test
+    fun `with nobody else credited, it falls back to the seed song's own radio and says so`() = runTest {
+        val others = (1..3).map { song("X", it) }
+        val rig = composerRig(this, listOf(ArtistLink("S", "Artist S")), radioSongs = others)
+        val ended = mutableListOf<OperationEnd>()
+        val watcher = launchEnded(rig, ended)
+
+        val started = rig.radio.startDiscover(
+            DiscoverSeed("Fur Elise", artistId = "S", artistName = "Artist S", songId = "S1"),
+        )
+        advanceUntilIdle()
+
+        assertTrue(started)
+        val queued = rig.queue.state.value.entries.map { it.item.item.id.value }
+        assertTrue("the radio's songs were queued: $queued", queued.containsAll(others.map { it.videoId }))
+        val done = ended.single() as OperationEnd.Done
+        assertTrue(done.note.orEmpty(), "no similar artists for Artist S" in done.note.orEmpty())
+        assertTrue(done.note.orEmpty(), "radio" in done.note.orEmpty())
         watcher.cancel()
         rig.work.cancel()
     }

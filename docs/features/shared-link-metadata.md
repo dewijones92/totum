@@ -3,7 +3,7 @@ title: Shared links recover their titles after an offline arrival
 kind: feature
 status: shipped
 area: queue/downloads
-updated: 2026-11-14
+updated: 2026-11-27
 ---
 
 # Shared-link metadata
@@ -33,3 +33,12 @@ repaired/none/failed per need, poster lookups and reuses, gave up and retrying, 
 batches, time, a few examples) and one warning with the stack for the first failure of the pass, never a line per
 row. Coverage: `SharedMetadataRepairTest` on the JVM; `RoomDownloadStoreTest` for actual persistence,
 preserving facts across an older download write and refusing to recreate deleted rows.
+
+## 2026-11-27: rows with no views learn them too ([ADR 192](../adr/0192-one-watch-page-parse-fills-views-everywhere.md))
+
+233 of 234 `shared` queue rows had no view count. `SharedMetadataRepair` has a fifth need, `VIEWS`: a video or song row
+near what plays (5 before, 30 after) or a download with no `viewsText`, asked through the same `/next` read that gives the
+date (`factsOf` replaced `dateOf`), so a row lacking both costs one request. A date is filled only when the row has none and
+is not a song; views only when it has none. It is ADR 171's repair: batches of 20, a second apart, off the main thread, two
+tries. On a 5,857-row queue it asks for 36 rows, not 5,857 (`SharedMetadataRepairTest`). The `pass:` line adds
+`watch page gave dates=N views=N`.

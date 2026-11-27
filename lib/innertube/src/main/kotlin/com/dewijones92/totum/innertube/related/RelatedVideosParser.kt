@@ -20,10 +20,13 @@ internal object RelatedVideosParser {
             ?: return RelatedResult.Failure("Unparseable watch-page response")
         // Related videos are shown as a short "up next" list, not an infinite one, so
         // the page's continuation is deliberately dropped here.
+        val facts = WatchNextParser.facts(body)
         return RelatedResult.Success(
             LockupParser.videos(body).items,
-            WatchNextParser.description(body),
-            WatchNextParser.publishedOn(body),
+            facts?.description,
+            facts?.publishedOn,
+            facts?.viewsText,
+            facts?.publishedAgo,
         )
     }
 }

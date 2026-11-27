@@ -3,6 +3,7 @@ package com.dewijones92.totum.innertube.player
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.common.SubtitleFormat
 import com.dewijones92.totum.common.SubtitleTrack
+import com.dewijones92.totum.common.formatViewCount
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -128,8 +129,13 @@ public object PlayerResponseParser {
                         ?.let { runCatching { java.time.LocalDate.parse(it) }.getOrNull() }
                         ?: describedBy?.publishedOn,
                     publishedAgo = describedBy?.publishedAgo,
+                    viewsText = viewsOf(describedBy),
                 )
             }
+
+    private fun JsonObject.viewsOf(describedBy: WatchNextDetails?): String? =
+        (this["videoDetails"] as? JsonObject)?.stringAt("viewCount")?.toLongOrNull()?.let(::formatViewCount)
+            ?: describedBy?.viewsText
 
     private fun JsonObject.microformatStamp(): String? =
         ((this["microformat"] as? JsonObject)?.get("playerMicroformatRenderer") as? JsonObject)

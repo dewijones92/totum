@@ -3,7 +3,7 @@ title: Views and dates everywhere — including the video page
 kind: feature
 status: shipped
 area: video/search/playback
-updated: 2026-09-21
+updated: 2026-11-27
 ---
 
 # Views and dates everywhere
@@ -184,3 +184,28 @@ yt-dlp `extract_flat` path has no cheap date. That is no longer the gap: search 
 yt-dlp is only the fallback. The stale claim mattered — `docs/todos/_index.md` still listed this as
 `planned` while `docs/features/_index.md` said `shipped`, and the two disagreed for weeks. Both are
 corrected; treat this area's map as having been unreliable.
+
+## 2026-11-27: views on every item, and a day-only date never says hours ([ADR 192](../adr/0192-one-watch-page-parse-fills-views-everywhere.md))
+
+Where views were still dropped, and what fills them now:
+
+| Surface | Why it had none | Now |
+|---|---|---|
+| Related, Up next, Explore | the lockup gives `107K`, not `107K views` | a bare count beside the date part is the views (`LockupParser`) |
+| Rows from links, notification taps, shares, Send to Pi, plays | the resolver items carried none | `PlayerDetails.viewsText`, `MediaMetadata.viewCount`, `withStreamFrom` |
+| Stored queue rows and downloads | saved without | `SharedMetadataRepair` `Need.VIEWS`, from the date's own `/next` read |
+| Group newest items, New uploads, Long ones | `ChannelFeedParser` skipped `media:statistics` | read with `formatViewCount` (RSS has no duration) |
+| Radio and Discover songs | no plays column | the same repair, never a date |
+
+New uploads (the bell) pages through the subscriptions feed as the list is scrolled, and its header says it is every
+subscription's newest, not one group's. `BackHeader` wraps its actions under the title (`TitleAndActions`) so a title is
+never squeezed to a letter per line at 320 dp.
+
+Left out on purpose: the All subscriptions latest-upload line, and Starred, playlist and History rows saved without views
+(they take them from the row they were saved from).
+
+A date that is only a day (`PublishedAge.ofDay`, noon UTC) reads "Today", "Yesterday", "5 days ago", "3 months ago" (the same wording as every other row) and never "18 hours ago".
+`WatchNextParser.facts` is the one read of a watch page: description, day, wording and views. A row entering the queue with no
+views is logged under `[facts]` with its source (`shared`, `ytfeed:…`, `music:radio:…`). Tests: `LockupParserTest`,
+`TheWatchPageCountsTheViewsTest`, `ChannelFeedParserTest`, `SharedMetadataRepairTest`, `PublishedAgeTest`,
+`WithStreamFromTest`.

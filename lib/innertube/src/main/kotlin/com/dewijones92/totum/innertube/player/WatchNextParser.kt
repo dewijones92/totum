@@ -1,5 +1,7 @@
 package com.dewijones92.totum.innertube.player
 
+import com.dewijones92.totum.common.formatViewCount
+import com.dewijones92.totum.common.viewCountFromLongText
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -16,6 +18,14 @@ public data class WatchNextDetails(
     val description: String? = null,
     val publishedOn: LocalDate? = null,
     val publishedAgo: String? = null,
+    val viewsText: String? = null,
+)
+
+public data class WatchNextFacts(
+    val description: String?,
+    val publishedOn: LocalDate?,
+    val viewsText: String?,
+    val publishedAgo: String? = null,
 )
 
 @Suppress("TooManyFunctions")
@@ -26,23 +36,44 @@ public object WatchNextParser {
         val root = runCatching { json.parseToJsonElement(body) }.getOrNull() ?: return null
         val metadata = root.objectsNamed("videoMetadataRenderer")
             .firstOrNull { it.text("videoId") == videoId } ?: return null
+        val facts = root.facts()
         val owner = (metadata["owner"] as? JsonObject)?.get("videoOwnerRenderer") as? JsonObject
         return WatchNextDetails(
             title = metadata.readable("title") ?: return null,
             author = owner?.readable("title"),
             channelId = ((owner?.get("navigationEndpoint") as? JsonObject)?.get("browseEndpoint") as? JsonObject)
                 ?.text("browseId"),
-            description = root.description(),
-            publishedOn = root.publishedOn(),
-            publishedAgo = metadata.readable("dateText")?.takeIf { it.endsWith(" ago") },
+            description = facts.description,
+            publishedOn = facts.publishedOn,
+            publishedAgo = metadata.readable("dateText")?.takeIf { it.endsWith(" ago") } ?: facts.publishedAgo,
+            viewsText = facts.viewsText,
         )
     }
 
-    public fun description(body: String): String? =
-        runCatching { json.parseToJsonElement(body) }.getOrNull()?.description()
+    public fun facts(body: String): WatchNextFacts? =
+        runCatching { json.parseToJsonElement(body) }.getOrNull()?.facts()
 
-    public fun publishedOn(body: String): LocalDate? =
-        runCatching { json.parseToJsonElement(body) }.getOrNull()?.publishedOn()
+    private fun JsonElement.facts(): WatchNextFacts =
+        WatchNextFacts(
+            description = description(),
+            publishedOn = publishedOn(),
+            viewsText = viewsText(),
+            publishedAgo = publishedAgo(),
+        )
+
+    private fun JsonElement.publishedAgo(): String? =
+        objectsNamed("videoPrimaryInfoRenderer").firstNotNullOfOrNull { it.readable("relativeDateText") }
+            ?.takeIf { it.endsWith(" ago") }
+
+    private fun JsonElement.viewsText(): String? {
+        val renderers = objectsNamed("videoViewCountRenderer")
+        renderers.firstNotNullOfOrNull { it.readable("shortViewCount") }?.takeIf { VIEWS_WORD in it }?.let { return it }
+        val long = renderers.firstNotNullOfOrNull { it.readable("viewCount") }
+            ?: objectsNamed("videoDescriptionHeaderRenderer").firstNotNullOfOrNull { it.readable("views") }
+        return long?.let(::viewCountFromLongText)?.let(::formatViewCount)
+    }
+
+    private const val VIEWS_WORD = "view"
 
     private fun JsonElement.publishedOn(): LocalDate? {
         val text = objectsNamed("videoPrimaryInfoRenderer").firstNotNullOfOrNull { it.readable("dateText") }

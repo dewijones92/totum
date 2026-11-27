@@ -2,7 +2,7 @@
 title: Discover, a bolder radio that walks YouTube Music's related-artist graph
 kind: adr
 status: accepted
-updated: 2026-11-13
+updated: 2026-11-27
 ---
 
 # 167. Discover, a bolder radio that walks YouTube Music's related-artist graph
@@ -73,8 +73,26 @@ browse ids) and the artist's top songs, so a far-ranging mode needs no new endpo
   first `discover` pin.
 - Discover and Radio share state: starting one replaces the other; the saved station file carries a kind and the
   seed artist (old files, without them, restore as radios).
-- It cannot say why an artist is "near" beyond YouTube Music's own similar-artists list; a seed artist with no
-  such shelf finds nothing.
+- It cannot say why an artist is "near" beyond YouTube Music's own similar-artists list. (A seed artist with no such shelf
+  found nothing until 2026-11-27; see below.)
 - Followed and recent are best-effort sets; a signed-out phone knows only its own history and stars.
 - Not built, on purpose: a library of recently-discovered artists beyond the session's memory, ranking by the
   similar list's order, and several-artist seeds.
+
+## Amended 2026-11-27: heard neighbours are a way through, composers have a fallback, "nothing" says why
+
+Reports 20261125T110647 (Für Elise) and 20261124 (Tárrega: Tango Maria) found nothing. Two causes:
+
+- The first step looks one hop out and never read the pages of artists it skipped as heard, so a seed whose ten
+  neighbours were all listened to in the last 14 days could not reach hop two. When nothing eligible is in range,
+  `DiscoverWalk` now reads up to three heard neighbours' pages (`PASS_THROUGH_PAGES`), takes their similar artists as
+  hop two and offers no song from them, then widens the step to two hops. Each such page is counted in `pagesAsked` and
+  logged.
+- A composer like Beethoven has no similar-artists shelf on YouTube Music, so the seed listed nobody. Discover now tries
+  the other artists credited on the seed song (the performer), then the seed song's own radio, and the toast says which
+  ("📻 no similar artists for Beethoven, so this song's radio started instead").
+- A dry step carries its reason (`DiscoverStep.reason`): "no similar artists for X", or "all N near artists were heard
+  recently, and none of them lists anyone new", and the 📭 toast states it (`OperationEnd.NothingBecause`).
+
+Tests: `DiscoverWalkTest` (pass-through, its cap, the reasons), `MusicDiscoverTest` (credited-artist fallback, the radio
+fallback with its note, the reason on "nothing"). See [ADR 192](0192-one-watch-page-parse-fills-views-everywhere.md).

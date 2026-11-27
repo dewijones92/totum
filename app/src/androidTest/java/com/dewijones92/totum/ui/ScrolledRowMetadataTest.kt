@@ -11,11 +11,11 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performScrollToIndex
 import com.dewijones92.totum.common.HttpUrl
+import com.dewijones92.totum.common.formatViewCount
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.SourceId
-import com.dewijones92.totum.domain.formatViewCount
 import com.dewijones92.totum.theme.TotumTheme
 import com.dewijones92.totum.ui.common.FactEmoji
 import com.dewijones92.totum.ui.common.MediaItemRow

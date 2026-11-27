@@ -3,7 +3,7 @@ title: YouTube Music
 kind: feature
 status: shipped
 area: music
-updated: 2026-11-13
+updated: 2026-11-27
 ---
 
 # YouTube Music: a Music tab, albums, artists, radio and your library
@@ -183,3 +183,9 @@ put it beside them. [ADR 167](../adr/0167-discover-a-bolder-radio-that-walks-the
 - **Tests**: `DiscoverWalkTest` (15, the walk on a fake related-artist graph), `MusicDiscoverTest`,
   `DiscoverTasteSourceTest`, `PinMenuTest`, `PinsTest`; `DiscoverButtonTest` (instrumented: the button beside
   Radio on the song menu, the artist page and the album page).
+
+### Discover, 2026-11-27 ([ADR 167](../adr/0167-discover-a-bolder-radio-that-walks-the-related-artist-graph.md), amended)
+
+Heard neighbours are read as a way through to hop two (three pages at most, no song offered from them); a seed that lists
+nobody tries the other artists credited on the song, then the song's own radio; a dry step says why in the 📭 toast.
+Tests: `DiscoverWalkTest`, `MusicDiscoverTest`.
