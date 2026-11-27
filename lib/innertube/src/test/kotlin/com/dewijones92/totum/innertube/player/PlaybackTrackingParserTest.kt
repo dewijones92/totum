@@ -99,6 +99,31 @@ class PlaybackTrackingParserTest {
     }
 
     @Test
+    fun `a video blocked for claimed content is the video's own fault, whatever status carries it`() {
+        val said = "It was blocked due to the claimed content by US Tennis Association."
+
+        val refusal = PlaybackTrackingParser.refusalReason(
+            """{"playabilityStatus":{"status":"UNPLAYABLE","reason":"$said"}}""",
+        )
+
+        assertEquals(Refusal.ThisVideo("UNPLAYABLE: $said"), refusal)
+    }
+
+    @Test
+    fun `a copyright block and a private video are the video's own fault too`() {
+        listOf(
+            "This video is private.",
+            "This video contains content from Acme, who has blocked it on copyright grounds."
+        )
+            .forEach { said ->
+                val refusal = PlaybackTrackingParser.refusalReason(
+                    """{"playabilityStatus":{"status":"UNPLAYABLE","reason":"$said"}}""",
+                )
+                assertEquals(said, Refusal.ThisVideo("UNPLAYABLE: $said"), refusal)
+            }
+    }
+
+    @Test
     fun `a sign-in requirement might be this client too`() {
         val refusal = PlaybackTrackingParser.refusalReason("""{"playabilityStatus":{"status":"LOGIN_REQUIRED"}}""")
 

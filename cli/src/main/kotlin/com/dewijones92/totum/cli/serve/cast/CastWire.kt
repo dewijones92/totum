@@ -1,6 +1,7 @@
 package com.dewijones92.totum.cli.serve.cast
 
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -24,8 +25,12 @@ internal sealed interface CastEvent {
     data class Handback(val quit: Boolean, val why: String) : CastEvent
     data class Note(val message: String) : CastEvent
     data class Connection(val state: String) : CastEvent
+    data class Tracks(val tracks: List<CastTrack>, val active: List<Int>) : CastEvent
 }
 
+internal data class CastTrack(val id: Int, val language: String?, val name: String?)
+
+@Suppress("TooManyFunctions")
 internal object CastWire {
 
     const val STREAM_TYPE = "BUFFERED"
@@ -46,6 +51,9 @@ internal object CastWire {
     fun volume(percent: Int): String = line("volume", "percent" to JsonPrimitive(percent))
 
     fun stop(): String = line("stop")
+
+    fun captions(trackId: Int?): String =
+        line("captions", "trackId" to (trackId?.let { JsonPrimitive(it) } ?: JsonNull))
 
     fun quit(): String = line("quit")
 
@@ -68,9 +76,20 @@ internal object CastWire {
             "handback" -> CastEvent.Handback(obj.text("quit") == "true", obj.text("why") ?: "no reason given")
             "note" -> CastEvent.Note(obj.text("message") ?: "")
             "connection" -> CastEvent.Connection(obj.text("state") ?: "unknown")
+            "tracks" -> CastEvent.Tracks(tracksOf(obj["tracks"]), activeOf(obj["active"]))
             else -> null
         }
     }
+
+    private fun tracksOf(element: kotlinx.serialization.json.JsonElement?): List<CastTrack> =
+        (element as? JsonArray).orEmpty().mapNotNull { entry ->
+            val track = entry as? JsonObject ?: return@mapNotNull null
+            val id = track["id"]?.jsonPrimitive?.longOrNull?.toInt() ?: return@mapNotNull null
+            CastTrack(id, track.text("language"), track.text("name"))
+        }
+
+    private fun activeOf(element: kotlinx.serialization.json.JsonElement?): List<Int> =
+        (element as? JsonArray).orEmpty().mapNotNull { it.jsonPrimitive.longOrNull?.toInt() }
 
     private fun JsonObject.text(key: String): String? =
         this[key]?.takeIf { it !is JsonNull }?.jsonPrimitive?.contentOrNull

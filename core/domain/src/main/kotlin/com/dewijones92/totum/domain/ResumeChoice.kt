@@ -56,8 +56,7 @@ private fun resumeFromOwn(localMs: Long?, remoteMs: Long, durationMs: Long?, rem
     if (remoteMs == remoteAlreadyUsedMs) return ResumeChoice(localMs, Because.REMOTE_IS_OLD_NEWS)
     if (isWatchedToTheEnd(remoteMs, durationMs)) return ResumeChoice(null, Because.REMOTE_SAYS_FINISHED)
     if (localMs == null) return ResumeChoice(remoteMs, Because.ONLY_REMOTE)
-    val granularity = ((durationMs ?: 0L) / PERCENT).coerceAtLeast(MIN_GAP_MS)
-    return if (remoteMs - localMs > granularity) {
+    return if (remoteMs - localMs > accountGranularityMs(durationMs)) {
         ResumeChoice(remoteMs, Because.REMOTE_IS_AHEAD)
     } else {
         // Includes remote BEHIND local, which is the common case on the device doing the watching:
@@ -65,6 +64,8 @@ private fun resumeFromOwn(localMs: Long?, remoteMs: Long, durationMs: Long?, rem
         ResumeChoice(localMs, Because.LOCAL_IS_AS_GOOD)
     }
 }
+
+public fun accountGranularityMs(durationMs: Long?): Long = ((durationMs ?: 0L) / PERCENT).coerceAtLeast(MIN_GAP_MS)
 
 public fun isWatchedToTheEnd(positionMs: Long, durationMs: Long?): Boolean =
     durationMs != null && durationMs > 0 && positionMs >= durationMs

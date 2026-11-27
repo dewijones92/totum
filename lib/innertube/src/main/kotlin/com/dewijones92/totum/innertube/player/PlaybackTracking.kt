@@ -67,7 +67,8 @@ public object PlaybackTrackingParser {
         if (state == OK) return null
         val detail = (status["reason"] as? JsonPrimitive)?.contentOrNull
         val said = if (detail.isNullOrBlank()) state else "$state: $detail"
-        return if (state in ABOUT_ONE_VIDEO) Refusal.ThisVideo(said) else Refusal.MaybeUsAll(said)
+        val aboutOneVideo = state in ABOUT_ONE_VIDEO || detail?.let(::saysThisVideoIsBlocked) == true
+        return if (aboutOneVideo) Refusal.ThisVideo(said) else Refusal.MaybeUsAll(said)
     }
 
     private const val OK: String = "OK"
@@ -78,6 +79,16 @@ public object PlaybackTrackingParser {
      * what a stale signature timestamp looks like, and `LOGIN_REQUIRED` is what a bot check does.
      */
     private val ABOUT_ONE_VIDEO = setOf("ERROR", "AGE_VERIFICATION_REQUIRED", "LIVE_STREAM_OFFLINE")
+
+    private val BLOCKED_VIDEO_PHRASES = listOf(
+        "claimed content",
+        "copyright",
+        "video is private",
+        "has been removed",
+    )
+
+    private fun saysThisVideoIsBlocked(reason: String): Boolean =
+        BLOCKED_VIDEO_PHRASES.any { reason.contains(it, ignoreCase = true) }
 
     private fun JsonObject.baseUrlAt(key: String): String? =
         ((this[key] as? JsonObject)?.get("baseUrl") as? JsonPrimitive)?.contentOrNull?.ifBlank { null }

@@ -150,6 +150,7 @@
     <string name="lyrics_none">📭 YouTube Music has no lyrics for this song</string>
     <string name="lyrics_failed">❌ Couldn\'t load the lyrics. Tap to try again</string>
     <string name="notifications_title">New uploads</string>
+    <string name="notifications_subtitle">📥 The newest from every channel you subscribe to, not one group</string>
     <string name="notifications_empty">🎉 You\'re all caught up.</string>
 
     <string name="description_title">Description</string>
@@ -1260,6 +1261,7 @@
     <string name="ops_shuffle_sources">🔀 Shuffling all of %1$s</string>
     <string name="ops_discover">🔭 Finding music near %1$s</string>
     <string name="ops_discover_nothing">📭 Couldn\'t find anything new near %1$s</string>
+    <string name="ops_discover_nothing_because">📭 Couldn\'t find anything new near %1$s: %2$s</string>
     <plurals name="ops_discover_done">
         <item quantity="one">🔭 %2$s: 1 song to start, more as you listen</item>
         <item quantity="other">🔭 %2$s: %1$d songs to start, more as you listen</item>
@@ -1448,6 +1450,7 @@
         <item quantity="other">⚠️ %2$s: %1$d shuffled in; some couldn\'t be read</item>
     </plurals>
     <string name="ops_nothing">📭 %1$s: nothing found to play</string>
+    <string name="ops_nothing_because">📭 %1$s: nothing found to play (%2$s)</string>
     <string name="ops_failed">❌ %1$s: %2$s</string>
     <string name="ops_cancelled">⏹️ %1$s: stopped before anything was queued</string>
     <string name="ops_cancelled_playing">⏹️ %1$s: stopped; what is already playing stays queued</string>
@@ -1499,7 +1502,7 @@
     <string name="target_row_playing">▶️ Playing now</string>
     <string name="target_loops">🔂 Loops</string>
     <string name="target_added_by">➕ Added by %1$s</string>
-    <string name="target_sound_picture_note">🎬 Skip silences and boost only work on sound for now; %1$s is showing a picture, so it plays as it comes.</string>
+    <string name="target_sound_picture_note">🎬 Skip silences only works on sound for now; %1$s is showing a picture, so its sound is boosted but never cut.</string>
     <string name="target_keep_awake_kept">🟢 Kept awake, %1$s stays connected</string>
     <string name="target_keep_awake_reconnecting">⏳ Keeping %1$s awake, reconnecting…</string>
     <string name="target_keep_awake_outside">💤 %1$s is not being kept awake just now (outside its hours)</string>
@@ -1508,7 +1511,8 @@
     <string name="target_colour_swatch">Colour %1$d</string>
     <string name="target_colour_long_press">Change colour</string>
     <string name="target_controls">⚙️ Controls</string>
-    <string name="target_controls_hint">Repeat, sleep, silences, boost, colour</string>
+    <string name="target_controls_hint">Repeat, sleep, silences, boost, captions, colour</string>
+    <string name="target_captions_short">Captions</string>
     <string name="target_queue_heading">📋 Up next on %1$s · %2$d</string>
     <string name="target_heading_with_link">%1$s · %2$s</string>
     <string name="target_link_linked">🟢 Linked</string>

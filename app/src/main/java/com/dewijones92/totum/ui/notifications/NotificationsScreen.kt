@@ -5,21 +5,26 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dewijones92.totum.R
+import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.searchableText
 import com.dewijones92.totum.ui.common.BackHeader
 import com.dewijones92.totum.ui.common.FilterToggle
 import com.dewijones92.totum.ui.common.FilterableList
+import com.dewijones92.totum.ui.common.LoadMoreUnlessFiltered
+import com.dewijones92.totum.ui.common.LoadingMoreFooter
 import com.dewijones92.totum.ui.common.MediaItemRow
 import com.dewijones92.totum.ui.common.SelectableMediaList
 import com.dewijones92.totum.ui.common.ShapeControl
@@ -42,16 +47,28 @@ fun NotificationsScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // Snapshot the new uploads on open; marking them seen clears the badge but
-    // must not empty the list the user is looking at.
-    val uploads = remember { viewModel.snapshotUploads() }
-    LaunchedEffect(Unit) { viewModel.markAllSeen() }
+    val uploads by viewModel.uploads.collectAsStateWithLifecycle()
+    val hasMore by viewModel.hasMore.collectAsStateWithLifecycle()
+    val loadingMore by viewModel.loadingMore.collectAsStateWithLifecycle()
+    LaunchedEffect(Unit) {
+        Diag.log(
+            "notifications",
+            "dewidebug New uploads opened: ${uploads.size} row(s), ${uploads.count { it.unread }} unread, " +
+                "${uploads.count { !it.unread }} already seen; more pages follow as the list is scrolled " +
+                "(more=$hasMore)",
+        )
+        viewModel.markAllSeen()
+    }
 
     Surface(modifier = modifier.fillMaxSize()) {
         Column {
             val listFilter = rememberListFilter("notifications")
             val shape = rememberListShape("notifications")
-            BackHeader(stringResource(R.string.notifications_title), onBack) {
+            BackHeader(
+                stringResource(R.string.notifications_title),
+                onBack,
+                subtitle = stringResource(R.string.notifications_subtitle),
+            ) {
                 ShapeControl(shape)
                 FilterToggle(listFilter, uploads.size)
             }
@@ -67,7 +84,15 @@ fun NotificationsScreen(
                 val shaped = uploads.shapedBy(shape) { it.item }
                 FilterableList("notifications", shaped, { it.item.searchableText }, filter = listFilter) { shown, _ ->
                     SelectableMediaList("notifications", shaped, shown, { it.item }, hoisted = selection) {
-                        LazyColumn(modifier = Modifier.fillMaxSize()) {
+                        val listState = rememberLazyListState()
+                        LoadMoreUnlessFiltered(
+                            listFilter,
+                            listState,
+                            enabled = hasMore && !loadingMore,
+                            shownCount = shown.size,
+                            loadMore = viewModel::loadMore,
+                        )
+                        LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
                             itemsIndexed(shown, key = { _, upload -> upload.item.id.value }) { index, upload ->
                                 // One divider between the unread run and the rest, so the boundary is
                                 // visible without a header shouting at you.
@@ -88,6 +113,7 @@ fun NotificationsScreen(
                                     ),
                                 )
                             }
+                            if (loadingMore) item(key = "more") { LoadingMoreFooter() }
                         }
                     }
                 }

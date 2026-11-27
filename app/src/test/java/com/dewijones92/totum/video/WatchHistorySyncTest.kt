@@ -245,6 +245,59 @@ class WatchHistorySyncTest {
         assertEquals("a live stream ticks twice a second; one line is enough", 1, lines)
     }
 
+    @Test
+    fun `finishing the same video a second time is reported again after another video played`() = runTest {
+        sync()
+        runCurrent()
+
+        playback.emitState(state("a", kind = MediaKind.VIDEO, hasVideo = false, positionMs = 0))
+        runCurrent()
+        playback.emitState(state("a", kind = MediaKind.VIDEO, hasVideo = false, positionMs = 100_000))
+        runCurrent()
+        clock += 20_000
+        playback.emitState(state("b", kind = MediaKind.VIDEO, hasVideo = false, positionMs = 30_000))
+        runCurrent()
+        clock += 20_000
+        playback.emitState(state("a", kind = MediaKind.VIDEO, hasVideo = false, positionMs = 0))
+        runCurrent()
+        clock += 20_000
+        playback.emitState(state("a", kind = MediaKind.VIDEO, hasVideo = false, positionMs = 100_000))
+        runCurrent()
+
+        val finals = history.reports.filter { it.finished }.map { it.videoId }
+        assertEquals("both completions of a must reach the account: ${history.reports}", listOf("a", "a"), finals)
+    }
+
+    @Test
+    fun `replaying a finished video from the start and finishing it again is reported again`() = runTest {
+        sync()
+        runCurrent()
+
+        playback.emitState(state("a", kind = MediaKind.VIDEO, hasVideo = false, positionMs = 100_000))
+        runCurrent()
+        clock += 20_000
+        playback.emitState(state("a", kind = MediaKind.VIDEO, hasVideo = false, positionMs = 1_000))
+        runCurrent()
+        clock += 20_000
+        playback.emitState(state("a", kind = MediaKind.VIDEO, hasVideo = false, positionMs = 100_000))
+        runCurrent()
+
+        assertEquals(2, history.reports.count { it.finished })
+    }
+
+    @Test
+    fun `a finished video sitting at its end is reported once, however many ticks it stays there`() = runTest {
+        sync()
+        runCurrent()
+
+        repeat(TICKS) {
+            playback.emitState(state("a", kind = MediaKind.VIDEO, hasVideo = false, positionMs = 100_000))
+            runCurrent()
+        }
+
+        assertEquals(1, history.reports.count { it.finished })
+    }
+
     private fun trail(): String = Breadcrumbs.snapshot().joinToString("\n") { it.message }
 
     private fun state(

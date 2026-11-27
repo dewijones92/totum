@@ -123,6 +123,7 @@ private fun JsonObject.toMediaMetadata(url: HttpUrl): MediaMetadata = MediaMetad
     chapters = arrayAt("chapters").mapNotNull { it.jsonObject.toChapterOrNull() },
     subtitles = subtitleTracks(),
     publishedAt = publishedAt(),
+    viewCount = this["view_count"]?.jsonPrimitive?.doubleOrNull?.toLong()?.takeIf { it >= 0 },
 )
 
 private fun JsonObject.toChapterOrNull(): ChapterInfo? {

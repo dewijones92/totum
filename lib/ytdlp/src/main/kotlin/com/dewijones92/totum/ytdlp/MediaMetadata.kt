@@ -65,6 +65,8 @@ public data class MediaMetadata(
      * the bridge's parsing, where YouTube's ~100 machine translations are dropped.
      */
     val subtitles: List<SubtitleTrack> = emptyList(),
+    /** How many have watched it, from yt-dlp's `view_count`; null when the extractor did not say. */
+    val viewCount: Long? = null,
 ) {
     init {
         require(id.isNotBlank()) { "id must not be blank" }

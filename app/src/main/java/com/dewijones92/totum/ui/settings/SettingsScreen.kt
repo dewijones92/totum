@@ -28,6 +28,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -309,6 +310,8 @@ private fun ViewDiagnosticsRow(onOpen: () -> Unit) {
     }
 }
 
+internal const val SEND_DIAGNOSTICS_ROW_TAG = "send-diagnostics-row"
+
 @Composable
 private fun DiagnosticsRow(container: AppContainer) {
     val submitter = container.reportSubmitter
@@ -337,6 +340,7 @@ private fun DiagnosticsRow(container: AppContainer) {
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
+            .testTag(SEND_DIAGNOSTICS_ROW_TAG)
             .clickable {
                 Diag.log("diagnostics", "dewidebug Settings report row tapped (in flight=$saving, last=$last)")
                 asking = true

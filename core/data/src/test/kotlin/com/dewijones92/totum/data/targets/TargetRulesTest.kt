@@ -203,6 +203,21 @@ class TargetRulesTest {
         assertFalse(state(tv, null).showsPicture)
     }
 
+    @Test
+    fun `a TV showing a picture is offered boost, but not skipping silences, which would cut the picture's sound`() {
+        val tv = Target("tv", "LG TV", TargetKind.TV)
+        fun state(item: PlayableItem) = TargetState(tv, entries = listOf(QueueEntry(item).toTargetEntry()), at = 0)
+
+        val picture = state(video("aaaaaaaaaaa"))
+        val sound = state(podcast("p1"))
+
+        assertTrue(picture.showsPicture)
+        assertTrue("boost works on the audio the Pi re-encodes for the TV", picture.offersBoost)
+        assertFalse("the picture cannot be cut to match", picture.offersSkipSilence)
+        assertTrue(sound.offersBoost)
+        assertTrue(sound.offersSkipSilence)
+    }
+
     private fun live(id: String, kind: MediaContentKind = MediaContentKind.LIVE) = PlayableItem(
         MediaItem(
             MediaItemId(id),

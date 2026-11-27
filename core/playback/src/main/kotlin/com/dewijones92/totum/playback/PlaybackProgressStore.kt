@@ -33,6 +33,8 @@ public interface PlaybackProgressStore {
      */
     public suspend fun playState(itemId: MediaItemId): PlayState
 
+    public suspend fun durationMs(itemId: MediaItemId): Long? = null
+
     /**
      * Records playback progress for [itemId]. Implementations may treat a
      * position near [durationMs] as finished — which marks the item played, and

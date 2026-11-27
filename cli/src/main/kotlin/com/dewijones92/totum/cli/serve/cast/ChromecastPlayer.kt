@@ -10,6 +10,7 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.targets.TargetPower
 import com.dewijones92.totum.data.targets.TargetTrouble
 import com.dewijones92.totum.data.targets.TroubleKind
+import com.dewijones92.totum.playback.cast.CaptionPick
 import com.dewijones92.totum.playback.cast.CastItem
 import com.dewijones92.totum.playback.cast.LocalManifests
 import com.dewijones92.totum.playback.cast.soundOnly
@@ -36,9 +37,52 @@ internal class ChromecastPlayer(
 
     @Volatile private var liveNow = false
 
+    @Volatile private var wantedCaptions: String? = null
+
     override val notice: String? get() = tv.notice
 
     override val live: Boolean get() = liveNow
+
+    override val captionsOffered: List<String>
+        get() = control.captionTracks.mapNotNull { it.language }.distinct()
+
+    override val captionsShown: String?
+        get() = control.activeCaption?.let { id -> control.captionTracks.firstOrNull { it.id == id }?.language }
+
+    override fun showCaptions(language: String?) {
+        wantedCaptions = language
+        applyCaptions("asked for ${language ?: "off"}")
+    }
+
+    private fun applyCaptions(why: String) {
+        val tracks = control.captionTracks
+        val wanted = wantedCaptions
+        if (tracks.isEmpty()) {
+            Diag.log(
+                "cast-target",
+                "dewidebug $label: captions, $why: no track offered yet (wanted ${wanted ?: "off"})",
+            )
+            return
+        }
+        val chosen = wanted?.let { language ->
+            CaptionPick.indexOf(
+                tracks.map { CaptionPick.normal(it.language.orEmpty()) },
+                listOf(CaptionPick.normal(language)),
+            )?.let(tracks::get)
+        }
+        val active = control.activeCaption
+        val verdict = when {
+            chosen?.id == active -> "already right, nothing sent"
+            chosen == null -> "none matches, switching them off"
+            else -> "switching track ${chosen.id} (${chosen.language}) on"
+        }
+        Diag.log(
+            "cast-target",
+            "dewidebug $label: captions, $why: wanted ${wanted ?: "off"}, offered " +
+                "[${tracks.joinToString { "${it.id}=${it.language ?: "?"}" }}], showing ${active ?: "none"}: $verdict",
+        )
+        if (chosen?.id != active) control.captions(chosen?.id)
+    }
 
     override val power: TargetPower get() = wake?.power ?: TargetPower.ON
 
@@ -49,6 +93,7 @@ internal class ChromecastPlayer(
             wake?.markAsleep()
             lostHandler(reason)
         }
+        control.onTracks = { applyCaptions("the receiver listed its tracks") }
     }
 
     override var onEnded: (failed: Boolean) -> Unit

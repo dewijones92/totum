@@ -6,23 +6,41 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.data.targets.DockBar
 import com.dewijones92.totum.data.targets.TargetColours
 import com.dewijones92.totum.data.targets.TargetState
 import com.dewijones92.totum.data.targets.barDecision
+import com.dewijones92.totum.data.targets.dockBarFor
 import com.dewijones92.totum.targets.TargetsRepository
 
 internal data class SelectedRemote(val state: TargetState, val colour: Color)
 
+internal sealed interface DockShown {
+    data class Remote(val remote: SelectedRemote) : DockShown
+
+    data object Phone : DockShown
+
+    data object Hidden : DockShown
+}
+
 @Composable
-internal fun rememberSelectedRemote(targets: TargetsRepository): SelectedRemote? {
-    if (!targets.available) return null
+internal fun rememberDockShown(targets: TargetsRepository, onQueueTab: Boolean): DockShown {
+    if (!targets.available) return DockShown.Phone
     val listed by targets.targets.collectAsStateWithLifecycle()
     val selected by targets.selected.collectAsStateWithLifecycle()
     val colours by targets.colours.collectAsStateWithLifecycle()
-    val (state, why) = listed.barDecision(selected)
-    LaunchedEffect(state?.target?.id, selected) {
-        val owner = if (state != null) "the remote for ${state.target.label}" else "the phone's"
-        Diag.log("targets", "dock bar is $owner: $why")
+    val bar = listed.dockBarFor(selected, onQueueTab)
+    val why = listed.barDecision(selected).why
+    val owner = when (bar) {
+        is DockBar.Remote -> "the remote for ${bar.state.target.label}"
+        DockBar.Hidden -> "not drawn on the Queue tab while $selected's remote page shows its controls"
+        DockBar.Phone -> "the phone's"
     }
-    return state?.let { SelectedRemote(it, TargetColours.of(colours, it.target.id).asColour()) }
+    LaunchedEffect(owner, selected, onQueueTab) { Diag.log("targets", "dock bar is $owner: $why") }
+    return when (bar) {
+        is DockBar.Remote ->
+            DockShown.Remote(SelectedRemote(bar.state, TargetColours.of(colours, bar.state.target.id).asColour()))
+        DockBar.Hidden -> DockShown.Hidden
+        DockBar.Phone -> DockShown.Phone
+    }
 }

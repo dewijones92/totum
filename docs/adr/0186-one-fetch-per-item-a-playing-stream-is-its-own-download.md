@@ -2,13 +2,13 @@
 title: One fetch per item, a playing stream is its own download, and nothing swaps a healthy stream for a file
 kind: adr
 status: accepted
-updated: 2026-11-20
+updated: 2026-11-27
 ---
 
 # 186. One fetch per item: a playing stream is its own download, and nothing swaps a healthy stream for a file
 
 - Status: Accepted
-- Date: 2026-11-20
+- Date: 2026-11-20 (amended 2026-11-27: the cast relay does not block on the cache)
 
 ## Context
 
@@ -109,3 +109,28 @@ has stopped or paused. It also means the download of a playing item completes wh
 - **Unproven on the phone.** The instrumented evidence is a real player over a counting fake upstream; whether YouTube's real
   address keeps working for the tee's late chunks (it expires; the fall-back covers it) is for the next reports to say through the
   `tee` lines.
+
+## Amended 2026-11-27: the cast relay never waits on a span another reader holds
+
+Reports 20261123T123853, 124440 and 171635 (0.1.944): a phone-direct cast hung and the TV gave up after about 46 s (`receiver error 321`).
+The relay lines said `first byte in 28816ms`, then `57253ms`, then `90030ms`, all released when the session ended. Cause: point 3 above put
+`FLAG_BLOCK_ON_CACHE` on the one cache data source, and the cast relay read upstream through the same cache (`CachedUpstream`, `CastStreams`).
+A deep range at the resume position (`bytes=131437596-…`) opened a span that the phone's own player loaders, the tee filler or an earlier
+relay request held, and `SimpleCache.startReadWrite` waits on that lock with no timeout. v0.1.942 had no flag and no hang. Red first:
+`ARelayReadWaitsForNoLockedSpanTest` (instrumented, on `totum-api35`) held a span and asked the relay for it; against the old code it
+failed with "the relay is still blocked on the locked span after 9002ms".
+
+- **Two data sources, one cache.** `PlaybackCache.factory` (the player, and the tee's filler) keeps `FLAG_BLOCK_ON_CACHE`: the no-double-fetch
+  guarantee above is for the PLAYER path and is unchanged. `PlaybackCache.relayFactory` builds the relay's source without it, so a locked span
+  is read straight from upstream (uncached, as before the flag) and the relay never installs the tee's fill source.
+- **A budget as the second line of defence.** `CachedUpstream` opens through `BudgetedOpen`: if the cache has given no answer in 6 s and
+  upstream was never asked (a lock, not a slow origin), the attempt is abandoned and upstream is read directly; the abandoned open is closed
+  when it finally returns. A slow origin is waited for, not asked twice.
+- **The trade-off.** While another reader holds a span, the relay may fetch the same bytes the holder is fetching, so a cast during playback of
+  the same YouTube item can briefly fetch twice. A hung cast is worse than a duplicate fetch, and the relay's reads are not stored then.
+- **Logged per request** (`cast`, `dewidebug relay open #N`): the open wait split into time in the cache and time to upstream's first byte
+  (an `OpenTimes` rides in the `DataSpec`'s custom data through the cache to a timing wrapper around the upstream), the bytes the cache
+  holds from that position, and whether it was read through the cache or around it. The first five opens and any over 1 s are logged one by
+  one, over 3 s as a warning, the rest counted in a 30 s summary line. Who holds a locked span is **not known**: `SimpleCache` does not say,
+  so the warning lists the usual suspects instead of naming one.
+

@@ -5,7 +5,7 @@ status: shipped
 area: video
 priority: medium
 requested: 2026-07-25
-updated: 2026-08-16
+updated: 2026-11-27
 ---
 
 # Two-way progress sync with YouTube
@@ -71,3 +71,13 @@ app's resume is entirely local (`PlaybackProgressStore`, Room), so:
 
 **Done when:** outbound sync is confirmed against youtube.com, and (if wanted)
 opening a video the account has partly watched elsewhere resumes at that point.
+
+## 2026-11-27: consistency repair ([ADR 193](../adr/0193-totums-played-state-is-pushed-to-and-repaired-on-the-account.md))
+
+Dewi: *"I don't like any inconsistencies … play status, progress, finished should match YouTube on the web."* Done: kept
+`yt-sync-item` evidence lines, a once-only repair of items Totum holds Played (or ahead) that the account reads lower,
+hand marks reaching the account, a second completion reported, a permanent refusal ended. **Still open:** why a
+minority of final pings that succeed on the wire (HTTP 2xx) read below 100% on the account is unproven; the kept lines
+(`httpLast=`, `session=fresh|reused`, `ageMs=`) are there to settle it. **Not built:** clearing a history entry on a
+reset (YouTube's history reads 10% at the lowest and removing an entry is a different call), and pinging hundreds of
+videos on a backup restore (it is repaired from the account read instead).

@@ -1,11 +1,11 @@
 package com.dewijones92.totum.ui.common
 
 import com.dewijones92.totum.common.HttpUrl
+import com.dewijones92.totum.common.formatViewCount
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.SourceId
-import com.dewijones92.totum.domain.formatViewCount
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue

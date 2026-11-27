@@ -372,6 +372,8 @@ import com.dewijones92.totum.video.InnerTubePlayerStreams
 import com.dewijones92.totum.video.LiveStates
 import com.dewijones92.totum.video.LiveStreamManifest
 import com.dewijones92.totum.video.PlatformVideoCodecSupport
+import com.dewijones92.totum.video.PlayedByHandReporter
+import com.dewijones92.totum.video.PlayedStateRepair
 import com.dewijones92.totum.video.ProgressOutboxDrain
 import com.dewijones92.totum.video.ReadyAhead
 import com.dewijones92.totum.video.SignedInTvPlayer
@@ -850,8 +852,35 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     }
 
     private val accountProgressStore: AccountPlaybackProgressStore by lazy {
-        AccountPlaybackProgressStore(playbackProgressStore, accountResumePositions)
+        AccountPlaybackProgressStore(playbackProgressStore, accountResumePositions, playedByHand)
     }
+
+    private val playedByHand: PlayedByHandReporter by lazy {
+        PlayedByHandReporter(
+            outbox = accountProgressOutbox,
+            drain = progressOutboxDrain,
+            durationOf = { id ->
+                playbackProgressStore.durationMs(id) ?: accountResumePositions.knownDurationMs(id)
+            },
+            accountHolds = accountResumePositions::knows,
+            held = ::reportsHeld,
+        )
+    }
+
+    private val playedStateRepair: PlayedStateRepair by lazy {
+        PlayedStateRepair(
+            watched = accountResumePositions.watched,
+            states = { localPlayStatesNow.value },
+            outbox = accountProgressOutbox,
+            drain = progressOutboxDrain,
+            reconciled = reconciledAccountProgress,
+            scope = applicationScope,
+            held = ::reportsHeld,
+        )
+    }
+
+    private fun reportsHeld(): Boolean =
+        context.getSharedPreferences(TEST_HOLDS_PREFS, Context.MODE_PRIVATE).getBoolean(HOLD_YOUTUBE_REPORTS, false)
 
     override val progressByHand: PlaybackProgressStore get() = accountProgressStore
 
@@ -1562,6 +1591,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                 accountSync = { progressOutboxDrain.status.value to accountReportValues.pendingUpdates() },
                 reconciledAccountProgress = accountReportValues::actedOn,
                 stuckAccountUpdates = accountReportValues::stuckUpdates,
+                refusedAccountVideos = progressOutboxDrain::refusedVideos,
                 isMetered = networkStatus::isMetered,
                 exsurge = {
                     exsurge.diagnostics + ExsurgeLiveUpdate.diagnostics(context) + dailyAlarms.diagnostics +
@@ -1968,9 +1998,13 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     }
 
     private val watchHistorySync: WatchHistorySync by lazy {
-        WatchHistorySync(playbackController, accountProgressOutbox, progressOutboxDrain, applicationScope, held = {
-            context.getSharedPreferences(TEST_HOLDS_PREFS, Context.MODE_PRIVATE).getBoolean(HOLD_YOUTUBE_REPORTS, false)
-        })
+        WatchHistorySync(
+            playbackController,
+            accountProgressOutbox,
+            progressOutboxDrain,
+            applicationScope,
+            held = ::reportsHeld,
+        )
     }
 
     /** Everything the account side of a report reads, kept in memory — see the class. */
@@ -1980,6 +2014,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
 
     override fun startWatchHistorySync() {
         watchHistorySync.start()
+        playedStateRepair.start()
         accountReportValues.start(applicationScope)
         // Whatever the last run could not send goes first; then again whenever the network comes
         // back, which is the moment offline listening can finally be reported. Sampled rather than

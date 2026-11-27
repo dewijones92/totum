@@ -1,11 +1,14 @@
 package com.dewijones92.totum.cli.serve.targets
 
+import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.data.backup.BackupItem
 import com.dewijones92.totum.data.backup.toBackup
+import com.dewijones92.totum.data.targets.CaptionsAsk
 import com.dewijones92.totum.data.targets.QueueMode
 import com.dewijones92.totum.data.targets.Target
 import com.dewijones92.totum.data.targets.TargetAction
+import com.dewijones92.totum.data.targets.TargetCaptions
 import com.dewijones92.totum.data.targets.TargetControl
 import com.dewijones92.totum.data.targets.TargetKind
 import com.dewijones92.totum.data.targets.TargetQueueRequest
@@ -36,6 +39,16 @@ class TargetDeckStartTest {
         val requests = mutableListOf<PlayRequest>()
         var stops = 0
         var position: Long? = 1_000
+        val captionsAsked = mutableListOf<String?>()
+        var offered: List<String> = emptyList()
+        var shown: String? = null
+        var link: String? = null
+        override fun linkReport(): String? = link
+        override val captionsOffered: List<String> get() = offered
+        override val captionsShown: String? get() = shown
+        override fun showCaptions(language: String?) {
+            captionsAsked += language
+        }
         override fun play(request: PlayRequest) {
             requests += request
         }
@@ -542,5 +555,118 @@ class TargetDeckStartTest {
         assertEquals(listOf("c"), deck.state().entries.map { it.item.itemId })
         assertEquals("c", deck.state().current?.item?.itemId)
         assertTrue(deck.state().playing)
+    }
+
+    @Test
+    fun `a wake that failed while a start waited does not outlive the start that then plays`() = runBlocking {
+        val deck = deck(TargetKind.TV)
+        link.sink = null
+        link.unreachable = TargetTrouble(TroubleKind.WONT_WAKE, reason = "❌ LG soundbar didn't wake")
+        deck.accept(send("a"))
+
+        deck.control(TargetControl(TargetAction.WAKE))
+        assertEquals("❌ LG soundbar didn't wake", deck.state().problem)
+
+        link.sink = "bar-sink"
+        deck.startPending()
+
+        assertTrue(deck.state().playing)
+        assertNull("the wake failed, then the start played: ${deck.state().problem}", deck.state().problem)
+        assertNull(deck.state().trouble)
+    }
+
+    @Test
+    fun `a problem about the item itself survives the next item starting to play`() = runBlocking {
+        val deck = deck()
+        sounds.refuse = setOf("a")
+        deck.enqueue(send("a", "b"))
+
+        assertTrue(deck.state().playing)
+        assertEquals("b", deck.state().current?.item?.itemId)
+        assertEquals(TroubleKind.COULD_NOT_PLAY, deck.state().trouble?.kind)
+    }
+
+    @Test
+    fun `captions are on in English until told otherwise, and every item that starts is told so`() = runBlocking {
+        val deck = deck(TargetKind.TV)
+
+        deck.enqueue(send("a", "b"))
+        deck.control(TargetControl(TargetAction.NEXT))
+
+        assertEquals(listOf<String?>("en", "en"), player.captionsAsked)
+        assertEquals(TargetCaptions(on = true, language = "en"), deck.state().captions)
+    }
+
+    @Test
+    fun `switching captions off from the phone stays off for the next item and across a restart`() = runBlocking {
+        val deck = deck(TargetKind.TV)
+        deck.enqueue(send("a", "b"))
+
+        deck.control(TargetControl(TargetAction.CAPTIONS, captions = CaptionsAsk(on = false)))
+        deck.control(TargetControl(TargetAction.NEXT))
+
+        assertEquals(listOf<String?>("en", null, null), player.captionsAsked)
+        assertFalse(deck.state().captions.on)
+        assertFalse("the choice is kept on disk", deck(TargetKind.TV).state().captions.on)
+    }
+
+    @Test
+    fun `a language chosen on the phone carries to the next item and is remembered`() = runBlocking {
+        val deck = deck(TargetKind.TV)
+        deck.enqueue(send("a", "b"))
+
+        deck.control(TargetControl(TargetAction.CAPTIONS, captions = CaptionsAsk(on = true, language = "cy")))
+        deck.control(TargetControl(TargetAction.NEXT))
+
+        assertEquals(listOf<String?>("en", "cy", "cy"), player.captionsAsked)
+        assertEquals("cy", deck(TargetKind.TV).state().captions.language)
+    }
+
+    @Test
+    fun `what the player offers and shows is what the state says`() = runBlocking {
+        val deck = deck(TargetKind.TV)
+        player.offered = listOf("en", "cy")
+        player.shown = "cy"
+
+        assertEquals(listOf("en", "cy"), deck.state().captions.offered)
+        assertEquals("cy", deck.state().captions.shown)
+    }
+
+    @Test
+    fun `while a speaker plays its link is logged once per tick with the reconnects and drops counted`() = runBlocking {
+        val deck = deck()
+        deck.enqueue(send("a"))
+        player.link = "rssi=-13 lq=255 tx=12 (host sample 3s old), underruns=0 since the last line (0 in this play)"
+        val lines = mutableListOf<String>()
+        val before = Diag.sink
+        Diag.sink = Diag.Sink { _, _, message, _ -> lines += message }
+        try {
+            deck.tick()
+        } finally {
+            Diag.sink = before
+        }
+
+        val line = lines.single { "dewidebug bar: link" in it }
+        assertTrue(line, "rssi=-13 lq=255" in line)
+        assertTrue(line, "keep-awake reconnects n/a done and n/a failed, connection drops while playing: 0" in line)
+    }
+
+    @Test
+    fun `a connection lost while playing is counted as a drop in the next link line`() = runBlocking {
+        val deck = deck()
+        deck.enqueue(send("a"))
+        deck.lost("it went out of range")
+        deck.enqueue(send("b"))
+        player.link = "rssi=-60"
+        val lines = mutableListOf<String>()
+        val before = Diag.sink
+        Diag.sink = Diag.Sink { _, _, message, _ -> lines += message }
+        try {
+            deck.tick()
+        } finally {
+            Diag.sink = before
+        }
+
+        assertTrue(lines.toString(), lines.any { "connection drops while playing: 1" in it })
     }
 }

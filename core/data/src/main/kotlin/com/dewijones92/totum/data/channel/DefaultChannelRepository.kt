@@ -1,10 +1,10 @@
 package com.dewijones92.totum.data.channel
 
 import com.dewijones92.totum.common.HttpUrl
+import com.dewijones92.totum.common.formatViewCount
 import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.SourceId
-import com.dewijones92.totum.domain.formatViewCount
 import com.dewijones92.totum.ytdlp.ChannelResult
 import com.dewijones92.totum.ytdlp.VideoSearchEntry
 import com.dewijones92.totum.ytdlp.YtDlpEngine

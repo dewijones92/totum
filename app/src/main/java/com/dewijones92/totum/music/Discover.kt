@@ -86,6 +86,21 @@ class Discover(
             onPick = onPick,
         )
 
+    suspend fun otherCredits(seed: DiscoverSeed, tried: DiscoverArtist): List<DiscoverArtist> {
+        val id = seed.songId ?: return emptyList()
+        val batch = (catalogue.radio(RadioSeed.forSong(id)) as? MusicResult.Success)?.value ?: return emptyList()
+        val song = batch.songs.firstOrNull { it.videoId == id } ?: return emptyList()
+        val credits = song.artists.map { DiscoverArtist(it.browseId, it.name) }
+            .ifEmpty { listOfNotNull(song.artistId?.let { DiscoverArtist(it, song.artist ?: it) }) }
+        val others = credits.filter { it.id != tried.id }.distinctBy { it.id }
+        Diag.log(
+            TAG,
+            "\"${seed.title}\": ${tried.name} lists nobody similar; the song credits ${credits.size} artist(s), " +
+                "${others.size} other than ${tried.name}: ${others.joinToString { "${it.name} (${it.id})" }}",
+        )
+        return others
+    }
+
     private fun fromArtist(seed: DiscoverSeed): Resolved? =
         seed.artistId?.let { Resolved.Found(DiscoverArtist(it, seed.artistName ?: seed.title)) }
 

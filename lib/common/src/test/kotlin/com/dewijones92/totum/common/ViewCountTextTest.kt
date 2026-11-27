@@ -1,4 +1,4 @@
-package com.dewijones92.totum.domain
+package com.dewijones92.totum.common
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -7,7 +7,7 @@ import org.junit.Test
  * The shape YouTube uses, so a yt-dlp-sourced row (a raw number) and an InnerTube-sourced
  * one (already text) sit in the same list without one of them looking foreign.
  */
-class ViewCountFormatTest {
+class ViewCountTextTest {
 
     @Test
     fun `small counts are exact`() {

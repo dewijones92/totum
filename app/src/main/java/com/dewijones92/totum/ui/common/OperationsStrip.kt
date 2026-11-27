@@ -252,6 +252,15 @@ fun resultText(context: Context, ended: Ended): String = when (val end = ended.e
         if (ended.kind == OperationKind.DISCOVER) R.string.ops_discover_nothing else R.string.ops_nothing,
         ended.subject,
     )
+    is OperationEnd.NothingBecause -> context.getString(
+        if (ended.kind == OperationKind.DISCOVER) {
+            R.string.ops_discover_nothing_because
+        } else {
+            R.string.ops_nothing_because
+        },
+        ended.subject,
+        end.why,
+    )
     is OperationEnd.Failed -> context.getString(R.string.ops_failed, ended.subject, end.why)
     is OperationEnd.Cancelled -> context.getString(
         when {

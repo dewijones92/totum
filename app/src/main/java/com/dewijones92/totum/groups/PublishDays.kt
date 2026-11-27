@@ -50,7 +50,7 @@ class PublishDays(
         fun asking(client: InnerTubeClient): suspend (MediaItemId) -> Answer = { id ->
             when (val response = client.next(id.value)) {
                 is InnerTubeResponse.Success ->
-                    response.parsed(WatchNextParser::publishedOn)?.let { Answer.Day(it) } ?: Answer.NoDay
+                    response.parsed(WatchNextParser::facts)?.publishedOn?.let { Answer.Day(it) } ?: Answer.NoDay
                 else -> Answer.Failed(response.toString().take(FAILURE_CHARS))
             }
         }

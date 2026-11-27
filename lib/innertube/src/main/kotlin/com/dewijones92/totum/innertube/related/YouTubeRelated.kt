@@ -17,6 +17,8 @@ public sealed interface RelatedResult {
         val videos: List<FeedVideo>,
         val description: String? = null,
         val publishedOn: java.time.LocalDate? = null,
+        val viewsText: String? = null,
+        val publishedAgo: String? = null,
     ) : RelatedResult
     public data class Failure(val detail: String) : RelatedResult
 }
