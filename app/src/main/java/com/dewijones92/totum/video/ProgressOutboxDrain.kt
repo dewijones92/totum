@@ -37,9 +37,7 @@ internal sealed interface OutboundSyncStatus {
  * is typically the one carrying the newest position — up to [MAX_PASSES_PER_DRAIN] of them, after
  * which the work waits for the next kick rather than chaining passes back to back.
  *
- * **No row is ever dropped for failing, and no row may starve another.** (The one exception is a
- * refusal YouTube means for good, ended after [GIVE_UP_REFUSED_AFTER] of them: ADR 193.)
- * Report 0.1.496: three videos YouTube
+ * **No row is ever dropped, and no row may starve another.** Report 0.1.496: three videos YouTube
  * would give no tracking for sat at the head of the queue, one video's verdict stopped the whole
  * pass, and the same three ids were asked thirty-seven times in one session while 120 sendable
  * updates behind them never got a turn — which is also why the account's figure for those videos
