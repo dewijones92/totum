@@ -1,0 +1,14 @@
+[Unit]
+Description=Write the Bluetooth link quality of each connected device where the totum-fetch container can read it
+Documentation=https://github.com/dewijones92/totum/tree/main/server
+After=bluetooth.target
+
+[Service]
+Type=simple
+User=pi
+ExecStart=/home/pi/code/totum/server/systemd/totum-bt-link.sh
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
