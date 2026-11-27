@@ -33,9 +33,26 @@ class EndlessLabelTest {
         val song = playable("s1", "Paco de Lucía")
         val snapshot = QueueSnapshot(listOf(QueueEntry(song, QueueGroup("radio:RDAMVMx", "Radio · Entre dos aguas"))))
 
-        val played = song.labelledForPlay(snapshot).item
+        val played = song.labelledForPlay(snapshot, liveRadioGroup = "radio:RDAMVMx").item
         assertEquals(ENDLESS_MARK, played.playedAs)
         assertEquals("Paco de Lucía", played.author)
+    }
+
+    @Test
+    fun `a radio block that is not the live station is not called endless`() {
+        val song = playable("s1", "Michael Bublé")
+        val snapshot = QueueSnapshot(listOf(QueueEntry(song, QueueGroup("radio:RDAMVMold", "Radio · Christmas"))))
+
+        assertEquals(RADIO_MARK, song.labelledForPlay(snapshot, liveRadioGroup = "radio:discover:UC1").item.playedAs)
+        assertEquals(RADIO_MARK, song.labelledForPlay(snapshot, liveRadioGroup = null).item.playedAs)
+    }
+
+    @Test
+    fun `a discover block keeps its own mark whether or not it is live`() {
+        val song = playable("s1", "Paco de Lucía")
+        val snapshot = QueueSnapshot(listOf(QueueEntry(song, QueueGroup("radio:discover:UC1", "Discover"))))
+
+        assertEquals(DISCOVER_MARK, song.labelledForPlay(snapshot, liveRadioGroup = null).item.playedAs)
     }
 
     @Test
@@ -44,7 +61,7 @@ class EndlessLabelTest {
         val snapshot = QueueSnapshot(listOf(QueueEntry(song, QueueGroup("radio:RDAMVMx", "Radio"))))
         val resolved = song.item.copy(author = "Paco de Lucía")
 
-        val streamed = song.labelledForPlay(snapshot).item.withStreamFrom(resolved)
+        val streamed = song.labelledForPlay(snapshot, liveRadioGroup = "radio:RDAMVMx").item.withStreamFrom(resolved)
 
         assertEquals(ENDLESS_MARK, streamed.playedAs)
         assertEquals("Paco de Lucía", streamed.author)
@@ -55,13 +72,14 @@ class EndlessLabelTest {
         val song = playable("s1", "Paco de Lucía")
         val album = QueueSnapshot(listOf(QueueEntry(song, QueueGroup("album:x", "Almoraima"))))
 
-        assertEquals(null, song.labelledForPlay(album).item.playedAs)
-        assertEquals(null, song.labelledForPlay(QueueSnapshot()).item.playedAs)
+        assertEquals(null, song.labelledForPlay(album, liveRadioGroup = null).item.playedAs)
+        assertEquals(null, song.labelledForPlay(QueueSnapshot(), liveRadioGroup = null).item.playedAs)
     }
 
     @Test
     fun `the stats log strips the mark from the artist line it reads back`() {
         assertEquals("Paco de Lucía", "$ENDLESS_MARK · Paco de Lucía".withoutEndlessMark())
+        assertEquals("Paco de Lucía", "$RADIO_MARK · Paco de Lucía".withoutEndlessMark())
         assertEquals("Paco de Lucía", "Paco de Lucía".withoutEndlessMark())
     }
 }

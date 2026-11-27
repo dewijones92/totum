@@ -56,6 +56,7 @@ internal class DiagnosticSnapshot(
         val repeat: () -> RepeatMode = { RepeatMode.OFF },
         val modes: () -> List<ActiveMode> = { emptyList() },
         val liveStreams: () -> Map<String, String> = { emptyMap() },
+        val radio: () -> Map<String, String> = { emptyMap() },
         val features: () -> Map<String, String> = { emptyMap() },
     )
 
@@ -118,6 +119,7 @@ internal class DiagnosticSnapshot(
         runCatching { putAll(live.backup()) }
         runCatching { putAll(live.screen()) }
         runCatching { putAll(live.liveStreams()) }
+        runCatching { putAll(live.radio()) }
         runCatching { putAll(live.features()) }
         runCatching { putAll(PlaybackCacheReport.state()) }
     }

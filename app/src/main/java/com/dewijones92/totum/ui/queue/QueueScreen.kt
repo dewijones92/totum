@@ -212,6 +212,7 @@ private fun rememberQueueActions(
     val onRemove = rememberQueueRemoveWithUndo(queue, rememberSnackbarOffers(snackbar, scope))
     val groupChoices by container.groupDownloads.choices.collectAsStateWithLifecycle()
     val homeAhead by container.homeAhead.keep.collectAsStateWithLifecycle()
+    val liveRadio by container.musicRadio.liveGroupId.collectAsStateWithLifecycle()
     val selection = rememberSelection("queue")
     val startAgain = rememberStartGroupAgain(queue, snackbar, scope)
     val itemActions = LocalItemActions.current
@@ -232,6 +233,7 @@ private fun rememberQueueActions(
         },
         groupDownloading = { groupChoices[it] == GroupDownload.YES },
         homeAheadOf = { homeAhead[it] },
+        liveRadioGroup = liveRadio,
         onKeepAtHome = if (container.homeDownloads.available) {
             { id, count -> container.homeAhead.choose(id, count, "the group's menu") }
         } else {
@@ -302,6 +304,7 @@ private data class QueueActions(
     val homeAheadOf: (String) -> Int? = { null },
     val onKeepAtHome: ((String, Int?) -> Unit)? = null,
     val onShareGroup: ((String) -> Unit)? = null,
+    val liveRadioGroup: String? = null,
 )
 
 /**
@@ -416,6 +419,7 @@ private fun androidx.compose.foundation.lazy.LazyItemScope.GroupHeadingRow(
                 draggable = row.isFirstRun && layout.blockCount > 1,
                 downloading = actions.groupDownloading(group.id),
                 timeLeft = layout.timesLeft[group.id],
+                liveRadio = actions.liveRadioGroup == group.id,
             ),
             actions = actions.forGroup(group.id),
             drag = drag,

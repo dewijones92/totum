@@ -30,6 +30,7 @@ fun videoAndPodcastDownloads(
                 // the one you cannot re-pick a track for.
                 preferredAudioLanguages = preferredAudioLanguages,
                 videoCodecsToAvoid = codecs::codecsToAvoid,
+                bestHeight = codecs::bestHeight,
             ),
             secondary = PlayerBackedDownloadStrategy(
                 // The SAME resolution playback uses, so anything watchable is fetchable.

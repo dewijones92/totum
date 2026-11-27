@@ -2,7 +2,7 @@
 title: Video fullscreen follows rotation; the button locks landscape
 kind: adr
 status: accepted
-updated: 2026-10-05
+updated: 2026-11-27
 ---
 
 # 9. Video fullscreen follows rotation; the button locks landscape
@@ -29,3 +29,11 @@ their existing screens. Explicit Exit/Back remains effective until another rotat
 Portrait restores the expanded player after automatic entry. Device rotation lock is respected.
 The existing fullscreen grace across video resolution/recovery still applies. Mode, entry and
 exit are logged so a phone report can explain an unexpected transition.
+
+## Amended 2026-11-27 (a windowed landscape stage leaves room for the details)
+
+- Windowed in landscape on a 16:9 tablet the stage filled the whole viewport and its drag handle consumed every vertical
+  drag, so an upward swipe sprang back and the details could not be reached (report 20261123T092003). In landscape the
+  windowed stage is now capped at half the window's height (`landscapeStageCap`, picture letterboxed and centred; a
+  portrait video's 460dp is capped the same way), and the handle claims **downward drags only**: an upward drag reaches
+  the page's scroll. Fullscreen is unchanged. The cap is logged under `[fullscreen]`.

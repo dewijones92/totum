@@ -2,7 +2,7 @@
 title: A download asks sound or video, and which quality
 kind: adr
 status: accepted
-updated: 2026-10-31
+updated: 2026-11-27
 ---
 
 # 77. A download asks sound or video, and which quality
@@ -48,3 +48,10 @@ only costs space.
   video) when nothing is remembered and it will ask.
 - **Only a YouTube item has a choice** (`offersDownloadChoice`): a torrent's film or a video podcast is one file,
   fetched whole, so it is never offered Sound or a height it cannot honour.
+
+## Amended 2026-11-27 (best means the best this device decodes)
+
+- "Video best" carried no height, so a tablet that decodes VP9 only to 1080p downloaded a 2.7 GB 4K VP9 file it could
+  not play (report 20261123T094934). It is now capped at `bestHeight()`, the highest height any codec the device
+  decodes reaches, through the same capped selector an explicit height builds; an explicit height still wins. See
+  [ADR 194](0194-best-means-the-best-this-device-decodes-and-a-failure-says-why-and-offers-a-way-out.md).

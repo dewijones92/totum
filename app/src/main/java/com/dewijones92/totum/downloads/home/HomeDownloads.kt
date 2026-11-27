@@ -104,6 +104,7 @@ class HomeDownloads(
     val kept: StateFlow<Set<String>> get() = phone.kept.ids
     private val handover =
         SignInHandover(phone.youTubeTokens, phone.identity) { text -> notices.problem("youtube-owner", text) }
+    private val jobsLog = JobsLog()
     private var uploadLimitBytes = 0L
     private val wake = Channel<String>(Channel.CONFLATED)
     private val moves = HomeMoves(phone.moving) { deleteOnPhoneOnly(it) }
@@ -147,7 +148,12 @@ class HomeDownloads(
                 }
                 is HomeAnswer.No -> {
                     moves.refused(item.item)
-                    Diag.warn(TAG, "\"${item.item.title}\": the home server refused: ${answer.reason}")
+                    Diag.warn(
+                        TAG,
+                        "\"${item.item.title}\": the home server refused (${answer.reason}) " +
+                            "[choice=${choice?.stored} decoders=${phone.decoders().size}]; nothing is downloaded " +
+                            "and nothing falls back to the phone by itself, only asking again on 📱 would fetch it",
+                    )
                     notices.refused(ItemShields.titleOf(item.item), answer.reason)
                 }
             }
@@ -249,7 +255,7 @@ class HomeDownloads(
             is HomeAnswer.No -> Diag.log(TAG, "jobs not read ($why): ${answer.reason}")
             is HomeAnswer.Ok -> {
                 val now = answer.value.jobs.associateBy { MediaItemId(it.id) }
-                if (now != known.value) Diag.log(TAG, "jobs ($why): ${now.values.joinToString { it.describe() }}")
+                jobsLog.line(why, now.values)?.let { Diag.log(TAG, it) }
                 known.value = now
                 read.value = now
                 uploadLimitBytes = answer.value.uploadLimitBytes
@@ -268,6 +274,33 @@ class HomeDownloads(
             refresh(what)
             wake.trySend("after $what")
         }
+    }
+}
+
+internal class JobsLog(private val everyQuietReads: Int = QUIET_READS_PER_LINE) {
+    private var shape = ""
+    private var quiet = 0
+
+    fun line(why: String, jobs: Collection<HomeJob>): String? {
+        val now = jobs.joinToString { it.shape() }
+        if (now != shape) {
+            val skipped = quiet
+            shape = now
+            quiet = 0
+            val after = if (skipped > 0) " [after $skipped reads where only progress moved]" else ""
+            return "jobs ($why): ${jobs.joinToString { it.describe() }}$after"
+        }
+        quiet++
+        if (jobs.isEmpty() || quiet % everyQuietReads != 0) return null
+        return "jobs ($why): $quiet reads since the last change, only progress moved: " +
+            jobs.joinToString { it.describe() }
+    }
+
+    private fun HomeJob.shape(): String =
+        "${item.title}=${state.name.lowercase()}" + (retry?.let { " retry ${it.attempt} of ${it.of}" } ?: "")
+
+    private companion object {
+        const val QUIET_READS_PER_LINE = 30
     }
 }
 

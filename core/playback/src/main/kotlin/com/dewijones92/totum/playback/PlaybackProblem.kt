@@ -1,5 +1,7 @@
 package com.dewijones92.totum.playback
 
+import com.dewijones92.totum.domain.VideoCodecFamily
+
 public enum class TrackKind { VIDEO, AUDIO }
 
 public sealed interface PlaybackProblem {
@@ -9,7 +11,15 @@ public sealed interface PlaybackProblem {
         public val track: TrackKind,
         public val format: String,
         override val errorName: String,
-    ) : PlaybackProblem
+        public val formatSupported: Boolean = false,
+        public val mimeType: String? = null,
+        public val width: Int? = null,
+        public val height: Int? = null,
+    ) : PlaybackProblem {
+        public val decoderStopped: Boolean get() = formatSupported
+
+        public val codecFamily: VideoCodecFamily? get() = VideoCodecFamily.ofMime(mimeType)
+    }
 
     public data class Failed(override val errorName: String) : PlaybackProblem
 
@@ -20,14 +30,30 @@ public sealed interface PlaybackProblem {
     public val isPicture: Boolean get() = this is CannotDecode && track == TrackKind.VIDEO
 }
 
-public class ErroredFormat(public val mimeType: String?, public val codecs: String?) {
+public class ErroredFormat(
+    public val mimeType: String?,
+    public val codecs: String?,
+    public val width: Int? = null,
+    public val height: Int? = null,
+    public val formatSupported: Boolean? = null,
+) {
     public companion object {
         private val IN_MESSAGE = Regex("""Format\([^,]*, [^,]*, [^,]*, ([a-z]+/[^,\s]+), ([^,\s]*),""")
+        private val SIZE_IN_MESSAGE = Regex("""\[(-?\d+), (-?\d+), """)
+        private val SUPPORT_IN_MESSAGE = Regex("""format_supported=([A-Z_]+)""")
 
         public fun fromMessage(message: String?): ErroredFormat? {
             val found = message?.let(IN_MESSAGE::find) ?: return null
             val codecs = found.groupValues[2].takeIf { it != "null" && it.isNotBlank() }
-            return ErroredFormat(found.groupValues[1], codecs)
+            val size = SIZE_IN_MESSAGE.find(message, found.range.last)
+            val support = SUPPORT_IN_MESSAGE.find(message)?.groupValues?.get(1)
+            return ErroredFormat(
+                mimeType = found.groupValues[1],
+                codecs = codecs,
+                width = size?.groupValues?.get(1)?.toIntOrNull()?.takeIf { it > 0 },
+                height = size?.groupValues?.get(2)?.toIntOrNull()?.takeIf { it > 0 },
+                formatSupported = support?.let { it == "YES" },
+            )
         }
     }
 }
@@ -43,7 +69,15 @@ public fun problemOf(errorName: String, format: ErroredFormat?): PlaybackProblem
     return if (track == null) {
         PlaybackProblem.Failed(errorName)
     } else {
-        PlaybackProblem.CannotDecode(track, CodecWords.of(mime, format?.codecs), errorName)
+        PlaybackProblem.CannotDecode(
+            track = track,
+            format = CodecWords.of(mime, format?.codecs),
+            errorName = errorName,
+            formatSupported = format?.formatSupported == true,
+            mimeType = mime,
+            width = format?.width,
+            height = format?.height,
+        )
     }
 }
 

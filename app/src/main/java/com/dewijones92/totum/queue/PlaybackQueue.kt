@@ -151,6 +151,7 @@ class PlaybackQueue(
     private val audioPreferred: () -> Boolean = { false },
     private val sourceArtwork: () -> Map<SourceId, HttpUrl> = { emptyMap() },
     internal val passOver: (PlayableItem) -> String? = { null },
+    private val liveRadioGroup: () -> String? = { null },
     private val repeatOneOffForRun: (String) -> Boolean = { false },
     private val shield: ItemShield = NoShield,
     private val openExternally: (PlayableItem, HttpUrl) -> Boolean = { _, _ -> false },
@@ -271,7 +272,7 @@ class PlaybackQueue(
         val listen = queued?.takeIf {
             event.problem.isPicture && event.hasSound && !audioPreferred() && !pictures.soundOnly(it)
         }
-        refusals.announceProblem(title, event.itemId, event.problem, listen)
+        refusals.announceProblem(title, event.itemId, event.problem, listen, queued)
     }
 
     @Volatile
@@ -802,7 +803,8 @@ class PlaybackQueue(
         }
 
     suspend fun armNext(allowStream: Boolean): Boolean {
-        val queued = (peekNext() ?: return false).withSourceArtwork(sourceArtwork()).labelledForPlay(_state.value)
+        val queued = (peekNext() ?: return false).withSourceArtwork(sourceArtwork())
+            .labelledForPlay(_state.value, liveRadioGroup())
         val decision = decide(queued)
         armedAtPlay = plays
         return QueueArming(controller, launcher).arm(
@@ -1324,7 +1326,7 @@ class PlaybackQueue(
         forceAudio: Boolean = false,
         forceVideo: Boolean = false,
     ): Boolean {
-        val queued = listed.withSourceArtwork(sourceArtwork()).labelledForPlay(_state.value)
+        val queued = listed.withSourceArtwork(sourceArtwork()).labelledForPlay(_state.value, liveRadioGroup())
         // Claimed for EVERY route, before anything is chosen. A route to a file reaches the
         // controller directly, so without claiming it here a streaming resolve still in flight
         // would land later and take playback back to the network — which is exactly what report

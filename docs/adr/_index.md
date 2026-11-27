@@ -201,5 +201,6 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 191 | [Casts from the Pi carry captions under the phone's own caption choice, and a speaker's Bluetooth link is measured and logged](0191-casts-from-the-pi-carry-captions-and-a-speakers-bluetooth-link-is-measured.md) | Accepted |
 | 192 | [One watch-page parse fills views, date and description everywhere, group news judges new by video id, a day-only date never says hours](0192-one-watch-page-parse-fills-views-everywhere.md) | Accepted |
 | 193 | [Totum's played state is pushed to the account, and repaired there when the account disagrees](0193-totums-played-state-is-pushed-to-and-repaired-on-the-account.md) | Accepted |
+| 194 | ["Best" means the best this device decodes, and a playback failure says why and offers a way out](0194-best-means-the-best-this-device-decodes-and-a-failure-says-why-and-offers-a-way-out.md) | Accepted |
 | 195 | [Play next stacks in the order you chose it, behind the last play next](0195-play-next-stacks-in-the-order-you-chose.md) | Accepted |
 | 196 | [The treat button puts a chosen film or playlist on a TV for a while, and the Pi ends it](0196-the-treat-button-puts-a-film-on-the-tv-for-a-while-and-the-pi-ends-it.md) | Accepted |

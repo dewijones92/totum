@@ -29,6 +29,9 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -56,13 +59,30 @@ class MusicRadio(
         val walk: DiscoverWalk? = null,
     )
 
+    private val liveGroup = MutableStateFlow<String?>(null)
+    val liveGroupId: StateFlow<String?> = liveGroup.asStateFlow()
+
     @Volatile
     private var station: Station? = null
+        set(value) {
+            field = value
+            liveGroup.value = value?.group?.id
+        }
     private var fetching: Job? = null
 
     val isActive: Boolean get() = station != null
 
     val activeGroupId: String? get() = station?.group?.id
+
+    fun liveSummary(snapshot: QueueSnapshot = queue.state.value): String {
+        val live = station ?: return "none (no radio is topping up; every radio block left in the queue is just songs)"
+        val ahead = snapshot.entries.drop((snapshot.currentIndex + 1).coerceAtLeast(0))
+            .count { it.group?.id == live.group.id }
+        val playingIt = snapshot.current?.group?.id == live.group.id
+        val toppingUp = !live.reachedPlayhead || playingIt
+        return "${live.group.id} \"${live.group.title}\" topping up=$toppingUp ahead=$ahead " +
+            "playingIt=$playingIt continuation=${live.continuation != null} offered=${live.offered.size}"
+    }
 
     fun describe(): String = station?.let {
         "radio \"${it.group.title}\" seed=${it.seed.playlistId} offered=${it.offered.size} " +

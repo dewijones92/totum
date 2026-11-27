@@ -597,3 +597,10 @@ restart. Holding the top-right corner of any `MainActivity` screen for 1.5 s tak
 a bottom sheet with a note box, screenshot previews, Add screenshots and Send. Setting: "Hold the top-right corner to send a
 report", on by default; off in the kid lock; signed-out phones get the GitHub dialog without a picture.
 See [ADR 190](../adr/0190-hold-the-top-right-corner-to-send-a-report-and-a-report-never-blocks-the-next.md).
+
+## More kept tags, `radio.live`, and a quieter `home jobs` (2026-11-27)
+
+`Breadcrumbs.KEPT_TAGS` now also holds `radio`, `discover`, `download`, `fullscreen`, `codec` and `advance` (12 hours, 1,000
+lines). The state block has `radio.live`. `home jobs (tick)` lines were 29% of one report's ring (a progress change every
+2 s for 68 minutes); `JobsLog` logs a change of state in full and otherwise one count every 30 quiet reads.
+Tests: `BreadcrumbsKeptLaneTest`, `JobsLogTest`.

@@ -3,7 +3,7 @@ title: The player screen — tinted by what is playing
 kind: feature
 status: shipped
 area: player
-updated: 2026-11-13
+updated: 2026-11-27
 ---
 
 # The player screen
@@ -146,3 +146,11 @@ one show shares it; a torrent film has none (ADR 108 D2).
 The five controls Dewi changes most (Listen/Watch, speed, boost, skip silences, sleep) moved from the grid to a strip
 under the title ([ADR 62](../adr/0062-the-quick-controls-sit-under-the-title.md)). Details opens with an "ℹ️ About this"
 card listing every fact known about the item, for any item ([ADR 65](../adr/0065-the-player-says-everything-about-the-item.md)).
+
+## A windowed landscape stage leaves room for the details (2026-11-27)
+
+Report 20261123T092003 (Fire tablet): in landscape the windowed 16:9 stage filled the viewport and its drag handle
+consumed every vertical drag. The stage is now capped at half the window's height in landscape (`landscapeStageCap`,
+letterboxed and centred, logged under `[fullscreen]`), and `rememberStageDragDismiss` claims downward drags only, so
+an upward swipe on the stage scrolls the page ([ADR 9](../adr/0009-rotation-follows-video-fullscreen.md)). Tests:
+`LandscapeStageCapTest`, instrumented `StageDragLetsUpwardSwipesScrollTest`.

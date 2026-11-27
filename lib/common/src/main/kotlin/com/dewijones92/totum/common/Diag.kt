@@ -46,6 +46,7 @@ public object Breadcrumbs {
         setOf(
             "Exsurge", "DailyAlarm", "reminders", "cast", "home", "ask", "speakers", "morning", "spoiler", "targets",
             "jobs", "ai-job", "jellyfin", "trip", "kidlock", "uploads", "queue", "group", "yt-sync-item",
+            "radio", "discover", "download", "fullscreen", "codec", "advance",
         )
 
     private val entries = ConcurrentLinkedDeque<Entry>()

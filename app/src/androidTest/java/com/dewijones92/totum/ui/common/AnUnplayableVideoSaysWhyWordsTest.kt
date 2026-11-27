@@ -40,6 +40,46 @@ class AnUnplayableVideoSaysWhyWordsTest {
     }
 
     @Test
+    fun aDecoderThatStoppedOnASupportedFormatSaysSo() {
+        val tap = RefusedTap(
+            "Heat",
+            null,
+            problem = PlaybackProblem.CannotDecode(
+                TrackKind.AUDIO,
+                "E-AC-3",
+                "ERROR_CODE_DECODING_FAILED",
+                formatSupported = true,
+            ),
+        )
+
+        assertEquals(
+            "❌ Couldn't play “Heat”: this phone's E-AC-3 decoder stopped on this sound",
+            context.refusalMessage(tap, signedIn = true),
+        )
+    }
+
+    @Test
+    fun aPictureBeyondTheDeviceSaysWhatItReaches() {
+        val tap = RefusedTap(
+            "Heat",
+            null,
+            problem = PlaybackProblem.CannotDecode(
+                TrackKind.VIDEO,
+                "VP9",
+                "ERROR_CODE_DECODING_FORMAT_EXCEEDS_CAPABILITIES",
+                mimeType = "video/x-vnd.on2.vp9",
+                width = 3840,
+                height = 2160,
+            ),
+        )
+
+        assertEquals(
+            "❌ Couldn't play “Heat”: VP9 at 3840×2160 is beyond this device, which reaches 1080p",
+            context.refusalMessage(tap, signedIn = true, reach = { 1080 }),
+        )
+    }
+
+    @Test
     fun anyOtherFailureNamesTheError() {
         val tap = RefusedTap("Heat", null, problem = PlaybackProblem.Failed("ERROR_CODE_IO_FILE_NOT_FOUND"))
 
