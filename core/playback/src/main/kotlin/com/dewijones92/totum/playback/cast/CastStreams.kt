@@ -26,7 +26,11 @@ internal class CastStreams(
     host: CastHost,
     tvs: CastTvPort,
     refusals: CodecRefusals = CodecRefusals(),
+    private val publicRoute: PublicCastRoute? = null,
 ) {
+    private val boostNow = boost
+    private val tvPort = tvs
+
     private val server = CastStreamServer(
         engines = { request ->
             MediaCodecAudioEngine(
@@ -78,7 +82,16 @@ internal class CastStreams(
         return server.urlFor(item.toCastItem(uri))
     }
 
-    fun stopAll() = server.stopAll()
+    fun urlForChromecast(item: MediaItem): String? {
+        val uri = item.localConfiguration?.uri?.toString() ?: return null
+        val pick = publicRoute?.pick(item.toCastItem(uri), tvPort.current()?.screen?.model, boostNow().name)
+        return (pick as? PublicCastPick.Public)?.url ?: urlFor(item)
+    }
+
+    fun stopAll() {
+        server.stopAll()
+        publicRoute?.endAll()
+    }
 
     companion object {
         const val PORT: Int = CastStreamServer.DEFAULT_PORT

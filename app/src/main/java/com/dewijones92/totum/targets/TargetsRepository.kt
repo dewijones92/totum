@@ -29,6 +29,7 @@ import com.dewijones92.totum.operations.OperationEnd
 import com.dewijones92.totum.operations.OperationKind
 import com.dewijones92.totum.operations.Operations
 import com.dewijones92.totum.playback.SleepFade
+import com.dewijones92.totum.playback.cast.HomeLan
 import com.dewijones92.totum.queue.QueueDestination
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
@@ -567,6 +568,7 @@ class TargetsRepository(
     }
 
     private fun noteAddress(found: String?) {
+        found?.let(HomeLan::remember)
         if (found == address.value) return
         Diag.log(
             "targets",

@@ -191,6 +191,7 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 179 | [A TV that goes quiet is moved to the next codec, an unmeasured model gets H.264 first, and the receiver's own words are logged](0179-a-silent-cast-moves-to-the-next-codec-and-an-unmeasured-tv-gets-h264-first.md) | Accepted |
 | 180 | [The selected device owns the dock's now-playing bar on every tab, and its remote page is one scrolling list with a compact card on top](0180-the-selected-device-owns-the-dock-bar-and-the-remote-page-is-a-card-over-its-list.md) | Accepted |
 | 181 | [Exsurge lengths are sliders at the summons, a walk says it is a walk, and five steady minutes of walking finish a break](0181-exsurge-lengths-are-sliders-a-walk-says-so-and-steady-walking-counts.md) | Accepted |
+| 182 | [A friend's Chromecast fetches home-only items from the home server, by a link scoped to one cast session (amends ADR 90)](0182-a-friends-chromecast-fetches-home-items-from-the-home-server-by-a-session-link.md) | Accepted |
 | 183 | [Search shows what you already have, first, in a 📥 Yours tab: the phone's downloads, the Pi's finished downloads and the Jellyfin library, one row each](0183-search-shows-what-you-already-have-first.md) | Accepted |
 | 184 | [BBC programmes are followable sources whose episodes open in iPlayer](0184-bbc-programmes-are-followable-sources-that-open-in-iplayer.md) | Accepted |
 | 185 | [Long ones are built from what is cached, and fill in lengths lazily](0185-long-ones-are-built-from-what-is-cached-and-fill-in-lengths-lazily.md) | Accepted |

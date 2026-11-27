@@ -37,6 +37,14 @@ It covers the receiving side: manifest, segments, seeks, start time, subtitles, 
 session (queue moves, the TV remote, ends): Android checks a Cast device's Google-signed certificate, so nothing
 here can pose as one.
 
+## A friend's Chromecast fetching from the home server (ADR 182)
+
+`standin/public-standin.sh [plan]` runs the real `totum serve` (build it with `./gradlew :cli:installDist`) against a fake Jellyfin and a
+generated film, mints a public cast session exactly as the phone does, plays the link's manifest in the Shaka stand-in (a private Edge
+page of `about:blank`, so every request is cross-origin and CORS really applies), then ends the cast and checks the link is 404. Needs
+ffmpeg, python3, curl and the Edge rig. TLS is nginx's job on the Pi and is not exercised; `tools/handoff/cast-out/` has the nginx patch
+that was checked with a local `nginx -c`.
+
 ## DLNA and AirPlay stand-ins (no device needed, silent)
 
 ADR 174. `discover-dlna.py [host]` prints `name=description-url` lines for `TOTUM_DLNA_TARGETS` (SSDP; run it on the Pi host,

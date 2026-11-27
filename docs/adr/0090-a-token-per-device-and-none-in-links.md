@@ -2,13 +2,16 @@
 title: Each device has its own home-server token, and no link carries one
 kind: adr
 status: accepted
-updated: 2026-11-09
+updated: 2026-11-27
 ---
 
 # 90. Each device has its own home-server token, and no link carries one
 
 - Status: Accepted
 - Date: 2026-10-24
+- Amended 2026-11-09: the token is judged on every hop of a redirect
+- Amended 2026-11-27 by [ADR 182](0182-a-friends-chromecast-fetches-home-items-from-the-home-server-by-a-session-link.md): one
+  exception, a per-session cast link (the last section)
 
 ## Context
 
@@ -52,3 +55,18 @@ one that already carried it. Both clients use it. `HomeServerAuthInterceptorTest
 another host and asserts the header is absent there (seen red against the application-interceptor wiring). Not
 covered: Media3's `DefaultHttpDataSource` follows redirects itself with the headers `homeServerAware` gave the first
 request; no redirect from the home server is known, so that path is recorded here and not changed.
+
+## Amendment, 2026-11-27: one exception, a link scoped to one cast session
+
+Dewi's casting from home to a friend's Chromecast ([ADR 182](0182-a-friends-chromecast-fetches-home-items-from-the-home-server-by-a-session-link.md))
+needs the Chromecast to fetch from the Pi over the internet, and a Chromecast cannot send `X-Totum-Token`. The rule is kept for the device
+token and amended for this one case: **a link may carry a per-session secret that is not a home-server token.**
+
+- It is a random 256-bit value the Pi minted for one cast session, in the path (`/cast-out/<64 hex>/<file>`), never in a query.
+- It opens that session's files and nothing else; it is valid six hours at most and is revoked when the cast ends.
+- It is minted only through the device-token gate (`POST /fetch/cast-out/session`), and revoked by a call with the session id,
+  which is not the link. The device token is still never in a link, a log or an address.
+- The Pi keeps only its SHA-256, compares in constant time, and shows six characters of it in any log.
+
+A leaked cast link is therefore refused after the cast and once its time is up, and while it lives it is one item's stream, not the
+master key the shared token once was. The threat note is in ADR 182.

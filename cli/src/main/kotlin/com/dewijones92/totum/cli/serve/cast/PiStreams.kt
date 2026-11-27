@@ -5,10 +5,15 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.targets.SoundSettings
 import com.dewijones92.totum.playback.cast.CastFormat
 import com.dewijones92.totum.playback.cast.CastItem
+import com.dewijones92.totum.playback.cast.CastOutPaths
 import com.dewijones92.totum.playback.cast.CastStreamServer
 import com.dewijones92.totum.playback.cast.CastTimeline
+import com.dewijones92.totum.playback.cast.Http
+import com.dewijones92.totum.playback.cast.HttpReply
+import com.dewijones92.totum.playback.cast.HttpRequest
 import com.dewijones92.totum.playback.cast.LocalManifests
 import com.dewijones92.totum.playback.cast.MediaTools
+import com.dewijones92.totum.playback.cast.OpenedCast
 import com.dewijones92.totum.playback.cast.ScreenLink
 import java.util.concurrent.ConcurrentHashMap
 
@@ -42,7 +47,7 @@ internal class PiStreams(
         tvs = tvs,
         tools = tools,
         port = port,
-        alsoServes = relay::handle,
+        alsoServes = { request -> lanCheck(request) ?: relay.handle(request) },
     )
 
     val available: Boolean get() = base != null
@@ -70,6 +75,28 @@ internal class PiStreams(
             )
         }
     }
+
+    fun openForAnotherHost(tv: PiCastTv, item: CastItem, sound: SoundSettings): OpenedCast? {
+        tvs.expect(item.mediaId, tv)
+        playing[item.mediaId] = Playing(sound, item.durationMs?.let { it * MICROS_PER_MS })
+        return server.openFor(item, CastFormat.DASH).also {
+            Diag.log(
+                "cast-out",
+                "dewidebug ${item.mediaId}: ${if (it == null) "no session opened" else "session opened"} " +
+                    "for ${tv.label} (uri=${hostOf(item.uri)} separateAudio=${item.separateAudioUrl != null} " +
+                    "listening=${item.listening} sound=$sound)",
+            )
+        }
+    }
+
+    fun serveSession(request: HttpRequest): HttpReply = server.serve(request)
+
+    private fun lanCheck(request: HttpRequest): HttpReply? =
+        if (request.path.substringBefore('?') == CastOutPaths.LAN_CHECK) {
+            HttpReply.Bytes(Http.OK, "text/plain", CastOutPaths.LAN_CHECK_ANSWER.toByteArray())
+        } else {
+            null
+        }
 
     fun timelineFor(mediaId: String): CastTimeline? = server.timelineFor(mediaId)
 

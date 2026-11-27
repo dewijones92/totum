@@ -2,7 +2,7 @@
 title: Play on… is one choice that remembers the last device, offered everywhere, with home devices always listed
 kind: adr
 status: accepted
-updated: 2026-11-20
+updated: 2026-11-27
 ---
 
 # 169. Play on… is one choice that remembers the last device, offered everywhere, with home devices always listed
@@ -14,6 +14,10 @@ updated: 2026-11-20
 - Amended 2026-11-14: one picker per screen (the last section below)
 - Amended by: [ADR 180](0180-the-selected-device-owns-the-dock-bar-and-the-remote-page-is-a-card-over-its-list.md) (the mini player is the selected
   device's bar while it has something to show; the picker's chip carries its connection dot)
+- Amended 2026-11-27 by [ADR 182](0182-a-friends-chromecast-fetches-home-items-from-the-home-server-by-a-session-link.md): the open question below
+  ("a tighter check") is answered **for casting only**: whether the phone is on the home network is judged by whether the Pi answers
+  on its own LAN address (`HomeLanProbe`). The picker still uses the rule in this ADR, so on a friend's Wi-Fi it can still offer the home
+  devices.
 - Amends: [ADR 152](0152-a-target-is-anything-the-pi-plays-to-and-each-has-its-own-queue.md) (the choice of device no
   longer ends with the Queue tab; "looking at a target" and "where plays go" become one remembered choice)
 

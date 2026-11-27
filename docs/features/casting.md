@@ -2,7 +2,7 @@
 title: Casting
 kind: feature
 area: playback
-status: built — in use with the LG and the Chromecast Ultra (fixed from Dewi's diagnostics of 7 to 11 November, ADR 164); the TV volume, the read-ahead, the 12 s step-down, SubRip on the LG and the Pi's casting are not yet seen on a real TV
+status: built — in use with the LG and the Chromecast Ultra (fixed from Dewi's diagnostics of 7 to 11 November, ADR 164); the TV volume, the read-ahead, the 12 s step-down, SubRip on the LG, the Pi's casting and casting from a friend's house (ADR 182, built 2026-11-27, nginx not yet applied) are not yet seen on a real TV
 updated: 2026-11-27
 ---
 
@@ -275,6 +275,47 @@ anything over 3 s is a warning (`dewidebug relay open #N …`). Who holds a lock
 ## A crossover with nothing casting is quiet (2026-11-27, [ADR 164](../adr/0164-casting-fixes-from-the-diagnostics-of-7-to-11-november.md) amended)
 
 `RemoteEndWatch` no longer logs "Totum never saw X play there" for a phone gapless crossover while nothing casts.
+
+## At a friend's house: home items come from the home server (2026-11-27, [ADR 182](../adr/0182-a-friends-chromecast-fetches-home-items-from-the-home-server-by-a-session-link.md))
+
+Cast to a friend's Chromecast from the Cast button, as anywhere: the phone finds it on the friend's Wi-Fi and drives it. What changes is
+**where the stream comes from** for an item only home can serve (a Jellyfin film, a torrent at home, a 🏠 home copy), when the phone is
+**not on the home network**: the home server builds the stream with the same brain it uses for its own TVs and the Chromecast fetches
+it from `https://totum.<home>/cast-out/<link>/manifest.mpd` over the internet, so the phone relays nothing.
+
+- **The link** is a random 256-bit secret the home server minted for that one cast, valid six hours, ended when the cast ends (the Cast
+  session closing, or the same item being cast again). It reaches that session's files and nothing else, and it is the one exception
+  to "no link carries a token" ([ADR 90](../adr/0090-a-token-per-device-and-none-in-links.md)); the device token still gates the minting.
+- **Which route** is decided per item and logged with its reason (`cast-out` lines): a YouTube stream, a podcast, a file on the phone, or
+  anything that does not come from the home server stays phone-direct; on the home network (the Pi answers on its own LAN address) the
+  phone serves it as before; signed out, an unknown home network, a home server that refuses or does not answer within 7 s: phone-direct,
+  with the reason. There is no setting.
+- **Left off on this route:** skip silence (the phone could not map the TV's clock back), live streams. The boost applies.
+- **Setup** is on the Pi, by hand: the nginx patch and `TOTUM_CAST_PUBLIC_BASE`, in `tools/handoff/cast-out/README.md`. Until then the home
+  server answers "not set up" and every cast is phone-direct, as before.
+- **Logs to read in a report:** `[cast-out]` lines on the phone say which route and why, the session (six characters), the model and the
+  expiry; on the Pi they say what each session was asked for, how many bytes it served, why it ended, and every refusal (the first few,
+  then every fiftieth).
+
+### How Dewi tests it away from home
+
+The home Wi-Fi plus mobile data is not enough: a Chromecast has to be on the network the phone is on, and a phone on mobile data cannot see
+one. The simplest stand-in is a second phone's hotspot:
+
+1. Make the hotspot on a second phone (mobile data on). Put a Chromecast on it (set it up from the Google Home app on the hotspot) and join
+   Dewi's phone to the same hotspot. That network has no route to `192.168.0.x`, which is what "away" means here.
+2. On Dewi's phone open Totum and play a Jellyfin film or a 🏠 home copy; tap Cast and pick the Chromecast.
+3. In Totum's diagnostics (or `adb logcat -s dewidebug | grep cast-out`) look for: `home network: asked 192.168.0.x:8771/lan-check ... so the
+   phone is NOT on the home network`, then `the friend's Chromecast fetches it from the home server (session xxxxxx…)`. The Chromecast
+   should start within a few seconds; seek with the Totum bar.
+4. Stop casting and check the Pi's log: `session xxxxxx ended: the phone ended the cast; N request(s), … KB served`. The link itself is
+   never shown whole, so ending is proved by that line; `tools/cast-bench/standin/public-standin.sh` does the mint, the play and the end
+   with the 404 check, against a local `totum serve`.
+5. For the opposite check, join the home Wi-Fi: the same film should log `the phone is on the home network, where it serves home items as
+   before` and cast phone-direct.
+
+Not seen on a real Chromecast or the real Pi. Seen: the real `totum serve`, a real nginx from the patch, and Shaka in Edge
+(`tools/cast-bench/standin/public-standin.sh`).
 
 ## Captions from a cast the Pi makes (2026-11-27, [ADR 191](../adr/0191-casts-from-the-pi-carry-captions-and-a-speakers-bluetooth-link-is-measured.md))
 

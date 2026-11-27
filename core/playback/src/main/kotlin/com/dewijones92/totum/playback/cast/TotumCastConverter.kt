@@ -19,7 +19,7 @@ internal class TotumCastConverter(private val streams: CastStreams) : MediaItemC
 
     override fun toMediaQueueItem(mediaItem: MediaItem): MediaQueueItem {
         originals[mediaItem.mediaId] = mediaItem
-        val url = runCatching { streams.urlFor(mediaItem) }
+        val url = runCatching { streams.urlForChromecast(mediaItem) }
             .onFailure {
                 Diag.warn(
                     "cast",
