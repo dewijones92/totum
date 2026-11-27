@@ -2,7 +2,7 @@
 title: Consistent everywhere, with its exceptions recorded
 kind: adr
 status: accepted
-updated: 2026-11-20
+updated: 2026-11-27
 ---
 
 # 108. Consistent everywhere, with its exceptions recorded
@@ -66,7 +66,9 @@ Recorded exceptions (kept on purpose):
   stop restored ids matching stored rows.
 - **A group shares its list of titles, and has no Copy link** (2026-11-06, [ADR 134](0134-share-and-copy-link-are-on-every-item-menu.md)):
   a queue group or torrent pack has no address of its own.
-- **Group and new-upload items have no duration or views**: the channel RSS feed carries neither.
+- **Group and new-upload items have no duration**: the channel RSS feed carries none. **Corrected 2026-11-27 ([ADR 192](0192-one-watch-page-parse-fills-views-everywhere.md)):
+  this line also said "or views", which was wrong.** The feed carries `<media:statistics views="N"/>` (checked against the
+  real `youtube-channel-feed.xml`), and `ChannelFeedParser` now reads it, so group and new-upload rows have views.
 - **Row tags are upper-case badges, facts are words**; "Show more", "Show all N" and "⬇️ Show N more" are different
   affordances (ADR 43).
 
@@ -165,6 +167,18 @@ Recorded exceptions from BBC programmes ([ADR 184](0184-bbc-programmes-are-follo
 ## Consequences
 
 - New work is reviewed against this list; an exception added later is recorded here.
+
+Views everywhere ([ADR 192](0192-one-watch-page-parse-fills-views-everywhere.md), 2026-11-27): Related, Up next and Explore read a
+bare compact count beside the date; rows from links, notifications, shares, Send to Pi and plays carry the resolver's views;
+stored queue rows and downloads learn them lazily from the same watch-page read as the date; RSS rows read the feed's own
+count; songs get their plays the same way. A day-only date says "Today", "Yesterday" or "23 Nov", never hours.
+
+Recorded exceptions from that pass:
+
+- **The All subscriptions page's latest-upload line has no views** (a Room table of title, author, picture and date; a
+  column would be a schema bump for a line with no facts block).
+- **Starred, playlist and History rows keep the views of the row they were saved from**; the lazy repair covers the queue
+  and downloads only.
 
 Lists, 2026-11-13 (Dewi: *"make it more consistent … they should all be fuzzy find lists with appropriate sorts"*):
 every list now has the shared fuzzy filter and a sort that makes sense for what it holds. The group page, an artist's

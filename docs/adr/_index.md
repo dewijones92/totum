@@ -1,7 +1,7 @@
 ---
 title: Architecture decision records
 kind: index
-updated: 2026-11-20
+updated: 2026-11-27
 ---
 
 # Architecture decision records
@@ -196,3 +196,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 185 | [Long ones are built from what is cached, and fill in lengths lazily](0185-long-ones-are-built-from-what-is-cached-and-fill-in-lengths-lazily.md) | Accepted |
 | 186 | [One fetch per item: a playing stream is its own download, and nothing swaps a healthy stream for a file](0186-one-fetch-per-item-a-playing-stream-is-its-own-download.md) | Accepted |
 | 187 | [A running Jellyfin app is a target the Pi drives by item id, and it takes only Jellyfin items](0187-a-running-jellyfin-app-is-a-target-the-pi-drives-by-item-id.md) | Accepted |
+| 192 | [One watch-page parse fills views, date and description everywhere, group news judges new by video id, a day-only date never says hours](0192-one-watch-page-parse-fills-views-everywhere.md) | Accepted |

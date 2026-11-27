@@ -1,7 +1,7 @@
 ---
 title: Testing
 kind: reference
-updated: 2026-11-20
+updated: 2026-11-27
 ---
 
 # Testing
@@ -1144,3 +1144,9 @@ plus the Pi downloads section and the group page in `ListFilterTest`.
 - `tools/crashlog-server/tests/test_screen.py` (two new, one seen failing first): the tunnel relay's address is accepted on its host only. `tools/state/test-newest-state.sh`: the newest state dump is never an emulator's `0.1.0-dev`, and both scripts use the one helper.
 
 2026-11-20, ADR 185 (🧘 Long ones): `:core:domain` `LongOnesTest` (the 20-minute line to the second, the 2-per-source cap with the next channel filling the gap, the limit, Shorts by kind and by link, lives, an ended stream, undated, the look-up list newest first, a source at its cap not worth a look-up, duplicates, one channel through two listings, a podcast show as one source); `:app` `LongOnesTest` (lengths from the feed asking nothing, a look-up kept and never repeated, the stored-lookup fallback, newest-first stopping when full, the per-refresh budget, the cap over look-ups, Shorts and lives never asked, a live answer set aside, played / half-played / Not for me left out, mobile data asking nothing, a no-look-up refresh, podcasts capped, one refresh at a time, one video from two listings), `VideoLengthsTest` (kept across a restart, the set-aside windows, a none never kept, a throwing ask, the feed's lengths kept without asking), `PublishDaysTest` (unchanged, now on the shared `KeptFacts`); `:core:video` `TheLengthCheckReadsALengthWithoutSolvingAnythingTest` (every answer, no `n` solved, a bot check backs off, backing off asks nothing), `LookupsSurviveRestartsTest` (a length from a stored lookup after its URLs expired).
+
+2026-11-27, ADR 192 (views everywhere, group news by id, Discover reach, `playing.route`):
+- `:lib:innertube` `LockupParserTest` (two new, one seen failing first: `["107K","3d ago"]` is "107K views", with and without a channel line, never the author), `TheWatchPageCountsTheViewsTest` (the short count as written, a long one shortened, "No views" is none, a described video carries them, `videoDetails.viewCount` beats the page's), `TheWatchPageDatesTheVideoTest` (now through `WatchNextParser.facts`).
+- `:lib:common` `ViewCountTextTest` (moved from `:core:domain`). `:core:domain` `WithStreamFromTest` (a resolution fills silent views, the listing's own wins), `PublishedAgeTest` (three new, seen failing first: a day-only date is Today, Yesterday or "23 Nov", judged against the viewer's own day; an exact time near noon is still hours).
+- `:core:data` `ChannelFeedParserTest` (two new, seen failing first: the feed's own view counts per entry; absent or unreadable statistics are no views, not zero), `DiscoverWalkTest` (three new: heard neighbours are read to reach hop two with no song from them, the pass-through is capped at three pages, a dry step says why).
+- `:app` `SharedMetadataRepairTest` (four new: views and date from one read, a date-holder asked for views alone, a song gets plays and never a date, Dewi's 5,857 rows ask 36 near rows and write one `pass:` line), `GroupNewsTest` (three new, two seen failing first: a video 47 s before the opening is announced once by a check 54 minutes later; never announced twice; over two days old is counted, not announced, and the log says why), `MusicDiscoverTest` (two new: the credited artist, the song's own radio with a note; the "nothing" end carries its reason), `FacedFromRowTest` (5), `PathTakenTest` (two new, one seen failing first: a "play or pause asked by…" line after the play hides its route; the playing item's own route). `:core:playback` `PlayRoutesTest` (3). `BreadcrumbsKeptLaneTest` (`group` is kept).

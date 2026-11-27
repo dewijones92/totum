@@ -2,7 +2,7 @@
 title: The player says everything about the item
 kind: adr
 status: accepted
-updated: 2026-10-22
+updated: 2026-11-27
 ---
 
 # 65. The player says everything about the item
@@ -49,3 +49,11 @@ already fetches for the description does (`videoPrimaryInfoRenderer.dateText`, e
 response; `videoDescriptionHeaderRenderer.publishDate` as the fallback). `WatchNextParser.publishedOn` reads it,
 prefixes such as "Premiered" and "Streamed live on" included (`TheWatchPageDatesTheVideoTest`), and the card uses it
 only when nothing else knows the date (`ItemFactsTest`).
+
+## Amended 2026-11-27: one read of the page gives the description, the date and the views
+
+`WatchNextParser.description` and `.publishedOn` were two more walks of the same watch-page body (three parses in
+`RelatedVideosParser`). They are now one: `WatchNextParser.facts(body)` returns the description, the day, YouTube's
+relative wording and the view count together (`RelatedResult` carries all four), and the card's views and date come from
+the playing item, which now has views whichever way it was resolved. A date that is only a day reads "Today",
+"Yesterday" or "23 Nov", never hours. See [ADR 192](0192-one-watch-page-parse-fills-views-everywhere.md).
