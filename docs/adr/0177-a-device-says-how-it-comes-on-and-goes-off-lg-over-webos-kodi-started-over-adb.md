@@ -2,7 +2,7 @@
 title: A device says how it comes on and goes off in one place; the LG is driven over webOS and a Kodi Android has killed is started over adb
 kind: adr
 status: accepted
-updated: 2026-11-20
+updated: 2026-11-27
 ---
 
 # 177. A device says how it comes on and goes off in one place; the LG is driven over webOS and a Kodi Android has killed is started over adb
@@ -106,3 +106,19 @@ fake SSAP websocket server (`FakeSsapServer`, on `MockWebServer`) and a fake adb
 Dewi runs it once: that this LG accepts the signed registration manifest (the unsigned one is tried when it refuses), that its
 `getPowerState` says `Active Standby` rather than another word while off, that `system/turnOff` is permitted with a PIN-paired
 key, and that the Pi's adb key is the one the stick has authorised.
+
+## Amended 2026-11-27: a switch off that worked was reported as "no way to switch it off"
+
+The first run on the real LG (paired over webOS the same day) switched the TV off, which the webcam confirmed, and the deck
+then logged `switch off failed: Totum has no way to switch it off`, so the phone saw a failure for something that worked. The
+cause was one line: `CastLink.switchOff` was `wake?.switchOff() ?: "Totum has no way to switch it off"`, and a successful
+`switchOff` returns `null`, so the elvis turned success into the "no way" text. It is now an explicit check for a link with
+no power way, and the power way's own answer (`null` for done, the reason for a failure) passes through untouched.
+`CastLinkSwitchOffTest` (4) covers the link and the state the phone reads: no problem, no trouble, the TV asleep; two of its
+four failed against the old line (`expected null, but was:<Totum has no way to switch it off>`). The treat button
+([ADR 196](0196-the-treat-button-puts-a-film-on-the-tv-for-a-while-and-the-pi-ends-it.md)) depends on this, because its end
+action is `switchOff`.
+
+The same run logged `webOS control unavailable, it could not be reached: the TV closed the connection (1008)` after the
+switch off. That line was not investigated here; once the TV is off the power check can be expected to fail to reach it,
+which is not shown to be the cause.

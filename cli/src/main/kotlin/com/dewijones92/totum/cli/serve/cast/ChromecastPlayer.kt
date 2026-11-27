@@ -217,7 +217,8 @@ internal class CastLink(
 
     override val powerNote: String? get() = wake?.note
 
-    override suspend fun switchOff(): String? = wake?.switchOff() ?: "Totum has no way to switch it off"
+    override suspend fun switchOff(): String? =
+        if (wake == null) "Totum has no way to switch it off" else wake.switchOff()
 
     @Volatile override var unreachable: TargetTrouble? = null
         private set
