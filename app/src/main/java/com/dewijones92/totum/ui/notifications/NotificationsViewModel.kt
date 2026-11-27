@@ -5,6 +5,9 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.common.Page
+import com.dewijones92.totum.common.PageToken
 import com.dewijones92.totum.data.content.SeenItemsTracker
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.domain.ChosenWay
@@ -13,10 +16,12 @@ import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayReason
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.innertube.feeds.FeedResult
+import com.dewijones92.totum.innertube.feeds.FeedVideo
 import com.dewijones92.totum.innertube.feeds.YouTubeFeeds
 import com.dewijones92.totum.notifications.YouTubeSubscriptionItemsSource.Companion.SUBSCRIPTIONS_SOURCE
 import com.dewijones92.totum.queue.PlaybackQueue
 import com.dewijones92.totum.ui.common.toMediaItem
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -59,14 +64,24 @@ class NotificationsViewModel(
     /** The inbox as it stands — read on demand (always current). */
     fun snapshotUploads(): List<Upload> = inbox.value
 
+    val uploads: StateFlow<List<Upload>> = inbox
+
+    private var nextPage: PageToken? = null
+    private val _hasMore = MutableStateFlow(false)
+    val hasMore: StateFlow<Boolean> = _hasMore
+    private val _loadingMore = MutableStateFlow(false)
+    val loadingMore: StateFlow<Boolean> = _loadingMore
+
     init {
         refresh()
     }
 
     fun refresh() {
         viewModelScope.launch {
-            val feed = (feeds.subscriptionsFeed() as? FeedResult.Success)?.page?.items ?: return@launch
-            lastFeed = feed.map { it.toMediaItem(SUBSCRIPTIONS_SOURCE.id) }
+            val page = (feeds.subscriptionsFeed() as? FeedResult.Success)?.page ?: return@launch
+            nextPage = page.next
+            _hasMore.value = page.next != null
+            lastFeed = page.items.map { it.toMediaItem(SUBSCRIPTIONS_SOURCE.id) }
             val unread = tracker.newItems(SUBSCRIPTIONS_SOURCE.id, lastFeed).map { it.id }.toSet()
             // Feed order is preserved within each group rather than sorted by date: the
             // subscriptions feed arrives newest-first already, and its items carry YouTube's
@@ -75,6 +90,41 @@ class NotificationsViewModel(
                 .map { Upload(it, unread = it.id in unread) }
                 .sortedByDescending { it.unread }
         }
+    }
+
+    fun loadMore() {
+        val token = nextPage ?: return
+        if (_loadingMore.value) return
+        _loadingMore.value = true
+        viewModelScope.launch {
+            try {
+                when (val result = feeds.subscriptionsFeed(token)) {
+                    is FeedResult.Success -> append(result.page)
+                    else -> Diag.warn("notifications", "dewidebug New uploads: the next page did not arrive ($result)")
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (@Suppress("TooGenericExceptionCaught") failure: Exception) {
+                Diag.warn("notifications", "dewidebug New uploads: the next page failed", failure)
+            } finally {
+                _loadingMore.value = false
+            }
+        }
+    }
+
+    private fun append(page: Page<FeedVideo>) {
+        val known = inbox.value.mapTo(HashSet()) { it.item.id }
+        val added = page.items.map { it.toMediaItem(SUBSCRIPTIONS_SOURCE.id) }.filter { it.id !in known }
+        tracker.markSeen(SUBSCRIPTIONS_SOURCE.id, added)
+        lastFeed = lastFeed + added
+        inbox.value = inbox.value + added.map { Upload(it, unread = false) }
+        nextPage = page.next
+        _hasMore.value = page.next != null
+        Diag.log(
+            "notifications",
+            "dewidebug New uploads: a page of ${page.items.size} arrived, ${added.size} new to the list; " +
+                "${inbox.value.size} rows now, more=${page.next != null}",
+        )
     }
 
     /**

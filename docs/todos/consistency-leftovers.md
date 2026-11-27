@@ -1,7 +1,7 @@
 ---
 title: Consistency leftovers (ADR 108)
 kind: todo
-status: swept 2026-11-13, 3 fixed, 8 open; 4 more opened 2026-11-27 (views, New uploads paging, day-only sentinel)
+status: swept 2026-11-13, 3 fixed, 8 open; 3 more opened 2026-11-27 (views on the latest-upload line, views on saved rows, day-only sentinel)
 area: ui
 priority: medium
 updated: 2026-11-27
@@ -32,7 +32,6 @@ Effort: S under an hour, M a few hours, L a day or a schema change.
 | Search results and related videos show only the marks the history and feeds happened to carry | 🔓 open, needs a decision | their rows come from the web InnerTube, which carries no resume overlay (`HttpYouTubeFeeds.kt:43` and `HttpYouTubePlaylists.kt:45` are the only parsers that feed `SeenProgress`); there is no per-video progress call to ask, so this is a product call, not a bug fix | M |
 | The All subscriptions latest-upload line has no views (a Room table of title, author, picture, date) | open 2026-11-27, recorded in [ADR 192](../adr/0192-one-watch-page-parse-fills-views-everywhere.md) | `ChannelLatestEntities.kt` `RoomChannelLatestStore`; the line shows no facts block, so only a column would be added | L (schema bump) |
 | Starred, playlist and History rows saved with no views stay without until played or queued | open 2026-11-27 | `SharedMetadataRepair` covers queue rows near the playhead and downloads only | S |
-| The New uploads page is the first page of the subscriptions feed (about 15 rows) and ends there, with no paging | open 2026-11-27, found in report 20261120T223158-46af0e58 | `NotificationsViewModel.refresh` reads `subscriptionsFeed()` once and ignores the page's continuation; the page now says what it is and logs its row counts | M |
 | A day-only date is the noon-UTC sentinel, not a field | open 2026-11-27 | `PublishedAge.isDayOnly`; an explicit "date only" flag on `MediaItem` would be a schema bump across five tables | L |
 
 ## What was checked and is still fixed

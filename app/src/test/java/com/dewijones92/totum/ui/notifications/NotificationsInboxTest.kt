@@ -2,6 +2,7 @@ package com.dewijones92.totum.ui.notifications
 
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.common.Page
+import com.dewijones92.totum.common.PageToken
 import com.dewijones92.totum.data.content.fake.InMemorySeenItemsTracker
 import com.dewijones92.totum.data.history.fake.InMemoryPlayHistoryStore
 import com.dewijones92.totum.data.queue.fake.InMemoryQueueStore
@@ -130,5 +131,75 @@ class NotificationsInboxTest {
 
         assertEquals(0, model.snapshotUploads().count { it.unread })
         assertEquals(3, model.snapshotUploads().size)
+    }
+
+    private fun pagedFeed(first: List<String>, second: List<String>, token: String = "page-2") {
+        feeds.results[AccountFeed.SUBSCRIPTIONS] = FeedResult.Success(Page(first.map(::video), PageToken(token)))
+        feeds.pages[token] = FeedResult.Success(Page.last(second.map(::video)))
+    }
+
+    @Test
+    fun `reaching the end of the list brings the second page, behind the first, as already seen`() =
+        runTest(dispatcher) {
+            pagedFeed(first = listOf("a", "b"), second = listOf("c", "d"))
+            val model = model(backgroundScope)
+            testScheduler.advanceUntilIdle()
+            assertEquals(listOf("a", "b"), model.uploads.value.map { it.item.id.value })
+            assertEquals(true, model.hasMore.value)
+
+            model.loadMore()
+            testScheduler.advanceUntilIdle()
+
+            assertEquals(listOf("a", "b", "c", "d"), model.uploads.value.map { it.item.id.value })
+            assertEquals("older rows do not inflate the bell", 0, model.uploads.value.count { it.unread })
+            assertEquals(false, model.hasMore.value)
+            assertEquals(listOf(null, PageToken("page-2")), feeds.requested.map { it.second })
+        }
+
+    @Test
+    fun `asking again while a page is loading, or after the last page, asks nothing more`() = runTest(dispatcher) {
+        pagedFeed(first = listOf("a"), second = listOf("b"))
+        val model = model(backgroundScope)
+        testScheduler.advanceUntilIdle()
+
+        model.loadMore()
+        model.loadMore()
+        testScheduler.advanceUntilIdle()
+        model.loadMore()
+        testScheduler.advanceUntilIdle()
+
+        assertEquals(2, feeds.requested.size)
+        assertEquals(listOf("a", "b"), model.uploads.value.map { it.item.id.value })
+    }
+
+    @Test
+    fun `a page that fails keeps the rows and can be asked for again`() = runTest(dispatcher) {
+        pagedFeed(first = listOf("a"), second = listOf("b"))
+        feeds.pages["page-2"] = FeedResult.Failure("offline")
+        val model = model(backgroundScope)
+        testScheduler.advanceUntilIdle()
+
+        model.loadMore()
+        testScheduler.advanceUntilIdle()
+        assertEquals(listOf("a"), model.uploads.value.map { it.item.id.value })
+        assertEquals(true, model.hasMore.value)
+
+        feeds.pages["page-2"] = FeedResult.Success(Page.last(listOf(video("b"))))
+        model.loadMore()
+        testScheduler.advanceUntilIdle()
+
+        assertEquals(listOf("a", "b"), model.uploads.value.map { it.item.id.value })
+    }
+
+    @Test
+    fun `a video that comes round again on the next page is listed once`() = runTest(dispatcher) {
+        pagedFeed(first = listOf("a", "b"), second = listOf("b", "c"))
+        val model = model(backgroundScope)
+        testScheduler.advanceUntilIdle()
+
+        model.loadMore()
+        testScheduler.advanceUntilIdle()
+
+        assertEquals(listOf("a", "b", "c"), model.uploads.value.map { it.item.id.value })
     }
 }

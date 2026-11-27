@@ -197,10 +197,14 @@ Where views were still dropped, and what fills them now:
 | Group newest items, New uploads, Long ones | `ChannelFeedParser` skipped `media:statistics` | read with `formatViewCount` (RSS has no duration) |
 | Radio and Discover songs | no plays column | the same repair, never a date |
 
+New uploads (the bell) pages through the subscriptions feed as the list is scrolled, and its header says it is every
+subscription's newest, not one group's. `BackHeader` wraps its actions under the title (`TitleAndActions`) so a title is
+never squeezed to a letter per line at 320 dp.
+
 Left out on purpose: the All subscriptions latest-upload line, and Starred, playlist and History rows saved without views
 (they take them from the row they were saved from).
 
-A date that is only a day (`PublishedAge.ofDay`, noon UTC) reads "Today", "Yesterday" or "23 Nov" and never "18 hours ago".
+A date that is only a day (`PublishedAge.ofDay`, noon UTC) reads "Today", "Yesterday", "5 days ago", "3 months ago" (the same wording as every other row) and never "18 hours ago".
 `WatchNextParser.facts` is the one read of a watch page: description, day, wording and views. A row entering the queue with no
 views is logged under `[facts]` with its source (`shared`, `ytfeed:…`, `music:radio:…`). Tests: `LockupParserTest`,
 `TheWatchPageCountsTheViewsTest`, `ChannelFeedParserTest`, `SharedMetadataRepairTest`, `PublishedAgeTest`,

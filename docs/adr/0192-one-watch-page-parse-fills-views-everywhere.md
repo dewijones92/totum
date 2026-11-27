@@ -52,7 +52,9 @@ inconsistencies throughout the app? I want it more consistent."* Every list draw
 - **`[facts]` says which path** a row came from: a row entering the queue with no views is logged with its source
   (`shared`, `ytfeed:…`, `music:radio:…`), as the undated one already was.
 - **A day-only date never says hours** (`PublishedAge.text`). A date that is only a day (`ofDay`, noon UTC) reads
-  "Today", "Yesterday" or "23 Nov" ("23 Nov 2025" in another year), judged against the viewer's own day. The watch page's
+  "Today", "Yesterday", then whole days, weeks, months and years in YouTube's own wording ("5 days ago", "3 months
+  ago"), judged against the viewer's own day, so it sits beside every other row. (The first version wrote "23 Nov";
+  on the emulator it sat under rows saying "3 months ago", and Dewi chose the consistent wording.) The watch page's
   day is Pacific time read as UTC, which made a video a few hours old say "18 hours ago". A time with a real time of day is
   still "2 hours ago". Where the same read also gave YouTube's wording (`relativeDateText`), the repair uses
   `PublishedAge.best`, which prefers the wording while it is under two days old. A day-only date is recognised by being
@@ -74,8 +76,17 @@ inconsistencies throughout the app? I want it more consistent."* Every list draw
   `play <id> from …` and the playing item's own id, and the route is recorded when decided (`PlayRoutes`, 64 items, also at
   a gapless crossover, which writes no play line) so the trail scrolling cannot hide it.
 - **The New uploads page says what it is**: "New uploads" with "📥 The newest from every channel you subscribe to, not one
-  group", after a report of a user who thought it was a group's list. Its list is the first page of the account's
-  subscriptions feed and ends there; it logs how many rows it opened with.
+  group", after a report of a user who thought it was a group's list. Its list was the first page of the account's
+  subscriptions feed (about 15 rows) and ended there, which Dewi read as "I can't scroll past this bit". It now pages:
+  the feed's continuation is followed through `LoadMoreOnScrollToEnd`, one page at a time and through the polite gate
+  (`NotificationsViewModel.loadMore`). Older pages are listed as already seen, so they neither inflate the bell nor float
+  above what is new; a page that fails keeps the rows and is asked for again at the next scroll to the end; a video
+  that comes round again is listed once. The page logs how many rows it opened with and each page's arrival.
+- **A header never squeezes its title** (`BackHeader` now goes through `TitleAndActions`, as `ScreenHeader` already did):
+  at 320 dp the group page's title ("zzscreens") wrapped one letter per line because `BackHeader` was a plain `Row` with
+  four icons and a weighted title. The actions now wrap onto a line below when they would leave the title less than its
+  widest word plus the back button; its casting action alone stays beside the title as before, so Ask and Search are
+  not added to the pages that never had them.
 
 ## Recorded exceptions
 

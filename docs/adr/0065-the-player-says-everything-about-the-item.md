@@ -56,4 +56,4 @@ only when nothing else knows the date (`ItemFactsTest`).
 `RelatedVideosParser`). They are now one: `WatchNextParser.facts(body)` returns the description, the day, YouTube's
 relative wording and the view count together (`RelatedResult` carries all four), and the card's views and date come from
 the playing item, which now has views whichever way it was resolved. A date that is only a day reads "Today",
-"Yesterday" or "23 Nov", never hours. See [ADR 192](0192-one-watch-page-parse-fills-views-everywhere.md).
+"Yesterday" or in whole days ("5 days ago"), never hours. See [ADR 192](0192-one-watch-page-parse-fills-views-everywhere.md).

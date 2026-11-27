@@ -171,7 +171,7 @@ Recorded exceptions from BBC programmes ([ADR 184](0184-bbc-programmes-are-follo
 Views everywhere ([ADR 192](0192-one-watch-page-parse-fills-views-everywhere.md), 2026-11-27): Related, Up next and Explore read a
 bare compact count beside the date; rows from links, notifications, shares, Send to Pi and plays carry the resolver's views;
 stored queue rows and downloads learn them lazily from the same watch-page read as the date; RSS rows read the feed's own
-count; songs get their plays the same way. A day-only date says "Today", "Yesterday" or "23 Nov", never hours.
+count; songs get their plays the same way. A day-only date says "Today", "Yesterday", "5 days ago", never hours.
 
 Recorded exceptions from that pass:
 
