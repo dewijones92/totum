@@ -6,6 +6,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.Instant
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
@@ -119,10 +120,50 @@ class LongOnesTest {
     }
 
     @Test
-    fun `a stream that has ended is an ordinary long video`() {
-        val pick = pickLongOnes(listOf(video("replay", 'a', 1, kind = MediaContentKind.WAS_LIVE)), { 3.minutes * 40 })
+    fun `a stream that has ended is never a long one`() {
+        val pick = pickLongOnes(listOf(video("replay", 'a', 1, kind = MediaContentKind.WAS_LIVE)), { 40.minutes })
 
-        assertEquals(listOf("replay"), pick.chosen.map { it.id.value })
+        assertTrue(pick.chosen.isEmpty())
+        assertTrue(pick.unknownLength.isEmpty())
+    }
+
+    @Test
+    fun `a video over four hours is left out and counted, exactly four hours is kept`() {
+        val items = listOf(video("practice", 'a', 1), video("four", 'b', 2), video("five", 'c', 3))
+
+        val pick = pickLongOnes(items, lengths("practice" to 9.hours, "four" to 4.hours, "five" to 4.hours + 1.seconds))
+
+        assertEquals(listOf("four"), pick.chosen.map { it.id.value })
+        assertEquals(2, pick.tooLong)
+    }
+
+    @Test
+    fun `a podcast episode of any length is not held to the four hour cap`() {
+        val episode = MediaItem(
+            id = MediaItemId("audiobook-ish"),
+            sourceId = SourceId("https://feeds.example.com/show.rss"),
+            title = "marathon",
+            publishedAt = Instant.parse("2026-11-20T12:00:00Z"),
+            duration = 6.hours,
+            mediaUrl = HttpUrl.of("https://cdn.example.com/marathon.mp3"),
+        )
+
+        val pick = pickLongOnes(listOf(episode), { it.duration })
+
+        assertEquals(listOf("audiobook-ish"), pick.chosen.map { it.id.value })
+        assertEquals(0, pick.tooLong)
+    }
+
+    @Test
+    fun `a video over four hours does not use up its channel's cap`() {
+        val items = listOf(video("a1", 'a', 1), video("a2", 'a', 2), video("a3", 'a', 3), video("a4", 'a', 4))
+
+        val pick = pickLongOnes(
+            items,
+            lengths("a1" to 9.hours, "a2" to 30.minutes, "a3" to 40.minutes, "a4" to 50.minutes),
+        )
+
+        assertEquals(listOf("a2", "a3"), pick.chosen.map { it.id.value })
     }
 
     @Test

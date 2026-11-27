@@ -122,3 +122,27 @@ action is `switchOff`.
 The same run logged `webOS control unavailable, it could not be reached: the TV closed the connection (1008)` after the
 switch off. That line was not investigated here; once the TV is off the power check can be expected to fail to reach it,
 which is not shown to be the cause.
+
+## Amended 2026-11-27: a close right after our own switch off is the TV powering down, not "unavailable"
+
+The `(1008)` line above was read again on 2026-11-27: after a successful switch off the Pi's next webOS call (the power-state
+poll behind the TV's on/off dot) was met by the TV closing the socket with code 1008, and `WebOsTv.ask` reported it as `webOS
+control unavailable, it could not be reached: the TV closed the connection (1008)` at WARN, and recorded it as the last
+unavailable reason. A TV closing the line as it powers off is expected.
+
+- The transport now says *who* closed the line: a close the TV began (`onClosing`/`onClosed`) is a `WebOsClosedByTv(code)`, still
+  an `IOException`, and the one a send onto an already closed socket meets as well; any other failure stays a plain
+  `IOException`.
+- `WebOsTv` remembers when Totum last switched the TV off (`switchedOffAtMs`, only on success). A `WebOsClosedByTv` **within two
+  minutes of that** is logged once at INFO as `LG TV: the TV closed the connection as it switched off (code 1008, Nms after Totum
+  switched it off); webOS control is not marked unavailable`, returns the same words as the call's reason, and touches neither
+  `lastUnavailable` nor the stored-key state. The power-state poll still reads `null` (unknown) for that call, so the dot falls
+  back to the port probe exactly as before.
+- A close at any other time (the TV was not just switched off by us) keeps the old warning with the old words, so a TV that really
+  drops the line while on is still reported. Switched off by the remote, not by Totum, is therefore still a warning.
+- Tests (`WebOsTvTest` +3, the fake SSAP server gained `closeNewConnectionsWith`): a close with 1008 just after our switch off logs
+  the new line and no "unavailable" warning; a close with no switch off of ours still warns with the old text; a close ten minutes
+  after the switch off is not taken as part of it. Seen red first: `LG TV: webOS control unavailable, it could not be reached: the
+  TV closed the connection (1008)` was in the warnings.
+- Not confirmed on the real LG: that the 1008 is what this TV sends in every case, and how soon after `turnOff` it comes (the
+  two-minute window is a guess generous enough to cover a poll interval).

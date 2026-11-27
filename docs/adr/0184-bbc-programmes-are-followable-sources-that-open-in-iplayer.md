@@ -2,7 +2,7 @@
 title: BBC programmes are followable sources whose episodes open in iPlayer
 kind: adr
 status: accepted
-updated: 2026-11-20
+updated: 2026-11-27
 ---
 
 # 184. BBC programmes are followable sources whose episodes open in iPlayer
@@ -137,3 +137,22 @@ Checked live on 2026-11-20 (no key, no sign-in):
   `TimedCacheFetcherTest` (5), `OpmlExporterTest` (+1), `DefaultPodcastRepositoryTest` (+2), `IPlayerEpisodesTest` (9),
   `AnIPlayerEpisodeOpensElsewhereAndNeverQueuesTest` (6), `IPlayerEpisodesAreShownTest` (7); device:
   `RoomSubscriptionStoreTest` (+1), `DownloadsMigrationTest` (+1).
+
+## Amended 2026-11-27: opening an episode in iPlayer marks it played
+
+Dewi, 2026-11-27: opening a BBC episode in iPlayer counts as watching it, so the ✅ shows on it in every list.
+
+- **When:** only after a **successful hand-off**: `PlaybackQueue.openInTheirOwnApp` (the one place a tap, Peek, Play all and
+  the `route` fallback all go through) marks the item played when `openExternally` returned true, whether the iPlayer app or the
+  browser took the link. When nothing on the phone could open it, nothing is marked, and the log says so
+  (`handed to the other app, marked played` / `nothing could open it, not marked played`). An automatic play never opens another
+  app, so it never marks either.
+- **How:** through the normal progress seam, not a second path. `PlaybackQueue` takes a `markPlayed` function and the app wires it
+  to `progressByHand.setPlayed(id, played = true)`, the same call the item menu's "Mark as played" makes, so the row's ✅,
+  the play-state map every list reads (`rowPlayStates`), Long ones' "started or finished" filter, the backup and the account-aware
+  store all see one fact. It is idempotent: opening an episode that is already played changes nothing.
+- **What it is not:** it is not a watch. No position, no stats event and nothing is sent to a YouTube account (the id is a BBC id).
+  "Mark as unplayed" in the menu undoes it, and the next open marks it again.
+- Tests: `AnIPlayerEpisodeOpensElsewhereAndNeverQueuesTest` +3 (a tap and a Peek that were handed over mark the episode; a failed
+  hand-off does not; an automatic play marks nothing). Seen red first: the hand-off test failed on
+  `expected:<[MediaItemId(value=bbc:m0033v6x), MediaItemId(value=bbc:m0033jsv)]> but was:<[]>`.

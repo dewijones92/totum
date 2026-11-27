@@ -3,7 +3,7 @@ title: BBC programmes
 kind: feature
 status: built
 area: search
-updated: 2026-11-20
+updated: 2026-11-27
 ---
 
 # BBC programmes
@@ -19,7 +19,8 @@ play in Totum. Decisions and reasons: [ADR 184](../adr/0184-bbc-programmes-are-f
 - A programme's page is the podcast page: its newest 50 episodes with title (the series and episode, "Series 72: Episode 6"),
   the programme and channel, first broadcast date, length and **⏳ On iPlayer until 22 Dec 2027** (with ⏰ days left inside two
   weeks and ⌛ once gone). Tapping an episode opens iPlayer: the iPlayer app when it is installed, else the browser. A toast
-  says which. There is no Shuffle all and no Inbox toggle.
+  says which. **Opening it marks the episode played (✅ in every list, 2026-11-27, ADR 184)** once the other app or the browser
+  took the link; if nothing could open it, nothing is marked. There is no Shuffle all and no Inbox toggle.
 - A group-news notification for a new BBC episode opens that episode in iPlayer directly.
 - A followed programme is in the Podcasts tab, can join groups, shows 🆕 in group news and the tab badge, notifies of new
   episodes, can be pinned and is in the backup, all through the podcast path.

@@ -20,6 +20,7 @@ import org.junit.rules.TemporaryFolder
 import java.io.File
 import java.time.Instant
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
 
 class LongOnesTest {
@@ -67,10 +68,11 @@ class LongOnesTest {
             pool = { pool },
             playStates = { played },
             withoutNotForMe = { items -> items.filter { it.id.value !in suppressed } },
-            liveNow = { it.id.value in liveIds },
+            liveStream = { it.id.value in liveIds },
             freeLength = { storeKnows[it.id.value] },
         ),
         lengths(),
+        KnownStreams(File(folder.root, "known_streams.json")),
         unmetered = { onWifi },
         limits = LongOnesLimits(rules = rules, lookupBudget = budget),
     )
@@ -210,6 +212,67 @@ class LongOnesTest {
     }
 
     @Test
+    fun `a stream the look-up finds ended is left out of that refresh and never listed again`() = runTest {
+        pool = LongOnesPool(emptyList(), listOf(video("practice", 'a', 1), video("talk", 'b', 2)), emptyList())
+        truth["practice"] = LengthCheck.Known(2 * 60 * 60, wasLive = true, via = "test")
+        truth["talk"] = known(50 * 60)
+        val service = longOnes()
+
+        service.refresh("test")
+
+        assertEquals(listOf("talk"), service.state.value.items?.map { it.id.value })
+
+        val afterARestart = longOnes()
+        afterARestart.refresh("later")
+
+        assertEquals(listOf("talk"), afterARestart.state.value.items?.map { it.id.value })
+        assertEquals("the ended stream is asked once, ever", listOf("practice", "talk"), asked.sorted())
+    }
+
+    @Test
+    fun `a video the Live tab listed is never a long one, whatever length the feed gave it`() = runTest {
+        pool = LongOnesPool(
+            feed = listOf(video("replay", 'a', 1, 90.minutes), video("talk", 'b', 2, 50.minutes)),
+            uploads = emptyList(),
+            episodes = emptyList(),
+        )
+        val service = longOnes()
+        service.noteLiveStreams(listOf("replay"), "Live tab")
+
+        service.refresh("test")
+
+        assertEquals(listOf("talk"), service.state.value.items?.map { it.id.value })
+    }
+
+    @Test
+    fun `a stream the live registry knows is remembered for good, so it stays out after the registry forgets it`() =
+        runTest {
+            pool = LongOnesPool(emptyList(), listOf(video("seen", 'a', 1, 80.minutes)), emptyList())
+            liveIds = setOf("seen")
+            longOnes().refresh("test")
+            liveIds = emptySet()
+
+            val service = longOnes()
+            service.refresh("later")
+
+            assertEquals(emptyList<String>(), service.state.value.items?.map { it.id.value })
+        }
+
+    @Test
+    fun `a nine hour video is left out whoever says its length`() = runTest {
+        pool = LongOnesPool(
+            feed = listOf(video("marathon", 'a', 1, 9.hours), video("talk", 'b', 2, 50.minutes)),
+            uploads = emptyList(),
+            episodes = emptyList(),
+        )
+        val service = longOnes()
+
+        service.refresh("test")
+
+        assertEquals(listOf("talk"), service.state.value.items?.map { it.id.value })
+    }
+
+    @Test
     fun `anything already started or finished, and anything marked not for me, is left out`() = runTest {
         pool = LongOnesPool(
             feed = listOf(
@@ -298,10 +361,11 @@ class LongOnesTest {
                 },
                 playStates = { played },
                 withoutNotForMe = { it },
-                liveNow = { false },
+                liveStream = { false },
                 freeLength = { null },
             ),
             lengths(),
+            KnownStreams(File(folder.root, "known_streams.json")),
             unmetered = { true },
         )
 

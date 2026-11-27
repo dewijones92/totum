@@ -4,7 +4,7 @@ kind: todo
 status: open
 priority: low
 area: search
-updated: 2026-11-20
+updated: 2026-11-27
 ---
 
 # BBC programmes follow-ups
@@ -22,3 +22,5 @@ What [ADR 184](../adr/0184-bbc-programmes-are-followable-sources-that-open-in-ip
   is a schema change on four tables.
 - **An episode iPlayer has withdrawn** disappears at the next refresh; nothing tells you it was there. A "left iPlayer" notice
   would need the old and new lists compared.
+- [x] **Opening an episode marks it played** (Dewi, 2026-11-27): done through the normal progress seam after a successful hand-off;
+  see the 2026-11-27 amendment of ADR 184. Still unseen on a phone with iPlayer installed (above).

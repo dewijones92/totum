@@ -2,7 +2,7 @@
 title: Long ones are built from what is cached, and fill in lengths lazily
 kind: adr
 status: accepted
-updated: 2026-11-20
+updated: 2026-11-27
 ---
 
 # 185. Long ones are built from what is cached, and fill in lengths lazily
@@ -31,8 +31,8 @@ how many unknown videos will need a look-up per long one found, not an estimate.
 
 ## Decision
 
-**What qualifies** (`pickLongOnes`, `:core:domain`, pure): a dated item of kind STANDARD or WAS_LIVE (a stream that ended is an
-ordinary long video) of at least 20 minutes, not a Short (by kind or by a `/shorts/` link), not a live stream still going
+**What qualifies** (`pickLongOnes`, `:core:domain`, pure): a dated item of kind STANDARD (until 2026-11-27 also WAS_LIVE, "a stream that ended is an
+ordinary long video"; see the amendment at the end) of at least 20 minutes, not a Short (by kind or by a `/shorts/` link), not a live stream still going
 (by kind, or by the live registry, ADR 132, which also knows a video that has not started), not already started or finished
 (`rowPlayStates`, the account-aware map every row uses, so a video half-watched on the YouTube site is left out too), and not
 under 🙅 Not for me. **Newest first, at most 12, at most 2 from one source** (a channel by its `UC…` id whichever listing the
@@ -89,7 +89,7 @@ launch, "✅ N ready". It does no work to say so: it reads the last built list.
 - **Seen on `totum-api35`, signed in as Dewi, 20 Nov 2026** (build 319244f1, the channel check 243 of 1,622 channels in): the first
   refresh took **11.5 s** (pool 243 uploads, 2 live ones left out by the registry, **32 asks: 30 lengths, 2 "live now"**, 16 too
   short, **12 of 12 chosen**, 0 held back by the cap); each ask took 110 ms to 2.7 s through the gate. Every refresh after it asked
-  nothing and took 223 to 506 ms. A 9-hour "practice cam" that had ended is listed as an ordinary video, as decided; the two
+  nothing and took 223 to 506 ms. A 9-hour "practice cam" that had ended was listed as an ordinary video then (reversed 2026-11-27, see the amendment); the two
   streams still on were left out. No YouTube refusal or bot check showed.
 
 - **At Dewi's scale** (1,623 subscriptions): opening the page reads the table, the feed cache and one podcast's episodes (a few
@@ -115,3 +115,50 @@ launch, "✅ N ready". It does no work to say so: it reads the last built list.
   `VideoLengthsTest` (kept across a restart, set-aside windows, never-kept none, a throwing ask); `:core:video`
   `TheLengthCheckReadsALengthWithoutSolvingAnythingTest` (every answer, no `n` solve, bot check backs off, backing off asks
   nothing), `LookupsSurviveRestartsTest` (a length from a stored lookup after its URLs expired).
+
+## Amended 2026-11-27: a stream that has ended is never a long one, and a video over four hours is not either
+
+Dewi, 2026-11-27: a 9-hour ATP "Live Practice Stream" (an ended live) showed in 🧘 Long ones. Ended streams are long recordings
+of nothing in particular, not the calm list he wanted, so the 2026-11-20 decision (an ended stream is an ordinary long video) is
+**reversed**.
+
+**Ended and live streams are left out, wherever they are known from** (`LongOnes`, with `KnownStreams` beside `VideoLengths`):
+
+- **By kind:** `pickLongOnes` now accepts only `STANDARD`; `WAS_LIVE` joined `LIVE`, `SHORT`, `MUSIC` and `AUDIOBOOK` among the
+  kinds that can never be a long one (`canBeALongOne`).
+- **By the live registry (ADR 132):** any phase counts, live, not started or **ended** (`liveStream`, from `liveTagOf`), not
+  only the first two as before. The registry forgets an ended stream at restart (it persists only live and upcoming ones), so
+  every stream the registry or a kind names is also **kept for good** in `files/known_streams.json` (`KnownStreams`, id → why),
+  and a kept id is never listed again.
+- **By the length check:** `LengthCheck.Known(wasLive = true)` (the `player` call says the video was a live), `LiveNow` and
+  `Upcoming` are streams. The answer is acted on **in the same refresh**: the video is dropped from the candidates, so it cannot
+  appear in the list a moment after the ask that found it, and it is kept. (The filter by registry runs before the look-ups,
+  so without this a video first learned to be an ended stream by the ask would still have been chosen on its freshly found
+  length.)
+- **By a channel's Live tab (ADR 178):** every video the Live tab lists (the first page and each page after it) is a live stream
+  by definition, so `ChannelViewModel` hands its ids to `LongOnes.noteLiveStreams` (`ChannelReader.streamsListed`) and they are
+  kept. This is the only place that knows a stream *without* asking YouTube about it, and it costs no request.
+- Not done, on purpose: guessing from a title ("Live Practice Stream", "24/7"). The kinds and the check above are what the live
+  check identifies; a title rule would drop ordinary videos that say "live" and still miss the rest.
+
+**A video over four hours is left out, unless it is a podcast episode** (`LongOnesRules.maximumVideo`, 4 hours, a video being
+`MediaItem.pillar == VIDEO`): the length rule is "at least 20 minutes", and nothing in a calm list is a nine-hour recording of any
+kind (a very long stream whose live state nobody has seen yet, a full-day marathon). A podcast episode has no upper bound, as
+long audio is what a podcast is. Exactly 4 hours stays; one second more goes. Such a video does not use up its channel's
+two-per-source cap (it is counted `tooLong` and the next one from the channel is looked at).
+
+Dewi's state, for scale: the 20 Nov dump held 1,622 followed channels and 460 of 1,336 queued videos over 20 minutes; the kept
+set adds at most a few hundred ids at ~40 bytes each, read once into memory, written only when a new id arrives, so nothing here
+grows with the number of refreshes. The cap is a comparison on a length already known, so it adds no ask.
+
+**Logging:** the refresh line now says `liveStreams=` (what the kind and registry left out), `streamsFoundByLookUp=` and `tooLong=`;
+each look-up that turns out to be a stream logs its id (`N look-up(s) turned out to be live streams, left out: …`) and each
+newly kept id is logged with where it was learned (`kept N live stream(s) as never long ones (the live registry or the item's
+kind | length check | Live tab)`).
+
+Tests: `:core:domain` `LongOnesTest` (an ended stream is never a long one; over four hours left out and counted, exactly four
+hours kept; a podcast episode of six hours kept; a nine-hour video does not use up its channel's cap); `:app` `LongOnesTest` (an
+ended stream found by the look-up is left out of that very refresh and, after a restart, of the next without being asked again;
+a video the Live tab listed is never chosen whatever length the feed gave it; a stream the registry knew stays out after the
+registry forgets it; a nine-hour video is left out whoever says its length). Seen red first: `expected:<[four]> but was:<[practice,
+four, five]>`, and with the in-refresh drop disabled `expected:<[talk]> but was:<[practice, talk]>`.

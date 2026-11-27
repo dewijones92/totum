@@ -131,7 +131,10 @@ internal class WebOsTv(
     private val label: String,
     private val dial: WebOsDial,
     private val keys: WebOsKeys,
+    private val now: () -> Long = System::currentTimeMillis,
 ) {
+    @Volatile private var switchedOffAtMs: Long? = null
+
     @Volatile private var refusedKey: String? = null
 
     @Volatile private var lastUnavailable: String? = null
@@ -151,7 +154,11 @@ internal class WebOsTv(
         return state == WebOsWire.ACTIVE
     }
 
-    suspend fun powerOff(): String? = ask { it.request(WebOsWire.POWER_OFF, closeMeansDone = true) }.reason()
+    suspend fun powerOff(): String? {
+        val failure = ask { it.request(WebOsWire.POWER_OFF, closeMeansDone = true) }.reason()
+        if (failure == null) switchedOffAtMs = now()
+        return failure
+    }
 
     suspend fun switchInput(inputId: String): String? {
         val failure = ask { session ->
@@ -206,6 +213,8 @@ internal class WebOsTv(
             }
         } catch (e: WebOsFault) {
             unavailable("it answered with an error: ${e.message}")
+        } catch (e: WebOsClosedByTv) {
+            closedByTv(e)
         } catch (e: IOException) {
             unavailable("it could not be reached: ${e.message}")
         } catch (e: CancellationException) {
@@ -216,12 +225,27 @@ internal class WebOsTv(
         }
     }
 
+    private fun closedByTv(e: WebOsClosedByTv): Outcome.Unavailable {
+        val sinceSwitchOffMs = switchedOffAtMs?.let { now() - it }
+        if (sinceSwitchOffMs == null || sinceSwitchOffMs > SWITCH_OFF_WINDOW_MS) {
+            return unavailable("it could not be reached: ${e.message}")
+        }
+        Diag.log(
+            "webos",
+            "$label: the TV closed the connection as it switched off (code ${e.code}, ${sinceSwitchOffMs}ms after " +
+                "Totum switched it off); webOS control is not marked unavailable",
+        )
+        return Outcome.Unavailable("the TV closed the connection as it switched off")
+    }
+
     private fun unavailable(why: String): Outcome.Unavailable {
         if (why != lastUnavailable) Diag.warn("webos", "$label: webOS control unavailable, $why")
         lastUnavailable = why
         return Outcome.Unavailable(why)
     }
 }
+
+private const val SWITCH_OFF_WINDOW_MS = 2 * 60_000L
 
 internal class WebOsPowerOff(private val tv: WebOsTv) : PowerOff {
     override val name: String = "webOS system/turnOff"

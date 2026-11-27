@@ -31,15 +31,15 @@ fun longOnesOf(
         pool = { longOnesPoolOf(c) },
         playStates = { playStates() },
         withoutNotForMe = { items -> c.notForMe.without(items, "long ones") },
-        liveNow = { item ->
+        liveStream = { item ->
             when (liveTagOf(item.contentKind, c.liveStates.of(item.id.value))) {
-                is LiveTag.Live, is LiveTag.StartsSoon -> true
-                LiveTag.WasLive, null -> false
+                is LiveTag.Live, is LiveTag.StartsSoon, LiveTag.WasLive -> true
+                null -> false
             }
         },
         freeLength = { item -> freeLength(c, item) },
     )
-    return LongOnes(sources, lengths, unmetered)
+    return LongOnes(sources, lengths, KnownStreams(File(filesDir, "known_streams.json")), unmetered)
 }
 
 private suspend fun askLength(c: AppContainer, item: MediaItem): LengthCheck {

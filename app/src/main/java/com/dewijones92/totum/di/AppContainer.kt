@@ -1736,6 +1736,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             )::switchOffForRunOf,
             shield = aiFeatures.spoilerShield,
             openExternally = { item, url -> externalOpener.open(url, item.item.title) },
+            markPlayed = { id -> progressByHand.setPlayed(id, played = true) },
             seriesRun = { item -> jellyfin?.seriesRunOf(item) },
         ).also { it.destination = targets }
     }
