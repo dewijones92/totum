@@ -372,6 +372,12 @@ Three things about it are deliberate:
 - **It says whether it RAN or skipped.** "Finished 1 tests" and "BUILD SUCCESSFUL" look
   identical either way, so the one question the tunnel exists to answer was unanswerable from
   its own output until the script read the result XML and said which.
+- **The tunnel is the runner's only road, so the script keeps GitHub off it and watches it (2026-11-27).** The peer's
+  default route is the home connection, runner control traffic included, and the job was lost mid-phase on seven of
+  thirteen nights. GitHub's runner-service ranges are routed round the tunnel after the egress and LAN checks, the tunnel
+  MTU is 1380, a heartbeat line every 30 s reports tunnel bytes, handshake age, whether `api.github.com` answers, load and
+  memory, and each live gradle run is under a `timeout` (25 and 15 minutes). That the tunnel was the cause is a hypothesis
+  until a nightly's heartbeat lines say so.
 
 It runs inside the emulator action's `script`, because that action kills the emulator the moment
 the script returns — and as a file, because it rewrites backslash line-continuations inside
@@ -1181,3 +1187,4 @@ Playback and queue fixes ([todo](../todos/batch-c-playback-and-queue-fixes.md), 
 | `AnUnplayableVideoSaysWhyWordsTest` (+2, instrumented) | the stopped-decoder and beyond-the-device words |
 | `RadioHeaderSaysWhetherItIsLiveTest` (3, instrumented) | the group header says ♾️ Endless only for the live station, 📻 / 🔭 "not topping up" otherwise |
 | `StageDragLetsUpwardSwipesScrollTest` (2, instrumented) | an upward swipe on the stage scrolls, a downward one dismisses |
+2026-11-27, the nightly instrumented job (see [nightly-ci-red-every-night](../todos/nightly-ci-red-every-night.md)): `ACommandFromAnotherThreadReachesTheControllerTest` (a play reason and the switch button given from a worker thread neither throw nor get lost: seen red with `MediaController method is called from a wrong thread`, the nightly's own message), `RadioRecoveryTest` (3: a network that returns at once costs no second attempt, one that does not is switched off and on again, one that never returns gives up after every attempt and says so; the second seen red against a single attempt). `AnHourLongItemDoesNotRebufferTest` now drives the queue on the main thread like its siblings, `SeveralSharedLinksAllLandTest` shares to `MainActivity` by component (the package alone matches `SendHomeActivity` too, and Android opens the chooser). `DeviceRadios.goOnline` retries the cycle and fails the test that left the device offline, not a later one. `tools/ci/github_runner_routes_test.py` (6) covers the ranges kept out of the live phase's tunnel.

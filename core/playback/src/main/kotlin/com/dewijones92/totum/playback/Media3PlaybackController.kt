@@ -1150,8 +1150,23 @@ public class Media3PlaybackController(
     private val mainThread = android.os.Handler(android.os.Looper.getMainLooper())
 
     private fun withController(command: (MediaController) -> Unit) {
+        if (android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) {
+            val count = offMainCommands.incrementAndGet()
+            if (count == 1 || count % OFF_MAIN_LOG_EVERY == 0) {
+                Diag.log(
+                    "playback",
+                    "dewidebug a controller command was asked on ${Thread.currentThread().name}, not the main " +
+                        "thread: moved to the main thread, where MediaController must be used " +
+                        "(command number $count since launch)",
+                )
+            }
+            mainThread.post { withController(command) }
+            return
+        }
         controller?.let(command) ?: pendingCommands.add(command)
     }
+
+    private val offMainCommands = java.util.concurrent.atomic.AtomicInteger()
 
     private fun startPositionTicker(controller: MediaController) {
         scope.launch {
@@ -1605,6 +1620,7 @@ public class Media3PlaybackController(
         /** Room for a burst of ends without ever suspending the player's callback thread. */
         const val EVENT_BUFFER = 8
         const val DUPLICATE_END_MS = 3_000L
+        const val OFF_MAIN_LOG_EVERY = 50
     }
 }
 
