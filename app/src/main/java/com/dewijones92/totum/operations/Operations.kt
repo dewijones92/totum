@@ -53,6 +53,7 @@ data class Retrying(val attempt: Int, val of: Int, val atMs: Long, val reason: S
 sealed interface OperationEnd {
     data class Done(val count: Int, val partial: Boolean = false, val note: String? = null) : OperationEnd
     data object Nothing : OperationEnd
+    data class NothingBecause(val why: String) : OperationEnd
     data class Failed(val why: String) : OperationEnd
     data class Cancelled(val playing: Boolean) : OperationEnd
 }

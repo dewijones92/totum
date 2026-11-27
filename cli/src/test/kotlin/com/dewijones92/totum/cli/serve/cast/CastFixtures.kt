@@ -114,6 +114,9 @@ internal class FakeCastControl : CastControl {
     override var model: String? = "webOS"
     override var keepsAddressesPrivate: Boolean = false
     override var showsPictures: Boolean = true
+    override var captionTracks: List<CastTrack> = emptyList()
+    override var activeCaption: Int? = null
+    override var onTracks: () -> Unit = {}
     override var format: com.dewijones92.totum.playback.cast.CastFormat =
         com.dewijones92.totum.playback.cast.CastFormat.DASH
 
@@ -131,6 +134,10 @@ internal class FakeCastControl : CastControl {
 
     override fun volume(percent: Int) {
         calls += "volume=$percent"
+    }
+
+    override fun captions(trackId: Int?) {
+        calls += "captions=$trackId"
     }
 
     override fun volumePercent(): Int? = deviceVolume

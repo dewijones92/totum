@@ -1,5 +1,6 @@
 package com.dewijones92.totum.ui.queue
 
+import androidx.annotation.StringRes
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Cast
 import androidx.compose.material.icons.outlined.Language
@@ -14,6 +15,10 @@ import androidx.compose.ui.res.stringResource
 import com.dewijones92.totum.R
 import com.dewijones92.totum.data.targets.TargetConnection
 import com.dewijones92.totum.data.targets.TargetKind
+import com.dewijones92.totum.data.targets.TargetState
+import com.dewijones92.totum.data.targets.doingLine
+import com.dewijones92.totum.data.targets.toQueueEntry
+import com.dewijones92.totum.ui.common.face
 
 internal fun TargetKind.icon(): ImageVector = when (this) {
     TargetKind.PHONE -> Icons.Outlined.PhoneAndroid
@@ -21,6 +26,13 @@ internal fun TargetKind.icon(): ImageVector = when (this) {
     TargetKind.TV -> Icons.Outlined.Tv
     TargetKind.CHROMECAST -> Icons.Outlined.Cast
     TargetKind.BROWSER -> Icons.Outlined.Language
+}
+
+@StringRes
+internal fun TargetState.statusRes(): Int = when {
+    starting -> R.string.target_status_starting
+    playing -> R.string.target_status_playing
+    else -> R.string.target_status_paused
 }
 
 @Composable
@@ -41,6 +53,16 @@ internal fun TargetConnection.dotColour(): Color = when (this) {
     TargetConnection.WAKING, TargetConnection.RECONNECTING -> WORKING_AMBER
     TargetConnection.ASLEEP -> ASLEEP_GREY
     TargetConnection.PROBLEM -> PROBLEM_RED
+}
+
+@Composable
+internal fun doingLines(states: List<TargetState>): Map<String, String> {
+    val lines = LinkedHashMap<String, String>()
+    for (state in states) {
+        val title = state.current?.toQueueEntry()?.item?.item?.face()?.title
+        lines[state.target.id] = state.doingLine(title)
+    }
+    return lines
 }
 
 internal fun Color.readableOn(): Color = if (luminance() > BLACK_READS_BETTER_ABOVE) Color.Black else Color.White

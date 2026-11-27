@@ -2,7 +2,7 @@
 title: A target is anything the Pi plays to, and each has its own queue
 kind: adr
 status: accepted
-updated: 2026-11-20
+updated: 2026-11-27
 ---
 
 # 152. A target is anything the Pi plays to, and each has its own queue
@@ -153,3 +153,12 @@ to send a queue to. ADR 116 had built that for speakers only, with its own wire 
   every play button, and the mini-player pill and notification per target.
 - A running Jellyfin app is one more target, driven by item id through Jellyfin's Sessions API and taking only Jellyfin items
   ([ADR 187](0187-a-running-jellyfin-app-is-a-target-the-pi-drives-by-item-id.md)).
+
+## Amended 2026-11-27: a processed speaker reports its source's length
+
+Report 20261121T091331: the soundbar's remote page had no seek bar because the Pi sent `of=nullms`. `MpvPlayer.durationMs` asked mpv for
+`duration` only when no sound pipeline ran; with skip silences or boost on, mpv sees a raw PCM stream and cannot say. With a pipeline the
+player now asks `ffprobe` for the source's length once per play, off the play thread (`ProcessedSound.durationUs`, the same call
+the Pi's cast audio engine makes), and reports it with the source-clock position it already reports. A live item is not probed, and a length
+ffprobe cannot give leaves the duration unknown (the page then shows no bar, and says so in the log). Red first: `MpvPlayerTest` "a
+processed item reports its source's length".

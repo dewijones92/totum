@@ -6,6 +6,8 @@ import com.dewijones92.totum.common.HomeServerAuth
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import okhttp3.OkHttpClient
 import java.io.File
 
@@ -50,6 +52,7 @@ public class DiagnosticsUploader(
     private val stateLimitBytes: Long = DEFAULT_STATE_LIMIT_BYTES,
 ) {
     private val sink = ReportSink(client, endpoint)
+    private val uploadLock = Mutex()
 
     /** The automatic upload at launch — suppressed on an emulator. See the class note. */
     public fun uploadPending(): Unit = launchUpload(becauseSomeoneAsked = false) {}
@@ -69,7 +72,10 @@ public class DiagnosticsUploader(
         scope.launch(Dispatchers.IO) { onDone(upload(becauseSomeoneAsked)) }
     }
 
-    internal suspend fun upload(becauseSomeoneAsked: Boolean): UploadOutcome {
+    internal suspend fun upload(becauseSomeoneAsked: Boolean): UploadOutcome =
+        uploadLock.withLock { uploadLocked(becauseSomeoneAsked) }
+
+    private suspend fun uploadLocked(becauseSomeoneAsked: Boolean): UploadOutcome {
         val waiting = pending()
         val kept = UploadOutcome(sent = 0, kept = waiting.size)
         if (waiting.isEmpty()) {

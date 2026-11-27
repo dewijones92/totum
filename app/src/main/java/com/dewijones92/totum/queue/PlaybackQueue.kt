@@ -917,6 +917,16 @@ class PlaybackQueue(
                     undated.take(UNDATED_SHOWN).joinToString { "${it.id.value} (source=${it.sourceId.value})" },
             )
         }
+        val viewless = now.entries.map { it.item }.filter { it.item.id !in earlier && it.saysNoViews }
+        if (viewless.isNotEmpty()) {
+            Diag.log(
+                "facts",
+                "$why: ${viewless.size} item(s) entered the queue with no views, by source: " +
+                    viewless.groupingBy { it.item.sourceId.value }.eachCount().entries
+                        .joinToString { "${it.key}=${it.value}" } +
+                    "; first: " + viewless.take(UNDATED_SHOWN).joinToString { it.item.id.value },
+            )
+        }
         // The title is labelled, because it is the CURRENT entry and not whatever was just
         // added — reading it as "the item this operation touched" cost a wrong diagnosis on
         // 2026-07-29 (I searched Watch Later for the playing video instead of the queued one and

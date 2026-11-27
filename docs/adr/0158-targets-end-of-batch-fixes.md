@@ -2,7 +2,7 @@
 title: Targets, end-of-batch fixes - loops, ids, a loopback listener, slow answers, a TV that is switched off, resume, structured problems
 kind: adr
 status: accepted
-updated: 2026-11-14
+updated: 2026-11-27
 ---
 
 # 158. Targets, end-of-batch fixes
@@ -217,3 +217,21 @@ went out. The broadcasts are kept (they work from a host with a flat network). A
 host to know the TV's MAC, because a sleeping TV does not answer ARP: add a static entry on the Pi host,
 `ip neigh replace <tv ip> lladdr <mac> nud permanent dev eth0`, which `server/README.md` documents. Tests: `TvWakeTest`.
 Not seen on the real TV from this change; the coordinator adds the ARP entry and tests it.
+
+## Amended 2026-11-27: a wake that failed does not outlive the start that then played, and the ARP entry is a unit
+
+Report 20261123T075241 (0.1.944). The LG's wall socket was off, so WAKE failed (`❌ LG TV didn't wake`); Dewi switched the socket on and
+the PLAY he had sent beside it woke the TV and played. The phone went on showing the failure while the TV played. Cause: the PLAY was
+accepted (clearing the problem) before the WAKE, which had been waiting 24 s on the link outside the deck's lock, finished and set the
+problem; `startAt` never cleared it. Red first: `TargetDeckStartTest` "a wake that failed while a start waited does not outlive the start
+that then plays".
+
+- **A start that plays clears a reach problem.** After `player.play`, `TargetDeck.clearReachProblem` drops a problem whose kind is
+  `NOT_CONNECTED`, `SWITCH_ON`, `SWITCHED_OFF` or `WONT_WAKE`, and logs which one and its words. Problems about the item itself
+  (`COULD_NOT_PLAY`, `YOUTUBE_BACKOFF`, `STALLED`) are left alone: passing over a refused item and playing the next one still says why.
+- **The static ARP entry is `server/systemd/totum-tv-arp.service`.** Today the Pi had no permanent entry, so cold wakes relied on a
+  broadcast that never leaves Docker. The oneshot runs `server/systemd/totum-tv-arp.sh` at boot: for each `name=address@mac` in
+  `TOTUM_CAST_TARGETS` (read from `/var/lib/totum-fetch/fetch.env`, root-only) it runs `ip neigh replace <address> lladdr <mac> nud
+  permanent dev <the route's device, else eth0>`, skips entries without a MAC or with a malformed one and says so, and fails the unit if
+  `ip` fails. Install steps are in `server/README.md`; `totum_tv_arp_test.py` drives the script with a fake `ip`. Not installed from
+  here: the orchestrator does that on the Pi.

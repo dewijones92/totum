@@ -130,9 +130,13 @@ import com.dewijones92.totum.diagnostics.DiagnosticsUploader
 import com.dewijones92.totum.diagnostics.EncodedScreenshot
 import com.dewijones92.totum.diagnostics.HomeReports
 import com.dewijones92.totum.diagnostics.InstallId
+import com.dewijones92.totum.diagnostics.ReportFate
 import com.dewijones92.totum.diagnostics.ReportSink
+import com.dewijones92.totum.diagnostics.ReportSubmitter
 import com.dewijones92.totum.diagnostics.StateDumpSource
 import com.dewijones92.totum.diagnostics.UploaderHomeReports
+import com.dewijones92.totum.diagnostics.announceReport
+import com.dewijones92.totum.diagnostics.fate
 import com.dewijones92.totum.diagnostics.featureDiagnostics
 import com.dewijones92.totum.diagnostics.installAndroidLogSink
 import com.dewijones92.totum.diagnostics.installFlightRecorder
@@ -365,6 +369,8 @@ import com.dewijones92.totum.video.InnerTubePlayerStreams
 import com.dewijones92.totum.video.LiveStates
 import com.dewijones92.totum.video.LiveStreamManifest
 import com.dewijones92.totum.video.PlatformVideoCodecSupport
+import com.dewijones92.totum.video.PlayedByHandReporter
+import com.dewijones92.totum.video.PlayedStateRepair
 import com.dewijones92.totum.video.ProgressOutboxDrain
 import com.dewijones92.totum.video.ReadyAhead
 import com.dewijones92.totum.video.SignedInTvPlayer
@@ -542,7 +548,13 @@ interface AppContainer {
      * Captures the app's current state and event trail and sends it, with no crash
      * involved — for "this behaved wrongly", which is how most bugs actually present.
      */
-    fun sendDiagnostics(note: String, screenshots: List<EncodedScreenshot> = emptyList())
+    fun sendDiagnostics(
+        note: String,
+        screenshots: List<EncodedScreenshot> = emptyList(),
+        onDone: (ReportFate) -> Unit = {},
+    )
+
+    val reportSubmitter: ReportSubmitter
 
     val homeReports: HomeReports
 
@@ -836,8 +848,35 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     }
 
     private val accountProgressStore: AccountPlaybackProgressStore by lazy {
-        AccountPlaybackProgressStore(playbackProgressStore, accountResumePositions)
+        AccountPlaybackProgressStore(playbackProgressStore, accountResumePositions, playedByHand)
     }
+
+    private val playedByHand: PlayedByHandReporter by lazy {
+        PlayedByHandReporter(
+            outbox = accountProgressOutbox,
+            drain = progressOutboxDrain,
+            durationOf = { id ->
+                playbackProgressStore.durationMs(id) ?: accountResumePositions.knownDurationMs(id)
+            },
+            accountHolds = accountResumePositions::knows,
+            held = ::reportsHeld,
+        )
+    }
+
+    private val playedStateRepair: PlayedStateRepair by lazy {
+        PlayedStateRepair(
+            watched = accountResumePositions.watched,
+            states = { localPlayStatesNow.value },
+            outbox = accountProgressOutbox,
+            drain = progressOutboxDrain,
+            reconciled = reconciledAccountProgress,
+            scope = applicationScope,
+            held = ::reportsHeld,
+        )
+    }
+
+    private fun reportsHeld(): Boolean =
+        context.getSharedPreferences(TEST_HOLDS_PREFS, Context.MODE_PRIVATE).getBoolean(HOLD_YOUTUBE_REPORTS, false)
 
     override val progressByHand: PlaybackProgressStore get() = accountProgressStore
 
@@ -1546,6 +1585,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                 accountSync = { progressOutboxDrain.status.value to accountReportValues.pendingUpdates() },
                 reconciledAccountProgress = accountReportValues::actedOn,
                 stuckAccountUpdates = accountReportValues::stuckUpdates,
+                refusedAccountVideos = progressOutboxDrain::refusedVideos,
                 isMetered = networkStatus::isMetered,
                 exsurge = {
                     exsurge.diagnostics + ExsurgeLiveUpdate.diagnostics(context) + dailyAlarms.diagnostics +
@@ -1606,8 +1646,18 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
 
     override val homeReports: HomeReports by lazy { UploaderHomeReports(diagnosticsUploader, stateDumps) }
 
-    override fun sendDiagnostics(note: String, screenshots: List<EncodedScreenshot>) =
-        sendDiagnostics(crashReporter, diagnosticsUploader, note, screenshots)
+    override fun sendDiagnostics(note: String, screenshots: List<EncodedScreenshot>, onDone: (ReportFate) -> Unit) =
+        sendDiagnostics(crashReporter, diagnosticsUploader, note, screenshots, onDone)
+
+    override val reportSubmitter: ReportSubmitter by lazy {
+        ReportSubmitter(
+            scope = applicationScope,
+            send = this::sendDiagnostics,
+            operations = operations,
+            subject = context.getString(R.string.send_report_working),
+            announce = { fate -> announceReport(context, fate) },
+        )
+    }
 
     override fun startQueueAutoDownload() {
         followSkipRequests(this, context)
@@ -1943,9 +1993,13 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     }
 
     private val watchHistorySync: WatchHistorySync by lazy {
-        WatchHistorySync(playbackController, accountProgressOutbox, progressOutboxDrain, applicationScope, held = {
-            context.getSharedPreferences(TEST_HOLDS_PREFS, Context.MODE_PRIVATE).getBoolean(HOLD_YOUTUBE_REPORTS, false)
-        })
+        WatchHistorySync(
+            playbackController,
+            accountProgressOutbox,
+            progressOutboxDrain,
+            applicationScope,
+            held = ::reportsHeld,
+        )
     }
 
     /** Everything the account side of a report reads, kept in memory — see the class. */
@@ -1955,6 +2009,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
 
     override fun startWatchHistorySync() {
         watchHistorySync.start()
+        playedStateRepair.start()
         accountReportValues.start(applicationScope)
         // Whatever the last run could not send goes first; then again whenever the network comes
         // back, which is the moment offline listening can finally be reported. Sampled rather than
@@ -2442,13 +2497,17 @@ private fun sendDiagnostics(
     uploader: DiagnosticsUploader,
     note: String,
     screenshots: List<EncodedScreenshot>,
+    onDone: (ReportFate) -> Unit,
 ) {
-    reporter.reportDiagnostics(note, screenshots)
+    if (reporter.reportDiagnostics(note, screenshots) == null) {
+        Diag.warn("diagnostics", "dewidebug the report could not be written, so there is nothing to send")
+        return onDone(ReportFate.NotWritten)
+    }
     // `sendDiagnosticsNow`, not `uploadPending`: somebody tapped a button, so the EMULATOR
     // suppression does not apply — an emulator is where this app gets debugged, and a button
     // that silently did nothing while the UI said so would be worse than the noise it avoided.
     // A test run is still suppressed either way; the flood came through this exact path.
-    uploader.sendDiagnosticsNow()
+    uploader.sendDiagnosticsNow { outcome -> onDone(outcome.fate()) }
 }
 
 private const val TEST_HOLDS_PREFS = "totum_test_holds"

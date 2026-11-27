@@ -83,13 +83,7 @@ internal fun TargetNowPlayingBar(
                             text = stringResource(
                                 R.string.target_bar_line,
                                 state.target.chipLabel(state.power),
-                                stringResource(
-                                    when {
-                                        state.starting -> R.string.target_status_starting
-                                        state.playing -> R.string.target_status_playing
-                                        else -> R.string.target_status_paused
-                                    },
-                                ),
+                                stringResource(state.statusRes()),
                             ),
                             style = MaterialTheme.typography.labelLarge,
                             modifier = Modifier.padding(start = 6.dp).testTag(TARGET_BAR_DEVICE_TAG),

@@ -176,11 +176,19 @@ internal class SpeakerSource(
 ) : TargetSource {
     private val discovery = BluezSpeakers(shell)
 
+    private val linkDir: java.io.File =
+        System.getenv("TOTUM_BT_LINK_DIR")?.let { java.io.File(it) } ?: java.io.File(dir.parentFile ?: dir, "bt-link")
+
     override suspend fun find(fresh: Boolean): List<FoundTarget> = discovery.find().map { found ->
         FoundTarget(found.speaker) {
             val byHand = found.speaker.id in switchedOnByHand || found.speaker.label.lowercase() in switchedOnByHand
             val window = keepAwake.windowFor(found.speaker.id, found.speaker.label)
-            val player = MpvPlayer(found.speaker.id, dir, locally = locally)
+            val player = MpvPlayer(
+                found.speaker.id,
+                dir,
+                locally = locally,
+                link = HostFileLinkProbe(java.io.File(linkDir, found.mac.uppercase().replace(':', '_') + ".txt")),
+            )
             val link = BluezLink(found.mac, shell, switchedOnByHand = byHand, keepAwake = window != null)
             TargetKit(
                 player,

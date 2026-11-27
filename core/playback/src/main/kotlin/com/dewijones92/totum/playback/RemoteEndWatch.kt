@@ -14,8 +14,10 @@ internal class RemoteEndWatch(private val clock: () -> Long) {
     )
 
     private var seen: Seen? = null
+    private var casting = false
 
     fun observe(id: String, positionMs: Long, durationMs: Long?, playing: Boolean) {
+        casting = true
         val last = seen
         seen = when {
             durationMs != null -> Seen(id, positionMs, durationMs, playing, clock())
@@ -25,6 +27,7 @@ internal class RemoteEndWatch(private val clock: () -> Long) {
     }
 
     fun refresh(positionMs: Long, durationMs: Long?, playing: Boolean) {
+        casting = true
         seen = seen?.copy(
             positionMs = positionMs,
             durationMs = durationMs ?: seen?.durationMs ?: 0L,
@@ -35,11 +38,17 @@ internal class RemoteEndWatch(private val clock: () -> Long) {
 
     fun forget() {
         seen = null
+        casting = false
     }
 
     fun finishedOnTv(from: String, to: String?): Boolean? {
         val last = seen?.takeIf { it.id == from } ?: run {
-            Diag.log("cast", "$from -> $to on the TV: Totum never saw $from play there, so it cannot say how it ended")
+            if (casting) {
+                Diag.log(
+                    "cast",
+                    "$from -> $to on the TV: Totum never saw $from play there, so it cannot say how it ended",
+                )
+            }
             return null
         }
         val reached = reachedBy(last)

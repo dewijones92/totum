@@ -184,6 +184,12 @@ put it beside them. [ADR 167](../adr/0167-discover-a-bolder-radio-that-walks-the
   `DiscoverTasteSourceTest`, `PinMenuTest`, `PinsTest`; `DiscoverButtonTest` (instrumented: the button beside
   Radio on the song menu, the artist page and the album page).
 
+### Discover, 2026-11-27 ([ADR 167](../adr/0167-discover-a-bolder-radio-that-walks-the-related-artist-graph.md), amended)
+
+Heard neighbours are read as a way through to hop two (three pages at most, no song offered from them); a seed that lists
+nobody tries the other artists credited on the song, then the song's own radio; a dry step says why in the 📭 toast.
+Tests: `DiscoverWalkTest`, `MusicDiscoverTest`.
+
 ## Only the live radio is called endless (2026-11-27)
 
 Report 20261124T202834: a leftover Christmas radio block played "♾️ Endless radio · Michael Bublé" after Discover

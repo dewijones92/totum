@@ -3,10 +3,38 @@ title: Two-way progress sync with YouTube
 kind: feature
 status: both halves shipped; the app's plays reached YouTube as fully watched until 2026-10-23, fixed
 area: video
-updated: 2026-11-20
+updated: 2026-11-27
 ---
 
 # Two-way progress sync with YouTube
+
+> 🔧 **Totum's played state is pushed to the account and repaired there, 2026-11-27 ([ADR 193](../adr/0193-totums-played-state-is-pushed-to-and-repaired-on-the-account.md)).**
+> Dewi: *"I don't like any inconsistencies … play status, progress, finished should match YouTube on the web."*
+> Three reports (22, 23 and 27 Nov, v0.1.944) showed videos Played in Totum after listens of 9 to 26 minutes
+> while the account read the 10% floor. On the normal path the final ping works (25 of 28 natural ends read 100%
+> within 1 to 5 minutes), so these are a minority class with an **unproven cause**: the evidence had been evicted
+> from the report buffer. What changed:
+> - **Evidence kept.** `yt-sync-item` is a kept tag. Each final ping writes `yt-sync-item <id>: pings=N lastCmt=…
+>   final=sent|failed session=fresh|reused ageMs=… httpLast=<status>`, an item left without one says `final=none`, and
+>   every account read writes `readback: the account lists N video(s); Totum holds M of them Played, X read 100% and
+>   Y read less (id=pct%)`. `ping()` keeps the HTTP status.
+> - **Repair.** When an account read (the five-minute history read, or the `account-progress` of a group or channel
+>   page) shows an item Totum holds Played below 100%, or in progress and ahead of the account, its final or position
+>   is re-sent **once** through the outbox (`PlayedStateRepair`, `accountRepairFor`). It acts only while the account
+>   has not moved since Totum last acted on it, so a newer position from another device still wins.
+> - **Hand marks reach the account.** `setPlayed(true)` on a YouTube item (menu, bulk select, group mark played,
+>   start again) enqueues a final; `setPlayed(false)` pings 0 when the account holds a position for it (YouTube's
+>   history cannot read below 10%, so a reset can still read as started there). Backup restore is repaired on the
+>   next read rather than pinged item by item.
+> - **A second completion is reported** (`WatchHistorySync.finishedVideoId` is cleared when another video becomes
+>   current or the item is no longer at its end).
+> - **A permanent refusal ends.** A video YouTube refuses tracking for as claimed content, copyright or private
+>   (and `ERROR`, age check, offline live) is dropped from the outbox after 3 refusals, with one kept line and
+>   `yt-sync.refused` in the state block, instead of `gKo4mgMgOMw×6091`. No tracking in a normal answer is still never
+>   dropped.
+> Tests: `AccountRepairTest`, `PlayedStateRepairTest`, `PlayedByHandReporterTest` (through `AccountPlaybackProgressStore`),
+> `SegmentSkipDeciderTest`, `WatchHistorySyncTest` (+3), `ProgressOutboxDrainTest` (+5), `HttpYouTubeWatchHistoryTest`
+> (+6), `PlaybackTrackingParserTest` (+2).
 
 > 🐛 **The app's plays reached YouTube as fully watched. Fixed 2026-10-23.** Dewi asked whether a video
 > half-watched in the browser shows in the app and the other way round. Tested against his signed-in

@@ -228,4 +228,54 @@ class GroupNewsTest {
         picky.check(listOf(group))
         assertEquals(listOf("fresh"), notified)
     }
+
+    @Test
+    fun `a video published seconds before the group was opened is still announced by the next check, once`() = runTest {
+        news.check(listOf(group))
+        now = Instant.parse("2026-10-29T15:00:00Z")
+        news.check(listOf(group))
+        upload("fresh", "2026-10-29T15:00:27Z")
+        now = Instant.parse("2026-10-29T15:01:14Z")
+        news.opened(group.id)
+        now = Instant.parse("2026-10-29T15:55:14Z")
+
+        news.check(listOf(group))
+        news.check(listOf(group))
+
+        assertEquals(listOf("fresh"), notified)
+        assertEquals("opening it was the look, so the badge stays cleared", 0, news.newCount(group.id))
+    }
+
+    @Test
+    fun `what was announced is never announced again, whoever opens the group`() = runTest {
+        news.check(listOf(group))
+        upload("fresh", "2026-10-29T15:00:00Z")
+        now = Instant.parse("2026-10-29T16:00:00Z")
+        news.check(listOf(group))
+        news.opened(group.id)
+        now = Instant.parse("2026-10-29T17:00:00Z")
+        news.check(listOf(group))
+
+        assertEquals(listOf("fresh"), notified)
+    }
+
+    @Test
+    fun `a video older than two days when first seen is counted, not announced, and the check says why`() = runTest {
+        news.check(listOf(group))
+        upload("stale", "2026-10-29T13:00:00Z")
+        now = Instant.parse("2026-11-02T12:00:00Z")
+        val lines = mutableListOf<String>()
+        val previous = com.dewijones92.totum.common.Diag.sink
+        com.dewijones92.totum.common.Diag.sink =
+            com.dewijones92.totum.common.Diag.Sink { _, tag, message, _ -> if (tag == "group") lines += message }
+        try {
+            news.check(listOf(group))
+        } finally {
+            com.dewijones92.totum.common.Diag.sink = previous
+        }
+
+        assertEquals(emptyList<String>(), notified)
+        val said = lines.single { "not announced" in it }
+        assertEquals(said, true, "1 not announced" in said && "older than 48 h" in said)
+    }
 }

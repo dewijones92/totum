@@ -1,5 +1,6 @@
 package com.dewijones92.totum.innertube.history
 
+import com.dewijones92.totum.common.Breadcrumbs
 import com.dewijones92.totum.innertube.auth.AccessToken
 import com.dewijones92.totum.innertube.auth.OAuthTokens
 import com.dewijones92.totum.innertube.auth.RefreshToken
@@ -213,6 +214,109 @@ class HttpYouTubeWatchHistoryTest {
         history.reportProgress("vid1", 595f, 600f, finished = true)
         assertTrue(server.takeRequest().target.contains("final=1")) // playback
         assertTrue(server.takeRequest().target.contains("cmt=600")) // watchtime at full length
+    }
+
+    @Test
+    fun `a rewind to the very start is sent, not swallowed as nothing watched`() = runBlocking {
+        enqueuePlayer()
+        repeat(4) { ok() }
+        val history = history()
+        history.beginSession("vid1")
+        server.takeRequest()
+        history.reportProgress("vid1", 30f, 600f, finished = false)
+        repeat(2) { server.takeRequest() }
+        val sent = server.requestCount
+
+        val result = history.reportProgress("vid1", 0f, 600f, finished = false)
+
+        assertEquals(WatchHistoryResult.Success, result)
+        assertEquals("a ping must go out", sent + 1, server.requestCount)
+        val reset = server.takeRequest().target
+        assertTrue(reset, reset.contains("/api/stats/watchtime") && reset.contains("cmt=0.0"))
+    }
+
+    @Test
+    fun `a forward step too small to matter is still not sent`() = runBlocking {
+        enqueuePlayer()
+        repeat(2) { ok() }
+        val history = history()
+        history.beginSession("vid1")
+        server.takeRequest()
+        history.reportProgress("vid1", 30f, 600f, finished = false)
+        repeat(2) { server.takeRequest() }
+        val sent = server.requestCount
+
+        history.reportProgress("vid1", 30.5f, 600f, finished = false)
+
+        assertEquals(sent, server.requestCount)
+    }
+
+    @Test
+    fun `a final ping leaves one kept line saying how the item ended on the wire`() = runBlocking {
+        Breadcrumbs.clear()
+        enqueuePlayer()
+        ok()
+        ok()
+        val history = history()
+        history.beginSession("vid1")
+        server.takeRequest()
+
+        history.reportProgress("vid1", 595f, 600f, finished = true)
+
+        val line = Breadcrumbs.snapshot().single { it.tag == "yt-sync-item" }.message
+        assertTrue(line, line.startsWith("vid1:"))
+        assertTrue(line, line.contains("pings=2"))
+        assertTrue(line, line.contains("lastCmt=600"))
+        assertTrue(line, line.contains("final=sent"))
+        assertTrue(line, line.contains("session=fresh"))
+        assertTrue(line, line.contains("httpLast=204"))
+        assertTrue(line, line.contains("ageMs="))
+    }
+
+    @Test
+    fun `a final ping on a session already used says reused`() = runBlocking {
+        Breadcrumbs.clear()
+        enqueuePlayer()
+        repeat(3) { ok() }
+        val history = history()
+        history.beginSession("vid1")
+        history.reportProgress("vid1", 30f, 600f, finished = false)
+        history.beginSession("vid1")
+
+        history.reportProgress("vid1", 600f, 600f, finished = true)
+
+        val line = Breadcrumbs.snapshot().single { it.tag == "yt-sync-item" }.message
+        assertTrue(line, line.contains("session=reused"))
+    }
+
+    @Test
+    fun `a final ping YouTube answers with an error says failed and the status`() = runBlocking {
+        Breadcrumbs.clear()
+        enqueuePlayer()
+        ok()
+        server.enqueue(MockResponse.Builder().code(503).build())
+        val history = history()
+        history.beginSession("vid1")
+
+        val result = history.reportProgress("vid1", 600f, 600f, finished = true)
+
+        assertEquals(WatchHistoryResult.Failure("HTTP 503"), result)
+        val line = Breadcrumbs.snapshot().single { it.tag == "yt-sync-item" }.message
+        assertTrue(line, line.contains("final=failed"))
+        assertTrue(line, line.contains("httpLast=503"))
+    }
+
+    @Test
+    fun `a video blocked for claimed content is refused for good, not retried as a sender fault`() = runBlocking {
+        val reason = "It was blocked due to the claimed content by Acme."
+        server.enqueue(
+            MockResponse.Builder().code(200)
+                .body("""{"playabilityStatus":{"status":"UNPLAYABLE","reason":"$reason"}}""").build(),
+        )
+
+        val result = history().beginSession("vid1")
+
+        assertEquals(SessionResult.Refused("UNPLAYABLE: It was blocked due to the claimed content by Acme."), result)
     }
 
     @Test

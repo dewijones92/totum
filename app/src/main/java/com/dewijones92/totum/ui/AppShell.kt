@@ -54,6 +54,7 @@ import com.dewijones92.totum.ui.common.ProvidePlayStates
 import com.dewijones92.totum.ui.common.RequestNotificationPermissionOnce
 import com.dewijones92.totum.ui.common.ShellBanners
 import com.dewijones92.totum.ui.common.SteadyPlayback
+import com.dewijones92.totum.ui.common.rememberFacedFrom
 import com.dewijones92.totum.ui.common.rememberSnackbarOffers
 import com.dewijones92.totum.ui.library.LibraryScreen
 import com.dewijones92.totum.ui.motion.sharedXAxis
@@ -68,10 +69,11 @@ import com.dewijones92.totum.ui.player.WatchViewModel
 import com.dewijones92.totum.ui.player.playerLinksFor
 import com.dewijones92.totum.ui.player.rememberWatchActions
 import com.dewijones92.totum.ui.podcasts.PodcastsScreen
+import com.dewijones92.totum.ui.queue.DockShown
 import com.dewijones92.totum.ui.queue.GroupDownloadAsk
 import com.dewijones92.totum.ui.queue.QueueScreen
 import com.dewijones92.totum.ui.queue.TargetNowPlayingBar
-import com.dewijones92.totum.ui.queue.rememberSelectedRemote
+import com.dewijones92.totum.ui.queue.rememberDockShown
 import com.dewijones92.totum.ui.settings.DriveBackupPrompt
 import com.dewijones92.totum.ui.shorts.ShortsReelScreen
 import com.dewijones92.totum.ui.videos.VideosScreen
@@ -287,10 +289,13 @@ private fun BottomBar(
         mapOf(TopLevelDestination.Library to fresh, TopLevelDestination.Podcasts to newEpisodes),
         selected,
     )
-    val remote = rememberSelectedRemote(container.targets)
+    val dock = rememberDockShown(container.targets, onQueueTab = selected == TopLevelDestination.Queue)
+    val remote = (dock as? DockShown.Remote)?.remote
+    val row by container.playbackQueue.nowPlaying.collectAsStateWithLifecycle()
     SteadyPlayback(
         container.playbackController
-    ) { state ->
+    ) { session ->
+        val state = rememberFacedFrom(session, row?.item, "mini player")
         DockFor(
             state,
             starting,
@@ -312,6 +317,7 @@ private fun BottomBar(
                     )
                 }
             },
+            showPlayer = dock != DockShown.Hidden,
         )
     }
 }
@@ -328,6 +334,7 @@ private fun DockFor(
     onSkipNext: () -> Unit,
     badges: Map<TopLevelDestination, Int>,
     remoteBar: (@Composable () -> Unit)?,
+    showPlayer: Boolean,
 ) {
     Dock(
         state = state,
@@ -344,6 +351,7 @@ private fun DockFor(
         onSkipNext = onSkipNext,
         badges = badges,
         remoteBar = remoteBar,
+        showPlayer = showPlayer,
     )
 }
 
@@ -355,8 +363,10 @@ private fun FullPlayerHost(
     watchViewModel: WatchViewModel,
     onDismiss: () -> Unit,
 ) {
-    SteadyPlayback(controller) { current ->
-        current?.let { FullPlayerFor(it, controller, container, watchViewModel, onDismiss) }
+    val row by container.playbackQueue.nowPlaying.collectAsStateWithLifecycle()
+    SteadyPlayback(controller) { session ->
+        rememberFacedFrom(session, row?.item, "full player")
+            ?.let { FullPlayerFor(it, controller, container, watchViewModel, onDismiss) }
     }
 }
 

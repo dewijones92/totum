@@ -49,6 +49,40 @@ class PublishedAgeTest {
     }
 
     @Test
+    fun `a date with no time of day is Today, Yesterday or whole days and more, never hours`() {
+        val morning = Instant.parse("2026-11-25T06:03:00Z")
+        val utc = java.time.ZoneOffset.UTC
+        val lastNight = PublishedAge.ofDay(java.time.LocalDate.of(2026, 11, 24))
+
+        assertEquals("Yesterday", PublishedAge.text(lastNight, morning, utc))
+        assertEquals("Today", PublishedAge.text(PublishedAge.ofDay(java.time.LocalDate.of(2026, 11, 25)), morning, utc))
+        val earlier = PublishedAge.ofDay(java.time.LocalDate.of(2026, 11, 20))
+        val lastQuarter = PublishedAge.ofDay(java.time.LocalDate.of(2026, 8, 25))
+        val lastYear = PublishedAge.ofDay(java.time.LocalDate.of(2025, 11, 20))
+        assertEquals("5 days ago", PublishedAge.text(earlier, morning, utc))
+        assertEquals("3 months ago", PublishedAge.text(lastQuarter, morning, utc))
+        assertEquals("1 year ago", PublishedAge.text(lastYear, morning, utc))
+    }
+
+    @Test
+    fun `a day-only date is judged against the viewer's own day, not UTC`() {
+        val justAfterMidnightInWales = Instant.parse("2026-11-25T00:30:00Z")
+        val cardiff = java.time.ZoneId.of("Europe/London")
+        val tokyo = java.time.ZoneId.of("Asia/Tokyo")
+        val day = PublishedAge.ofDay(java.time.LocalDate.of(2026, 11, 25))
+
+        assertEquals("Today", PublishedAge.text(day, justAfterMidnightInWales, cardiff))
+        assertEquals("Today", PublishedAge.text(day, justAfterMidnightInWales, tokyo))
+    }
+
+    @Test
+    fun `an exact time is still in hours, even one near noon`() {
+        val at = Instant.parse("2026-11-25T11:59:59Z")
+        val later = Instant.parse("2026-11-25T14:00:00Z")
+        assertEquals("2 hours ago", PublishedAge.text(at, later, java.time.ZoneOffset.UTC))
+    }
+
+    @Test
     fun `the label grows as time passes — the whole point`() {
         val at = PublishedAge.parse("2 hours ago", now)!!
         assertEquals("2 hours ago", PublishedAge.text(at, now))

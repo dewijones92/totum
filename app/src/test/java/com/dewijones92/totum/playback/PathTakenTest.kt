@@ -82,6 +82,33 @@ class PathTakenTest {
     }
 
     @Test
+    fun `a play or pause request after the play does not hide its route`() {
+        val trail = trailOf(
+            "playback" to play("uSMGENDH_QI", "a direct url"),
+            "playback" to "play or pause asked by the app at 3631421ms (playWhenReady before it: false)",
+            "playback" to "play or pause asked by the notification or lock screen at 1198083ms " +
+                "(playWhenReady before it: true)",
+        )
+
+        assertEquals("a direct url", pathTakenFrom(trail))
+    }
+
+    @Test
+    fun `the route is the playing item's own, not the last item that was started`() {
+        val trail = trailOf(
+            "playback" to play("first", "a local file"),
+            "playback" to play("second", "sabr"),
+        )
+
+        assertEquals("a local file", pathTakenFrom(trail, "first"))
+        assertEquals("sabr", pathTakenFrom(trail, "second"))
+        assertEquals(
+            "unknown — the trail has no play line for third (it crossed over gaplessly or scrolled out)",
+            pathTakenFrom(trail, "third"),
+        )
+    }
+
+    @Test
     fun `nothing played is said plainly rather than guessed`() {
         assertEquals(
             "unknown — nothing recorded a played URL",
