@@ -233,6 +233,12 @@ internal enum class SettingsRow(
         R.string.settings_send_reports_home_summary,
         "report crash pi home server github automatic",
     ),
+    REPORT_GESTURE(
+        R.string.settings_report_gesture,
+        R.string.settings_diagnostics_section,
+        R.string.settings_report_gesture_summary,
+        "report bug feedback screenshot corner hold top right long press overlay",
+    ),
     SEND_STATE(
         R.string.settings_send_state,
         R.string.settings_diagnostics_section,

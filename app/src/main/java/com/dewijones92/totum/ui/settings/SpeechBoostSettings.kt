@@ -1,6 +1,5 @@
 package com.dewijones92.totum.ui.settings
 
-import android.widget.Toast
 import androidx.annotation.StringRes
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
@@ -20,7 +19,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -29,9 +27,6 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.diagnostics.diagnosticsNote
 import com.dewijones92.totum.playback.SpeechGate
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 @Composable
 internal fun SpeechBoostSection(container: AppContainer, gate: SpeechGate, onGate: (SpeechGate) -> Unit) {
@@ -82,10 +77,8 @@ private fun GateRow(gate: SpeechGate, selected: Boolean, onSelect: () -> Unit, o
 
 @Composable
 private fun FeedbackDialog(container: AppContainer, gate: SpeechGate, onDone: () -> Unit) {
-    val context = LocalContext.current
     var typed by rememberSaveable { mutableStateOf("") }
     val name = stringResource(gate.labelRes())
-    val sent = stringResource(R.string.speech_boost_feedback_sent)
     AlertDialog(
         onDismissRequest = onDone,
         title = { Text(stringResource(R.string.speech_boost_feedback_title, name)) },
@@ -102,10 +95,7 @@ private fun FeedbackDialog(container: AppContainer, gate: SpeechGate, onDone: ()
                 val note = diagnosticsNote("💬 Feedback on the speech boost \"$name\" (${gate.name}): $typed", name)
                 Diag.log("boost", "feedback on speech gate ${gate.name} sent (${typed.length} chars)")
                 onDone()
-                container.applicationScope.launch {
-                    withContext(Dispatchers.IO) { container.sendDiagnostics(note) }
-                    Toast.makeText(context, sent, Toast.LENGTH_SHORT).show()
-                }
+                container.reportSubmitter.submit(note, emptyList(), "speech boost feedback")
             }) { Text(stringResource(R.string.speech_boost_feedback_send)) }
         },
         dismissButton = { TextButton(onClick = onDone) { Text(stringResource(R.string.cancel)) } },
