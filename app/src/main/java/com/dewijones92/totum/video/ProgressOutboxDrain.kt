@@ -37,7 +37,9 @@ internal sealed interface OutboundSyncStatus {
  * is typically the one carrying the newest position — up to [MAX_PASSES_PER_DRAIN] of them, after
  * which the work waits for the next kick rather than chaining passes back to back.
  *
- * **No row is ever dropped, and no row may starve another.** Report 0.1.496: three videos YouTube
+ * **No row is ever dropped for failing, and no row may starve another.** (The one exception is a
+ * refusal YouTube means for good, ended after [GIVE_UP_REFUSED_AFTER] of them: ADR 193.)
+ * Report 0.1.496: three videos YouTube
  * would give no tracking for sat at the head of the queue, one video's verdict stopped the whole
  * pass, and the same three ids were asked thirty-seven times in one session while 120 sendable
  * updates behind them never got a turn — which is also why the account's figure for those videos
@@ -59,6 +61,18 @@ internal class ProgressOutboxDrain(
     fun kick() {
         scope.launch { drain() }
     }
+
+    private val refusals = HashMap<String, Int>()
+    private val refused = LinkedHashMap<String, String>()
+
+    @Synchronized
+    private fun wasRefused(videoId: String): Boolean = refusals.containsKey(videoId)
+
+    @Synchronized
+    fun refusalFor(videoId: String): String? = refused[videoId]
+
+    @Synchronized
+    fun refusedVideos(): String = refused.entries.joinToString(" | ") { (id, said) -> "$id ($said)" }
 
     suspend fun drain() {
         if (!running.tryLock()) {
@@ -91,7 +105,7 @@ internal class ProgressOutboxDrain(
         // it for every row and advance the counter each time, so the cutoff would flip mid-filter
         // and the one-pass-in-ten would be a one-row-in-ten of an arbitrary ten.
         val cutoff = stubbornCutoff()
-        val eligible = pending.filter { it.attempts < cutoff }.take(MAX_ROWS_PER_PASS)
+        val eligible = pending.filter { it.attempts < cutoff || wasRefused(it.itemId.value) }.take(MAX_ROWS_PER_PASS)
         // A pass that attempts nothing has LEARNED nothing, and must not say anything about the
         // sender. Once every row is stubborn this is nine passes in ten, and reporting them would
         // put `outbound sync working — sent 0, 123 held` in the trail every few minutes while not
@@ -128,6 +142,7 @@ internal class ProgressOutboxDrain(
     private suspend fun handle(row: PendingAccountProgress, tally: Tally) {
         when (val result = send(row)) {
             WatchHistoryResult.Success -> {
+                synchronized(this) { refusals.remove(row.itemId.value) }
                 outbox.sent(row.itemId, row.recordedAtEpochMs)
                 tally.sent++
             }
@@ -136,6 +151,7 @@ internal class ProgressOutboxDrain(
             // give. Carry on down the queue — reading a single video's verdict as the sender's is
             // what left 123 updates stranded behind three of them, every pass, for ever.
             WatchHistoryResult.NotTrackable -> failed(row, tally, reason = null)
+            is WatchHistoryResult.Refused -> refusedForGood(row, tally, result.said)
             WatchHistoryResult.NoSession, is WatchHistoryResult.Failure -> failed(
                 row,
                 tally,
@@ -143,6 +159,26 @@ internal class ProgressOutboxDrain(
                     ?: "YouTube gave this app no tracking session",
             )
         }
+    }
+
+    private suspend fun refusedForGood(row: PendingAccountProgress, tally: Tally, said: String) {
+        val id = row.itemId.value
+        val refusalsSoFar = synchronized(this) {
+            ((refusals[id] ?: 0) + 1).also { refusals[id] = it }
+        }
+        if (refusalsSoFar < GIVE_UP_REFUSED_AFTER) {
+            failed(row, tally, reason = null)
+            return
+        }
+        outbox.sent(row.itemId, row.recordedAtEpochMs)
+        synchronized(this) { refused[id] = said }
+        tally.untrackable++
+        Diag.warn(
+            "yt-sync-item",
+            "dewidebug $id refused by YouTube for good ($said): stopped after $refusalsSoFar refusal(s), " +
+                "its update is dropped and nothing more is sent for it until the app restarts " +
+                "[pending=${row.positionMs}ms finished=${row.finished} attempts=${row.attempts}]",
+        )
     }
 
     /**
@@ -206,6 +242,7 @@ internal class ProgressOutboxDrain(
         when (val opened = history.beginSession(id)) {
             SessionResult.Opened -> Unit
             SessionResult.NotTrackable -> return WatchHistoryResult.NotTrackable
+            is SessionResult.Refused -> return WatchHistoryResult.Refused(opened.said)
             is SessionResult.Unavailable -> return WatchHistoryResult.Failure(opened.reason)
         }
         return history.reportProgress(
@@ -258,6 +295,8 @@ internal class ProgressOutboxDrain(
     companion object {
         private const val MILLIS_PER_SEC = 1000f
         const val MAX_FAILURES_PER_PASS = 3
+
+        const val GIVE_UP_REFUSED_AFTER = 3
 
         /**
          * Rows attempted in one pass. Sized so the burst stays in the tens of requests rather

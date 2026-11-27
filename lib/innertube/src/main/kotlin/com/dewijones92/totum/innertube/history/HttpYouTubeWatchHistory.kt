@@ -44,13 +44,18 @@ public class HttpYouTubeWatchHistory(
     private val signatureTimestamps: SignatureTimestampSource,
     private val newNonce: () -> String = ::randomClientPlaybackNonce,
     private val statsHost: String? = STATS_HOST,
+    private val now: () -> Long = System::currentTimeMillis,
 ) : YouTubeWatchHistory {
 
     private class Session(
+        val videoId: String,
         val tracking: PlaybackTracking,
         val cpn: String,
+        val createdAtMs: Long,
         var recordCreated: Boolean = false,
         var reportedSec: Float? = null,
+        var pings: Int = 0,
+        var lastHttp: Int? = null,
     )
 
     /**
@@ -107,7 +112,7 @@ public class HttpYouTubeWatchHistory(
         return when (val found = fetchTracking(videoId)) {
             is Tracking.None -> found.why
             is Tracking.Found -> {
-                sessions[videoId] = Session(found.tracking, newNonce())
+                sessions[videoId] = Session(videoId, found.tracking, newNonce(), now())
                 Diag.log("yt-sync", "$videoId tracking acquired for the account")
                 SessionResult.Opened
             }
@@ -155,7 +160,7 @@ public class HttpYouTubeWatchHistory(
             }
             is Refusal.ThisVideo -> {
                 Diag.warn("yt-sync", "$videoId: ${refusal.said} — this one video, and only it, won't sync")
-                Tracking.None(SessionResult.NotTrackable)
+                Tracking.None(SessionResult.Refused(refusal.said))
             }
             is Refusal.MaybeUsAll -> {
                 Diag.warn("yt-sync", "$videoId refused: ${refusal.said} — that may be this client, not the video")
@@ -185,24 +190,47 @@ public class HttpYouTubeWatchHistory(
         finished: Boolean,
         token: AccessToken,
     ): WatchHistoryResult {
+        val pingsBefore = session.pings
+        val result = send(session, positionSec, lengthSec, finished, token)
+        if (finished) {
+            Diag.log(
+                "yt-sync-item",
+                "${session.videoId}: pings=${session.pings} lastCmt=$lengthSec " +
+                    "final=${if (result == WatchHistoryResult.Success) "sent" else "failed ($result)"} " +
+                    "session=${if (pingsBefore == 0) "fresh" else "reused"} " +
+                    "ageMs=${now() - session.createdAtMs} httpLast=${session.lastHttp ?: "none"}",
+            )
+        }
+        return result
+    }
+
+    private suspend fun send(
+        session: Session,
+        positionSec: Float,
+        lengthSec: Float,
+        finished: Boolean,
+        token: AccessToken,
+    ): WatchHistoryResult {
         val position = if (finished) lengthSec else positionSec
         val common = "&ver=2&cpn=${session.cpn}&cmt=$position" + if (finished) "&final=1" else ""
 
         // Open the record before watch-time updates land (SmartTube does the same).
         val playbackUrl = session.tracking.playbackUrl
         if (!session.recordCreated && playbackUrl != null) {
-            val opened = ping(asAWatchPagePlay(playbackUrl, statsHost) + common, token)
+            val opened = ping(session, asAWatchPagePlay(playbackUrl, statsHost) + common, token)
             if (opened != WatchHistoryResult.Success) return opened
             session.recordCreated = true
         }
         if (session.reportedSec == null) logTheTrackingUrl(session)
         val from = spanStart(session.reportedSec, position)
-        if (session.reportedSec != null && position - from < MIN_SPAN_SEC && !finished) {
+        val forwardAndTiny = session.reportedSec?.let { position >= it && position - from < MIN_SPAN_SEC } == true
+        if (forwardAndTiny && !finished) {
             session.reportedSec = position
             Diag.log("yt-sync", "watchtime from ${position}s not sent: nothing watched since the last report")
             return WatchHistoryResult.Success
         }
         val result = ping(
+            session,
             asAWatchPagePlay(session.tracking.watchtimeUrl, statsHost) + common + "&st=$from&et=$position",
             token
         )
@@ -230,8 +258,9 @@ public class HttpYouTubeWatchHistory(
         )
     }
 
-    private suspend fun ping(url: String, token: AccessToken): WatchHistoryResult =
+    private suspend fun ping(session: Session, url: String, token: AccessToken): WatchHistoryResult =
         withContext(Dispatchers.IO) {
+            session.pings++
             val request = Request.Builder()
                 .url(url)
                 .addHeader("Authorization", "Bearer ${token.value}")
@@ -240,6 +269,7 @@ public class HttpYouTubeWatchHistory(
                 .build()
             try {
                 client.newCall(request).execute().use { response ->
+                    session.lastHttp = response.code
                     when {
                         response.isSuccessful -> WatchHistoryResult.Success
                         response.code == HTTP_UNAUTHORIZED || response.code == HTTP_FORBIDDEN ->
@@ -248,6 +278,7 @@ public class HttpYouTubeWatchHistory(
                     }
                 }
             } catch (e: IOException) {
+                session.lastHttp = null
                 WatchHistoryResult.Failure(e.message ?: "network error")
             }
         }
