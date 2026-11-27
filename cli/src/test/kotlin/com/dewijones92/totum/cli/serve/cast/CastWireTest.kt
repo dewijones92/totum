@@ -126,4 +126,18 @@ class CastWireTest {
             casts.map { Triple(it.name, it.host, it.mac) },
         )
     }
+
+    @Test
+    fun `the helper's caption tracks are read back, and a caption choice is one line`() {
+        assertEquals(
+            CastEvent.Tracks(listOf(CastTrack(1, "en", "English"), CastTrack(2, null, null)), listOf(1)),
+            CastWire.parse(
+                """{"event":"tracks","contentId":"x","tracks":[{"id":1,"language":"en","name":"English"},""" +
+                    """{"id":2,"language":null,"name":null},{"language":"fr"}],"active":[1]}"""
+            ),
+        )
+        assertEquals(CastEvent.Tracks(emptyList(), emptyList()), CastWire.parse("""{"event":"tracks"}"""))
+        assertEquals("""{"cmd":"captions","trackId":3}""", CastWire.captions(3))
+        assertEquals("""{"cmd":"captions","trackId":null}""", CastWire.captions(null))
+    }
 }

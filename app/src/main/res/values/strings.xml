@@ -1499,7 +1499,7 @@
     <string name="target_row_playing">▶️ Playing now</string>
     <string name="target_loops">🔂 Loops</string>
     <string name="target_added_by">➕ Added by %1$s</string>
-    <string name="target_sound_picture_note">🎬 Skip silences and boost only work on sound for now; %1$s is showing a picture, so it plays as it comes.</string>
+    <string name="target_sound_picture_note">🎬 Skip silences only works on sound for now; %1$s is showing a picture, so its sound is boosted but never cut.</string>
     <string name="target_keep_awake_kept">🟢 Kept awake, %1$s stays connected</string>
     <string name="target_keep_awake_reconnecting">⏳ Keeping %1$s awake, reconnecting…</string>
     <string name="target_keep_awake_outside">💤 %1$s is not being kept awake just now (outside its hours)</string>
@@ -1508,7 +1508,8 @@
     <string name="target_colour_swatch">Colour %1$d</string>
     <string name="target_colour_long_press">Change colour</string>
     <string name="target_controls">⚙️ Controls</string>
-    <string name="target_controls_hint">Repeat, sleep, silences, boost, colour</string>
+    <string name="target_controls_hint">Repeat, sleep, silences, boost, captions, colour</string>
+    <string name="target_captions_short">Captions</string>
     <string name="target_queue_heading">📋 Up next on %1$s · %2$d</string>
     <string name="target_heading_with_link">%1$s · %2$s</string>
     <string name="target_link_linked">🟢 Linked</string>

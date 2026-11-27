@@ -3,7 +3,7 @@ title: Casting
 kind: feature
 area: playback
 status: built — in use with the LG and the Chromecast Ultra (fixed from Dewi's diagnostics of 7 to 11 November, ADR 164); the TV volume, the read-ahead, the 12 s step-down, SubRip on the LG and the Pi's casting are not yet seen on a real TV
-updated: 2026-11-20
+updated: 2026-11-27
 ---
 
 # Casting
@@ -262,4 +262,23 @@ of a downloaded file offers them; `EmbeddedSubtitleWarmer` prepares every downlo
   logs "the tail is not coming" for the TV's buffer.
 - **Needs a real TV:** the read-ahead on a throttled link, the 12 s step-down, the SubRip captions on the LG, and the seek
   bar in Edge against a real phone.
+
+## A relay that never waits on a locked cache span (2026-11-27, [ADR 186](../adr/0186-one-fetch-per-item-a-playing-stream-is-its-own-download.md) amended)
+
+Reports 20261123T123853, 124440 and 171635 (0.1.944): a phone-direct cast hung for 28 to 90 s on a deep range at the resume position and the TV
+gave up (`receiver error 321`). The relay read upstream through the playback cache's blocking data source (added with the tee on 20 November), which waits
+without a timeout on a span another reader holds. The relay now has a data source of its own that reads around a locked span, and a 6 s
+budget on the open as a second line of defence. Each open logs its wait, split into the cache's and upstream's first byte, and
+anything over 3 s is a warning (`dewidebug relay open #N …`). Who holds a locked span cannot be known (the cache does not say). Tests:
+`ARelayReadWaitsForNoLockedSpanTest` (instrumented), `BudgetedOpenTest`. Not seen on a real TV: whether the resume-position cast now starts.
+
+## A crossover with nothing casting is quiet (2026-11-27, [ADR 164](../adr/0164-casting-fixes-from-the-diagnostics-of-7-to-11-november.md) amended)
+
+`RemoteEndWatch` no longer logs "Totum never saw X play there" for a phone gapless crossover while nothing casts.
+
+## Captions from a cast the Pi makes (2026-11-27, [ADR 191](../adr/0191-casts-from-the-pi-carry-captions-and-a-speakers-bluetooth-link-is-measured.md))
+
+The Pi's cast of a YouTube item carries the same resolved caption tracks as a phone-direct cast (`TvSubtitles`, `CaptionPick`), under the
+deck's own caption choice (on in English until switched off). The remote card shows a Captions tile only while the receiver lists tracks. Not seen on
+the LG: whether the receiver reports the manifest's text tracks to the helper.
 

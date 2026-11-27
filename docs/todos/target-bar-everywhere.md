@@ -37,6 +37,11 @@ Dewi, 2026-11-20: *"do at least the basic play controls from my app and whatever
 - [x] Chips: a connection dot, a scroll affordance, a glyph per kind (Chromecast is now 📽️), colour on a long-press, swatches 48 dp.
 - [x] Pi: the A2DP transport at `dev_MAC/sepN/fdN`; discovery lines on change only; keep-awake backs off on "Host is down".
 
+## Done 2026-11-27 (ADR 180, amended; ADR 191)
+
+- [x] One set of controls per screen: on the Queue tab the dock draws neither the device's bar nor the phone's mini player (`dockBarFor`).
+- [x] The card's tiles take the device's colour; boost is offered under a picture; a Captions tile appears while the receiver lists tracks.
+- [x] Chips and the Play on picker say what the device is doing (`▶️ title`, `⏸️ title`, `⏳ title`, `⚪ Idle`).
 - [x] **Lock-screen and notification controls** ([ADR 188](../adr/0188-the-selected-device-is-a-second-media-session-for-the-lock-screen-and-notification.md)):
   a second `MediaSession` in `PlaybackService` fronted by `RemoteTargetPlayer`, opened and closed by the dock bar's own rule; play and
   pause, back 10, forward 30 and next; title, art, device name and colour; read every 10 s playing and 30 s paused with the screen off.
@@ -52,3 +57,7 @@ Dewi, 2026-11-20: *"do at least the basic play controls from my app and whatever
   while it plays would be a small addition if it looks jumpy.
 - [ ] Check on the Pi that the corrected path finds the soundbar's transport: `busctl --system tree org.bluez --list | grep sep`, then move
   the slider and read the `speakers` log (`set Volume … on /org/bluez/hci0/dev_…/sep1/fd…`).
+- [ ] **Playback speed on a device.** The phone's player has it; the Pi's sound chain and the Chromecast stream have no speed stage, so the
+  card cannot offer it. A time-stretch in `PcmChain` plus a rate on the cast timeline would be its own item.
+- [ ] Check on a real TV that the receiver lists the manifest's text tracks to the helper (`dewidebug … the receiver offers N caption
+  track(s)` in the `cast-target` log); until it does the Captions tile never shows.

@@ -36,6 +36,8 @@ import com.dewijones92.totum.data.targets.SoundSettings
 import com.dewijones92.totum.data.targets.TargetAction
 import com.dewijones92.totum.data.targets.TargetControl
 import com.dewijones92.totum.data.targets.TargetState
+import com.dewijones92.totum.data.targets.offersBoost
+import com.dewijones92.totum.data.targets.offersSkipSilence
 import com.dewijones92.totum.data.targets.onATarget
 import com.dewijones92.totum.data.targets.showsPicture
 import com.dewijones92.totum.data.targets.toSnapshot
@@ -47,6 +49,7 @@ import com.dewijones92.totum.ui.common.LabelledCheckbox
 import com.dewijones92.totum.ui.player.ControlTile
 import com.dewijones92.totum.ui.player.LocalCompactTiles
 import com.dewijones92.totum.ui.player.LocalPlayerLinks
+import com.dewijones92.totum.ui.player.LocalTileAccent
 import com.dewijones92.totum.ui.player.PlayerLinks
 import com.dewijones92.totum.ui.player.RepeatTile
 import com.dewijones92.totum.ui.player.SkipSilenceTile
@@ -82,7 +85,7 @@ internal fun RemoteControls(
             Icon(if (open) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore, contentDescription = null)
         }
         if (open) {
-            CompositionLocalProvider(LocalCompactTiles provides true) {
+            CompositionLocalProvider(LocalCompactTiles provides true, LocalTileAccent provides colourValue.asColour()) {
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -91,6 +94,7 @@ internal fun RemoteControls(
                     RemoteRepeat(targets, state)
                     RemoteSleep(targets, state, switchesOff)
                     RemoteSound(targets, state)
+                    RemoteCaptions(targets, state)
                     RemoteColourTile(targets, id, state.target.label, colourValue)
                 }
             }
@@ -159,14 +163,16 @@ internal fun RemoteSleepNotes(state: TargetState, switchOff: Boolean, onSwitchOf
 
 @Composable
 internal fun RemoteSound(targets: TargetsRepository, state: TargetState) {
-    if (state.showsPicture) return
     val id = state.target.id
-    SkipSilenceTile(
-        checked = state.sound.skipSilence,
-        onChange = {
-            targets.act(id, TargetControl(TargetAction.SOUND, sound = state.sound.copy(skipSilence = it)))
-        },
-    )
+    if (state.offersSkipSilence) {
+        SkipSilenceTile(
+            checked = state.sound.skipSilence,
+            onChange = {
+                targets.act(id, TargetControl(TargetAction.SOUND, sound = state.sound.copy(skipSilence = it)))
+            },
+        )
+    }
+    if (!state.offersBoost) return
     ToggleTile(
         icon = Icons.AutoMirrored.Outlined.VolumeUp,
         label = stringResource(R.string.volume_boost),

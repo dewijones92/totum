@@ -108,6 +108,10 @@ internal class KeepAwakeKeeper(
     override var state: KeepAwake? = null
         private set
 
+    override val reconnectsDone: Int get() = reconnects
+
+    override val reconnectsFailed: Int get() = reconnectFailures
+
     override suspend fun beat(busy: Boolean): Boolean {
         if (!lock.tryLock()) return false
         try {

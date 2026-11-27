@@ -289,5 +289,93 @@ class QuitFailureTest(unittest.TestCase):
         self.assertIn("socket closed", said["why"])
 
 
+class CaptionStatus(Status):
+    def __init__(self, tracks, active=(), content="http://pi/c/ab/manifest.mpd"):
+        super().__init__(current_time=1.0, adjusted=1.0)
+        self.subtitle_tracks = tracks
+        self.current_subtitle_tracks = list(active)
+        self.content_id = content
+
+
+def text(track_id, language, name="English"):
+    return {"trackId": track_id, "type": "TEXT", "language": language, "name": name}
+
+
+class TrackEventTest(unittest.TestCase):
+    def setUp(self):
+        chromecast_helper.TRACKS.last = None
+
+    def said(self, *statuses):
+        out = io.StringIO()
+        with mock.patch.object(sys, "stdout", out):
+            for status in statuses:
+                chromecast_helper.Listener(None).new_media_status(status)
+        return [json.loads(line) for line in out.getvalue().splitlines()]
+
+    def tracks_said(self, *statuses):
+        return [event for event in self.said(*statuses) if event["event"] == "tracks"]
+
+    def test_the_text_tracks_the_receiver_offers_are_said_once(self):
+        status = CaptionStatus([text(1, "en"), text(2, "cy", "Cymraeg")], active=[1])
+
+        said = self.tracks_said(status, status, status)
+
+        self.assertEqual(1, len(said))
+        self.assertEqual(
+            [{"id": 1, "language": "en", "name": "English"}, {"id": 2, "language": "cy", "name": "Cymraeg"}],
+            said[0]["tracks"],
+        )
+        self.assertEqual([1], said[0]["active"])
+
+    def test_audio_and_video_tracks_are_not_captions(self):
+        status = CaptionStatus([{"trackId": 7, "type": "AUDIO", "language": "en"}, text(1, "en")])
+
+        self.assertEqual([1], [t["id"] for t in self.tracks_said(status)[0]["tracks"]])
+
+    def test_a_change_of_the_active_track_is_said_again(self):
+        off = CaptionStatus([text(1, "en")], active=[])
+        on = CaptionStatus([text(1, "en")], active=[1])
+
+        said = self.tracks_said(off, on)
+
+        self.assertEqual([[], [1]], [event["active"] for event in said])
+
+    def test_a_status_with_no_track_information_says_nothing_about_tracks(self):
+        plain = Status(current_time=1.0, adjusted=1.0)
+
+        self.assertEqual([], self.tracks_said(plain, plain))
+
+    def test_tracks_that_disappear_are_said_so_the_phone_stops_offering_them(self):
+        with_tracks = CaptionStatus([text(1, "en")])
+        without = CaptionStatus([])
+
+        said = self.tracks_said(with_tracks, without)
+
+        self.assertEqual([[1], []], [[t["id"] for t in event["tracks"]] for event in said])
+
+
+class ChooseCaptionsTest(unittest.TestCase):
+    def chosen(self, track_id):
+        media = mock.Mock()
+        out = io.StringIO()
+        with mock.patch.object(sys, "stdout", out):
+            chromecast_helper.choose_captions(media, track_id)
+        return media, out.getvalue()
+
+    def test_a_track_is_switched_on(self):
+        media, said = self.chosen(3)
+
+        media.enable_subtitle.assert_called_once_with(3)
+        media.disable_subtitle.assert_not_called()
+        self.assertIn("track 3", said)
+
+    def test_no_track_switches_captions_off(self):
+        media, said = self.chosen(None)
+
+        media.disable_subtitle.assert_called_once_with()
+        media.enable_subtitle.assert_not_called()
+        self.assertIn("switched off", said)
+
+
 if __name__ == "__main__":
     unittest.main()

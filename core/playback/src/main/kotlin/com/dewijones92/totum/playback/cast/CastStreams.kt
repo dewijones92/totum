@@ -3,13 +3,13 @@ package com.dewijones92.totum.playback.cast
 import android.content.Context
 import androidx.annotation.OptIn
 import androidx.media3.common.MediaItem
-import androidx.media3.common.MimeTypes
 import androidx.media3.common.util.UnstableApi
 import com.dewijones92.totum.playback.BoostingAudioProcessor
 import com.dewijones92.totum.playback.EXTRA_AUDIO_ONLY
 import com.dewijones92.totum.playback.EXTRA_AUDIO_URL
 import com.dewijones92.totum.playback.EXTRA_SKIP_SILENCE
 import com.dewijones92.totum.playback.EXTRA_VIDEO_LADDER
+import com.dewijones92.totum.playback.PlaybackCache
 import com.dewijones92.totum.playback.SilenceCuttingAudioProcessor
 import com.dewijones92.totum.playback.SpeechGate
 import com.dewijones92.totum.playback.VolumeBoost
@@ -43,7 +43,13 @@ internal class CastStreams(
         host = host,
         tvs = tvs,
         tools = context.castTools(),
-        upstream = PatientUpstream(CachedUpstream(cachedHttpFactory(context))::get)::get,
+        upstream = PatientUpstream(
+            CachedUpstream(
+                factory = cachedHttpFactory(context),
+                direct = directHttpFactory(context),
+                heldFrom = { url, position -> PlaybackCache.heldFrom(context, url, position) },
+            )::get,
+        )::get,
         refusals = refusals,
     )
 
@@ -90,7 +96,7 @@ private fun MediaItem.toCastItem(uri: String): CastItem {
         ladder = ladderIn(extras),
         durationMs = mediaMetadata.durationMs,
         subtitles = localConfiguration?.subtitleConfigurations.orEmpty()
-            .filter { it.mimeType == MimeTypes.TEXT_VTT || it.mimeType == MimeTypes.APPLICATION_SUBRIP }
+            .filter { TvSubtitles.carries(it.mimeType) }
             .map { CastSubtitleSource(it.uri.toString(), it.language, it.label?.toString()) },
     )
 }

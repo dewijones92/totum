@@ -2,7 +2,7 @@
 title: Casting fixes from the diagnostics of 7 to 11 November
 kind: adr
 status: accepted
-updated: 2026-11-13
+updated: 2026-11-27
 ---
 
 # 164. Casting fixes from the diagnostics of 7 to 11 November
@@ -84,3 +84,11 @@ before it was fixed; what could not be fixed here is said below.
 - `NoTracksWatch` speaks only once the player is ready and has no tracks. A player that never becomes ready while it
   reads on towards a track list at the end of a huge stream is still only "buffering"; naming that as a track-list
   fault would also blame every slow start, so it is left as it is. The cast side does name it (`NoReadableTracks`).
+
+## Amended 2026-11-27: a phone crossover is not a TV event
+
+`RemoteEndWatch.finishedOnTv` logged "… on the TV: Totum never saw X play there" on every phone gapless crossover, even with nothing casting,
+so a report read as if a cast had misbehaved. It now says that only while a cast is active (the watch has seen a remote item or a refresh,
+and has not been told the player went back to local). It still returns the same answer either way. Red first: `RemoteEndWatchTest`
+"a crossover with nothing casting says nothing about the TV". Relay hangs on a locked cache span are in
+[ADR 186](0186-one-fetch-per-item-a-playing-stream-is-its-own-download.md).
