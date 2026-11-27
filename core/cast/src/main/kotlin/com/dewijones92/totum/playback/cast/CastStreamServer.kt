@@ -36,6 +36,8 @@ public data class CastItem(
 
 public fun CastItem.soundOnly(): CastItem = copy(listening = true, ladder = emptyList())
 
+public class OpenedCast(public val token: String, public val file: String)
+
 public interface CastHostPort {
     public val vpnInTheWay: Boolean
     public fun baseUrl(port: Int): String?
@@ -651,8 +653,19 @@ public class CastStreamServer(
             host.hold(true)
             return manifest?.let { live.open(item.mediaId, it, base, random.token()) }
         }
-        return open(item, sources, base, format)
+        return "$base/c/${open(item, sources, base, format)}/${format.file}"
     }
+
+    public fun openFor(item: CastItem, format: CastFormat = CastFormat.DASH): OpenedCast? {
+        if (LocalManifests.manifestAt(item.uri) != null) {
+            Diag.log("cast", "${item.mediaId}: a live manifest is not opened for a session another host serves")
+            return null
+        }
+        val sources = sourcesFor(item) ?: return null
+        return OpenedCast(open(item, sources, "(session)", format), format.file)
+    }
+
+    public fun serve(request: HttpRequest): HttpReply = handle(request)
 
     public fun relayLive(item: CastItem, base: String): String? {
         val manifest = LocalManifests.manifestAt(item.uri) ?: return null
@@ -694,7 +707,7 @@ public class CastStreamServer(
                 "listening=${sources.listening}, " +
                 "silences ${if (session.audio.timeline.cutsSilences) "cut" else "kept"})",
         )
-        return url
+        return token
     }
 
     private fun sessionFor(token: String, item: CastItem, sources: Sources, format: CastFormat): Session {

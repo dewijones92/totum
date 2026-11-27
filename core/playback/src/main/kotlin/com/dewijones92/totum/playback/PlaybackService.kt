@@ -48,6 +48,7 @@ import com.dewijones92.totum.playback.cast.TimeMappedCastPlayer
 import com.dewijones92.totum.playback.cast.TotumCastConverter
 import com.dewijones92.totum.playback.cast.TotumCastTrackSelector
 import com.dewijones92.totum.playback.cast.cachedHttpFactory
+import com.dewijones92.totum.playback.cast.publicCastRoute
 import com.dewijones92.totum.playback.cast.standInScreen
 import com.google.android.gms.cast.framework.CastContext
 import com.google.common.util.concurrent.Futures
@@ -475,6 +476,7 @@ public class PlaybackService : MediaSessionService() {
             host = host,
             tvs = castStatus,
             refusals = CodecRefusals(PrefsRefusalStore(this)),
+            publicRoute = publicCastRoute(),
         )
         castStreams = streams
         screens = screensFor(streams, localPlayer)
