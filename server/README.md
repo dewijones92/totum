@@ -165,3 +165,13 @@ the `wg-home` relay to a phone on the VPN (dot-files ADR 7; Totum ADR 68). A TV 
 per-session cast paths pass. A backup of the snippet before the change is beside it (`.bak-2026-10-31`). Edit it in
 place (nginx pins the file's inode), `docker exec nginx_dewi nginx -t`, then `nginx -s reload`.
 
+
+## Casting away from home: the public gate (2026-11-27, ADR 182)
+
+`totum-fetch` can open a second listener, **8773**, that serves only `/cast-out/<64 hex>/<file>` (a cast session's own files), so a friend's
+Chromecast can fetch a cast the Pi built. It is off unless `fetch.env` has `TOTUM_CAST_PUBLIC_BASE=https://totum.<home>/cast-out` (the
+phone's home-server host, scheme https; `TOTUM_CAST_PUBLIC_PORT` moves it). The compose file publishes nothing for it: nginx reaches
+`totum-fetch:8773` over `bin_private`. The phone mints a link with `POST /fetch/cast-out/session` behind the device token and ends it with
+`DELETE /fetch/cast-out/session?id=<session id>`; the Pi's `8771` also answers `GET /lan-check` (`totum-home`) so a phone can tell it is on the
+home network. The nginx patch, the snippet and the steps are in `tools/handoff/cast-out/`; the snippet goes into the same hand-managed
+`totum-guard.partial` as the cast relay above, after it, and follows the same edit-in-place rule.

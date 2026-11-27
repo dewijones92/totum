@@ -1,0 +1,39 @@
+# Append to /var/lib/totum-auth/snippets/totum-guard.partial, after the "cast relay" location (totum repo ADR 182).
+#
+# A friend's Chromecast fetches a cast the Pi built, over the internet, by a link scoped to one session:
+# /cast-out/<64 hex>/<file>. A Chromecast cannot send the X-Totum-Token header, so there is no token check here, and
+# that is the one exception to ADR 90. What stands in for it: a 256-bit random link that the Pi minted for one item,
+# valid six hours and revoked when the cast ends; only the files a cast session has; the gate behind this location
+# (totum-fetch:8773, a listener of its own that serves nothing but live links) answers every other path 404.
+#
+# The regex repeats the gate's own allow-list on purpose: if one is ever widened by mistake, the other still holds.
+location ~ "^/cast-out/[0-9a-f]{64}/(manifest\.mpd|hls\.m3u8|hls-video\.m3u8|hls-audio\.m3u8|audio/init\.mp4|audio/[0-9]{1,6}\.m4s|video|video/init\.mp4|video/[0-9]{1,6}\.m4s|video/r[0-9]{1,3}|subtitles/[0-9]{1,3}\.vtt)$" {
+    auth_request off;
+    limit_except GET HEAD OPTIONS { deny all; }
+    limit_req zone=castout burst=100 nodelay;
+    limit_req_status 429;
+
+    # The default access log would hold the whole link; this one holds its first six characters (nginx.conf's map).
+    access_log /var/log/nginx/castout.log castout;
+
+    set $castout totum-fetch;
+    # No URI after the variable, so the request goes upstream exactly as it came.
+    proxy_pass http://$castout:8773;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    # The gate sets Access-Control-Allow-Origin itself, and a Chromecast needs it; add no second one here.
+    proxy_buffering off;
+    proxy_request_buffering off;
+    proxy_read_timeout 120s;
+    proxy_send_timeout 120s;
+}
+
+# Anything else under /cast-out/ (a path the location above does not match, even with a live link in it) is a 404 that
+# never reaches the Pi, and is logged masked: without this it would fall through to the server's default log and hold
+# the whole link. A regex location wins over this prefix when it matches, so the one above still serves the files.
+location /cast-out/ {
+    auth_request off;
+    access_log /var/log/nginx/castout.log castout;
+    return 404;
+}
