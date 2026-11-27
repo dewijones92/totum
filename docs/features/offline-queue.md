@@ -3,7 +3,7 @@ title: Offline queue
 kind: feature
 status: shipped
 area: downloads
-updated: 2026-11-20
+updated: 2026-11-27
 ---
 
 # Offline queue
@@ -28,6 +28,14 @@ with no player swap. An item that streams and cannot be teed is left alone until
 and is then fetched if it is still queued. A finished download never replaces a healthy stream: the switch waits for a pause, a
 stall or a seek. The log says which (`tee`, `download`, `playback` lines) and the completion line gives the network bytes as a
 multiple of the file.
+
+**Every skip is counted (2026-11-27, [ADR 197](../adr/0197-the-auto-downloader-counts-every-skip-and-restarts-a-download-nothing-is-running.md)).**
+A pass ends with one `dewidebug pass skips:` line giving a count per reason (already on the phone, a local file, downloading
+with or without bytes, held while it streams, no fetch address yet, in a group not downloaded automatically, finished on
+the Pi, no audio-only fetch, failed for good, gave up after retries), logged only when it differs from the last pass's line, so
+a 6,164-item queue is one line. A `Downloading` row with no download running behind it (a *stranded* one) is restarted at the
+start of a pass through `DownloadManager.recoverStranded()`, the start-up resume made callable at any time (at most two fresh
+starts, then Failed for Retry), and named in a `dewidebug stranded downloads:` line.
 
 **Audio only, video on request.** Small, quick, and it matches how a queue is used. A full video
 stays a deliberate per-item choice from the row menu.
@@ -174,6 +182,11 @@ tidy is not the app's call.
   interrupted by the app stopping is left retryable with its request intact. The first needs a
   store that commits a moment late, as Room does; against a synchronous one the race is unreachable
   and the test passes against broken code.
+- `QueueAutoDownloaderSkipsAreCountedTest` (6) — one summary line per pass with a count per reason, 6,164 finished items
+  as one line, the same picture not said twice, and a stranded row recovered and named while a really running one is left
+  alone. `StrandedDownloadsTest` (5, `:core:data`) — a row with nothing running it is started again as asked, a running
+  download and one being cancelled are left alone, two recoveries at once start it once, and a metered network leaves it
+  failed for Retry.
 - `AnInterruptedDownloadResumesTest` — resume against a real HTTP server: the range asked for,
   progress counted from what is already on disk, a server that ignores the range, a 416, a dropped
   connection keeping its bytes, and the non-resumable route never sending a range.

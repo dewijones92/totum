@@ -75,7 +75,8 @@ throw away the item the recovery exists to save.
 "It stopped and I cannot tell you why" is the failure mode all of that day's logging work
 existed to kill. So the skip decision says *why* — "asking again cannot help — ERROR: …
 Join this channel", "gave up after 3 attempts". Ordinary skips (already downloaded, nothing
-to fetch yet) stay silent, so the trail keeps only what would otherwise be mysterious.
+to fetch yet) stay silent, so the trail keeps only what would otherwise be mysterious. Since 2026-11-27 even those are
+counted: a pass's one `dewidebug pass skips:` line gives a count per reason ([ADR 197](../adr/0197-the-auto-downloader-counts-every-skip-and-restarts-a-download-nothing-is-running.md)).
 
 ## Files
 

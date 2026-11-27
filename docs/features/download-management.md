@@ -231,7 +231,9 @@ Download the sound only" while fetching the film (report 0.1.709).
 A queue group's ⋮ → ⬇️ Choose episodes to download…, or a torrent result's ⬇️, opens one sheet listing every episode
 (already on the phone unticked), the sound / video choice for YouTube items, and "Download N". A download the app died
 during starts again by itself at the next launch, with its height, at most twice
-([ADR 80](../adr/0080-choose-episodes-to-download-and-resume-interrupted-ones.md)).
+([ADR 80](../adr/0080-choose-episodes-to-download-and-resume-interrupted-ones.md)). Since 2026-11-27 the same resume runs
+at any time, through `DownloadManager.recoverStranded()`, for a row left `Downloading` with no download running it, and
+the queue's automatic pass calls it ([ADR 197](../adr/0197-the-auto-downloader-counts-every-skip-and-restarts-a-download-nothing-is-running.md)).
 
 ## Sound or video, and which quality (2026-10-23)
 
