@@ -2,7 +2,7 @@
 title: A silent tail ends the item, and end cards are skipped by default
 kind: adr
 status: accepted
-updated: 2026-10-23
+updated: 2026-11-27
 ---
 
 # 58. A silent tail ends the item, and end cards are skipped by default
@@ -63,3 +63,8 @@ that SponsorBlock's Endcards/Credits category should be on by default too.
 - The watch acts once per item, and again only if the item leaves the tail and comes back (a seek back).
 - Tests: `TailSourceTest` (JVM, red first: which source is scanned, and when), `TheTailIsScannedForSpeechTest` (instrumented: the same audio over HTTP from a local range server ends at the same last words as the file; a 240 KB fixture is fetched whole, so "reads only the tail" rests on the emulator measurement above), `SilentTailTest`, `MusicPlaysPlainTest`, `OneTimeDefaultsTest`, `PreferenceBackupTest`. Not yet seen on a
   device: a real silent tail ending an item (the seek to the end is the same one an outro skip uses).
+- **A skip that lands past the end (2026-11-27, [ADR 193](0193-totums-played-state-is-pushed-to-and-repaired-on-the-account.md)).**
+  A SponsorBlock end card ended at 333.341 s on a 333.333 s item (report 20261121T182817): the skip seeked past the end,
+  the player re-entered the same item about 20 times in 23 s and the queue did not advance. `SegmentSkipDecider`
+  clamps a skip to the player's duration (the seek is then the same `seekTo(duration)` the silent tail uses) and
+  gives up on the same skip a third time within 10 s, with one warning line.
