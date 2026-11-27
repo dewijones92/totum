@@ -45,7 +45,7 @@ public object Breadcrumbs {
     public val KEPT_TAGS: Set<String> =
         setOf(
             "Exsurge", "DailyAlarm", "reminders", "cast", "home", "ask", "speakers", "morning", "spoiler", "targets",
-            "jobs", "ai-job", "jellyfin", "trip", "kidlock", "uploads", "queue",
+            "jobs", "ai-job", "jellyfin", "trip", "kidlock", "uploads", "queue", "yt-sync-item",
         )
 
     private val entries = ConcurrentLinkedDeque<Entry>()

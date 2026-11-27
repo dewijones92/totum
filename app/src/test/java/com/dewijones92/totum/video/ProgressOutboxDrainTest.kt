@@ -170,6 +170,82 @@ class ProgressOutboxDrainTest {
         assertTrue("and the sender must not be blamed", drain.status.value is OutboundSyncStatus.Working)
     }
 
+    private val said = "UNPLAYABLE: It was blocked due to the claimed content by US Tennis Association."
+
+    @Test
+    fun `a refusal YouTube means for good ends the row after a few tries and says so once`() = runTest {
+        history.sessionResults["claimed"] = SessionResult.Refused(said)
+        outbox.record(row("claimed"))
+        val drain = ProgressOutboxDrain(outbox, history, backgroundScope)
+
+        repeat(ProgressOutboxDrain.GIVE_UP_REFUSED_AFTER + 2) { drain.drain() }
+
+        assertEquals("the row is ended, not left stuck", emptyList<String>(), outbox.pending().map { it.itemId.value })
+        assertEquals(said, drain.refusalFor("claimed"))
+        assertEquals(
+            "asked exactly as often as the limit and no more",
+            ProgressOutboxDrain.GIVE_UP_REFUSED_AFTER,
+            history.sessionAttempts.count { it == "claimed" },
+        )
+        val lines = Breadcrumbs.snapshot().filter { it.message.contains("claimed") && it.message.contains("for good") }
+        assertEquals("said once: ${lines.map { it.message }}", 1, lines.size)
+        assertTrue(drain.refusedVideos(), drain.refusedVideos().contains("claimed"))
+    }
+
+    @Test
+    fun `a row already stubborn from thousands of old attempts reaches the end of its refusals within a few passes`() =
+        runTest {
+            history.sessionResults["claimed"] = SessionResult.Refused(said)
+            outbox.record(row("claimed"))
+            repeat(ProgressOutboxDrain.STUBBORN_AFTER + 1000) { outbox.attempted(MediaItemId("claimed"), 1) }
+            val drain = ProgressOutboxDrain(outbox, history, backgroundScope)
+
+            drain.drain()
+            repeat(ProgressOutboxDrain.GIVE_UP_REFUSED_AFTER) { drain.drain() }
+
+            assertEquals(emptyList<String>(), outbox.pending().map { it.itemId.value })
+            assertEquals(said, drain.refusalFor("claimed"))
+        }
+
+    @Test
+    fun `a refusal does not end the row before the limit, so a one-off cannot lose a listen`() = runTest {
+        history.sessionResults["claimed"] = SessionResult.Refused(said)
+        outbox.record(row("claimed"))
+        val drain = ProgressOutboxDrain(outbox, history, backgroundScope)
+
+        repeat(ProgressOutboxDrain.GIVE_UP_REFUSED_AFTER - 1) { drain.drain() }
+
+        assertEquals(listOf("claimed"), outbox.pending().map { it.itemId.value })
+        assertEquals(null, drain.refusalFor("claimed"))
+    }
+
+    @Test
+    fun `a video with no tracking in an otherwise normal answer is still never ended`() = runTest {
+        history.notTrackable += "plain"
+        outbox.record(row("plain"))
+        val drain = ProgressOutboxDrain(outbox, history, backgroundScope)
+
+        repeat(ProgressOutboxDrain.GIVE_UP_REFUSED_AFTER + 2) { drain.drain() }
+
+        assertEquals(listOf("plain"), outbox.pending().map { it.itemId.value })
+        assertEquals(null, drain.refusalFor("plain"))
+    }
+
+    @Test
+    fun `a video refused once and then accepted is sent and forgotten`() = runTest {
+        history.sessionResults["flaky"] = SessionResult.Refused(said)
+        outbox.record(row("flaky"))
+        val drain = ProgressOutboxDrain(outbox, history, backgroundScope)
+        drain.drain()
+
+        history.sessionResults.remove("flaky")
+        drain.drain()
+
+        assertEquals(emptyList<String>(), outbox.pending().map { it.itemId.value })
+        assertEquals(listOf("flaky"), history.reports.map { it.videoId })
+        assertEquals(null, drain.refusalFor("flaky"))
+    }
+
     /**
      * A sender failure sinks the row too. It is not a judgement on the video — nothing is ever
      * dropped, so it does not need to be — it is what stops the same few rows spending the pass's
