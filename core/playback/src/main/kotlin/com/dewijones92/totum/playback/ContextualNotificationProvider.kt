@@ -68,12 +68,6 @@ internal class ContextualNotificationProvider(
     }
 }
 
-private const val REMOTE_NOTIFICATION_ID = 1002
-
 @UnstableApi
 private fun notificationIdOf(session: MediaSession): Int =
-    if (session.id == RemoteSessionController.REMOTE_SESSION_ID) {
-        REMOTE_NOTIFICATION_ID
-    } else {
-        DefaultMediaNotificationProvider.DEFAULT_NOTIFICATION_ID
-    }
+    NotificationCards.notificationIdOf(NotificationCards.cardOf(session.id))

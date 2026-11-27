@@ -27,6 +27,11 @@ import com.dewijones92.totum.data.targets.TargetKind
 import com.dewijones92.totum.data.targets.TargetQueueRequest
 import com.dewijones92.totum.data.targets.TargetState
 import com.dewijones92.totum.data.targets.TargetsAnswer
+import com.dewijones92.totum.domain.MediaItem
+import com.dewijones92.totum.domain.MediaItemId
+import com.dewijones92.totum.domain.MediaKind
+import com.dewijones92.totum.domain.SourceId
+import com.dewijones92.totum.support.SilentWav
 import com.dewijones92.totum.targets.InMemoryPlayOn
 import com.dewijones92.totum.targets.InMemoryTargetColours
 import com.dewijones92.totum.targets.RemoteSessionBridge
@@ -38,12 +43,12 @@ import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import java.io.ByteArrayOutputStream
+import java.io.File
 import java.net.ServerSocket
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.TimeUnit
@@ -222,14 +227,12 @@ class RemoteTargetSessionTest {
 
         val phone = app.container.playbackController.player
         var item: String? = "unset"
-        var state = -1
-        instrumentation.runOnMainSync {
-            item = phone?.currentMediaItem?.mediaId
-            state = phone?.playbackState ?: -1
-        }
+        instrumentation.runOnMainSync { item = phone?.currentMediaItem?.mediaId }
 
-        assertNull("the device's item must never appear in the phone's player", item)
-        assertEquals(Player.STATE_IDLE, state)
+        assertFalse(
+            "the device's items must never appear in the phone's player: $item",
+            item in setOf("a", "b", "c"),
+        )
     }
 
     @Test
@@ -290,6 +293,107 @@ class RemoteTargetSessionTest {
         assertFalse(RemoteSessionHost.current != null)
     }
 
+    private fun phoneHolds(playing: Boolean) {
+        val file = File(context.cacheDir, "remote-session-phone.wav").apply { writeBytes(SilentWav.bytes(90)) }
+        val item = MediaItem(
+            MediaItemId("phone-own"),
+            SourceId("test"),
+            "On the phone",
+            publishedAt = null,
+            duration = null,
+        )
+        instrumentation.runOnMainSync {
+            app.container.playbackController.play(item, kind = MediaKind.PODCAST, localPath = file.absolutePath)
+        }
+        waitFor("the phone's own item to start") {
+            app.container.playbackController.state.value?.let { it.itemId == item.id && it.isPlaying } == true
+        }
+        if (!playing) {
+            instrumentation.runOnMainSync { app.container.playbackController.setPlaying(false) }
+            waitFor("the phone to pause") { app.container.playbackController.state.value?.isPlaying == false }
+        }
+    }
+
+    private fun postedIds(): Set<Int> = context.getSystemService(NotificationManager::class.java)
+        .activeNotifications
+        .map { it.id }
+        .filter { it == PHONE_NOTIFICATION_ID || it == REMOTE_NOTIFICATION_ID }
+        .toSet()
+
+    @Test
+    fun aPausedPhoneItemAndAShownDeviceAreOneCardNotTwo() {
+        phoneHolds(playing = false)
+        select(lg)
+        connectToTheDevicesSession()
+        waitFor("the device's notification") { REMOTE_NOTIFICATION_ID in postedIds() }
+        Thread.sleep(SETTLE_MS)
+        hold()
+
+        assertEquals(
+            "only the device's card is posted, not the phone's too",
+            setOf(REMOTE_NOTIFICATION_ID),
+            postedIds()
+        )
+    }
+
+    @Test
+    fun aPlayingPhoneItemKeepsItsCardAndTheIdleDeviceStepsAside() {
+        phoneHolds(playing = true)
+        select(lg.copy(playing = false))
+        connectToTheDevicesSession()
+        waitFor("the phone's notification") { PHONE_NOTIFICATION_ID in postedIds() }
+        Thread.sleep(SETTLE_MS)
+        hold()
+
+        assertEquals("the playing phone is the only card", setOf(PHONE_NOTIFICATION_ID), postedIds())
+    }
+
+    @Test
+    fun bothPlayingIsTheChosenDevicesCardOnly() {
+        phoneHolds(playing = true)
+        select(lg)
+        connectToTheDevicesSession()
+        waitFor("the device's notification") { REMOTE_NOTIFICATION_ID in postedIds() }
+        Thread.sleep(SETTLE_MS)
+        hold()
+
+        assertEquals("the chosen device wins a tie", setOf(REMOTE_NOTIFICATION_ID), postedIds())
+    }
+
+    @Test
+    fun bothPausedIsTheChosenDevicesCardOnly() {
+        phoneHolds(playing = false)
+        select(lg.copy(playing = false))
+        connectToTheDevicesSession()
+        waitFor("the device's notification") { REMOTE_NOTIFICATION_ID in postedIds() }
+        Thread.sleep(SETTLE_MS)
+        hold()
+
+        assertEquals("the chosen device wins when neither plays", setOf(REMOTE_NOTIFICATION_ID), postedIds())
+    }
+
+    @Test
+    fun aPhoneItemAloneIsItsOwnCardAsBefore() {
+        phoneHolds(playing = false)
+        waitFor("the phone's notification") { PHONE_NOTIFICATION_ID in postedIds() }
+        Thread.sleep(SETTLE_MS)
+        hold()
+
+        assertEquals("with no device chosen the phone is the only card", setOf(PHONE_NOTIFICATION_ID), postedIds())
+    }
+
+    @Test
+    fun theDeviceGoingAwayBringsThePhonesCardBack() {
+        phoneHolds(playing = false)
+        val (_, repo) = select(lg)
+        connectToTheDevicesSession()
+        waitFor("the device's notification") { REMOTE_NOTIFICATION_ID in postedIds() }
+
+        repo.select(null)
+
+        waitFor("the phone's card to return and the device's to go") { postedIds() == setOf(PHONE_NOTIFICATION_ID) }
+    }
+
     private companion object {
         const val WAIT_MS = 15_000L
         const val POLL_MS = 100L
@@ -297,5 +401,6 @@ class RemoteTargetSessionTest {
         const val PHONE_NOTIFICATION_ID = 1001
         const val MIN_ACTIONS = 3
         const val ART_SIZE = 256
+        const val SETTLE_MS = 3_000L
     }
 }

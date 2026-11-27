@@ -1,5 +1,6 @@
 package com.dewijones92.totum.playback
 
+import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
@@ -191,6 +192,11 @@ public class PlaybackService : MediaSessionService() {
                         "playback",
                         "service ${if (isPlaying) "playing" else "not playing"}; in the foreground=$inForeground",
                     )
+                    reassessCards("the phone ${if (isPlaying) "started" else "stopped"} playing")
+                }
+
+                override fun onPlaybackStateChanged(playbackState: Int) {
+                    reassessCards("the phone's playback state is $playbackState")
                 }
             },
         )
@@ -210,6 +216,7 @@ public class PlaybackService : MediaSessionService() {
             bitmapLoader = ::bitmapLoader,
             openApp = ::openAppIntent,
             playingChanged = ::holdForeground,
+            changed = ::reassessCards,
         ).also { it.start() }
     }
 
@@ -712,7 +719,61 @@ public class PlaybackService : MediaSessionService() {
     @UnstableApi
     private val pictureWatch = PictureWatch({ player }, { currentPlayer })
 
+    private var shownCard = Card.PHONE
+    private val cardCleanup = Handler(Looper.getMainLooper())
+
+    @UnstableApi
+    private fun cardInputs(): CardInputs {
+        val phone = mediaSession?.player
+        val phoneLive = phone != null && phone.currentMediaItem != null && phone.playbackState != Player.STATE_IDLE
+        return CardInputs(
+            deviceShown = remoteSession?.session != null,
+            devicePlaying = remoteSession?.playing == true,
+            phoneHasItem = phoneLive,
+            phonePlaying = phoneLive && phone?.playWhenReady == true && phone.playbackState != Player.STATE_ENDED,
+        )
+    }
+
+    @UnstableApi
+    private fun reassessCards(reason: String) {
+        val inputs = cardInputs()
+        val choice = NotificationCards.choose(inputs)
+        if (choice.card == shownCard) return
+        Diag.log(
+            "playback",
+            "dewidebug the notification card moves from the $shownCard to the ${choice.card} because ${choice.why} " +
+                "[$reason; $inputs]",
+        )
+        shownCard = choice.card
+        triggerNotificationUpdate()
+    }
+
+    @UnstableApi
+    private fun withdrawCard(card: Card, why: String) {
+        val id = NotificationCards.notificationIdOf(card)
+        val manager = getSystemService(NotificationManager::class.java)
+        CARD_CLEANUP_DELAYS_MS.forEach { delay ->
+            cardCleanup.postDelayed(
+                {
+                    val stillLoses = !NotificationCards.choose(cardInputs()).shows(card)
+                    if (stillLoses && manager.activeNotifications.any { it.id == id }) {
+                        manager.cancel(id)
+                        Diag.log("playback", "dewidebug removed the $card card (notification $id): $why")
+                    }
+                },
+                delay,
+            )
+        }
+    }
+
+    @UnstableApi
     override fun onUpdateNotification(session: MediaSession, startInForegroundRequired: Boolean) {
+        val mine = NotificationCards.cardOf(session.id)
+        val choice = NotificationCards.choose(cardInputs())
+        if (!choice.shows(mine)) {
+            withdrawCard(mine, choice.why)
+            return
+        }
         val player = session.player
         super.onUpdateNotification(
             session,
@@ -722,6 +783,7 @@ public class PlaybackService : MediaSessionService() {
                 stopped = player.playbackState == Player.STATE_IDLE,
             ),
         )
+        if (cardInputs().deviceShown) withdrawCard(if (mine == Card.DEVICE) Card.PHONE else Card.DEVICE, choice.why)
     }
 
     @UnstableApi
@@ -729,6 +791,7 @@ public class PlaybackService : MediaSessionService() {
         releaseCheck.removeCallbacksAndMessages(null)
         handoffTick.removeCallbacksAndMessages(null)
         silentTail.stop()
+        cardCleanup.removeCallbacksAndMessages(null)
         remoteSession?.stop()
         remoteSession = null
         mediaSession?.release()
@@ -749,6 +812,7 @@ public class PlaybackService : MediaSessionService() {
     private companion object {
         const val FOREGROUND_AFTER_STOP_MS = 2 * 60 * 60 * 1_000L
         const val RELEASE_CHECK_SLACK_MS = 1_000L
+        val CARD_CLEANUP_DELAYS_MS = longArrayOf(0L, 1_500L, 5_000L)
         const val HANDOFF_TICK_MS = 5_000L
         val TV_MOVED_ON = setOf(
             Player.MEDIA_ITEM_TRANSITION_REASON_AUTO,

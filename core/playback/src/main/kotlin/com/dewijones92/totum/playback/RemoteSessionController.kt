@@ -20,6 +20,7 @@ internal class RemoteSessionController(
     private val bitmapLoader: () -> BitmapLoader,
     private val openApp: () -> PendingIntent?,
     private val playingChanged: (Boolean) -> Unit,
+    private val changed: (String) -> Unit,
     private val main: Handler = Handler(Looper.getMainLooper()),
 ) {
 
@@ -29,6 +30,8 @@ internal class RemoteSessionController(
         private set
 
     private var facts: RemoteFacts? = null
+
+    val playing: Boolean get() = facts?.let { it.playing || it.starting } == true
 
     fun start() {
         val already = RemoteSessionHost.attach { next -> main.post { show(next, "published") } }
@@ -61,6 +64,7 @@ internal class RemoteSessionController(
                 player?.show(next)
             }
         }
+        changed("the selected device: ${change.line}")
     }
 
     private fun open(why: String) {
