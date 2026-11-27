@@ -3,7 +3,7 @@ title: Crash and diagnostics reporting
 kind: feature
 status: shipped
 area: infrastructure
-updated: 2026-11-20
+updated: 2026-11-27
 ---
 
 # Crash reporting
@@ -587,3 +587,10 @@ answered. They do now; the home-server ones as *presence only* (`configured= sig
 never the values. SponsorBlock was entirely silent: a report could not tell "no segments for this
 video" from "SponsorBlock never ran". It now says `<id>: N segment(s) to skip` once per video and
 `skipped Xms -> Yms (skip N of this item)` per skip — a few lines per video at most.
+
+## More kept tags, `radio.live`, and a quieter `home jobs` (2026-11-27)
+
+`Breadcrumbs.KEPT_TAGS` now also holds `radio`, `discover`, `download`, `fullscreen`, `codec` and `advance` (12 hours, 1,000
+lines). The state block has `radio.live`. `home jobs (tick)` lines were 29% of one report's ring (a progress change every
+2 s for 68 minutes); `JobsLog` logs a change of state in full and otherwise one count every 30 quiet reads.
+Tests: `BreadcrumbsKeptLaneTest`, `JobsLogTest`.

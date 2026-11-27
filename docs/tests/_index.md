@@ -1,7 +1,7 @@
 ---
 title: Testing
 kind: reference
-updated: 2026-11-20
+updated: 2026-11-27
 ---
 
 # Testing
@@ -1144,3 +1144,22 @@ plus the Pi downloads section and the group page in `ListFilterTest`.
 - `tools/crashlog-server/tests/test_screen.py` (two new, one seen failing first): the tunnel relay's address is accepted on its host only. `tools/state/test-newest-state.sh`: the newest state dump is never an emulator's `0.1.0-dev`, and both scripts use the one helper.
 
 2026-11-20, ADR 185 (🧘 Long ones): `:core:domain` `LongOnesTest` (the 20-minute line to the second, the 2-per-source cap with the next channel filling the gap, the limit, Shorts by kind and by link, lives, an ended stream, undated, the look-up list newest first, a source at its cap not worth a look-up, duplicates, one channel through two listings, a podcast show as one source); `:app` `LongOnesTest` (lengths from the feed asking nothing, a look-up kept and never repeated, the stored-lookup fallback, newest-first stopping when full, the per-refresh budget, the cap over look-ups, Shorts and lives never asked, a live answer set aside, played / half-played / Not for me left out, mobile data asking nothing, a no-look-up refresh, podcasts capped, one refresh at a time, one video from two listings), `VideoLengthsTest` (kept across a restart, the set-aside windows, a none never kept, a throwing ask, the feed's lengths kept without asking), `PublishDaysTest` (unchanged, now on the shared `KeptFacts`); `:core:video` `TheLengthCheckReadsALengthWithoutSolvingAnythingTest` (every answer, no `n` solved, a bot check backs off, backing off asks nothing), `LookupsSurviveRestartsTest` (a length from a stored lookup after its URLs expired).
+
+## Batch C task U (27 Nov 2026)
+
+Playback and queue fixes ([todo](../todos/batch-c-playback-and-queue-fixes.md), [ADR 194](../adr/0194-best-means-the-best-this-device-decodes-and-a-failure-says-why-and-offers-a-way-out.md)). JVM unless noted.
+
+| Test | Covers |
+|---|---|
+| `UpNextViewTest` (4) | the rows `upNextSkips` marks, a finished song, repeat on, and that the first unmarked row is what the advance and `NextLine` start |
+| `PlaybackProblemTest` (+2) | `format_supported=YES` is a stopped decoder, the size and mime are read |
+| `WayOutTest` (6) | Pi offers for a torrent, a Pi file and a Jellyfin-only device; the copy at the reach |
+| `ADuplicateProblemIsToldOnceTest`, `DuplicateTapsTest` | the doubled toast, dropped at both ends |
+| `ABestDownloadIsTheBestThisDeviceDecodesTest` (4) | the capped "best" selector, uncapped on a Pixel, an explicit height wins, `reach` |
+| `LandscapeStageCapTest` (5) | the windowed landscape stage cap |
+| `EndlessLabelTest` (+2) | a non-live radio block is "📻 Radio", Discover keeps its mark |
+| `JobsLogTest` (4) | `home jobs` logged on change plus a periodic count |
+| `BreadcrumbsKeptLaneTest` (+1) | the six new kept tags |
+| `AnUnplayableVideoSaysWhyWordsTest` (+2, instrumented) | the stopped-decoder and beyond-the-device words |
+| `RadioHeaderSaysWhetherItIsLiveTest` (3, instrumented) | the group header says ♾️ Endless only for the live station, 📻 / 🔭 "not topping up" otherwise |
+| `StageDragLetsUpwardSwipesScrollTest` (2, instrumented) | an upward swipe on the stage scrolls, a downward one dismisses |

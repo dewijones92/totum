@@ -3,7 +3,7 @@ title: Permanent vs transient failure, and playback that goes nowhere
 kind: feature
 status: shipped
 area: playback
-updated: 2026-11-07
+updated: 2026-11-27
 ---
 
 # Knowing when to stop asking
@@ -272,3 +272,22 @@ Play button that did nothing: `onPlayerError` logged "player error with no recov
 untouched. Files: `core/playback/…/PlaybackProblem.kt`, `ErroredFormats.kt`, `Media3PlaybackController.kt`
 (`announceCouldNotPlay`), `app/…/queue/PlaybackQueue.kt` (`announceCouldNotPlay`), `PlayAttempts.kt`,
 `ui/common/RefusedTapToasts.kt`.
+
+## A stopped decoder is not an unsupported format, and a failure offers a way out (2026-11-27)
+
+Report 20261122T070821: a Dolby E-AC-3 decoder stopped on one file (`format_supported=YES`) and the toast said the phone
+could not play E-AC-3, which it had on 7 November. `ErroredFormat`/`CannotDecode` now carry `formatSupported`,
+`mimeType`, `width` and `height` (from `rendererFormatSupport == FORMAT_HANDLED`, else the message), so:
+
+| What failed | Words |
+|---|---|
+| supported format, decoder stopped | "❌ Couldn't play “X”: this phone's E-AC-3 decoder stopped on this sound" |
+| a size beyond the codec's reach | "… VP9 at 3840×2160 is beyond this device, which reaches 1080p" |
+| not supported | "… this phone can't play this video (HEVC 10-bit)" (unchanged) |
+
+Way out (`wayOutOf`, `targets/WayOut.kt`; one snackbar action, 🎧 Listen first): a torrent, Jellyfin item or Pi file is
+offered "▶️ Play on <first Pi device that is on>" through the Play on… seam; a downloaded video beyond the reach is offered
+"⬇️ Get a 1080p copy" (deletes the undecodable file, downloads again capped, [ADR 194](../adr/0194-best-means-the-best-this-device-decodes-and-a-failure-says-why-and-offers-a-way-out.md)).
+The doubled toast: the same item's problem within a second is dropped in `PlayAttempts`, identical words in
+`DuplicateTaps`, each logging why with the collector's identity. Tests: `PlaybackProblemTest`, `WayOutTest`,
+`ADuplicateProblemIsToldOnceTest`, `DuplicateTapsTest`, `AnUnplayableVideoSaysWhyWordsTest` (instrumented).

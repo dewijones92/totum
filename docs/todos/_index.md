@@ -1,7 +1,7 @@
 ---
 title: Backlog
 kind: index
-updated: 2026-11-20
+updated: 2026-11-27
 ---
 
 # Backlog
@@ -11,6 +11,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 
 | Item | Area | Priority | Status |
 |---|---|---|---|
+| [Playback and queue fixes from the reports of 21-24 Nov](batch-c-playback-and-queue-fixes.md) | playback/queue | high | built 2026-11-27, Batch C task U (ADR 194; unit tests; emulator screenshots; Fire tablet and Pixel 4a checks owed) |
 | [One fetch per item, the stream is the download](one-fetch-per-item.md) | downloads/playback | high | built 2026-11-20 (ADR 186; instrumented evidence, not yet seen on the phone) |
 | [📺 BBC programmes follow-ups](bbc-programmes-follow-ups.md) | search | low | open 2026-11-20 (iPlayer app route unseen, BBC Sounds, more than 50 episodes) |
 | [📱 On this phone follow-ups](phone-media-follow-ups.md) | library | medium | open 2026-11-14 (Show on the TV, phone files to the Pi, search hits) |

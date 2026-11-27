@@ -2,7 +2,7 @@
 title: Radio tops itself up; repeat and shuffle are queue features, for both pillars
 kind: adr
 status: accepted
-updated: 2026-11-06
+updated: 2026-11-27
 ---
 
 # 27. Radio tops itself up; repeat and shuffle are queue features, for both pillars
@@ -98,3 +98,15 @@ stay as they were. Under the kid lock the rule leaves the chosen mode alone, bec
 (`KidRules.repeat`) and saying "off" there would be false. A single tapped item (`playNow`) and a run with no group
 (history replay) are not runs and keep Repeat one. The Shorts reel is a run too (2026-11-06, Dewi): it passes its own
 `endsRepeatOne` flag while staying "not by you" for the listen offers, once per opening. Every decision is logged under `[queue]`.
+
+## Amended 2026-11-27 (only the live station is called endless)
+
+- `MusicRadio` has one live station and its top-ups pause whenever something else plays, yet every radio block was
+  labelled "♾️ Endless radio" (report 20261124T202834: a leftover Christmas block, played by queue order after Discover
+  ended). The label ("♾️ Endless radio: more songs arrive as you listen" on the group header, "♾️ Endless radio · artist"
+  on the player and notification) now shows only for the live station (`MusicRadio.liveGroupId`,
+  `labelledForPlay(snapshot, liveRadioGroup)`); any other radio block reads "📻 Radio · not topping up" (a Discover
+  block "🔭 Discover · not topping up"). The diagnostics state block carries
+  `radio.live = <group> topping up=… ahead=N`.
+- What happens to an old radio block's remainder (it still plays by queue order) is unchanged: Dewi's decision, noted in
+  [the todo](../todos/batch-c-playback-and-queue-fixes.md).

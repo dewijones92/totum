@@ -3,7 +3,7 @@ title: Playback queue
 kind: feature
 area: playback
 status: shipped
-updated: 2026-11-20
+updated: 2026-11-27
 ---
 
 # Playback queue
@@ -283,3 +283,14 @@ the count, so they never sit in the queue; `route` and `QueueArming` still have 
 The player's Up next ✕ offering Undo and its long-press opening the item menu (instrumented); the empty-queue related
 fallback leaving out a Not for me item (a unit test around `playRelatedNext`'s filter); `PlaybackQueue.restoreAt` and
 `removingAt` with an anchor when the removed entry was the first or the last.
+
+## Up next says what will be passed over (2026-11-27)
+
+Report 20261121T061753: "86 queued" in the player's Up next, with most of them finished. `skipWhy` (`queue/QueuePlace.kt`)
+is the one predicate for "the advance would pass over this": `nextAfterThePlace` (so `peekNext`, gapless arming, the
+advance and the notification's Next line) and `upNextSkips` (the rows) both ask it. A skipped row is dimmed at half
+strength and says "✅ Finished · skipped", "🎵 Music · skipped while you listen to talk" or "🎙️ Talk · skipped while you
+listen to music"; the header reads "📋 86 queued · 7 will be skipped" (the plain count when none are). A tap still plays
+the row; the filter and "➕ N more" behave as before. Recomputed whenever the queue, the playing item or any play state
+changes, and logged under `[advance]` with the counts. Tests: `UpNextViewTest` (4, including that the first unskipped row
+is what the advance and `NextLine` start). At Dewi's scale (5,857 queued) the pass is one map lookup per row.
