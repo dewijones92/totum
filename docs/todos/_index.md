@@ -1,7 +1,7 @@
 ---
 title: Backlog
 kind: index
-updated: 2026-11-20
+updated: 2026-11-27
 ---
 
 # Backlog
@@ -157,6 +157,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [YouTube refuses subtitles with 429; the app hammered it and said nothing](subtitles-refused-429.md) | playback | high | back-off shipped 2026-10-14; on-screen message and a second caption source open |
 | [The learned fresh-URL window aims at the earliest acceptance](young-url-window-aims-too-early.md) | playback | medium | fixed 2026-11-14 offline from the emulator numbers (aims past the latest refusal when acceptances are all earlier); phone start time not yet seen |
 | [an-hour-long-item-stalls-early-in-ci](an-hour-long-item-stalls-early-in-ci.md) | playback | high | cause found 2026-10-14: one request opened at play start drips (280 KB in 21.9 s); re-ask fix pushed (ADR 33, 3aadcf7a on origin/main); no CI run confirmed to prove it yet |
+| [nightly-ci-red-every-night](nightly-ci-red-every-night.md) | ci | high | four causes found and fixed 2026-11-27 (a test off the main thread, a share that opened the chooser, a Wi-Fi that never came back, a runner lost inside the home tunnel); the tunnel cause is a hypothesis until the next nightly's heartbeat lines |
 | [stalls-near-the-end-of-an-item](stalls-near-the-end-of-an-item.md) | playback | high | not seen since 0.1.477 (10 phone reports, mostly local files); cause not established; its detector cried wolf on every seek and is fixed |
 | [Explore channel content](../features/channel-browse.md) | channel | high | shipped |
 | [Views and dates everywhere](../features/upload-dates.md) | video/search/playback | high | shipped (incl. the video page, 2026-08-06) |
