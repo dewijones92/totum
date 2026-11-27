@@ -78,6 +78,8 @@ public sealed interface WatchHistoryResult {
      * cannot be reported, however healthy the sender is. Anything else queued behind it still can.
      */
     public data object NotTrackable : WatchHistoryResult
+
+    public data class Refused(val said: String) : WatchHistoryResult
     public data class Failure(val detail: String) : WatchHistoryResult
 }
 
@@ -91,6 +93,8 @@ public sealed interface SessionResult {
 
     /** YouTube answered, and its answer for this video had no tracking in it. Skip this row. */
     public data object NotTrackable : SessionResult
+
+    public data class Refused(val said: String) : SessionResult
 
     /** Nothing could be asked — signed out, no timestamp, the request failed. Probably shared. */
     public data class Unavailable(val reason: String) : SessionResult

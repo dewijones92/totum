@@ -34,8 +34,11 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.dewijones92.totum.R
 import com.dewijones92.totum.ui.common.CheckedOptionsMenu
+import com.dewijones92.totum.ui.queue.readableOn
 
 internal val LocalCompactTiles = staticCompositionLocalOf { false }
+
+internal val LocalTileAccent = staticCompositionLocalOf<Color?> { null }
 
 @OptIn(ExperimentalFoundationApi::class)
 @Suppress("CyclomaticComplexMethod")
@@ -55,11 +58,12 @@ internal fun ControlTile(
     description: String? = null,
 ) {
     val scheme = MaterialTheme.colorScheme
+    val accent = LocalTileAccent.current
     val container by animateColorAsState(
-        if (active) scheme.primaryContainer else scheme.surfaceContainerHigh.copy(alpha = IDLE_TILE_ALPHA),
+        if (active) accent ?: scheme.primaryContainer else scheme.surfaceContainerHigh.copy(alpha = IDLE_TILE_ALPHA),
         label = "tile-container",
     )
-    val content = if (active) scheme.onPrimaryContainer else scheme.onSurface
+    val content = if (active) accent?.readableOn() ?: scheme.onPrimaryContainer else scheme.onSurface
     val interaction = when {
         onToggle != null -> Modifier.toggleable(value = active, role = Role.Switch, onValueChange = onToggle)
         onClick != null && onLongClick != null -> Modifier.combinedClickable(
@@ -127,10 +131,11 @@ private fun CompactTile(
     interaction: Modifier = Modifier,
 ) {
     val scheme = MaterialTheme.colorScheme
+    val accent = LocalTileAccent.current
     Surface(
         shape = MaterialTheme.shapes.small,
-        color = if (active) scheme.primaryContainer else scheme.surfaceContainerHigh,
-        contentColor = if (active) scheme.onPrimaryContainer else scheme.onSurface,
+        color = if (active) accent ?: scheme.primaryContainer else scheme.surfaceContainerHigh,
+        contentColor = if (active) accent?.readableOn() ?: scheme.onPrimaryContainer else scheme.onSurface,
         modifier = modifier,
     ) {
         Row(

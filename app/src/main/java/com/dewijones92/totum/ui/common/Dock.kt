@@ -47,6 +47,7 @@ fun Dock(
     modifier: Modifier = Modifier,
     badges: Map<TopLevelDestination, Int> = emptyMap(),
     remoteBar: (@Composable () -> Unit)? = null,
+    showPlayer: Boolean = true,
 ) {
     CountRecompositions("dock")
     Surface(
@@ -62,7 +63,7 @@ fun Dock(
         Column {
             if (remoteBar != null) {
                 remoteBar()
-            } else {
+            } else if (showPlayer) {
                 if (state == null && starting != null) {
                     StartingBar(starting)
                     HorizontalDivider(

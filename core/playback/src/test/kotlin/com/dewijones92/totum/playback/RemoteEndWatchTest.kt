@@ -1,5 +1,6 @@
 package com.dewijones92.totum.playback
 
+import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.domain.MediaItemId
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -146,5 +147,43 @@ class RemoteEndWatchTest {
 
         assertTrue(watch.finishedOnTv("a", "b") == true)
         assertFalse(watch.left(null, false) == null)
+    }
+
+    private fun logged(block: () -> Unit): List<String> {
+        val lines = mutableListOf<String>()
+        val previous = Diag.sink
+        Diag.sink = Diag.Sink { _, _, message, _ -> lines += message }
+        try {
+            block()
+        } finally {
+            Diag.sink = previous
+        }
+        return lines
+    }
+
+    @Test
+    fun `a crossover with nothing casting says nothing about the TV`() {
+        val lines = logged { assertNull(watch.finishedOnTv("a", "b")) }
+
+        assertTrue(lines.toString(), lines.none { it.contains("on the TV") })
+    }
+
+    @Test
+    fun `after a cast ends the watch is quiet again`() {
+        watch.observe("a", positionMs = 10_000, durationMs = duration, playing = true)
+        watch.forget()
+
+        val lines = logged { assertNull(watch.finishedOnTv("a", "b")) }
+
+        assertTrue(lines.toString(), lines.none { it.contains("on the TV") })
+    }
+
+    @Test
+    fun `while a cast is active an item Totum never saw there is still named in the log`() {
+        watch.observe("z", positionMs = 10_000, durationMs = null, playing = true)
+
+        val lines = logged { assertNull(watch.finishedOnTv("a", "b")) }
+
+        assertTrue(lines.toString(), lines.any { it.contains("a -> b on the TV: Totum never saw a play there") })
     }
 }

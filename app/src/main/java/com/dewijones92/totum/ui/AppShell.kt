@@ -69,10 +69,11 @@ import com.dewijones92.totum.ui.player.WatchViewModel
 import com.dewijones92.totum.ui.player.playerLinksFor
 import com.dewijones92.totum.ui.player.rememberWatchActions
 import com.dewijones92.totum.ui.podcasts.PodcastsScreen
+import com.dewijones92.totum.ui.queue.DockShown
 import com.dewijones92.totum.ui.queue.GroupDownloadAsk
 import com.dewijones92.totum.ui.queue.QueueScreen
 import com.dewijones92.totum.ui.queue.TargetNowPlayingBar
-import com.dewijones92.totum.ui.queue.rememberSelectedRemote
+import com.dewijones92.totum.ui.queue.rememberDockShown
 import com.dewijones92.totum.ui.settings.DriveBackupPrompt
 import com.dewijones92.totum.ui.shorts.ShortsReelScreen
 import com.dewijones92.totum.ui.videos.VideosScreen
@@ -288,7 +289,8 @@ private fun BottomBar(
         mapOf(TopLevelDestination.Library to fresh, TopLevelDestination.Podcasts to newEpisodes),
         selected,
     )
-    val remote = rememberSelectedRemote(container.targets)
+    val dock = rememberDockShown(container.targets, onQueueTab = selected == TopLevelDestination.Queue)
+    val remote = (dock as? DockShown.Remote)?.remote
     val row by container.playbackQueue.nowPlaying.collectAsStateWithLifecycle()
     SteadyPlayback(
         container.playbackController
@@ -315,6 +317,7 @@ private fun BottomBar(
                     )
                 }
             },
+            showPlayer = dock != DockShown.Hidden,
         )
     }
 }
@@ -331,6 +334,7 @@ private fun DockFor(
     onSkipNext: () -> Unit,
     badges: Map<TopLevelDestination, Int>,
     remoteBar: (@Composable () -> Unit)?,
+    showPlayer: Boolean,
 ) {
     Dock(
         state = state,
@@ -347,6 +351,7 @@ private fun DockFor(
         onSkipNext = onSkipNext,
         badges = badges,
         remoteBar = remoteBar,
+        showPlayer = showPlayer,
     )
 }
 

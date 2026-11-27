@@ -1,0 +1,13 @@
+[Unit]
+Description=Pin a permanent ARP entry for each wake-on-LAN TV in TOTUM_CAST_TARGETS
+Documentation=https://github.com/dewijones92/totum/tree/main/server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/home/pi/code/totum/server/systemd/totum-tv-arp.sh
+
+[Install]
+WantedBy=multi-user.target

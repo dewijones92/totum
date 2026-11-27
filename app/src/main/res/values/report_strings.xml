@@ -48,4 +48,17 @@
     <string name="settings_send_state_not_gathered">❌ The state could not be gathered. The event log says why.</string>
     <string name="settings_send_state_refused">❌ Your Pi did not take the state. Try again.</string>
     <string name="settings_send_state_test_run">⚠️ A test run sends nothing.</string>
+    <string name="report_toast_sent">📨 Report sent</string>
+    <string name="report_toast_retry">❌ Couldn\'t send, will retry</string>
+    <string name="report_toast_not_saved">❌ Couldn\'t save the report</string>
+    <string name="settings_diagnostics_sent_ok">📨 Report sent</string>
+    <string name="settings_diagnostics_not_saved">❌ Couldn\'t save the report</string>
+    <string name="settings_report_gesture">🐞 Hold the top-right corner to send a report</string>
+    <string name="settings_report_gesture_summary">Holding the top-right corner of any screen for about a second and a half takes a screenshot, then asks what went wrong. Off in the kid lock.</string>
+    <string name="send_report_note_gesture">Sent from the top-right corner hold</string>
+    <string name="quick_report_title">📨 Send a report</string>
+    <string name="quick_report_supporting">Say what went wrong. The screenshot was taken just before this opened.</string>
+    <string name="quick_report_shot_missing">⚠️ The screenshot could not be taken, so this report goes without one.</string>
+    <string name="quick_report_preview_description">Screenshot %1$d of the report</string>
+    <string name="quick_report_send">Send</string>
 </resources>

@@ -36,6 +36,8 @@ import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.NoShield
 import com.dewijones92.totum.domain.PlayReason
+import com.dewijones92.totum.domain.SegmentSkip
+import com.dewijones92.totum.domain.SegmentSkipDecider
 import com.dewijones92.totum.domain.SkipSegment
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.SourceSkips
@@ -1322,6 +1324,7 @@ public class Media3PlaybackController(
         endWatch.start(item.id, item.listedDurationMs)
         startLatency.played(item.id)
         skipsThisItem = 0
+        segmentSkips.reset()
         ticksSinceSave = 0
         itemStartedAtMs = SystemClock.elapsedRealtime()
         // Said per video, so a report can tell "SponsorBlock had nothing for this one" from
@@ -1337,11 +1340,39 @@ public class Media3PlaybackController(
     /** Skips this item so far — a few per video at most, so each is worth its own line. */
     private var skipsThisItem = 0
 
+    private val segmentSkips = SegmentSkipDecider()
+
     private fun applySkipSegments(controller: MediaController) {
         val from = controller.currentPosition.milliseconds
         val duration = controller.duration.takeIf { it > 0 }
         val own = itemContext.showKey?.let { sourceSkips.value[it] }?.segmentsFor(duration).orEmpty()
-        val target = (itemContext.skipSegments + own).skipTargetFor(from) ?: return
+        val skip = segmentSkips.decide(
+            itemContext.skipSegments + own,
+            from,
+            duration,
+            SystemClock.elapsedRealtime(),
+        )
+        when (skip) {
+            SegmentSkip.None -> return
+            is SegmentSkip.GivenUp -> {
+                Diag.warn(
+                    "sponsorblock",
+                    "${itemContext.id}: the same skip to ${skip.toMs}ms came up ${skip.repeats} times within " +
+                        "${skip.withinMs}ms, at ${from.inWholeMilliseconds}ms of ${duration ?: "unknown"}ms " +
+                        "[skips so far=$skipsThisItem]; giving up on skipping this item",
+                )
+            }
+            is SegmentSkip.Seek -> seekPastSegment(controller, skip, from, duration, own)
+        }
+    }
+
+    private fun seekPastSegment(
+        controller: MediaController,
+        skip: SegmentSkip.Seek,
+        from: kotlin.time.Duration,
+        duration: Long?,
+        own: List<SkipSegment>,
+    ) {
         skipsThisItem++
         endWatch.segmentSkipped(from.inWholeMilliseconds, duration)
         val whose = if (own.skipTargetFor(from) != null) {
@@ -1349,12 +1380,14 @@ public class Media3PlaybackController(
         } else {
             "SponsorBlock"
         }
+        val clamped = skip.clampedFromMs?.let { "; the segment ended at ${it}ms, past the item's ${duration}ms" }
         Diag.log(
             "sponsorblock",
-            "skipped ${from.inWholeMilliseconds}ms -> ${target.inWholeMilliseconds}ms " +
-                "(skip $skipsThisItem of this item, $whose)",
+            "skipped ${from.inWholeMilliseconds}ms -> ${skip.toMs}ms " +
+                "(skip $skipsThisItem of this item, $whose)" +
+                (if (skip.endsItem) ", which ends the item" else "") + clamped.orEmpty(),
         )
-        controller.seekTo(target.inWholeMilliseconds)
+        controller.seekTo(skip.toMs)
     }
 
     private fun noteItemEnd(

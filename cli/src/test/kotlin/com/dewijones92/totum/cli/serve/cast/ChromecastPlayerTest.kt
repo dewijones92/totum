@@ -310,4 +310,74 @@ class ChromecastPlayerTest {
         assertNull(CastLink("192.168.0.10", control).connect())
         assertFalse(control.reachable)
     }
+
+    private val english = CastTrack(1, "en", "English")
+    private val welsh = CastTrack(2, "cy", "Cymraeg")
+
+    private fun captioned(wanted: String?, vararg tracks: CastTrack): ChromecastPlayer {
+        val p = player()
+        p.showCaptions(wanted)
+        p.play(request(picture = true))
+        control.calls.clear()
+        control.captionTracks = tracks.toList()
+        control.onTracks()
+        return p
+    }
+
+    @Test
+    fun `tracks the receiver lists after the load are matched to the wanted language and switched on`() {
+        captioned("en", english, welsh)
+
+        assertEquals(listOf("captions=1"), control.calls)
+    }
+
+    @Test
+    fun `a regional wanted language falls back to the same language, and another language is chosen when asked`() {
+        captioned("en-GB", welsh, english)
+        assertEquals(listOf("captions=1"), control.calls)
+
+        control.calls.clear()
+        control.activeCaption = 1
+        player().also { it.showCaptions("cy") }
+        assertEquals(listOf("captions=2"), control.calls)
+    }
+
+    @Test
+    fun `captions asked for off are switched off when one shows, and nothing is sent when none does`() {
+        control.activeCaption = 1
+        val p = captioned(null, english, welsh)
+        assertEquals(listOf("captions=null"), control.calls)
+
+        control.calls.clear()
+        control.activeCaption = null
+        p.showCaptions(null)
+        assertEquals(emptyList<String>(), control.calls)
+    }
+
+    @Test
+    fun `the right track already showing sends nothing, and a language nobody offers switches captions off`() {
+        control.activeCaption = 1
+        captioned("en", english, welsh)
+        assertEquals(emptyList<String>(), control.calls)
+
+        control.calls.clear()
+        control.captionTracks = listOf(english, welsh)
+        control.activeCaption = 1
+        player().showCaptions("fr")
+        assertEquals(listOf("captions=null"), control.calls)
+    }
+
+    @Test
+    fun `before any track is listed nothing is sent, and the offer and what shows are the receiver's own words`() {
+        val p = player()
+
+        p.showCaptions("en")
+
+        assertEquals(emptyList<String>(), control.calls)
+        assertEquals(emptyList<String>(), p.captionsOffered)
+        control.captionTracks = listOf(english, welsh, CastTrack(3, "en", "English (CC)"))
+        control.activeCaption = 2
+        assertEquals(listOf("en", "cy"), p.captionsOffered)
+        assertEquals("cy", p.captionsShown)
+    }
 }

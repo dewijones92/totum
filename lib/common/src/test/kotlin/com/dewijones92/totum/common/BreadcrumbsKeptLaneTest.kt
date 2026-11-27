@@ -24,6 +24,8 @@ class BreadcrumbsKeptLaneTest {
         ).forEach {
             assertTrue(it, it in Breadcrumbs.KEPT_TAGS)
         }
+        assertTrue("the per-item account sync lines", "yt-sync-item" in Breadcrumbs.KEPT_TAGS)
+        assertFalse("the routine ping lines stay chatty", "yt-sync" in Breadcrumbs.KEPT_TAGS)
         listOf("playback", "resolve", "gesture").forEach { assertFalse(it, it in Breadcrumbs.KEPT_TAGS) }
     }
 

@@ -62,6 +62,7 @@ fun PlayOnRow(targets: TargetsRepository, padStatusBar: Boolean, modifier: Modif
     val listed by targets.targets.collectAsStateWithLifecycle()
     val colours by targets.colours.collectAsStateWithLifecycle()
     val current = PlayOn.resolve(selected, options)
+    val doing = doingLines(listed)
     var open by remember { mutableStateOf(false) }
     var adding by remember { mutableStateOf(false) }
     Row(
@@ -88,9 +89,10 @@ fun PlayOnRow(targets: TargetsRepository, padStatusBar: Boolean, modifier: Modif
                     selected = true,
                     onClick = { open = true },
                     connection = listed.firstOrNull { it.target.id == current.id }?.connection,
+                    doing = doing[current.id],
                 )
                 DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-                    PlayOnMenuItems(options, colours, current.id) {
+                    PlayOnMenuItems(options, colours, current.id, doing) {
                         open = false
                         targets.choose(it)
                     }
@@ -112,6 +114,7 @@ internal fun PlayOnMenuItems(
     options: List<PlayOnOption>,
     colours: Map<String, Long>,
     currentId: String?,
+    doing: Map<String, String> = emptyMap(),
     onPick: (PlayOnOption) -> Unit,
 ) {
     options.forEach { option ->
@@ -128,6 +131,13 @@ internal fun PlayOnMenuItems(
                 Column {
                     val tick = if (option.id == currentId) " ✅" else ""
                     Text(option.target.chipLabel(option.power) + tick)
+                    doing[option.id]?.let {
+                        Text(
+                            it,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.testTag(PLAY_ON_DOING_PREFIX + option.id),
+                        )
+                    }
                     PlayOnHintLine(option)
                 }
             },
@@ -189,6 +199,7 @@ const val ADD_BROWSER_HOW_TAG = "play-on-add-browser-how"
 const val PLAY_ON_ROW_TAG = "play-on-row"
 const val PLAY_ON_OPTION_PREFIX = "play-on-option-"
 const val PLAY_ON_DOT_PREFIX = "play-on-dot-"
+const val PLAY_ON_DOING_PREFIX = "play-on-doing-"
 private const val IDLE_WATCH_MS = 10_000L
 private const val DRIVING_WATCH_MS = 3_000L
 private val DOT = 12.dp

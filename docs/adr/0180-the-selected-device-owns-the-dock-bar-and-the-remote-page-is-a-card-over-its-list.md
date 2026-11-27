@@ -2,7 +2,7 @@
 title: The selected device owns the dock's now-playing bar on every tab, and its remote page is one scrolling list with a compact card on top
 kind: adr
 status: accepted
-updated: 2026-11-20
+updated: 2026-11-27
 ---
 
 # 180. The selected device owns the dock's now-playing bar on every tab, and its remote page is one scrolling list with a compact card on top
@@ -50,8 +50,8 @@ switched off.
 - **Tapping the bar opens that device's remote page** (the Queue tab, which already shows the selected device's page).
 - **The bar polls while it is shown.** The Play on row asks the Pi every 3 s while a device is selected (10 s while the phone is the
   choice), so the bar's state is at most a few seconds old on tabs that have no chips of their own.
-- **Lock-screen and notification controls are not built.** The phone's media notification is still the phone's own session; a per-device
-  notification is [todo](../todos/target-bar-everywhere.md).
+- **Lock-screen and notification controls** were not built here; they are [ADR 188](0188-the-selected-device-is-a-second-media-session-for-the-lock-screen-and-notification.md),
+  a second media session whose existence follows this ADR's `barFor` rule.
 
 ### The remote page
 
@@ -109,3 +109,33 @@ switched off.
   keyed by position, so the compact card adds one item and nothing else changes with queue length.
 - Not run on a real TV or soundbar from here: whether the corrected transport path now moves the LG soundbar's own volume is the
   coordinator's check on the Pi (`busctl --system tree org.bluez --list | grep sep`).
+
+## Amended 2026-11-27: one set of controls per screen, boost under a picture, and what each device is doing
+
+Dewi, from reports 20261121T062216, 091331, 075241 and 080258: *"surely just one, the same controls as the phone is using but obviously using
+different colours"*, and, on 27 Nov, that the device in use should be obvious at a glance.
+
+- **No dock bar on the Queue tab while the remote card is there.** `List<TargetState>.dockBarFor(selected, onQueueTab)` in `:core:data`, next
+  to `barFor`, answers `Remote(state)`, `Phone` or `Hidden`: a selected device with something to show is `Remote` on every tab but the Queue
+  tab, where the page's own card already holds its transport and the bar was a second copy whose tap went `Queue -> Queue` and did
+  nothing; there it is `Hidden`, and the dock draws neither the device's bar nor the phone's mini player (the phone's would have been the
+  two-contradictory-buttons case of this ADR's context). An idle or unlisted selection is `Phone` on every tab. `TargetDockBarTest` pins the
+  three answers; red first against the old rule, which answered `Remote` on the Queue tab. The decision is logged once per change with its
+  reason. On the other tabs a tap on the bar selects the Queue tab, which shows the selected device's page: the same device.
+- **The card's controls are the phone's, in the device's colour.** The Controls tiles are the player's own `ControlTile`s; inside the card
+  they take the device's colour for their on-state (`LocalTileAccent`, black or white text by contrast). What the phone's player offers and
+  the card offers, tile by tile: Repeat yes; Sleep yes; Skip silences yes (sound only: a picture cannot be cut to match);
+  Boost yes, **now also under a picture** (below); Captions yes, only while the device reports tracks (ADR 191); Colour is the card's own.
+  **Not offered, and why:** playback speed (the Pi's sound chain and the Chromecast's stream have no speed stage, so there is nothing to send it
+  to: building one is its own item); Listen/Watch (a target either shows a picture or does not, and the Pi decides that from the device's kind);
+  Explore, back and forward through history and the gapless arm (phone queue features that the Pi's deck does not have).
+- **Boost under a picture.** The card hid both Skip silences and Boost while a TV showed a picture, on the premise that nothing would
+  process the sound, yet the Pi already decodes and re-encodes the audio for the TV (the `audio=processed … boost=OFF` log line), and
+  `PlayRequest.sound` carries the boost into that engine. `TargetState.offersBoost` is now always true and `offersSkipSilence` is false
+  only while a picture shows (`TargetRulesTest`; red first against the old "hide both" rule). Changing it restarts the item at the same
+  place, as for sound-only items. Not seen on a real TV from here.
+- **What each device is doing, on the chips and the picker.** `TargetState.doingLine(title)` in `:core:data`: `▶️ Toy Story`, `⏸️ Toy Story`,
+  `⏳ Toy Story` while starting, `⚪ Idle` when nothing is queued or the device is asleep with a saved queue, with the title through the
+  spoiler shield like every row. It sits under the device's name on its chip and in the Play on row and picker (a second line that wraps, a
+  chip is at most 220 dp wide), from the same polled `TargetState` the bar and the page read, in the device's tinted, bordered chip.
+

@@ -93,6 +93,8 @@ class AccountResumePositions(
 
     fun knows(itemId: MediaItemId): Boolean = known(itemId) != null
 
+    fun knownDurationMs(itemId: MediaItemId): Long? = known(itemId)?.durationMs
+
     suspend fun overriddenBySeek(itemId: MediaItemId) {
         val remoteMs = known(itemId)?.positionMs ?: return
         if (reconciled.reconciledMs(itemId) == remoteMs) return
