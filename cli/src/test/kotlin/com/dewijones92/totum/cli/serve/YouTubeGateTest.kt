@@ -253,6 +253,27 @@ class YouTubeGateTest {
         assertEquals("the second resolve did not reach yt-dlp", extractedBefore, extractions.size)
     }
 
+    @Test
+    fun `a plain http mp3 radio address is handed to the speaker as it is and never touches YouTube`() {
+        val radio = "https://ice1.somafm.com/sonicuniverse-128-mp3"
+        val station = PlayableItem(
+            MediaItem(
+                MediaItemId("station:jazz"),
+                SourceId("hermes-audio-stations"),
+                "Jazz station",
+                publishedAt = null,
+                duration = null,
+                mediaUrl = HttpUrl.of(radio),
+            ),
+            PlayHandle.Podcast(audioUrl = HttpUrl.of(radio)),
+        )
+
+        val url = runBlocking { home().soundOf(station) }
+
+        assertEquals(radio, url)
+        assertEquals("nothing reached YouTube or yt-dlp for a radio station", 0, reachedYouTube())
+    }
+
     private companion object {
         const val WAIT_MS = 15_000L
         const val HELD_MS = 400L

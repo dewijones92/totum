@@ -265,6 +265,19 @@ class MpvPlayerTest {
     }
 
     @Test
+    fun `an internet radio address with no file name is played straight, with no relay and no processing`() {
+        val radio = "https://ice1.somafm.com/sonicuniverse-128-mp3"
+        val p = mpv("""printf '%s\n' "${'$'}@" > "${dir.path}/argv.txt"""")
+
+        p.play(request(url = radio))
+
+        val args = argv("argv.txt")
+        assertEquals(listOf("--", radio), args.takeLast(2))
+        assertTrue(args.toString(), args.contains("--audio-device=pulse/bluez_output.AA_BB.1"))
+        assertFalse(args.toString(), args.any { it.startsWith("--demuxer") || it.startsWith("--volume") })
+    }
+
+    @Test
     fun `stopping kills mpv and does not count as the item ending`() {
         val p = mpv("sleep 30")
         p.play(request())

@@ -26,7 +26,8 @@ def targets(*states):
 
 
 BROWN = entry("sound:brown-noise", "Brown noise", loop=True)
-JAZZ = entry("Dx5qFachd3A", "Jazz station")
+RADIO = "https://ice1.somafm.com/sonicuniverse-128-mp3"
+JAZZ = entry("station:jazz", "Jazz station", handle=f"audio={RADIO}")
 SHOW = entry("abc123abc12", "Episode 4", handle="https://www.youtube.com/watch?v=abc123abc12")
 PHONE = entry("zzz", "Bluey", added_by="Dewi's Pixel 7")
 
@@ -82,7 +83,7 @@ class StatusTest(unittest.TestCase):
         self.assertEqual("playing", status["state"])
         self.assertIsNone(status["want"])
         self.assertEqual("jazz", status["media"]["station"])
-        self.assertEqual("https://www.youtube.com/watch?v=Dx5qFachd3A", status["media"]["url"])
+        self.assertEqual(RADIO, status["media"]["url"])
 
     def test_a_show_is_media_without_a_station(self):
         status = audio_ctl.status_from(targets(target(SOUNDBAR, [SHOW], 0, True)), "soundbar")
@@ -192,10 +193,17 @@ class UrlsTest(unittest.TestCase):
         self.assertFalse(request["loop"])
         self.assertNotIn("repeat", request)
         item = request["items"][0]
-        self.assertEqual("Dx5qFachd3A", item["itemId"])
-        self.assertEqual("LIVE", item["contentKind"])
-        self.assertEqual("VIDEO", item["playbackType"])
-        self.assertEqual("https://www.youtube.com/watch?v=Dx5qFachd3A", item["handle"])
+        self.assertEqual("station:jazz", item["itemId"])
+        self.assertEqual("MUSIC", item["contentKind"])
+        self.assertEqual("PODCAST", item["playbackType"])
+        self.assertEqual(f"audio={RADIO}", item["handle"])
+        self.assertEqual(RADIO, item["mediaUrl"])
+
+    def test_the_jazz_station_is_somafm_sonic_universe_as_a_plain_http_mp3_and_not_youtube(self):
+        self.assertEqual({"jazz": "https://ice1.somafm.com/sonicuniverse-128-mp3"}, audio_ctl.STATIONS)
+        item = audio_ctl.station_item("jazz")
+        self.assertNotIn("youtube", " ".join(str(v) for v in item.values()).lower())
+        self.assertTrue(item["mediaUrl"].startswith("https://ice1.somafm.com/"))
 
     def test_play_show_resolves_through_firetv_ctl_and_queues_what_it_returns(self):
         asked = []

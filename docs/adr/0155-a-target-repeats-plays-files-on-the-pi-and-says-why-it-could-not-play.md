@@ -2,7 +2,7 @@
 title: A target repeats, plays sound files on the Pi, and says why it could not play
 kind: adr
 status: accepted
-updated: 2026-11-20
+updated: 2026-11-27
 ---
 
 # 155. A target repeats, plays sound files on the Pi, and says why it could not play
@@ -84,3 +84,14 @@ Its contract with the real routes is two golden fixtures in `tools/handoff/herme
 (`test_audio_ctl_contract.py`, `HermesAdapterContractTest`), so a change to either the adapter's requests or `GET /targets`
 breaks a test instead of Home Assistant. Live YouTube on a speaker (the jazz station) is built (ADR 156's amendment) but has not
 yet been played through the adapter on a real speaker.
+
+## Amended 2026-11-27: the jazz station is SomaFM's Sonic Universe, a plain http mp3 the speaker's mpv plays as it is
+
+Dewi chose a non-YouTube internet radio for Home Assistant's jazz (`https://ice1.somafm.com/sonicuniverse-128-mp3`), so the
+"live YouTube on a speaker" half of this ADR is no longer on jazz's path. The adapter sends it as an ordinary item: `contentKind
+MUSIC`, `playbackType PODCAST`, `handle audio=<address>`, id `station:jazz`, no loop. The Pi's target path already played that
+shape (a `Podcast` handle's `audioUrl` through `HomeDownloads.soundOf`, then mpv, with no YouTube call, no relay and no
+processing); it is now pinned by `YouTubeGateTest`, `MpvPlayerTest` and `HermesAdapterContractTest`, and a real mpv with the
+production flags played the real station. The adapter is not redeployed yet; the runbook is in
+[the backlog item](../todos/home-assistant-sounds-through-totum.md). A deck is not told the station is endless: mpv simply does
+not exit, and if it does the item ends or fails like any other (the reason is in `problem`).
