@@ -2469,6 +2469,7 @@ private fun startQueueAutoDownloader(c: DefaultAppContainer) {
         heldWhileStreaming = combine(c.playbackQueue.streamingNow, PlaybackTee.teeableNow) { streaming, teeable ->
             streaming?.takeUnless { it.value in teeable }
         }.distinctUntilChanged(),
+        whyNotTeeable = { PlaybackTee.whyNotTeeable(it.value) },
         groupAllows = c.groupDownloads::allows,
         atHome = { c.homeDownloads.atHome(it) != null },
         groupChoicesChanged = c.groupDownloads.choices,

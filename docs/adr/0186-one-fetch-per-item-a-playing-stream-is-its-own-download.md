@@ -8,7 +8,7 @@ updated: 2026-11-27
 # 186. One fetch per item: a playing stream is its own download, and nothing swaps a healthy stream for a file
 
 - Status: Accepted
-- Date: 2026-11-20 (amended 2026-11-27: the cast relay does not block on the cache)
+- Date: 2026-11-20 (amended 2026-11-27: the cast relay does not block on the cache; a video played as an HLS playlist cannot be teed, and the hold says why)
 
 ## Context
 
@@ -134,3 +134,33 @@ failed with "the relay is still blocked on the locked span after 9002ms".
   one, over 3 s as a warning, the rest counted in a 30 s summary line. Who holds a locked span is **not known**: `SimpleCache` does not say,
   so the warning lists the usual suspects instead of naming one.
 
+
+## Amended 2026-11-27: a video played as an HLS playlist cannot be teed, and the hold says why
+
+The nightly of 27 Nov 2026 (run 46076397579, v0.1.970, commit b2dd1b6d) failed only `SeveralSharedLinksAllLandTest.everySharedLinkIsQueuedAndFetchedExactlyOnce`
+("not everything shared was fetched for offline listening", after 304 s). Three links were shared. Two (`jNQXAC9IVRw`, `aqz-KE-bpKQ`) were queued and not playing,
+so the downloader fetched them with yt-dlp (`[tee] … downloading it on its own: no audio stream of it is playing through the cache`). The third, `ttiLcMUQq80`, was the
+last share and started playing as a **video**: `route ttiLcMUQq80 -> streaming the video … [handle=Video … listen=false]`,
+`stream 1080p · AVC avc1.640028 … (one stream)`, then `play ttiLcMUQq80 from https://manifest.googlevideo.com/api/manifest/hls_playlist/… [route=hls]`.
+The downloader said `not fetching "Moonbound Episode 2 | For All Humanity" while it streams` and `pass skips: … 1 held while it streams`. It played for 285 s with nobody
+pausing it, so the hold never lifted and the test timed out.
+
+**Which case it was: not a defect in the tee; the test was out of date with this ADR.** `PlaybackTee.teeableNow` was false because the item never opened an audio
+stream through the cache. An HLS playlist and its segments are `direct, not cached (live, manifest, loopback or not http)` in `PlaybackCacheKeys.cacheable`
+(`.m3u8`, `/manifest/`, `sq=`), and the log shows only that line for the playing video (22:48:35.905 onwards, one per segment). The segments are not the audio file
+(itag 140) that a download is, and none of them is stored, so there are no cached bytes to complete and copy out. The tee covers one thing by design (point 3):
+a YouTube **audio** stream read through the cache (`mime=audio`, cache key `yt:<id>:<itag>:<clen>:<xtags>`), which is what a merged video's separate audio
+track would be too (not exercised by this run: this video was one HLS stream).
+A video that plays as one stream (HLS, SABR, a muxed format) has no such track, and joins the podcast enclosures and live streams under "an item that streams but
+cannot be teed": its download waits until it pauses, ends or another item takes over. That is what the hold did.
+
+- **The test now pauses playback once everything is queued**, then expects all three fetched exactly once. Nothing was weakened: still three links, still the
+  same fetch assertion and the same exactly-once check on the `[download] start` trail. Sharing plays the last link as a video, and a video that never pauses is
+  by this ADR never fetched.
+- **The hold line now says why the item is not teeable** (`TeeVerdict`, from the route the player was handed, `PlayRoutes.of`, and whether an audio stream of it
+  opened through the cache): `dewidebug not fetching "<title>" while it streams: … [why it is not teeable: it plays as an HLS playlist (…) [route=hls]]`.
+  The routes it names are HLS, SABR, a live manifest, the torrent server, a local file, no recorded route, and "a direct url with no audio stream opened through
+  the cache" (a muxed stream, a podcast enclosure, or an audio stream not yet opened). A report can now settle this without reading the cache lines.
+- **Not changed, and a question for Dewi:** a video watched through HLS gets no offline audio copy until it pauses or stops, and the audio it would fetch
+  (35 MB beside 435 MB of video for this item) is about 8% of what the stream carries. Fetching it beside the stream would break "one fetch" for that 8%.
+  The ADR keeps the hold; relaxing it for video streams is a decision for Dewi, not built here.

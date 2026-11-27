@@ -80,6 +80,7 @@ class QueueAutoDownloader(
      * sound for 1.3 s). It is left alone until it pauses or stops, and fetched then if still queued.
      */
     private val heldWhileStreaming: Flow<MediaItemId?> = flowOf(null),
+    private val whyNotTeeable: (MediaItemId) -> String = { "" },
     private val groupAllows: (String) -> Boolean = { true },
     private val atHome: (PlayableItem) -> Boolean = { false },
     private val groupChoicesChanged: Flow<Any?> = emptyFlow(),
@@ -375,7 +376,8 @@ class QueueAutoDownloader(
                 Diag.log(
                     "download",
                     "dewidebug not fetching \"${entry.item.item.title}\" while it streams: its audio would cross " +
-                        "the network twice; it is fetched once it pauses or stops, if it is still queued",
+                        "the network twice; it is fetched once it pauses or stops, if it is still queued " +
+                        "[why it is not teeable: ${whyNotTeeable(entry.item.item.id)}]",
                 )
             }
             Skip("held while it streams")

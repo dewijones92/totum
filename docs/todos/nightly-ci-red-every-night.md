@@ -46,6 +46,12 @@ What changed, all in `tools/ci/live-test-via-home.sh` and `ci.yml`:
 **To settle it:** after the next nightly, read the heartbeat lines. If `github=` stays answered and the runner is lost anyway,
 the tunnel was not the cause; if a run ends `STOPPED after 25m`, the heartbeat shows which side stopped moving.
 
+## 27 Nov at v0.1.970: the one live failure
+
+Run 46076397579 failed only `SeveralSharedLinksAllLandTest` ("not everything shared was fetched…", 304 s). Cause: the last shared link played as a
+video over an HLS playlist, which the tee cannot cover, so the downloader held it while it streamed ([ADR 186](../adr/0186-one-fetch-per-item-a-playing-stream-is-its-own-download.md),
+amended 27 Nov) and nobody paused it. The test now pauses playback once all three are queued; the hold line says why an item is not teeable.
+
 ## Still open
 
 - `AnHourLongItemDoesNotRebufferTest` has not measured anything since 6 Nov, because it died at `playNow`. Its first real result

@@ -27,7 +27,9 @@ download: the audio is completed from the cache's bytes (only the ranges the pla
 with no player swap. An item that streams and cannot be teed is left alone until it pauses, ends or another item takes over,
 and is then fetched if it is still queued. A finished download never replaces a healthy stream: the switch waits for a pause, a
 stall or a seek. The log says which (`tee`, `download`, `playback` lines) and the completion line gives the network bytes as a
-multiple of the file.
+multiple of the file. A video that plays as one HLS playlist (the default for a shared link that opens as a video) is such an item:
+no audio stream of it opens through the cache, so its audio download waits until it pauses or stops, and the hold line says why it
+is not teeable (`TeeVerdict`: HLS, SABR, live, torrent, local file, or no audio stream opened through the cache).
 
 **Every skip is counted (2026-11-27, [ADR 197](../adr/0197-the-auto-downloader-counts-every-skip-and-restarts-a-download-nothing-is-running.md)).**
 A pass ends with one `dewidebug pass skips:` line giving a count per reason (already on the phone, a local file, downloading
@@ -194,7 +196,8 @@ tidy is not the app's call.
   *foreground* service and is released afterwards. Nothing on the JVM can prove that.
 - `AutoDownloadFetchesTheAudioTest.severalQueuedItemsAreFetchedAtOnce` and
   `SeveralSharedLinksAllLandTest` (both live) — several really do run at once in the real graph,
-  and three links shared in quick succession all land and are each fetched exactly once.
+  and three links shared in quick succession all land and are each fetched exactly once (the last share plays as a
+  video, so the test pauses it once all three are queued: a video streaming as HLS is held until it pauses, ADR 186).
 - `PlayRouteTest` + `OfflineSkipsUnavailableTest` — the routing decision itself, per pillar, per
   copy variant, online and off. Reverting the 2026-08-06 fix turns 9 of them red.
 - `OfflineQueuePlaybackTest` and `LiveDownloadedVideoOfflineTest` (instrumented, radios genuinely

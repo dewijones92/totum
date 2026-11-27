@@ -504,6 +504,35 @@ class QueueAutoDownloaderTest {
     }
 
     @Test
+    fun `the line that holds a streaming item says why it could not be teed`() = runTest(dispatcher) {
+        val lines = mutableListOf<String>()
+        val previous = Diag.sink
+        Diag.sink = Diag.Sink { _, tag, message, _ -> if (tag == "download") lines += message }
+        try {
+            QueueAutoDownloader(
+                queue = queue,
+                downloads = downloads,
+                scope = CoroutineScope(dispatcher),
+                isEnabled = { true },
+                isAllowedOnThisNetwork = { true },
+                heldWhileStreaming = MutableStateFlow(MediaItemId("a")),
+                whyNotTeeable = { id -> "no tee for ${id.value}: it plays as an HLS playlist" },
+            ).start()
+            queue.value = QueueSnapshot(listOf(entry("a")))
+            advanceUntilIdle()
+        } finally {
+            Diag.sink = previous
+        }
+
+        val hold = lines.singleOrNull { it.contains("not fetching \"a\" while it streams") }
+        assertTrue("one hold line expected, got $lines", hold != null)
+        assertTrue(
+            "the hold line must carry the tee verdict: $hold",
+            hold!!.contains("no tee for a: it plays as an HLS playlist")
+        )
+    }
+
+    @Test
     fun `a streaming item that leaves the queue is not fetched when it stops`() = runTest(dispatcher) {
         val streaming = MutableStateFlow<MediaItemId?>(MediaItemId("a"))
         QueueAutoDownloader(

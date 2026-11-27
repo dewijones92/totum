@@ -107,6 +107,8 @@ class SeveralSharedLinksAllLandTest {
             queued != null,
         )
 
+        instrumentation.runOnMainSync { container.playbackController.setPlaying(false) }
+
         val fetched = withTimeoutOrNull(DOWNLOAD_TIMEOUT_MS) {
             container.downloadManager.observeDownloads().first { states ->
                 SHARED.all { states[MediaItemId(it)] is DownloadState.Downloaded }

@@ -78,6 +78,9 @@ public object PlaybackTee : StreamTee {
         }
     }
 
+    public fun whyNotTeeable(itemId: String): String =
+        TeeVerdict.why(PlayRoutes.of(itemId), offers.containsKey(itemId))
+
     override fun canTee(itemId: String): Boolean = offers.containsKey(itemId)
 
     override suspend fun complete(
