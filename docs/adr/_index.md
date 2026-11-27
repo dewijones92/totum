@@ -196,3 +196,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 185 | [Long ones are built from what is cached, and fill in lengths lazily](0185-long-ones-are-built-from-what-is-cached-and-fill-in-lengths-lazily.md) | Accepted |
 | 186 | [One fetch per item: a playing stream is its own download, and nothing swaps a healthy stream for a file](0186-one-fetch-per-item-a-playing-stream-is-its-own-download.md) | Accepted |
 | 187 | [A running Jellyfin app is a target the Pi drives by item id, and it takes only Jellyfin items](0187-a-running-jellyfin-app-is-a-target-the-pi-drives-by-item-id.md) | Accepted |
+| 191 | [Casts from the Pi carry captions under the phone's own caption choice, and a speaker's Bluetooth link is measured and logged](0191-casts-from-the-pi-carry-captions-and-a-speakers-bluetooth-link-is-measured.md) | Accepted |

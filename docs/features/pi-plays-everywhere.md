@@ -3,7 +3,7 @@ title: 📡 The Pi plays to any TV, speaker or browser; the phone is a remote
 kind: feature
 area: casting/pi
 status: built 2026-11-07, Batch A (tests written 2026-11-07; volume rule and the YouTube relay fixed after the first run on the LG; the relay not yet seen on a real TV)
-updated: 2026-11-20
+updated: 2026-11-27
 ---
 
 # 📡 The Pi plays to any TV, speaker or browser
@@ -25,6 +25,20 @@ sound processing on the Pi). Brief: [pi-plays-everywhere.md](../todos/pi-plays-e
 - **Chips carry a connection dot** (linked, ready, waking, reconnecting, asleep, problem), hint at more chips off the edge, wear a glyph
   per kind (📱 🔈 📺 📽️ 🖥️), and a long-press opens the colour choices (48 dp swatches).
 - Not built: lock-screen and notification controls for a device ([todo](../todos/target-bar-everywhere.md)).
+
+## One set of controls, boost under a picture, what each device is doing, and a measured link (ADRs 180 and 191, amended 2026-11-27)
+
+- **No bar over the page.** On the Queue tab the chosen device's remote card already carries its transport, so the dock draws neither the
+  device's bar nor the phone's mini player there (`dockBarFor`). On every other tab nothing changes: a tap on the bar opens that device's page.
+- **The card's tiles are the phone's, in the device's colour.** Repeat, Sleep, Skip silences, Boost, Captions (when the receiver lists
+  tracks) and Colour. Not offered, and why: playback speed (no speed stage in the Pi's sound chain or the Chromecast's stream), Listen/Watch
+  (the device's kind decides), Explore and history (phone queue features).
+- **Boost under a picture.** A TV showing a picture is offered Boost (the Pi re-encodes the audio for it anyway) but not Skip silences.
+- **Chips and the Play on picker say what the device is doing:** `▶️ Toy Story`, `⏸️ Toy Story`, `⏳ Toy Story`, `⚪ Idle`, a second line that wraps.
+- **A soundbar has a seek bar** with Skip silences or Boost on: the Pi reports the source's length (ffprobe).
+- **A wake that failed no longer outlives the start that played.** The static ARP entry is a unit (`server/systemd/totum-tv-arp.service`).
+- **A speaker's Bluetooth link is logged** (RSSI, link quality, underruns, reconnects, drops) once per 30 s while it plays, from a host
+  collector (`server/systemd/totum-bt-link.service`).
 
 ## What it does
 
