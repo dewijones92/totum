@@ -110,6 +110,8 @@
     <string name="queue_group_shuffle_play">Shuffle and play %1$s</string>
     <string name="queue_group_download">🎧 Download this group\'s sound for offline</string>
     <string name="queue_group_endless">♾️ Endless radio: more songs arrive as you listen</string>
+    <string name="queue_group_radio_idle">📻 Radio · not topping up</string>
+    <string name="queue_group_discover_idle">🔭 Discover · not topping up</string>
     <string name="queue_group_discover">🔭 Discover: more songs from artists near the seed arrive as you listen</string>
     <string name="queue_group_stop_download">Stop downloading this group</string>
     <string name="group_download_title">🎧 Download the sound of “%1$s” for offline?</string>
@@ -875,6 +877,11 @@
     <string name="refused_nothing">there is nothing to play</string>
     <string name="refused_cannot_decode_video">this phone can\'t play this video (%1$s)</string>
     <string name="refused_cannot_decode_sound">this phone can\'t play this sound (%1$s)</string>
+    <string name="refused_decoder_stopped_video">this phone\'s %1$s decoder stopped on this video</string>
+    <string name="refused_decoder_stopped_sound">this phone\'s %1$s decoder stopped on this sound</string>
+    <string name="refused_beyond_device">%1$s at %2$d×%3$d is beyond this device, which reaches %4$dp</string>
+    <string name="refused_way_play_on">▶️ Play on %1$s</string>
+    <string name="refused_way_fetch_copy">⬇️ Get a %1$dp copy</string>
     <string name="refused_player_error">playback failed (%1$s)</string>
     <string name="refused_no_track_list">this file\'s track list is at its end, so this phone can\'t read it. The Pi will repair it when it is filed</string>
     <string name="refused_no_stream">YouTube gave no stream for it</string>
@@ -1002,7 +1009,10 @@
         <item quantity="one">📋 1 item queued after this</item>
         <item quantity="other">📋 %1$d items queued after this</item>
     </plurals>
-    <string name="player_up_next_count_skipped">📋 %1$d queued · %2$d will be skipped</string>
+    <plurals name="player_up_next_count_skipped">
+        <item quantity="one">📋 %1$d queued · %2$d will be skipped</item>
+        <item quantity="other">📋 %1$d queued · %2$d will be skipped</item>
+    </plurals>
     <string name="up_next_skip_finished">✅ Finished · skipped</string>
     <string name="up_next_skip_music">🎵 Music · skipped while you listen to talk</string>
     <string name="up_next_skip_talk">🎙️ Talk · skipped while you listen to music</string>

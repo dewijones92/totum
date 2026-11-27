@@ -39,7 +39,8 @@ internal fun upNextControls(queue: PlaybackQueue, upNext: List<QueueEntry>): Que
                 "advance",
                 "up next: ${skipped.size} of ${upNext.size} will be skipped on moving on " +
                     "[finished=${skipped.values.count { it is SkipWhy.PassedOver }} " +
-                    "otherKind=${skipped.values.count { it is SkipWhy.OtherKind }} playing=${playing?.item?.id?.value}]",
+                    "otherKind=${skipped.values.count { it is SkipWhy.OtherKind }} " +
+                    "playing=${playing?.item?.id?.value}]",
             )
         }
     }

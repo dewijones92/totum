@@ -1561,6 +1561,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                 repeat = ::repeatNow,
                 modes = { activeModes.value },
                 liveStreams = liveStates::diagnostics,
+                radio = { mapOf("radio.live" to musicRadio.liveSummary()) },
                 features = {
                     featureDiagnostics(
                         morning = aiFeatures.morningStore.state.value,
@@ -1670,6 +1671,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                     if (here) "$reason here" else "$reason on YouTube"
                 }
             },
+            liveRadioGroup = { musicRadio.activeGroupId },
             repeatOneOffForRun = RepeatOneRule(
                 chosen = { appPreferences.settings.value.repeatMode },
                 kidLocked = { kidLock.modeOn.value },

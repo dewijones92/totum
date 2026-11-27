@@ -35,12 +35,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import com.dewijones92.totum.R
+import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.playback.BufferAhead
 import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.playback.isLoading
@@ -61,11 +65,24 @@ import kotlinx.coroutines.delay
  * portrait video (a Short), which gets a bounded, centred stage, since filling the width
  * at 9:16 would make the inline player absurdly tall.
  */
-private fun Modifier.stageSizing(aspect: Float?, fullscreen: Boolean): Modifier = when {
+private fun Modifier.stageSizing(aspect: Float?, fullscreen: Boolean, landscapeCap: Dp?): Modifier = when {
     fullscreen -> fillMaxSize()
+    landscapeCap != null -> fillMaxWidth().height(landscapeCap)
     aspect != null && aspect < 1f -> fillMaxWidth().height(PORTRAIT_STAGE_HEIGHT)
     else -> fillMaxWidth().aspectRatio(aspect ?: DEFAULT_VIDEO_ASPECT_RATIO)
 }
+
+internal fun landscapeStageCap(widthDp: Float, viewportHeightDp: Float, aspect: Float?): Float? {
+    if (widthDp <= viewportHeightDp) return null
+    val natural = when {
+        aspect != null && aspect < 1f -> PORTRAIT_STAGE_HEIGHT.value
+        else -> widthDp / (aspect ?: DEFAULT_VIDEO_ASPECT_RATIO)
+    }
+    val cap = viewportHeightDp * LANDSCAPE_STAGE_SHARE
+    return cap.takeIf { it < natural }
+}
+
+private const val LANDSCAPE_STAGE_SHARE = 0.5f
 
 /**
  * What's drawn over the picture but under the controls: the buffering spinner, so a stall
@@ -110,7 +127,19 @@ internal fun VideoStageWithControls(
         }
     }
     val aspect = state.videoAspectRatio
-    val sizing = Modifier.stageSizing(aspect, fullscreen)
+    val window = LocalWindowInfo.current.containerSize
+    val density = LocalDensity.current
+    val landscapeCap = if (fullscreen) {
+        null
+    } else {
+        landscapeStageCap(window.width / density.density, window.height / density.density, aspect)?.dp
+    }
+    LaunchedEffect(landscapeCap) {
+        val windowDp = "${(window.width / density.density).toInt()}x${(window.height / density.density).toInt()}dp"
+        val what = landscapeCap?.let { "capped at ${it.value.toInt()}dp so the details show" } ?: "full size"
+        Diag.log("fullscreen", "windowed stage $what [window=$windowDp aspect=$aspect]")
+    }
+    val sizing = Modifier.stageSizing(aspect, fullscreen, landscapeCap)
     // Slide over the picture for brightness (left) / volume (right) — fullscreen only, so
     // windowed the same drag still minimises the player. See videoAdjustmentGestures.
     // The same flag decides whether the stage claims the window brightness at all.
@@ -134,7 +163,7 @@ internal fun VideoStageWithControls(
         StagePicture(
             player = player,
             onCastDevice = state.onCastDevice,
-            modifier = if (fullscreen) {
+            modifier = if (fullscreen || landscapeCap != null) {
                 Modifier.aspectRatio(aspect ?: DEFAULT_VIDEO_ASPECT_RATIO, matchHeightConstraintsFirst = true)
             } else {
                 Modifier.matchParentSize()
