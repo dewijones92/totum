@@ -23,6 +23,25 @@ internal fun advanceFrom(snapshot: QueueSnapshot, playingId: MediaItemId?): Int 
 
 internal fun Listening?.admits(item: PlayableItem): Boolean = this == null || item.item.listening == this
 
+sealed interface SkipWhy {
+    data object IsPlaying : SkipWhy
+
+    data class OtherKind(val kind: Listening) : SkipWhy
+
+    data class PassedOver(val reason: String) : SkipWhy
+}
+
+internal fun skipWhy(
+    item: PlayableItem,
+    playingId: MediaItemId?,
+    keepTo: Listening?,
+    passOver: (PlayableItem) -> String?,
+): SkipWhy? = when {
+    item.item.id == playingId -> SkipWhy.IsPlaying
+    !keepTo.admits(item) -> SkipWhy.OtherKind(item.item.listening)
+    else -> passOver(item)?.let(SkipWhy::PassedOver)
+}
+
 internal fun nextAfterThePlace(
     snapshot: QueueSnapshot,
     playingId: MediaItemId?,
@@ -31,8 +50,21 @@ internal fun nextAfterThePlace(
 ): PlayableItem? =
     snapshot.entries
         .drop(advanceFrom(snapshot, playingId) + 1)
-        .firstOrNull { it.item.item.id != playingId && keepTo.admits(it.item) && passOver(it.item) == null }
+        .firstOrNull { skipWhy(it.item, playingId, keepTo, passOver) == null }
         ?.item
+
+internal fun upNextSkips(
+    upNext: List<QueueEntry>,
+    playing: MediaItem?,
+    passOver: (PlayableItem) -> String?,
+): Map<MediaItemId, SkipWhy> {
+    val keepTo = playing?.listening
+    val skipped = LinkedHashMap<MediaItemId, SkipWhy>()
+    upNext.forEach { entry ->
+        skipWhy(entry.item, playing?.id, keepTo, passOver)?.let { skipped[entry.item.item.id] = it }
+    }
+    return skipped
+}
 
 internal fun onlyOtherKindAfter(
     snapshot: QueueSnapshot,

@@ -1,13 +1,20 @@
 package com.dewijones92.totum.ui
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.queue.QueueEntry
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.playback.PlaybackController
 import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.queue.PlaybackQueue
+import com.dewijones92.totum.queue.SkipWhy
+import com.dewijones92.totum.queue.upNextSkips
 import com.dewijones92.totum.settings.AppPreferences
+import com.dewijones92.totum.ui.common.LocalPlayStates
 import com.dewijones92.totum.ui.common.LocalSnackbarOffers
 import com.dewijones92.totum.ui.player.PlaybackToggles
 import com.dewijones92.totum.ui.player.QualityControl
@@ -25,6 +32,17 @@ import kotlinx.coroutines.launch
 internal fun upNextControls(queue: PlaybackQueue, upNext: List<QueueEntry>): QueueControls {
     val removeWithUndo = rememberQueueRemoveWithUndo(queue, LocalSnackbarOffers.current)
     val scope = rememberCoroutineScope()
+    val playing by queue.nowPlaying.collectAsStateWithLifecycle()
+    val skips = remember(upNext, playing, LocalPlayStates.current.value) {
+        upNextSkips(upNext, playing?.item, queue.passOver).also { skipped ->
+            Diag.log(
+                "advance",
+                "up next: ${skipped.size} of ${upNext.size} will be skipped on moving on " +
+                    "[finished=${skipped.values.count { it is SkipWhy.PassedOver }} " +
+                    "otherKind=${skipped.values.count { it is SkipWhy.OtherKind }} playing=${playing?.item?.id?.value}]",
+            )
+        }
+    }
     val indexNow = { entry: QueueEntry ->
         queue.state.value.entries.indexOfFirst { it.item.item.id == entry.item.item.id }.takeIf { it >= 0 }
     }
@@ -35,6 +53,7 @@ internal fun upNextControls(queue: PlaybackQueue, upNext: List<QueueEntry>): Que
         onPlayInstead = { i ->
             upNext.getOrNull(i)?.let { entry -> scope.launch { queue.playInsteadOfCurrent(entry) } }
         },
+        skips = skips,
         onMoveToEdge = { i, top ->
             upNext.getOrNull(i)?.let(indexNow)?.let { from ->
                 queue.move(from, if (top) 0 else queue.state.value.entries.lastIndex)

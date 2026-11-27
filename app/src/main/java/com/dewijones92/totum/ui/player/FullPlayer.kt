@@ -1,6 +1,7 @@
 package com.dewijones92.totum.ui.player
 
 import androidx.activity.compose.BackHandler
+import androidx.annotation.StringRes
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -54,6 +55,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
@@ -68,7 +70,9 @@ import com.dewijones92.totum.R
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.data.queue.QueueEntry
+import com.dewijones92.totum.domain.Listening
 import com.dewijones92.totum.domain.MediaItem
+import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.searchableText
 import com.dewijones92.totum.domain.withArtworkFrom
@@ -77,6 +81,7 @@ import com.dewijones92.totum.innertube.comments.Comment
 import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.playback.SleepTimerState
 import com.dewijones92.totum.playback.isLoading
+import com.dewijones92.totum.queue.SkipWhy
 import com.dewijones92.totum.ui.cast.CastStrip
 import com.dewijones92.totum.ui.common.FilterField
 import com.dewijones92.totum.ui.common.FilterToggle
@@ -470,7 +475,11 @@ internal fun UpNextSection(queue: QueueControls) {
     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = pluralStringResource(R.plurals.player_up_next_count, queue.upNext.size, queue.upNext.size),
+                text = if (queue.skips.isEmpty()) {
+                    pluralStringResource(R.plurals.player_up_next_count, queue.upNext.size, queue.upNext.size)
+                } else {
+                    stringResource(R.string.player_up_next_count_skipped, queue.upNext.size, queue.skips.size)
+                },
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.weight(1f),
             )
@@ -482,10 +491,12 @@ internal fun UpNextSection(queue: QueueControls) {
         rows.forEach { (index, queued) ->
             val item = queued.item.item
             val face = item.face()
+            val skip = queue.skips[item.id]
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .fillMaxWidth()
+                    .alpha(if (skip == null) 1f else UP_NEXT_SKIPPED_ALPHA)
                     .clip(MaterialTheme.shapes.medium)
                     .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = UP_NEXT_ALPHA))
                     .combinedClickable(onClick = { queue.onPlay(index) }, onLongClick = { menuFor = index })
@@ -505,6 +516,14 @@ internal fun UpNextSection(queue: QueueControls) {
                 ) {
                     LiveBadge(item.id, item.contentKind, Modifier.padding(bottom = 2.dp))
                     Text(text = face.title, style = MaterialTheme.typography.titleSmall)
+                    skip?.let {
+                        Text(
+                            text = stringResource(it.labelRes()),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.testTag(UP_NEXT_SKIP_TAG),
+                        )
+                    }
                 }
                 IconButton(onClick = { queue.onRemove(index) }) {
                     Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.queue_remove))
@@ -526,6 +545,15 @@ internal fun UpNextSection(queue: QueueControls) {
 }
 
 private const val UP_NEXT_ALPHA = 0.7f
+private const val UP_NEXT_SKIPPED_ALPHA = 0.5f
+const val UP_NEXT_SKIP_TAG: String = "up-next-skip"
+
+@StringRes
+internal fun SkipWhy.labelRes(): Int = when (this) {
+    is SkipWhy.PassedOver -> R.string.up_next_skip_finished
+    is SkipWhy.OtherKind -> if (kind == Listening.MUSIC) R.string.up_next_skip_music else R.string.up_next_skip_talk
+    SkipWhy.IsPlaying -> R.string.up_next_skip_playing
+}
 private val UP_NEXT_THUMB_WIDTH = 80.dp
 private val UP_NEXT_THUMB_HEIGHT = 45.dp
 
@@ -561,6 +589,7 @@ data class QueueControls(
     val onRemove: (Int) -> Unit,
     val onMoveToEdge: ((Int, Boolean) -> Unit)? = null,
     val onPlayInstead: ((Int) -> Unit)? = null,
+    val skips: Map<MediaItemId, SkipWhy> = emptyMap(),
 ) {
     companion object {
         /** No queue (previews). */
