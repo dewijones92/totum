@@ -59,6 +59,15 @@ class WithStreamFromTest {
     }
 
     @Test
+    fun `a resolution that knows the views fills a listing that did not, and the listing's own still wins`() {
+        val silent = listing.copy(viewsText = null)
+        val knows = stream.copy(viewsText = "9K views")
+
+        assertEquals("9K views", silent.withStreamFrom(knows).viewsText)
+        assertEquals("1.2M views", listing.withStreamFrom(knows).viewsText)
+    }
+
+    @Test
     fun `both forms of the publication date survive resolution`() {
         val played = listing.withStreamFrom(stream)
         assertEquals("5 days ago", played.publishedText)

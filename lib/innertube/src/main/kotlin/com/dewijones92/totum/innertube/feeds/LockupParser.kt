@@ -171,9 +171,24 @@ internal object LockupParser {
     private fun JsonObject.lockupMetadata(): JsonObject? =
         (this["metadata"] as? JsonObject)?.get("lockupMetadataViewModel") as? JsonObject
 
-    /** The metadata part holding the view count ("1.2M views", "No views"). */
+    /** The metadata part holding the view count ("1.2M views", "No views", or a bare "24K" beside the date). */
     private fun JsonObject.viewsText(): String? {
         forEachMetadataPart { text -> if (text.looksLikeViews()) return text }
+        return bareCountBesideTheDate()?.let { "$it views" }
+    }
+
+    /**
+     * Related and Up next tiles give the count without the word: `["24K", "8h ago"]`. A bare count
+     * is only taken for views when the same row also carries the date part, so a channel called
+     * "2025" in a row of its own is never read as one.
+     */
+    private fun JsonObject.bareCountBesideTheDate(): String? {
+        val rows = metadataRows() ?: return null
+        for (row in rows) {
+            val texts = metadataTexts(row)
+            if (texts.none { it.looksLikePublished() }) continue
+            texts.firstOrNull { it.looksLikeCompactCount() }?.let { return it }
+        }
         return null
     }
 
@@ -192,8 +207,9 @@ internal object LockupParser {
      * part that is not one of the things we can recognise as something else.
      */
     private fun JsonObject.authorLine(): String? {
+        val bareCount = bareCountBesideTheDate()
         forEachMetadataPart { text ->
-            if (!text.looksLikeViews() && !text.looksLikePublished()) return text
+            if (!text.looksLikeViews() && !text.looksLikePublished() && text != bareCount) return text
         }
         return null
     }
@@ -207,11 +223,14 @@ internal object LockupParser {
     private inline fun JsonObject.forEachMetadataPart(onText: (String) -> Unit) {
         val rows = metadataRows() ?: return
         for (row in rows) {
-            val parts = (row as? JsonObject)?.get("metadataParts") as? JsonArray ?: continue
-            for (part in parts) {
-                val text = ((part as? JsonObject)?.get("text") as? JsonObject)?.stringAt("content")
-                if (text != null) onText(text)
-            }
+            for (text in metadataTexts(row)) onText(text)
+        }
+    }
+
+    private fun metadataTexts(row: JsonElement): List<String> {
+        val parts = (row as? JsonObject)?.get("metadataParts") as? JsonArray ?: return emptyList()
+        return parts.mapNotNull { part ->
+            ((part as? JsonObject)?.get("text") as? JsonObject)?.stringAt("content")
         }
     }
 

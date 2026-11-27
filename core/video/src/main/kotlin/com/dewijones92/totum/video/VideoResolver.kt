@@ -5,6 +5,7 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.common.SubtitleTrack
 import com.dewijones92.totum.common.Vitals
+import com.dewijones92.totum.common.formatViewCount
 import com.dewijones92.totum.common.youTubeChannelUrl
 import com.dewijones92.totum.common.youTubeVideoId
 import com.dewijones92.totum.data.sponsorblock.SkipSegmentSource
@@ -463,6 +464,7 @@ class VideoResolver(
                 sourceId = sourceId,
                 title = metadata.title,
                 publishedAt = metadata.publishedAt,
+                viewsText = metadata.viewCount?.let(::formatViewCount),
                 duration = metadata.durationSeconds?.seconds,
                 author = metadata.uploader,
                 description = metadata.description,
@@ -655,6 +657,7 @@ class VideoResolver(
                 // missing description obvious rather than inventing a plausible name for it.
                 title = details?.title ?: request.id,
                 publishedAt = details?.publishedInstant(),
+                viewsText = details?.viewsText,
                 contentKind = contentKindOf(details, response.streaming),
                 duration = details?.lengthSeconds?.seconds,
                 author = details?.author,
@@ -799,6 +802,7 @@ class VideoResolver(
                 sourceId = sourceId,
                 title = prepared.details.title,
                 publishedAt = prepared.details.publishedInstant(),
+                viewsText = prepared.details.viewsText,
                 duration = prepared.details.lengthSeconds?.seconds,
                 author = prepared.details.author,
                 description = prepared.details.description,

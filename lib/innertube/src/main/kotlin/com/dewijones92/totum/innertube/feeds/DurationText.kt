@@ -24,3 +24,7 @@ internal fun String.looksLikePublished(): Boolean = PUBLISHED_HINT.containsMatch
 private val VIEWS_HINT = Regex("""\bviews?\b|\bwatching\b""", RegexOption.IGNORE_CASE)
 
 internal fun String.looksLikeViews(): Boolean = VIEWS_HINT.containsMatchIn(this)
+
+private val COMPACT_COUNT = Regex("""^\d[\d.,]*\s?[KMB]?$""", RegexOption.IGNORE_CASE)
+
+internal fun String.looksLikeCompactCount(): Boolean = COMPACT_COUNT.matches(trim())
