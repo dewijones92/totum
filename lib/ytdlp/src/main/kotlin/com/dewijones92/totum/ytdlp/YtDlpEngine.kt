@@ -47,6 +47,10 @@ public interface YtDlpEngine {
 
     public suspend fun warmUp()
 
+    public suspend fun warmPlayer(playerUrl: String): PlayerWarmth = PlayerWarmth.unsupported()
+
+    public suspend fun engineState(): EngineState = EngineState.UNKNOWN
+
     /**
      * Downloads media described by [request]. The returned flow is cold:
      * collecting starts the download, cancelling the collection cancels it.

@@ -38,6 +38,10 @@ public class InteractiveFirstEngine(
 
     override suspend fun warmUp(): Unit = delegate.warmUp()
 
+    override suspend fun warmPlayer(playerUrl: String): PlayerWarmth = delegate.warmPlayer(playerUrl)
+
+    override suspend fun engineState(): EngineState = delegate.engineState()
+
     override suspend fun extract(url: HttpUrl): ExtractionResult =
         asInteractive { delegate.extract(url) }
 

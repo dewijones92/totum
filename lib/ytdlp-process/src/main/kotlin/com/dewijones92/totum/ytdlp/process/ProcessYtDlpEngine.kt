@@ -5,14 +5,18 @@ import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.ytdlp.ChannelResult
 import com.dewijones92.totum.ytdlp.DownloadEvent
 import com.dewijones92.totum.ytdlp.DownloadRequest
+import com.dewijones92.totum.ytdlp.EngineState
 import com.dewijones92.totum.ytdlp.EngineVersions
 import com.dewijones92.totum.ytdlp.ExtractionResult
 import com.dewijones92.totum.ytdlp.FfmpegMerge
+import com.dewijones92.totum.ytdlp.PlayerWarmth
 import com.dewijones92.totum.ytdlp.VideoSearchResult
 import com.dewijones92.totum.ytdlp.YtDlpEngine
 import com.dewijones92.totum.ytdlp.bridge.parseChannel
 import com.dewijones92.totum.ytdlp.bridge.parseDownloadCompletion
+import com.dewijones92.totum.ytdlp.bridge.parseEngineState
 import com.dewijones92.totum.ytdlp.bridge.parseExtraction
+import com.dewijones92.totum.ytdlp.bridge.parsePlayerWarmth
 import com.dewijones92.totum.ytdlp.bridge.parseSearch
 import com.dewijones92.totum.ytdlp.bridge.parseSolvedN
 import com.dewijones92.totum.ytdlp.bridge.parseVersions
@@ -34,13 +38,28 @@ import java.io.File
  */
 @Suppress("TooManyFunctions")
 public class ProcessYtDlpEngine(
-    private val runner: CommandRunner = SystemCommandRunner(),
+    private val runner: CommandRunner = WorkerCommandRunner(),
     private val ffmpeg: String = System.getenv("TOTUM_FFMPEG") ?: "ffmpeg",
 ) : YtDlpEngine {
 
     override suspend fun versions(): EngineVersions = parseVersions(run("versions"))
 
-    override suspend fun warmUp(): Unit = Unit
+    override suspend fun warmUp() {
+        val began = System.nanoTime()
+        val said = runOrNull("warm") { runner.warm() }
+        Diag.log(
+            "engine",
+            "warm up ${if (said == null) "failed" else "done"} in ${(System.nanoTime() - began) / NANOS_PER_MS}ms: " +
+                (said?.take(WARM_LOGGED_CHARS) ?: "the extractor could not be run"),
+        )
+    }
+
+    override suspend fun warmPlayer(playerUrl: String): PlayerWarmth =
+        runOrNull("prepare_player", playerUrl)?.let(::parsePlayerWarmth)
+            ?: PlayerWarmth(ok = false, alreadyHeld = false, tookMs = 0, detail = "the extractor could not be run")
+
+    override suspend fun engineState(): EngineState =
+        runOrNull("state")?.let(::parseEngineState) ?: EngineState.UNKNOWN
 
     override suspend fun extract(url: HttpUrl): ExtractionResult =
         when (val output = runOrNull("extract", url.value)) {
@@ -97,8 +116,10 @@ public class ProcessYtDlpEngine(
     private suspend fun run(vararg args: String): String = runner.run(args.toList())
 
     /** Null when the process itself could not be run — a missing python, not a failed extraction. */
-    private suspend fun runOrNull(vararg args: String): String? =
-        runCatching { runner.run(args.toList()) }.getOrElse { failure ->
+    private suspend fun runOrNull(vararg args: String): String? = runOrNull(*args) { runner.run(args.toList()) }
+
+    private suspend fun runOrNull(vararg args: String, call: suspend () -> String): String? =
+        runCatching { call() }.getOrElse { failure ->
             Diag.warn("engine", "the extractor could not be run: ${failure.message}")
             null
         }
@@ -108,3 +129,5 @@ private fun List<String>.asJsonArray(): String =
     joinToString(",", "[", "]") { "\"" + it.replace("\\", "\\\\").replace("\"", "\\\"") + "\"" }
 
 private const val PROGRESS = "PROGRESS "
+private const val NANOS_PER_MS = 1_000_000L
+private const val WARM_LOGGED_CHARS = 400

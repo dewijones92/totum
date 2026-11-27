@@ -7,6 +7,7 @@ import com.dewijones92.totum.ytdlp.ChannelResult
 import com.dewijones92.totum.ytdlp.DownloadEvent
 import com.dewijones92.totum.ytdlp.DownloadRequest
 import com.dewijones92.totum.ytdlp.ExtractionResult
+import com.dewijones92.totum.ytdlp.PlayerWarmth
 import com.dewijones92.totum.ytdlp.VideoSearchResult
 import com.dewijones92.totum.ytdlp.YtDlpEngine
 import kotlinx.coroutines.channels.Channel
@@ -68,6 +69,9 @@ class PoliteYtDlpEngine(
 
     override suspend fun solveSignatures(challenges: List<String>, playerUrl: String): Map<String, String> =
         gate.passing("yt-dlp solve signature") { delegate.solveSignatures(challenges, playerUrl) }
+
+    override suspend fun warmPlayer(playerUrl: String): PlayerWarmth =
+        gate.passing("yt-dlp warm player") { delegate.warmPlayer(playerUrl) }
 
     override suspend fun searchVideos(query: String, maxResults: Int): VideoSearchResult =
         gate.passing("yt-dlp search") { delegate.searchVideos(query, maxResults) }
