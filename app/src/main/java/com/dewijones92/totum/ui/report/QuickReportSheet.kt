@@ -75,41 +75,40 @@ internal fun QuickReportSheet(
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         modifier = Modifier.testTag(QUICK_REPORT_SHEET_TAG),
     ) {
-        Column(
-            modifier = Modifier
-                .imePadding()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp)
-                .padding(bottom = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Text(stringResource(R.string.quick_report_title), style = MaterialTheme.typography.titleLarge)
-            Text(
-                text = stringResource(R.string.quick_report_supporting),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            OutlinedTextField(
-                value = typed,
-                onValueChange = { typed = it.take(NOTE_MAX_CHARS) },
-                modifier = Modifier.fillMaxWidth().focusRequester(focus).testTag(QUICK_REPORT_NOTE_TAG),
-                placeholder = { Text(stringResource(R.string.settings_diagnostics_note_hint)) },
-                keyboardOptions = KeyboardOptions(
-                    capitalization = KeyboardCapitalization.Sentences,
-                ),
-                minLines = 3,
-                maxLines = 6,
-            )
-            val shots = (listOfNotNull(captured) + picks.ready).take(MAX_SCREENSHOTS)
-            if (captured == null) {
+        Column(modifier = Modifier.imePadding().padding(horizontal = 24.dp).padding(bottom = 16.dp)) {
+            Column(
+                modifier = Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(stringResource(R.string.quick_report_title), style = MaterialTheme.typography.titleLarge)
                 Text(
-                    text = stringResource(R.string.quick_report_shot_missing),
-                    style = MaterialTheme.typography.bodySmall,
+                    text = stringResource(R.string.quick_report_supporting),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                OutlinedTextField(
+                    value = typed,
+                    onValueChange = { typed = it.take(NOTE_MAX_CHARS) },
+                    modifier = Modifier.fillMaxWidth().focusRequester(focus).testTag(QUICK_REPORT_NOTE_TAG),
+                    placeholder = { Text(stringResource(R.string.settings_diagnostics_note_hint)) },
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                    minLines = 3,
+                    maxLines = 6,
+                )
+                val shots = (listOfNotNull(captured) + picks.ready).take(MAX_SCREENSHOTS)
+                if (captured == null) {
+                    Text(
+                        text = stringResource(R.string.quick_report_shot_missing),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+                if (shots.isNotEmpty()) Thumbnails(shots)
+                ScreenshotPickerRow(picks)
             }
-            if (shots.isNotEmpty()) Thumbnails(shots)
-            ScreenshotPickerRow(picks)
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                horizontalArrangement = Arrangement.End,
+            ) {
                 TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
                 Button(
                     enabled = !picks.preparing,

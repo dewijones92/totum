@@ -73,6 +73,11 @@ class QuickReportOverlayTest {
         compose.onNodeWithTag("screen").performTouchInput { up() }
     }
 
+    private fun typeAndSend(note: String) {
+        compose.onNodeWithTag(QUICK_REPORT_NOTE_TAG).performTextInput(note)
+        compose.onNodeWithTag(QUICK_REPORT_SEND_TAG).assertIsDisplayed().performClick()
+    }
+
     private fun ComposeContentTestRule.onAllNodesWithTagCount(tag: String): Int =
         onAllNodes(hasTestTag(tag)).fetchSemanticsNodes().size
 
@@ -83,8 +88,7 @@ class QuickReportOverlayTest {
 
         holdTheCorner()
         compose.onNodeWithTag("$QUICK_REPORT_THUMBNAIL_TAG-0").assertIsDisplayed()
-        compose.onNodeWithTag(QUICK_REPORT_NOTE_TAG).performTextInput(NOTE)
-        compose.onNodeWithTag(QUICK_REPORT_SEND_TAG).performClick()
+        typeAndSend(NOTE)
         compose.waitUntil(REPORT_MS) { DiagnosticsStore.pending(context).any { it !in before } }
 
         val report = JSONObject(DiagnosticsStore.pending(context).first { it !in before }.readText())
@@ -102,8 +106,7 @@ class QuickReportOverlayTest {
 
         repeat(2) { round ->
             holdTheCorner()
-            compose.onNodeWithTag(QUICK_REPORT_NOTE_TAG).performTextInput("quick report ${round + 1}")
-            compose.onNodeWithTag(QUICK_REPORT_SEND_TAG).performClick()
+            typeAndSend("quick report ${round + 1}")
             compose.waitUntil(REPORT_MS) { DiagnosticsStore.pending(context).count { it !in before } > round }
             compose.waitUntil(SHEET_MS) { compose.onAllNodesWithTagCount(QUICK_REPORT_SHEET_TAG) == 0 }
         }

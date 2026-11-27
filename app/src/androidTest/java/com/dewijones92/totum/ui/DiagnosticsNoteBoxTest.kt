@@ -13,6 +13,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.dewijones92.totum.BuildConfig
 import com.dewijones92.totum.TotumApplication
 import com.dewijones92.totum.diagnostics.DiagnosticsStore
+import com.dewijones92.totum.ui.settings.SEND_DIAGNOSTICS_ROW_TAG
 import com.dewijones92.totum.ui.settings.SettingsScreen
 import org.json.JSONObject
 import org.junit.After
@@ -100,12 +101,7 @@ class DiagnosticsNoteBoxTest {
 
         settings()
         repeat(TWO_REPORTS) { round ->
-            val row = if (round == 0) {
-                compose.onNodeWithText(SEND)
-            } else {
-                compose.onNodeWithText(SAVED, substring = true)
-            }
-            row.performScrollTo().performClick()
+            compose.onNodeWithTag(SEND_DIAGNOSTICS_ROW_TAG).performScrollTo().performClick()
             compose.onNodeWithTag("diagnostics-note").assertIsDisplayed().performTextInput("report number ${round + 1}")
             compose.onAllNodesWithText(SEND).onLast().performClick()
             compose.waitUntil(REPORT_WRITTEN_MS) {

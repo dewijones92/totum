@@ -51,7 +51,8 @@ tells the person the outcome by toast: `📨 Report sent`, `❌ Couldn't send, w
   underneath does not also click on release.
 - **The screenshot is taken first**, by `PixelCopy` of the activity window (so video `SurfaceView`s are not black), which covers
   the full player and the Shorts reel as they live in the same window. Then the bottom sheet opens: note box (focused, so the
-  keyboard's dictation mic is one tap), a preview of every screenshot, **📎 Add screenshots** (the existing picker, so a second
+  keyboard's dictation mic is one tap, with Cancel and Send pinned above the keyboard so they are reachable on a 320x640
+  screen, which the first version scrolled out of reach), a preview of every screenshot, **📎 Add screenshots** (the existing picker, so a second
   picture can be added), and Send. An empty note still sends with a fallback line, as Settings does.
 - Dialogs and bottom sheets are other windows, so a hold while one is open takes no picture of it; the sheet is also ignored
   while another report is open.
