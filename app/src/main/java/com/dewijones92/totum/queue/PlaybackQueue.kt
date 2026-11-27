@@ -3,6 +3,7 @@ package com.dewijones92.totum.queue
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.data.home.JellyfinSeriesRun
+import com.dewijones92.totum.data.queue.NextStack
 import com.dewijones92.totum.data.queue.QueueEntry
 import com.dewijones92.totum.data.queue.QueueGroup
 import com.dewijones92.totum.data.queue.QueueSnapshot
@@ -13,8 +14,9 @@ import com.dewijones92.totum.data.queue.appendingAll
 import com.dewijones92.totum.data.queue.fake.InMemoryQueueStore
 import com.dewijones92.totum.data.queue.inserted
 import com.dewijones92.totum.data.queue.insertingAllNext
+import com.dewijones92.totum.data.queue.placingNext
 import com.dewijones92.totum.data.queue.regrouping
-import com.dewijones92.totum.data.queue.relocating
+import com.dewijones92.totum.data.queue.relocatingNext
 import com.dewijones92.totum.data.queue.removing
 import com.dewijones92.totum.data.queue.removingAt
 import com.dewijones92.totum.data.queue.shuffledAfterCurrent
@@ -298,7 +300,7 @@ class PlaybackQueue(
         withoutExternal(listOf(item), "play-next").isNotEmpty() && (
             redirected(listOf(item), QueueMode.NEXT, group, local = local) ||
                 addingUnlessQueued("play-next", item) { snapshot, kept ->
-                    snapshot.inserted(listOf(QueueEntry(kept, group)))
+                    snapshot.placingNext(setOf(kept.item.id), listOf(QueueEntry(kept, group)))
                 }
             )
 
@@ -347,7 +349,7 @@ class PlaybackQueue(
                 snapshot
             } else {
                 moved = snapshot.current?.item?.item?.id != item.item.id
-                snapshot.relocating(item) { without, kept -> without.inserted(listOf(QueueEntry(kept, old.group))) }
+                snapshot.relocatingNext(item, old.group)
             }
         }
         return moved
@@ -441,9 +443,7 @@ class PlaybackQueue(
         noteAlreadyQueued(items, "play-next x${items.size}$label")
         mutate("play-next x${items.size}$label") { snapshot ->
             if (snapshot.anchor != null && items.any { it.item.id == snapshot.anchor }) {
-                items.asReversed().fold(snapshot) { acc, item ->
-                    acc.relocating(item) { without, kept -> without.inserted(listOf(QueueEntry(kept, group))) }
-                }
+                items.fold(snapshot) { acc, item -> acc.relocatingNext(item, group) }
             } else {
                 snapshot.insertingAllNext(items, group)
             }
@@ -593,6 +593,12 @@ class PlaybackQueue(
 
     fun restorePlace(id: MediaItemId) = _state.value.takeIf { it.currentIndex < 0 && it.anchor == null }
         ?.let { mutate("the queue's place restored after a restart: after ${id.value}") { s -> s.copy(anchor = id) } }
+
+    fun restoreNextStack(stack: NextStack) = _state.value.takeIf { it.nextStack == null }?.let {
+        mutate("the play-next chain restored after a restart: tail ${stack.tail.value}") { s ->
+            s.copy(nextStack = stack)
+        }
+    }
 
     /** Plays the entry at [index]; nothing before it is discarded. */
     fun jumpTo(index: Int, byYou: Boolean = true, reason: PlayReason = PlayReason.Chosen(ChosenWay.QUEUE_ROW)) {

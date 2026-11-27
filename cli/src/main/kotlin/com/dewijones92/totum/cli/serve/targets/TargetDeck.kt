@@ -5,6 +5,7 @@ import com.dewijones92.totum.data.backup.toPlayable
 import com.dewijones92.totum.data.queue.QueueEntry
 import com.dewijones92.totum.data.queue.QueueSnapshot
 import com.dewijones92.totum.data.queue.appendingAll
+import com.dewijones92.totum.data.queue.insertingAllAtPlace
 import com.dewijones92.totum.data.queue.insertingAllNext
 import com.dewijones92.totum.data.queue.removingAll
 import com.dewijones92.totum.data.queue.removingAt
@@ -27,6 +28,7 @@ import com.dewijones92.totum.data.targets.TroubleKind
 import com.dewijones92.totum.data.targets.nextAfterEnd
 import com.dewijones92.totum.data.targets.onATarget
 import com.dewijones92.totum.data.targets.toSnapshot
+import com.dewijones92.totum.data.targets.toTarget
 import com.dewijones92.totum.data.targets.toTargetEntry
 import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.MediaItemId
@@ -100,6 +102,7 @@ internal class TargetDeck(
         },
         pause = { lock.withLock { pausePlaying().also { save() } } },
         switchOff = { lock.withLock { switchedOffBySleep() } },
+        stop = { lock.withLock { stoppedBySleep() } },
     )
 
     init {
@@ -131,6 +134,7 @@ internal class TargetDeck(
         canSwitchOff = link.canSwitchOff,
         powerNote = if ((link.power ?: player.power) == TargetPower.WAKING) link.powerNote else null,
         plays = player.plays,
+        nextStack = queue.nextStack?.toTarget(),
     )
 
     private fun volumeNow(): Int? = volumeControl?.percent ?: player.volumePercent
@@ -178,7 +182,7 @@ internal class TargetDeck(
             QueueMode.REPLACE -> QueueSnapshot(wanted.map { QueueEntry(it, group) })
             QueueMode.NEXT -> queue.insertingAllNext(wanted, group)
             QueueMode.END -> queue.appendingAll(wanted, group)
-            QueueMode.PLAY -> queue.insertingAllNext(wanted, group)
+            QueueMode.PLAY -> queue.insertingAllAtPlace(wanted, group)
         }
         val starts = request.mode == QueueMode.REPLACE || request.mode == QueueMode.PLAY || !playing
         Diag.log(
@@ -362,6 +366,12 @@ internal class TargetDeck(
         }
         if (playing || destination != null) finish("the sleep timer switched it off")
         powerOff()
+        save()
+    }
+
+    private suspend fun stoppedBySleep() {
+        Diag.log("targets", "${target.id}: the sleep timer ended, stopping and handing the target back")
+        if (playing || destination != null) finish("the sleep timer stopped it")
         save()
     }
 
@@ -828,7 +838,7 @@ internal class TargetDeck(
 
     private fun restore() {
         val saved = store.restore(target.id) ?: return
-        queue = saved.entries.toSnapshot(saved.at)
+        queue = saved.entries.toSnapshot(saved.at, saved.nextStack)
         sound = saved.sound
         repeat = saved.repeat.takeIf { it.onATarget } ?: RepeatMode.OFF
         provenance.restore(saved.entries)

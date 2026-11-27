@@ -24,6 +24,16 @@ public fun QueueSnapshot.relocating(
     place: (QueueSnapshot, PlayableItem) -> QueueSnapshot,
 ): QueueSnapshot {
     if (current?.item?.item?.id == item.item.id) return adoptingRoutesFrom(listOf(item))
+    return place(removing { it.item.item.id == item.item.id }, keptCopyOf(item))
+}
+
+/** [relocating] for "play next": the item moves after the last play-next, by the one rule in [placingNext]. */
+public fun QueueSnapshot.relocatingNext(item: PlayableItem, group: QueueGroup?): QueueSnapshot {
+    if (current?.item?.item?.id == item.item.id) return adoptingRoutesFrom(listOf(item))
+    return placingNext(setOf(item.item.id), listOf(QueueEntry(keptCopyOf(item), group)))
+}
+
+private fun QueueSnapshot.keptCopyOf(item: PlayableItem): PlayableItem {
     val earlier = entries.firstOrNull { it.item.item.id == item.item.id }?.item
     val kept = earlier?.let { old ->
         PlayableItem(item.item.fillingSilenceFrom(old.item), old.handle.mergedWith(item.handle))
@@ -34,7 +44,7 @@ public fun QueueSnapshot.relocating(
             "${item.item.id.value} queued again; kept what its row knew: ${kept.handle}"
         )
     }
-    return place(removing { it.item.item.id == item.item.id }, kept)
+    return kept
 }
 
 public fun QueueSnapshot.appendingAll(items: List<PlayableItem>, group: QueueGroup?): QueueSnapshot {
@@ -51,14 +61,25 @@ public fun QueueSnapshot.appendingAll(items: List<PlayableItem>, group: QueueGro
     return without.copy(entries = without.entries + incoming.map { QueueEntry(it, group) })
 }
 
-public fun QueueSnapshot.insertingAllNext(items: List<PlayableItem>, group: QueueGroup? = null): QueueSnapshot {
+public fun QueueSnapshot.insertingAllNext(items: List<PlayableItem>, group: QueueGroup? = null): QueueSnapshot =
+    insertingAll(items, group) { moving, run -> placingNext(moving, run) }
+
+/** Puts [items] straight after the playing entry whatever was put next before: "play now", not "play next". */
+public fun QueueSnapshot.insertingAllAtPlace(items: List<PlayableItem>, group: QueueGroup? = null): QueueSnapshot =
+    insertingAll(items, group) { moving, run -> removing { it.item.item.id in moving }.inserted(run) }
+
+private fun QueueSnapshot.insertingAll(
+    items: List<PlayableItem>,
+    group: QueueGroup?,
+    put: QueueSnapshot.(Set<MediaItemId>, List<QueueEntry>) -> QueueSnapshot,
+): QueueSnapshot {
     val playingId = current?.item?.item?.id
     val adopted = items.asReversed().filter { it.item.id == playingId }
         .fold(this) { acc, item -> acc.adoptingRoutesFrom(listOf(item)) }
     val seen = HashSet<MediaItemId>()
     val incoming = items.filter { it.item.id != playingId && seen.add(it.item.id) }
     if (incoming.isEmpty()) return adopted
-    return adopted.removing { it.item.item.id in seen }.inserted(incoming.map { QueueEntry(it, group) })
+    return adopted.put(seen, incoming.map { QueueEntry(it, group) })
 }
 
 /**

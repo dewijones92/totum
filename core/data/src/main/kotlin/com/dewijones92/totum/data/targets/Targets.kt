@@ -5,13 +5,17 @@ import com.dewijones92.totum.data.backup.toBackup
 import com.dewijones92.totum.data.backup.toPlayable
 import com.dewijones92.totum.data.jellyfin.isJellyfin
 import com.dewijones92.totum.data.jellyfin.jellyfinId
+import com.dewijones92.totum.data.queue.NextStack
 import com.dewijones92.totum.data.queue.QueueEntry
 import com.dewijones92.totum.data.queue.QueueGroup
 import com.dewijones92.totum.data.queue.QueueSnapshot
+import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.RepeatMode
 import com.dewijones92.totum.playback.SleepFade
 import com.dewijones92.totum.playback.VolumeBoost
+import kotlinx.serialization.EncodeDefault
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
@@ -60,6 +64,7 @@ public data class TargetSleepAsk(
     val itemIds: List<String> = emptyList(),
     val title: String? = null,
     val switchOff: Boolean = false,
+    val stop: Boolean = false,
 )
 
 @Serializable
@@ -120,6 +125,10 @@ public enum class TargetPlays {
 }
 
 @Serializable
+public data class TargetNextStack(val tail: String, val behind: String? = null)
+
+@OptIn(ExperimentalSerializationApi::class)
+@Serializable
 public data class TargetState(
     val target: Target,
     val entries: List<TargetEntry> = emptyList(),
@@ -144,6 +153,7 @@ public data class TargetState(
     val canSwitchOff: Boolean = false,
     val powerNote: String? = null,
     val plays: TargetPlays = TargetPlays.ANYTHING,
+    @EncodeDefault(EncodeDefault.Mode.NEVER) val nextStack: TargetNextStack? = null,
 ) {
     val current: TargetEntry? get() = entries.getOrNull(at)
 }
@@ -216,10 +226,16 @@ public fun TargetEntry.toQueueEntry(): QueueEntry? =
 
 public fun QueueSnapshot.toTargetEntries(): List<TargetEntry> = entries.map { it.toTargetEntry() }
 
-public fun List<TargetEntry>.toSnapshot(at: Int): QueueSnapshot {
+public fun List<TargetEntry>.toSnapshot(at: Int, nextStack: TargetNextStack? = null): QueueSnapshot {
     val kept = mapNotNull { it.toQueueEntry() }
-    return QueueSnapshot(kept, if (at in kept.indices) at else QueueSnapshot.NOTHING_PLAYING)
+    return QueueSnapshot(
+        kept,
+        if (at in kept.indices) at else QueueSnapshot.NOTHING_PLAYING,
+        nextStack = nextStack?.let { NextStack(MediaItemId(it.tail), it.behind?.let(::MediaItemId)) },
+    )
 }
+
+public fun NextStack.toTarget(): TargetNextStack = TargetNextStack(tail.value, behind?.value)
 
 public val TargetsJson: Json = Json {
     ignoreUnknownKeys = true
