@@ -3,7 +3,7 @@ title: 📡 The Pi plays to any TV, speaker or browser; the phone is a remote
 kind: feature
 area: casting/pi
 status: built 2026-11-07, Batch A (tests written 2026-11-07; volume rule and the YouTube relay fixed after the first run on the LG; the relay not yet seen on a real TV)
-updated: 2026-11-20
+updated: 2026-11-27
 ---
 
 # 📡 The Pi plays to any TV, speaker or browser
@@ -31,6 +31,9 @@ sound processing on the Pi). Brief: [pi-plays-everywhere.md](../todos/pi-plays-e
   `PlaybackService` also holds a `totum-remote-target` session fronted by `RemoteTargetPlayer`, with its own notification (id 1002). The
   phone's session, notification (1001), Exsurge's Live Update and the foreground rules are not touched, and the app's own controller never
   sees it. It goes when the phone is chosen or the device has nothing left.
+- **One card at a time.** The phone's own card shows when no device is shown, or when only the phone is playing; otherwise the device's
+  does (a tie goes to the chosen device), and the other's notification is withdrawn, so the shade never holds two sets of controls
+  (`NotificationCards`, `PlaybackService.onUpdateNotification`). Each move is logged with its reason.
 - **It shows** the title and art (through the spoiler shield), `📺 LG TV · ▶️ Playing · author` as the artist line, the device's name as the
   notification's sub-text and its colour as the notification colour, and the position moving between reads.
 - **It controls** play and pause, back 10, forward 30 and next, as the same `TargetAction`s the dock bar sends. No back or forward on a live
