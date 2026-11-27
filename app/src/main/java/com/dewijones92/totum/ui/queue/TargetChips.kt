@@ -9,11 +9,13 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -83,6 +85,7 @@ fun TargetChips(targets: TargetsRepository, modifier: Modifier = Modifier) {
     if (states.isEmpty() && address == null) return
     val power = states.associate { it.target.id to it.power }
     val connection = states.associate { it.target.id to it.connection }
+    val doing = doingLines(states)
     val switchable = states.filter { it.canSwitchOff && it.power != TargetPower.ASLEEP }.map { it.target.id }.toSet()
     val inUse = states.filter { it.entries.isNotEmpty() || it.target.id == selected }.map { it.target }
     val idle = states.map { it.target } - inUse.toSet()
@@ -110,6 +113,7 @@ fun TargetChips(targets: TargetsRepository, modifier: Modifier = Modifier) {
                     colour = TargetColours.of(colours, target.id),
                     selected = selected == target.id,
                     connection = connection[target.id],
+                    doing = doing[target.id],
                     onClick = { targets.select(target.id) },
                 )
                 if (selected == target.id && target.id in switchable) {
@@ -122,7 +126,7 @@ fun TargetChips(targets: TargetsRepository, modifier: Modifier = Modifier) {
                 }
             }
             if (idle.isNotEmpty() || address != null) {
-                MoreDevices(targets, offered, idle, colours, selected, address) { adding = true }
+                MoreDevices(targets, offered, idle, colours, selected, address, doing) { adding = true }
             }
         }
         ScrollHints(scroll)
@@ -138,6 +142,7 @@ private fun MoreDevices(
     colours: Map<String, Long>,
     selected: String?,
     address: String?,
+    doing: Map<String, String>,
     onAddBrowser: () -> Unit,
 ) {
     var picking by remember { mutableStateOf(false) }
@@ -149,7 +154,7 @@ private fun MoreDevices(
     )
     DropdownMenu(expanded = picking, onDismissRequest = { picking = false }) {
         val idleIds = idle.map { it.id }.toSet()
-        PlayOnMenuItems(offered.filter { it.id in idleIds }, colours, selected) {
+        PlayOnMenuItems(offered.filter { it.id in idleIds }, colours, selected, doing) {
             picking = false
             targets.choose(it)
         }
@@ -171,6 +176,7 @@ private fun ColouredChip(
     selected: Boolean,
     connection: TargetConnection?,
     onClick: () -> Unit,
+    doing: String? = null,
 ) {
     var recolouring by remember { mutableStateOf(false) }
     Box {
@@ -180,6 +186,7 @@ private fun ColouredChip(
             selected = selected,
             onClick = onClick,
             connection = connection,
+            doing = doing,
             onLongClick = {
                 Diag.log("targets", "$id chip long-pressed: its colours open (now ${colour.toString(HEX)})")
                 recolouring = true
@@ -232,6 +239,7 @@ internal fun TargetChip(
     connection: TargetConnection? = null,
     onLongClick: (() -> Unit)? = null,
     longClickLabel: String? = null,
+    doing: String? = null,
 ) {
     Surface(
         shape = MaterialTheme.shapes.small,
@@ -255,13 +263,25 @@ internal fun TargetChip(
             connection?.let { link ->
                 Box(Modifier.size(DOT).background(link.dotColour(), CircleShape).testTag(CHIP_DOT_TAG))
             }
-            Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
+            Column(Modifier.widthIn(max = CHIP_MAX_WIDTH)) {
+                Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
+                doing?.let {
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.testTag(CHIP_DOING_TAG),
+                    )
+                }
+            }
         }
     }
 }
 
 const val CHIPS_MORE_TAG = "target-chips-more"
 const val CHIP_DOT_TAG = "target-chip-dot"
+const val CHIP_DOING_TAG = "target-chip-doing"
+private val CHIP_MAX_WIDTH = 220.dp
 private val SELECTED_BORDER = 2.dp
 private val IDLE_BORDER = 1.dp
 private const val SELECTED_ALPHA = 0.25f

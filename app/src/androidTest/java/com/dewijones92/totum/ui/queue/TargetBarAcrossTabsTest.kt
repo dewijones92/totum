@@ -1,11 +1,13 @@
 package com.dewijones92.totum.ui.queue
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -120,12 +122,16 @@ class TargetBarAcrossTabsTest {
 
         container.targets.select("lg-tv")
         compose.waitForIdle()
-        listOf(R.string.destination_videos, R.string.destination_library, R.string.destination_queue).forEach { tab ->
+        listOf(R.string.destination_videos, R.string.destination_library).forEach { tab ->
             tab(tab)
             compose.waitForIdle()
             assertEquals("the device's bar is on the tab $tab", 1, barCount())
             assertEquals("the phone's own bar is gone on the tab $tab", 0, phoneSkipCount())
         }
+        tab(R.string.destination_queue)
+        compose.waitForIdle()
+        assertEquals("the remote page carries the controls, so no bar is drawn on the Queue tab", 0, barCount())
+        assertEquals("and the phone's own bar does not come back under the page", 0, phoneSkipCount())
 
         container.targets.select(null)
         compose.waitForIdle()
@@ -189,7 +195,7 @@ class TargetBarAcrossTabsTest {
     }
 
     @Test
-    fun theQueueTabShowsTheSamePlayStateInTheBarAndOnThePage() {
+    fun theQueueTabHasOneSetOfControlsForTheChosenDevice() {
         val pi = Pi(listOf(lg.copy(playing = false), soundbar))
         start(pi)
         tab(R.string.destination_queue)
@@ -197,7 +203,8 @@ class TargetBarAcrossTabsTest {
 
         val play = context.getString(R.string.target_play)
         val shown = compose.onAllNodesWithContentDescription(play).fetchSemanticsNodes().size
-        assertEquals("the bar and the page both offer Play, and neither offers Pause: $shown", 2, shown)
+        assertEquals("only the page offers Play on the Queue tab, and nothing offers Pause: $shown", 1, shown)
+        assertEquals("no second set of controls beside the page", 0, barCount())
         assertEquals(
             0,
             compose.onAllNodesWithContentDescription(
@@ -205,6 +212,30 @@ class TargetBarAcrossTabsTest {
             ).fetchSemanticsNodes().size
         )
         TestShots.take("target-bar-queue-tab")
+    }
+
+    @Test
+    fun aDevicesChipSaysWhatItIsDoingInWordsThatWrap() {
+        start(Pi(listOf(lg, soundbar)))
+        tab(R.string.destination_queue)
+        compose.waitUntil(WAIT_MS) { doingNodes().fetchSemanticsNodes().isNotEmpty() }
+
+        doingNodes().onFirst().assertTextEquals("▶️ Episode one")
+        TestShots.take("target-chips-doing")
+    }
+
+    private fun doingNodes() = compose.onAllNodesWithTag(CHIP_DOING_TAG, useUnmergedTree = true)
+
+    @Test
+    fun aPausedDeviceSaysPausedAndThePlayOnRowAgreesOnTheOtherTabs() {
+        start(Pi(listOf(lg.copy(playing = false), soundbar)), select = null)
+        tab(R.string.destination_videos)
+        compose.waitForIdle()
+
+        compose.onNodeWithTag(PLAY_ON_ROW_TAG).assertIsDisplayed()
+        tab(R.string.destination_queue)
+        compose.waitUntil(WAIT_MS) { doingNodes().fetchSemanticsNodes().isNotEmpty() }
+        doingNodes().onFirst().assertTextEquals("⏸️ Episode one")
     }
 
     private companion object {
