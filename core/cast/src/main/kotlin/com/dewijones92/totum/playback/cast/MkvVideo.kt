@@ -8,6 +8,7 @@
 
 package com.dewijones92.totum.playback.cast
 
+import com.dewijones92.totum.common.Diag
 import java.io.ByteArrayOutputStream
 
 internal class MkvVideo private constructor(
@@ -54,17 +55,103 @@ internal class MkvVideo private constructor(
         private const val FALLBACK_FRAME_MS = 40L
         private const val CUE_HEAD = 16L
 
-        fun probe(head: ByteArray, read: RangeReader): MkvVideo? {
+        private const val MAX_FETCHED_ELEMENT = 4L * 1024 * 1024
+        private const val HEX = 16
+
+        private class Fetched(val bytes: ByteArray, val element: Ebml.Element)
+
+        private fun topLevel(head: ByteArray, from: Int): List<Ebml.Element> {
+            val found = ArrayList<Ebml.Element>()
+            var at = from
+            while (at < head.size) {
+                val id = runCatching { Ebml.id(head, at) }.getOrNull() ?: break
+                if (id.value == Ebml.CLUSTER) break
+                val size = runCatching { Ebml.size(head, id.next) }.getOrNull() ?: break
+                if (size.unknown) break
+                val declaredEnd = size.next + size.value
+                found += Ebml.Element(
+                    id.value,
+                    size.next,
+                    minOf(declaredEnd, head.size.toLong()).toInt(),
+                    declaredEnd = declaredEnd,
+                )
+                if (declaredEnd > head.size) break
+                at = declaredEnd.toInt()
+            }
+            return found
+        }
+
+        private fun locate(
+            label: String,
+            id: Long,
+            name: String,
+            head: ByteArray,
+            parts: List<Ebml.Element>,
+            seeks: Map<Long, Long>,
+            segmentStart: Long,
+            read: RangeReader,
+        ): Fetched? {
+            parts.firstOrNull { it.id == id && it.declaredEnd <= head.size }?.let { return Fetched(head, it) }
+            val at = seeks[id]?.let { segmentStart + it } ?: return null
+            val started = System.currentTimeMillis()
+            val top = rangeOf(head, name, at) { read.read(ByteSpan(at, at + CUE_HEAD - 1)) }
+            val found = Ebml.id(top, 0)
+            if (found.value != id) throw UnreadableLayout("MKV seek head points at ${found.value}, not $name")
+            val size = Ebml.size(top, found.next)
+            if (size.unknown || size.value > MAX_FETCHED_ELEMENT) {
+                throw UnreadableLayout(
+                    "MKV $name claims ${if (size.unknown) "an unknown size" else "${size.value} bytes"}"
+                )
+            }
+            val last = at + size.next + size.value - 1
+            val whole = rangeOf(head, name, at) { read.read(ByteSpan(at, last)) }
+            Diag.log(
+                "cast",
+                "dewidebug $label: MKV $name ${if (name.endsWith("s")) "are" else "is"} not in the first " +
+                    "${head.size} bytes; the SeekHead names ${if (name.endsWith("s")) "them" else "it"} at " +
+                    "$at, so bytes $at-$last (${whole.size} bytes) were fetched by range in " +
+                    "${System.currentTimeMillis() - started}ms",
+            )
+            return Fetched(whole, Ebml.Element(id, size.next, size.next + size.value.toInt()))
+        }
+
+        private fun rangeOf(head: ByteArray, name: String, at: Long, fetch: () -> ByteArray): ByteArray = try {
+            fetch()
+        } catch (e: java.io.IOException) {
+            throw UnreadableLayout(
+                "MKV $name ${if (name.endsWith("s")) "are" else "is"} not in its first ${head.size} bytes " +
+                    "and the source would not give the range at $at " +
+                    "for it (${e.message}); a source that answers byte ranges is needed",
+                e,
+            )
+        }
+
+        fun probe(head: ByteArray, read: RangeReader, label: String = "mkv"): MkvVideo? {
             val segment = Ebml.children(head, 0, head.size).drop(1).firstOrNull { it.id == Ebml.SEGMENT }
                 ?: throw UnreadableLayout("MKV has no Segment in its first ${head.size} bytes")
-            val parts = Ebml.children(head, segment.dataStart, head.size).takeWhile { it.id != Ebml.CLUSTER }.toList()
-            val seeks = parts.firstOrNull { it.id == Ebml.SEEK_HEAD }?.let { Ebml.seekTargets(head, it) }.orEmpty()
-            val info = parts.firstOrNull { it.id == INFO }?.let { Ebml.fields(head, it) }.orEmpty()
-            val scale = info[TIMECODE_SCALE]?.let { Ebml.uint(head, it.dataStart, it.length) } ?: DEFAULT_SCALE_NS
-            val units = info[DURATION]?.let { Ebml.float(head, it.dataStart, it.length) } ?: 0.0
-            val tracks = parts.firstOrNull { it.id == Ebml.TRACKS }
-                ?: throw UnreadableLayout("MKV Tracks are not in its first ${head.size} bytes")
-            val video = videoTrack(head, tracks) ?: return null
+            val parts = topLevel(head, segment.dataStart)
+            val seeks = parts.firstOrNull { it.id == Ebml.SEEK_HEAD && it.declaredEnd <= head.size }
+                ?.let { Ebml.seekTargets(head, it) }.orEmpty()
+            fun named(id: Long) = seeks[id]?.let { segment.dataStart + it } ?: "nowhere"
+            val held = parts.joinToString("+") { "0x${it.id.toString(HEX)}" }.ifEmpty { "no elements" }
+            Diag.log(
+                "cast",
+                "dewidebug $label: MKV SeekHead (segment data starts at ${segment.dataStart}) names " +
+                    "Info at ${named(INFO)}, Tracks at ${named(Ebml.TRACKS)}, Cues at ${named(Ebml.CUES)}; " +
+                    "the head holds $held",
+            )
+            fun find(id: Long, name: String) =
+                locate(label, id, name, head, parts, seeks, segment.dataStart.toLong(), read)
+            val infoFound = find(INFO, "Info")
+            val info = infoFound?.let { Ebml.fields(it.bytes, it.element) }.orEmpty()
+            val infoBytes = infoFound?.bytes ?: head
+            val scale = info[TIMECODE_SCALE]?.let { Ebml.uint(infoBytes, it.dataStart, it.length) } ?: DEFAULT_SCALE_NS
+            val units = info[DURATION]?.let { Ebml.float(infoBytes, it.dataStart, it.length) } ?: 0.0
+            val tracksFound = find(Ebml.TRACKS, "Tracks")
+                ?: throw UnreadableLayout(
+                    "MKV Tracks are not in its first ${head.size} bytes and its SeekHead names no position for them"
+                )
+            val video = videoTrack(tracksFound.bytes, tracksFound.element) ?: return null
             val cuesAt = seeks[Ebml.CUES]?.let { segment.dataStart + it }
                 ?: throw UnreadableLayout("MKV names no Cues, so it cannot be cut into segments")
             val segmentEnd = if (segment.unknownSize) {

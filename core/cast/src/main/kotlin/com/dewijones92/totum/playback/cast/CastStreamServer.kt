@@ -684,7 +684,7 @@ public class CastStreamServer(
         server.start(port)
         host.hold(true)
         val token = random.token()
-        hlsCasts.open(item.mediaId, token, item.uri)
+        hlsCasts.open(item.mediaId, token, item.uri, item.subtitles, item.durationMs)
         reach.handedOver(item.mediaId, token)
         val url = "$base/c/$token/${HlsRelay.ENTRY}"
         Diag.log(
@@ -693,8 +693,10 @@ public class CastStreamServer(
                 "which a receiver cannot fetch (googlevideo sends no CORS for anything but YouTube's own pages); " +
                 "Totum serves it and relays every playlist, segment and key itself " +
                 "[listening=${item.listening} separateAudio=${item.separateAudioUrl != null} " +
-                "ladder=${item.ladder.size}; the picture and sound are YouTube's, so silence cutting and the " +
-                "boost do not apply and a sound-only request still carries the picture]",
+                "ladder=${item.ladder.size} " +
+                "captions=${item.subtitles.size}[${item.subtitles.joinToString { it.language ?: "und" }}] " +
+                "durationMs=${item.durationMs ?: "unknown"}; the picture and sound are YouTube's, " +
+                "so silence cutting and the boost do not apply and a sound-only request still carries the picture]",
         )
         return url
     }
@@ -704,6 +706,7 @@ public class CastStreamServer(
         val (mediaId, relay) = parts.getOrNull(1)?.let(hlsCasts::relayFor) ?: return null
         val what = parts.drop(2).joinToString("/")
         reach.reached(mediaId, request.from)
+        if (!relay.lists(what)) return relay.unlisted(what, request.path)
         val reply = try {
             relay.reply(what, request.header("range"))
         } catch (e: IOException) {
@@ -890,35 +893,7 @@ public class CastStreamServer(
     private fun subtitle(session: Session, what: String): HttpReply {
         val index = what.removePrefix("subtitles/").removeSuffix(".vtt").toIntOrNull()
         val config = index?.let(session.subtitles::getOrNull) ?: return notFound()
-        val text = if (!config.location.startsWith("http")) {
-            Diag.log("cast", "subtitles ${config.language} for ${session.item.mediaId}: from the film's own track")
-            File(pathOf(config.location)).readText()
-        } else {
-            val reply = Upstream.get(config.location, null)
-            Diag.log("cast", "subtitles ${config.language} for ${session.item.mediaId}: upstream ${reply.status}")
-            if (reply.status != Http.OK) {
-                return HttpReply.Stream(reply.status, "text/vtt", reply.contentLength, emptyMap(), reply::body)
-            }
-            reply.body().use { it.readBytes() }.toString(Charsets.UTF_8)
-        }
-        val asVtt = if (text.trimStart('﻿').startsWith("WEBVTT")) {
-            text
-        } else {
-            Diag.log(
-                "cast",
-                "subtitles ${config.language} for ${session.item.mediaId}: SubRip text, made WebVTT for the TV",
-            )
-            EmbeddedSubtitles.srtToVtt(text)
-        }
-        val cleaned = TvCaptions.clean(asVtt)
-        Diag.log(
-            "cast",
-            "subtitles ${config.language} for ${session.item.mediaId} cleaned for the TV, " +
-                "placed at ${TvCaptions.SAFE_PLACE}: " +
-                "cue settings removed ${cleaned.settingsRemoved.ifEmpty { "none" }}, " +
-                "${cleaned.inlineTagsRemoved} word-timing tag(s) removed",
-        )
-        return HttpReply.Bytes(Http.OK, "text/vtt", cleaned.text.toByteArray(Charsets.UTF_8))
+        return SubtitleFiles.reply(config, session.item.mediaId)
     }
 
     private fun videoPart(session: Session, what: String, range: String?, head: Boolean): HttpReply? = when {
@@ -966,7 +941,7 @@ public class CastStreamServer(
             else -> null
         }
 
-        private fun pathOf(url: String): String {
+        internal fun pathOf(url: String): String {
             if (!url.startsWith("file:")) return url
             return runCatching { URI(url).path }.getOrNull()?.takeIf { it.isNotEmpty() }
                 ?: url.removePrefix("file://")

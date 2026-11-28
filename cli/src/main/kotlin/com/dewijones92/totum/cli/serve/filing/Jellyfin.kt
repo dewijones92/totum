@@ -70,6 +70,9 @@ class Jellyfin(
 
     fun streamUrl(id: String): String = "${base.trimEnd('/')}/Videos/$id/stream?static=true&api_key=$key"
 
+    fun subtitleUrl(id: String, sourceId: String, index: Int): String =
+        "${base.trimEnd('/')}/Videos/$id/$sourceId/Subtitles/$index/Stream.vtt?api_key=$key"
+
     private fun auth(): String = "MediaBrowser Token=\"$key\""
 
     fun call(path: String, json: String = "", tag: String = "jellyfin"): JellyfinReply? = runCatching {

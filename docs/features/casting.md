@@ -253,8 +253,9 @@ of a downloaded file offers them; `EmbeddedSubtitleWarmer` prepares every downlo
   transferring), aborted=no|yes[, SLOW]`, then `video relay, last 30s: …` summaries, `read-ahead of a-b …` notes.
 - **A file whose track list is at its end** says so (toast on the phone, the cast strip on a TV) instead of staying silent.
   Log lines: `… still has no tracks the player can use …: 0 track(s): none; …`, `audio <label>: no audio track to cast: …`.
-- **SubRip subtitle files** (a torrent's `.srt`) reach the TV. A streamed file's own embedded tracks do not
-  (`a streamed file's own subtitle tracks cannot be pulled out …`); a downloaded file's still do.
+- **SubRip subtitle files** (a torrent's `.srt`) reach the TV. A streamed torrent file's own embedded tracks do not
+  (`a streamed file's own subtitle tracks cannot be pulled out …`); a downloaded file's still do, and a Jellyfin item's now do
+  (see the last section).
 - **PC screen:** a seek bar with the time; back, forward, next and previous work from the phone; stale reports are counted
   (`stale reports in the last 30s: …`, `… sending load N to the page again`).
 - **Failures say why:** `❌ <TV> couldn't start “<title>”: <reason>` after three failed manifests or sound segments in a
@@ -363,4 +364,34 @@ each part from YouTube with its `Range`. The phone's converter and the Pi's `Chr
 still carries the picture. A third party's HLS and a googlevideo DASH manifest are unchanged. The Pi log reads `YouTube offers only an
 HLS manifest … Totum serves it and relays every playlist, segment and key itself`, then one `HLS playlist … rewritten` line per
 playlist read. Tests: `CastStreamServerHlsRelayTest`, `ChromecastHlsOnlyTest`. Fixed against a fake upstream only; not yet run on the real LG.
+
+## Three real-device fixes of 28 November (2026-11-28, [ADR 164](../adr/0164-casting-fixes-from-the-diagnostics-of-7-to-11-november.md) and [ADR 156](../adr/0156-one-casting-brain-the-pi-casts-with-the-phones-own-code.md) amended)
+
+Pi `totum serve` v0.1.984 on the LG and Kodi, 28 November. All three are in `:core:cast` or the Pi's wiring of it, so the phone's cast gets what is shared.
+
+- **An MKV with its Tracks beyond the first 64 KB** (Spinal Tap II from Jellyfin, 5.5 GB, played sound only). The MKV reader now follows the
+  SeekHead and fetches `Tracks` (and `Info`) with a `Range` request when they are not in the head, for any source that answers ranges (Jellyfin
+  through the Pi, TorrServer, a plain HTTP file). Still refused, with the reason, when there is no SeekHead to say where they are or the source
+  will not give the range. Logs: `MKV SeekHead (segment data starts at …) names Info at …, Tracks at …, Cues at …; the head holds 0x…`,
+  `MKV Tracks are not in the first 65536 bytes; the SeekHead names them at A, so bytes A-B (N bytes) were fetched by range in Mms`, and on
+  refusal `the TV gets sound only — its video is in a format Totum cannot read for a TV (MKV Tracks are not in its first 65536 bytes and …)`.
+  Closes the "track list at its end" gap for ranged sources (see the 7 to 11 November section: that toast/strip message now appears only for the
+  two refusals above). Tests: `MkvTracksBeyondTheHeadTest`, `CastStreamServerMkvTracksTest`.
+- **Captions on the relayed YouTube HLS** (3Uavv96zDkM had eight resolved tracks and the TV was offered none). The rewritten master playlist now
+  carries them as an `EXT-X-MEDIA:TYPE=SUBTITLES` group, each track a one-segment WebVTT playlist served by the relay (`subtitles/N.m3u8`,
+  `subtitles/N.vtt`); the phone's relayed cast takes the same path. Logs: `HLS master now carries N caption track(s) as an EXT-X-MEDIA
+  TYPE=SUBTITLES group …`, `HLS subtitle playlist N …`, `subtitles <lang> for <id>: upstream 200`. On the real LG the Pi's log should then
+  say `the receiver offers N caption track(s) […]` and `captions, asked for en: …`. Test: `HlsRelayCaptionsTest`.
+- **A Jellyfin item's own subtitle tracks** (#188, partly). The Pi asks Jellyfin for the item's media streams, offers each text subtitle stream
+  (a picture-based one such as PGS is named in the log and skipped) and the cast server serves it as `subtitles/N.vtt` after fetching Jellyfin's
+  own WebVTT conversion (`Videos/{id}/{source}/Subtitles/{index}/Stream.vtt`, read by the Pi with its key, never given to the TV). **Torrents are
+  left as they were:** a torrent's streamed MKV tracks cannot be pulled out without reading all of it, and its sidecar `.srt` files still reach the TV.
+  Not done: the phone's own cast of a Jellyfin item, and the friend's-house route. Logs: `subtitles for <id>: N subtitle stream(s) in source …:
+  [#2 en subrip text, #4 fr hdmv_pgs_subtitle picture, skipped]; offering K to the TV`, `<id>: K subtitle track(s) from Jellyfin for the TV [en, …]`.
+  Tests: `JellyfinSubtitlesTest`, `TargetStreamsJellyfinSubtitlesTest`.
+- **Kodi's empty request** (found 06:22 on Kodi 21.3, no inputstream.adaptive): the relay's 404 for a name it never listed (the bare session
+  address) counted towards the "3 failures" notice. It no longer does, and is logged once with the exact request path
+  (`HLS relay was asked for "<path>" …`). Test: `HlsRelayUnlistedNameTest`.
+
+Not seen on a real TV: all four (fixed against fakes, a hand-made MKV and a fake Jellyfin).
 

@@ -7,6 +7,7 @@ import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.playback.cast.CastItem
+import com.dewijones92.totum.playback.cast.CastSubtitleSource
 import java.io.File
 
 internal class TargetStreams(
@@ -14,6 +15,7 @@ internal class TargetStreams(
     private val jellyfin: ((String) -> String)?,
     private val files: SoundFiles = SoundFiles(File("/sounds")),
     private val liveRefusedUntil: () -> Long? = { null },
+    private val jellyfinSubtitles: (suspend (String) -> List<CastSubtitleSource>)? = null,
     private val castFromHome: (suspend (PlayableItem, Boolean) -> CastItem?)? = null,
 ) : TargetSounds {
 
@@ -27,8 +29,26 @@ internal class TargetStreams(
             uri = url,
             listening = !picture,
             durationMs = item.item.duration?.inWholeMilliseconds,
+            subtitles = jellyfinTracks(item, picture),
         )
         return TargetStream(url, cast)
+    }
+
+    private suspend fun jellyfinTracks(item: PlayableItem, picture: Boolean): List<CastSubtitleSource> {
+        val id = item.item.id.jellyfinId()
+        val lookup = jellyfinSubtitles
+        if (!picture || id == null) return emptyList()
+        if (lookup == null) {
+            Diag.log("targets", "${item.item.id.value}: Jellyfin's subtitle tracks cannot be asked for; none offered")
+            return emptyList()
+        }
+        val tracks = lookup(id)
+        Diag.log(
+            "targets",
+            "${item.item.id.value}: ${tracks.size} subtitle track(s) from Jellyfin for the TV " +
+                "[${tracks.joinToString { it.language ?: "?" }}]",
+        )
+        return tracks
     }
 
     override suspend fun urlFor(item: PlayableItem, picture: Boolean): String? {

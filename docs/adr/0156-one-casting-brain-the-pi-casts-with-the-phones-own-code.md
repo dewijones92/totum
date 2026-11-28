@@ -149,3 +149,45 @@ wrong for this one; the phone's `TotumCastConverter` had the same fallback and t
   English on the Pi and a string resource on the phone (two copies of a handful of sentences, not of logic).
 - The image downloads the CLI from the GitHub release named by `TOTUM_VERSION`: this change reaches the Pi only after a
   release is built and the image is rebuilt with it.
+
+## Amended 2026-11-28 (second): the relay carries captions, and a name it never listed is not a failure
+
+Real runs on 28 November 2026 (Pi `totum serve` v0.1.984).
+
+**Captions on the HLS relay.** YouTube 3Uavv96zDkM, cast to the LG, had eight resolved subtitle tracks and the receiver reported none
+(`the receiver offers 0 caption track(s) []`, `captions en` asked): the relay path never looked at `CastItem.subtitles`.
+
+- **Chosen: an `EXT-X-MEDIA:TYPE=SUBTITLES` group in the rewritten master playlist**, not a side-loaded track list. The cast load is only a
+  URL and a content type (the phone's Media3 converter and the Pi's helper both), so there is no place in it for tracks that is shared by
+  the two, while the DASH path already hands the receiver its tracks inside the manifest and the receiver's HLS player reads the same thing
+  from a master playlist (that a Cast receiver's HLS player reads WebVTT subtitle renditions is from Google's Cast documentation as
+  remembered, not checked from here, and not seen on the LG).
+  Keeping the tracks in the playlist also means the phone's cast and the Pi's get them from the one place, `HlsRelay`.
+- `HlsRelay` adds one `EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="totum-subtitles",NAME,LANGUAGE,DEFAULT=NO,AUTOSELECT=NO,URI="subtitles/N.m3u8"`
+  per track before the first variant and `SUBTITLES="totum-subtitles"` on every `EXT-X-STREAM-INF`. `subtitles/N.m3u8` is a one-segment VOD
+  playlist as long as the item (a long fixed length, logged, when the item's length is unknown) pointing at `subtitles/N.vtt`, which is the
+  track fetched from where it was resolved, SubRip made WebVTT, cleaned and placed for a TV: the same `SubtitleFiles.reply` the DASH path's
+  `subtitles/N.vtt` now uses (one copy of that code, with the fetch passed in so the relay's own upstream is used).
+- **Left alone:** a master that already offers a subtitles group, a media playlist with no variants (nothing to attach a group to), and an
+  item with no tracks. Each says so in the log.
+- **The phone takes the same path.** `TotumCastConverter` calls `CastStreams.urlForChromecast`, which builds the same `CastItem` (with its
+  `subtitles`) and calls `CastStreamServer.urlFor`, which reaches `relayHls` for a YouTube HLS-only address, so the phone's relayed cast gets the
+  group too. Not run on a phone.
+- **Not proven:** that the LG's receiver lists the group's tracks as `MediaTrack`s (the Pi's helper's `tracks` event is the evidence; the
+  DASH path rests on the same assumption, ADR 191), and the cue timing: the WebVTT has no `X-TIMESTAMP-MAP`, so its times are taken as media
+  time from 0, which is right if YouTube's MPEG-TS starts at 0 and early or late by the stream's start offset if it does not.
+- Logs: `HLS master now carries N caption track(s) as an EXT-X-MEDIA TYPE=SUBTITLES group …`, `HLS master carries no caption tracks of
+  ours: <why>`, `HLS subtitle playlist N (lang) is one WebVTT segment of Ns`, then the existing `subtitles <lang> for <id>: upstream …`
+  lines. The line that hands the relay address out now also says `captions=N[langs] durationMs=…`.
+- Tests: `HlsRelayCaptionsTest` (red: `expected:<2> but was:<0>` EXT-X-MEDIA lines; the subtitle playlist and `.vtt` answered 404).
+
+**A name the relay never listed is not a source failure.** Kodi 21.3 on the Fire Stick (06:22) asked the relay for an empty name (the bare
+session address or a trailing slash). `HlsRelay` answered 404, and `relayedHls` counted that as a failure of the source, so three of them
+would have told Dewi "❌ couldn't start" over a cast that played fine.
+
+- `relayedHls` now asks the relay whether it lists the name (`HlsRelay.lists`: the entry, a `subtitles/N` that exists, or an address it
+  handed out). If not, the answer is a 404 that never reaches `CastFailures`, and nothing is asked of YouTube. The first such request is
+  logged once with the exact request path: `HLS relay was asked for "<path>" (the name "<name>"), which it never listed; answered 404 …`.
+  A real refusal by YouTube of a name the relay did list still counts, as before.
+- Test: `HlsRelayUnlistedNameTest` (red: `a request for a name the relay never listed was counted as a failure expected:<[]> but was:<[(yt1,
+  the source answered 404 for )]>`).

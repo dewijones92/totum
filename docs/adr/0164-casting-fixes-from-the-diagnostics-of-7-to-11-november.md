@@ -2,7 +2,7 @@
 title: Casting fixes from the diagnostics of 7 to 11 November
 kind: adr
 status: accepted
-updated: 2026-11-27
+updated: 2026-11-28
 ---
 
 # 164. Casting fixes from the diagnostics of 7 to 11 November
@@ -92,3 +92,34 @@ so a report read as if a cast had misbehaved. It now says that only while a cast
 and has not been told the player went back to local). It still returns the same answer either way. Red first: `RemoteEndWatchTest`
 "a crossover with nothing casting says nothing about the TV". Relay hangs on a locked cache span are in
 [ADR 186](0186-one-fetch-per-item-a-playing-stream-is-its-own-download.md).
+
+## Amended 2026-11-28: an MKV whose Tracks are not in the first 64 KB is read by range, and a Jellyfin item's own subtitles reach the TV
+
+Real run on the LG, 28 November 06:14 (Pi `totum serve` v0.1.984): Spinal Tap II (a Jellyfin item, 1080p x265 10-bit, about 5.5 GB MKV)
+cast as sound only, `its video is in a format Totum cannot read for a TV (MKV Tracks are not in its first 65536 bytes)`. The source
+answers byte ranges (Jellyfin through the Pi answers 206); the reader gave up after the first 64 KB.
+
+- **`MkvVideo.probe` follows the SeekHead.** The head's top-level elements are walked as before. `Tracks` (and `Info`, for the duration and
+  time scale) are used from the head when they are wholly inside it; otherwise the SeekHead names their position, the element header is read
+  by range (16 bytes), then the element (`Range: bytes=a-b`, at most 4 MB). The cluster index (`Cues`) was already read by range. A head
+  whose last element is cut off, or whose first element is longer than the head, no longer ends the walk with an error.
+- **The refusal stays, with its reason, where it must.** `MKV Tracks are not in its first 65536 bytes and its SeekHead names no position
+  for them` when there is no SeekHead to say where they are (such a file has no named `Cues` either, so it could not be cut anyway), and
+  `MKV Tracks are not in its first 65536 bytes and the source would not give the range at N for them (…); a source that answers byte ranges
+  is needed` when the source cannot do ranges. Both reach `the TV gets sound only — its video is … (reason)` as before.
+- **Not a walk.** A file with no SeekHead is not scanned element by element: it would still have no `Cues` to cut by, so the walk would
+  find Tracks and then refuse anyway.
+- **Logged** (`cast`, `dewidebug`): one line per probe with the positions the SeekHead named (`MKV SeekHead (segment data starts at S)
+  names Info at …, Tracks at …, Cues at …; the head holds 0x…+0x…`) and one per range fetch (`MKV Tracks are not in the first 65536 bytes;
+  the SeekHead names them at A, so bytes A-B (N bytes) were fetched by range in Mms`).
+- Tests: `MkvTracksBeyondTheHeadTest` (red: `UnreadableLayout: MKV Tracks are not in its first 65536 bytes`), `CastStreamServerMkvTracksTest`.
+  The fixtures are made in the test (`MkvFixtures`): the repo's small `avc.mkv` is taken apart and put together again with a 70 KB
+  Void before Tracks, or Tracks and Info after the clusters, with a SeekHead and a rewritten `Cues` so every cluster position is right;
+  the cut segments are byte for byte what the untouched file gives.
+- **Captions of a streamed file.** A torrent's or other streamed MKV's own subtitle tracks are still not pulled out (they would need the
+  whole file). A **Jellyfin** item's are: Jellyfin makes WebVTT of each text subtitle stream itself
+  (`/Videos/{id}/{mediaSourceId}/Subtitles/{index}/Stream.vtt`). The Pi lists them (`JellyfinBrowse.castSubtitles`, from the item's
+  `MediaSources[0].MediaStreams`; a picture-based stream such as PGS is named and skipped), `TargetStreams` puts them in the `CastItem`, and the one
+  stream server serves each as `subtitles/N.vtt`, cleaned for a TV like any other. The address with Jellyfin's key is read by the Pi only, never
+  handed to the TV. Not done: the phone's own cast of a Jellyfin item (it has no list of the item's streams; `JellyfinItem` carries none), and
+  the friend's-house public route (its session is opened by the phone with the phone's item).

@@ -1,25 +1,42 @@
 package com.dewijones92.totum.playback.cast
 
 import com.dewijones92.totum.common.Diag
+import java.util.Locale
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.math.ceil
 
 internal class HlsRelay(
     private val label: String,
     private val masterUrl: String,
     private val upstream: (String, String?) -> UpstreamReply,
+    private val subtitles: List<CastSubtitleSource> = emptyList(),
+    private val durationMs: Long? = null,
 ) {
     private val byId = LinkedHashMap<Int, String>()
     private val byUrl = HashMap<String, Int>()
     private val answered = AtomicInteger()
+    private val unlistedAsked = AtomicInteger()
     private var nextId = 0
     private var evictedLogged = false
 
-    fun reply(what: String, range: String?): HttpReply {
-        val url = if (what == ENTRY) masterUrl else addressOf(what)
-        if (url == null) {
-            Diag.warn("cast", "dewidebug $label: HLS relay asked for $what, which it never listed")
-            return HttpReply.Bytes(Http.NOT_FOUND, "text/plain", "no relayed HLS part $what".toByteArray())
+    fun lists(what: String): Boolean = what == ENTRY || subtitleOf(what) != null || addressOf(what) != null
+
+    fun unlisted(what: String, path: String): HttpReply {
+        if (unlistedAsked.incrementAndGet() == 1) {
+            Diag.warn(
+                "cast",
+                "dewidebug $label: HLS relay was asked for \"$path\" (the name \"$what\"), which it never listed; " +
+                    "answered 404, and a request like that is not counted as a failure of the source; " +
+                    "later ones are answered the same way without a line each",
+            )
         }
+        return HttpReply.Bytes(Http.NOT_FOUND, "text/plain", "no relayed HLS part $what".toByteArray())
+    }
+
+    fun reply(what: String, range: String?): HttpReply {
+        subtitleOf(what)?.let { (index, playlist) -> return subtitle(index, playlist) }
+        val url = if (what == ENTRY) masterUrl else addressOf(what)
+        if (url == null) return unlisted(what, what)
         val asked = System.currentTimeMillis()
         val got = upstream(url, range)
         val n = answered.incrementAndGet()
@@ -56,7 +73,77 @@ internal class HlsRelay(
                 "${done.variants} variant(s), ${done.segments} segment(s), ${done.relayed} address(es) now served by " +
                 "Totum, ${done.kept} left as they were (not http); none of it goes to the TV as a source address",
         )
-        return HttpReply.Bytes(Http.OK, Http.HLS_PLAYLIST, done.text.toByteArray(Charsets.UTF_8))
+        val carried = if (what == ENTRY) withSubtitles(done) else done.text
+        return HttpReply.Bytes(Http.OK, Http.HLS_PLAYLIST, carried.toByteArray(Charsets.UTF_8))
+    }
+
+    private fun subtitleOf(what: String): Pair<Int, Boolean>? {
+        val found = SUBTITLE_NAME.matchEntire(what) ?: return null
+        val index = found.groupValues[1].toIntOrNull()?.takeIf { it in subtitles.indices } ?: return null
+        return index to (found.groupValues[2] == "m3u8")
+    }
+
+    private fun subtitle(index: Int, playlist: Boolean): HttpReply {
+        if (!playlist) return SubtitleFiles.reply(subtitles[index], label, upstream)
+        val known = durationMs?.takeIf { it > 0 }
+        val seconds = (known ?: UNKNOWN_LENGTH_MS) / MS_PER_SECOND
+        val text = listOf(
+            "#EXTM3U",
+            "#EXT-X-VERSION:3",
+            "#EXT-X-TARGETDURATION:${ceil(seconds).toInt()}",
+            "#EXT-X-MEDIA-SEQUENCE:0",
+            "#EXT-X-PLAYLIST-TYPE:VOD",
+            "#EXTINF:${String.format(Locale.ROOT, "%.3f", seconds)},",
+            "$index.vtt",
+            "#EXT-X-ENDLIST",
+            "",
+        ).joinToString("\n")
+        Diag.log(
+            "cast",
+            "dewidebug $label: HLS subtitle playlist $index (${subtitles[index].language ?: "no language"}) " +
+                "is one WebVTT segment of ${seconds}s" +
+                (if (known == null) " (the item's length is unknown, so a long one was stated)" else ""),
+        )
+        return HttpReply.Bytes(Http.OK, Http.HLS_PLAYLIST, text.toByteArray(Charsets.UTF_8))
+    }
+
+    private fun withSubtitles(done: Rewritten): String {
+        val text = done.text
+        val why = when {
+            subtitles.isEmpty() -> "no caption tracks came with this item"
+            done.variants == 0 -> "the playlist is a media playlist with no variants to attach a subtitles group to"
+            text.contains("TYPE=SUBTITLES") -> "YouTube's own playlist already offers a subtitles group"
+            else -> null
+        }
+        if (why != null) {
+            Diag.log("cast", "dewidebug $label: HLS master carries no caption tracks of ours: $why")
+            return text
+        }
+        val media = subtitleGroup()
+        var first = true
+        val lines = text.lines().flatMap { line ->
+            if (!line.startsWith("#EXT-X-STREAM-INF")) return@flatMap listOf(line)
+            val variant = if (line.contains("SUBTITLES=")) line else "$line,SUBTITLES=\"$SUBTITLE_GROUP\""
+            (if (first) media else emptyList()).also { first = false } + variant
+        }
+        Diag.log(
+            "cast",
+            "dewidebug $label: HLS master now carries ${subtitles.size} caption track(s) as an EXT-X-MEDIA " +
+                "TYPE=SUBTITLES group \"$SUBTITLE_GROUP\" [${subtitles.joinToString { it.language ?: "und" }}] on " +
+                "${done.variants} variant(s); each is one WebVTT segment served by Totum as subtitles/N.vtt",
+        )
+        return lines.joinToString("\n")
+    }
+
+    private fun subtitleGroup(): List<String> {
+        val names = mutableSetOf<String>()
+        return subtitles.mapIndexed { i, sub ->
+            val language = sub.language?.ifBlank { null } ?: "und"
+            val base = (sub.label ?: sub.language ?: "Subtitles").replace('"', '\'')
+            val name = if (names.add(base)) base else "$base ($i)".also(names::add)
+            "#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID=\"$SUBTITLE_GROUP\",NAME=\"$name\",LANGUAGE=\"$language\"," +
+                "DEFAULT=NO,AUTOSELECT=NO,URI=\"subtitles/$i.m3u8\""
+        }
     }
 
     private class Rewritten(val text: String, val relayed: Int, val kept: Int, val segments: Int, val variants: Int)
@@ -118,6 +205,10 @@ internal class HlsRelay(
 
     companion object {
         const val ENTRY = "relay.m3u8"
+        private const val SUBTITLE_GROUP = "totum-subtitles"
+        private const val UNKNOWN_LENGTH_MS = 43_200_000L
+        private const val MS_PER_SECOND = 1000.0
+        private val SUBTITLE_NAME = Regex("""subtitles/(\d+)\.(m3u8|vtt)""")
         private const val MAX_ADDRESSES = 20_000
         private const val LOG_FIRST = 3
         private const val LOG_EVERY = 25
@@ -179,8 +270,14 @@ internal class HlsCasts(private val upstream: (String, String?) -> UpstreamReply
     }
 
     @Synchronized
-    fun open(mediaId: String, token: String, masterUrl: String) {
-        relays[token] = Entry(mediaId, HlsRelay(mediaId, masterUrl, upstream))
+    fun open(
+        mediaId: String,
+        token: String,
+        masterUrl: String,
+        subtitles: List<CastSubtitleSource> = emptyList(),
+        durationMs: Long? = null,
+    ) {
+        relays[token] = Entry(mediaId, HlsRelay(mediaId, masterUrl, upstream, subtitles, durationMs))
     }
 
     @Synchronized

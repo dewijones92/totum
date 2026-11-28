@@ -12,7 +12,7 @@ public object VideoProbe {
         val head = read.read(ByteSpan(0, StreamLayouts.HEAD_BYTES - 1))
         return when {
             Ebml.isEbml(head) ->
-                MkvVideo.probe(head, read)?.let(FoundVideo::Remuxed)
+                MkvVideo.probe(head, read, label)?.let(FoundVideo::Remuxed)
                     ?: FoundVideo.NoPicture("an MKV with no video track")
             Mp4Layout.isMp4(head) -> when (val choice = Mp4Video.choose(head, read, label)) {
                 is Mp4Video.Companion.Choice.Fragmented -> FoundVideo.Fragmented(choice.layout)

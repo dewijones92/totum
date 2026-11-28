@@ -2,12 +2,18 @@ package com.dewijones92.totum.cli.serve.jellyfin
 
 import com.dewijones92.totum.cli.serve.filing.Jellyfin
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.data.jellyfin.JELLYFIN_ID
 import com.dewijones92.totum.data.jellyfin.JellyfinItem
 import com.dewijones92.totum.data.jellyfin.JellyfinKind
 import com.dewijones92.totum.data.jellyfin.JellyfinListing
+import com.dewijones92.totum.playback.cast.CaptionPick
+import com.dewijones92.totum.playback.cast.CastSubtitleSource
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
@@ -18,6 +24,11 @@ import okhttp3.Response
 import java.net.URLEncoder
 
 internal class JellyfinFailure(message: String) : RuntimeException(message)
+
+internal fun jellyfinSubtitleLookup(jellyfin: Jellyfin?): (suspend (String) -> List<CastSubtitleSource>)? {
+    val browse = jellyfin?.let(::JellyfinBrowse) ?: return null
+    return { id -> withContext(Dispatchers.IO) { browse.castSubtitles(id) } }
+}
 
 internal class Page(val items: List<JellyfinItem>, val total: Int?, val returned: Int)
 
@@ -75,6 +86,51 @@ internal class JellyfinBrowse(private val jellyfin: Jellyfin) {
 
     fun open(id: String, range: String?): Response? = jellyfin.open("/Videos/$id/stream?static=true", range)
 
+    fun castSubtitles(id: String): List<CastSubtitleSource> {
+        if (!JELLYFIN_ID.matches(id)) {
+            Diag.warn("jellyfin", "subtitle lookup refused: not an item id")
+            return emptyList()
+        }
+        val body = jellyfin.get("/Items?Ids=$id&Fields=$FIELDS")
+        if (body == null) {
+            Diag.warn("jellyfin", "dewidebug subtitles for $id: Jellyfin did not answer, so none are offered")
+            return emptyList()
+        }
+        val source = runCatching { firstSource(body) }.getOrNull()
+        if (source == null) {
+            Diag.warn("jellyfin", "dewidebug subtitles for $id: no media source in Jellyfin's answer; none offered")
+            return emptyList()
+        }
+        val streams = source.streams
+        val usable = streams.filter { it.text }
+        val summary = streams.joinToString { stream ->
+            val kind = if (stream.text) "text" else "picture, skipped"
+            "#${stream.index} ${stream.language ?: "?"} ${stream.codec ?: "?"} $kind"
+        }
+        Diag.log(
+            "jellyfin",
+            "dewidebug subtitles for $id: ${streams.size} subtitle stream(s) in source ${source.id}: " +
+                "[$summary]; offering ${usable.size} to the TV",
+        )
+        return usable.map { stream ->
+            CastSubtitleSource(
+                jellyfin.subtitleUrl(id, source.id, stream.index),
+                stream.language,
+                stream.label,
+            )
+        }
+    }
+
+    private class SubtitleStream(
+        val index: Int,
+        val language: String?,
+        val codec: String?,
+        val label: String?,
+        val text: Boolean,
+    )
+
+    private class MediaSource(val id: String, val streams: List<SubtitleStream>)
+
     fun image(id: String): Response? = jellyfin.open("/Items/$id/Images/Primary?maxHeight=$POSTER_HEIGHT&quality=90")
 
     private fun children(parent: String): String =
@@ -101,6 +157,28 @@ internal class JellyfinBrowse(private val jellyfin: Jellyfin) {
         private const val LOGGED = 200
 
         fun parse(body: String): List<JellyfinItem> = parsePage(body)?.items.orEmpty()
+
+        private val SOURCE_ID = Regex("[0-9A-Za-z_-]{1,64}")
+
+        private fun firstSource(body: String): MediaSource? {
+            val item = Json.parseToJsonElement(body).jsonObject["Items"]?.jsonArray?.firstOrNull() as? JsonObject
+            val source = item?.get("MediaSources")?.jsonArray?.firstOrNull() as? JsonObject ?: return null
+            val id = source.text("Id")?.takeIf { SOURCE_ID.matches(it) } ?: return null
+            val streams = source["MediaStreams"]?.jsonArray.orEmpty().mapNotNull { element ->
+                val stream = element as? JsonObject ?: return@mapNotNull null
+                if (stream.text("Type") != "Subtitle") return@mapNotNull null
+                val index = stream.number("Index")?.toInt() ?: return@mapNotNull null
+                val language = stream.text("Language")?.let(CaptionPick::normal)?.ifEmpty { null }
+                SubtitleStream(
+                    index = index,
+                    language = language,
+                    codec = stream.text("Codec"),
+                    label = stream.text("DisplayTitle") ?: stream.text("Title") ?: language,
+                    text = stream["IsTextSubtitleStream"]?.jsonPrimitive?.booleanOrNull == true,
+                )
+            }
+            return MediaSource(id, streams)
+        }
 
         fun parsePage(body: String): Page? {
             val root = runCatching { Json.parseToJsonElement(body).jsonObject }.getOrNull() ?: return null
