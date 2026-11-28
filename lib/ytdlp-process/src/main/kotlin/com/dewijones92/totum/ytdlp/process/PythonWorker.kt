@@ -12,6 +12,8 @@ import java.io.BufferedReader
 import java.io.BufferedWriter
 import java.io.File
 import java.io.IOException
+import java.util.concurrent.Executors
+import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.ReentrantLock
@@ -55,6 +57,12 @@ internal class PythonWorker(
     private fun exchange(args: List<String>): String {
         val running = ensureRunning()
         val id = ids.incrementAndGet()
+        send(id, args)
+        val answer = readAnswer(running, args.first())
+        return outputOf(id, answer)
+    }
+
+    private fun send(id: Int, args: List<String>) {
         val line = JsonObject(
             mapOf("id" to JsonPrimitive(id), "args" to JsonArray(args.map(::JsonPrimitive))),
         ).toString()
@@ -64,31 +72,33 @@ internal class PythonWorker(
             input!!.flush()
         } catch (e: IOException) {
             retire("a write failed: ${e.message}")
-            throw WorkerGone("${e.message}", beforeAnswering = true)
+            throw WorkerGone("${e.message}", beforeAnswering = true, cause = e)
         }
-        val watchdog = Thread {
-            try {
-                if (!running.waitFor(timeoutMs, TimeUnit.MILLISECONDS)) {
-                    Diag.warn("engine", "worker $label took longer than ${timeoutMs}ms for ${args.first()}; killing it")
-                    running.destroyForcibly()
-                }
-            } catch (_: InterruptedException) {
-                Unit
-            }
-        }.apply {
-            isDaemon = true
-            start()
-        }
+    }
+
+    private fun readAnswer(running: Process, command: String): String {
+        val watchdog = watchdogs.schedule(
+            {
+                Diag.warn("engine", "worker $label took longer than ${timeoutMs}ms for $command; killing it")
+                running.destroyForcibly()
+            },
+            timeoutMs,
+            TimeUnit.MILLISECONDS,
+        )
         val answer = try {
             output!!.readLine()
         } finally {
-            watchdog.interrupt()
+            watchdog.cancel(false)
         }
         if (answer == null) {
             val said = errors?.takeIf { it.exists() }?.readText()?.trim()?.takeLast(ERROR_CHARS).orEmpty()
-            retire("it stopped answering ${args.first()}")
-            throw WorkerGone("the worker died during ${args.first()}: $said", beforeAnswering = false)
+            retire("it stopped answering $command")
+            throw WorkerGone("the worker died during $command: $said", beforeAnswering = false)
         }
+        return answer
+    }
+
+    private fun outputOf(id: Int, answer: String): String {
         val reply = Json.parseToJsonElement(answer).jsonObject
         if (reply["id"]?.jsonPrimitive?.contentOrNull != id.toString()) {
             retire("it answered out of step: $answer".take(ERROR_CHARS))
@@ -125,7 +135,10 @@ internal class PythonWorker(
 
     private fun retire(why: String) {
         val gone = process ?: return
-        Diag.warn("engine", "worker $label retired: $why (exit ${if (gone.isAlive) "still running" else gone.exitValue()})")
+        Diag.warn(
+            "engine",
+            "worker $label retired: $why (exit ${if (gone.isAlive) "still running" else gone.exitValue()})"
+        )
         runCatching { input?.close() }
         gone.destroyForcibly()
         process = null
@@ -133,10 +146,15 @@ internal class PythonWorker(
         output = null
     }
 
-    class WorkerGone(message: String, val beforeAnswering: Boolean) : RuntimeException(message)
+    class WorkerGone(message: String, val beforeAnswering: Boolean, cause: Throwable? = null) :
+        RuntimeException(message, cause)
 
     private companion object {
         const val NANOS_PER_MS = 1_000_000L
         const val ERROR_CHARS = 500
+
+        val watchdogs: ScheduledExecutorService = Executors.newSingleThreadScheduledExecutor { task ->
+            Thread(task, "totum-worker-watchdog").apply { isDaemon = true }
+        }
     }
 }

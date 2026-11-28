@@ -46,7 +46,7 @@ public class ProcessYtDlpEngine(
 
     override suspend fun warmUp() {
         val began = System.nanoTime()
-        val said = runOrNull("warm") { runner.warm() }
+        val said = attempt { runner.warm() }
         Diag.log(
             "engine",
             "warm up ${if (said == null) "failed" else "done"} in ${(System.nanoTime() - began) / NANOS_PER_MS}ms: " +
@@ -116,9 +116,9 @@ public class ProcessYtDlpEngine(
     private suspend fun run(vararg args: String): String = runner.run(args.toList())
 
     /** Null when the process itself could not be run — a missing python, not a failed extraction. */
-    private suspend fun runOrNull(vararg args: String): String? = runOrNull(*args) { runner.run(args.toList()) }
+    private suspend fun runOrNull(vararg args: String): String? = attempt { runner.run(args.toList()) }
 
-    private suspend fun runOrNull(vararg args: String, call: suspend () -> String): String? =
+    private suspend fun attempt(call: suspend () -> String): String? =
         runCatching { call() }.getOrElse { failure ->
             Diag.warn("engine", "the extractor could not be run: ${failure.message}")
             null

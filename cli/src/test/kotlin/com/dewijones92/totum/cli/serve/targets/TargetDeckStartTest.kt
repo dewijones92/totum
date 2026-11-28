@@ -340,7 +340,7 @@ class TargetDeckStartTest {
     }
 
     @Test
-    fun `a target that cannot be reached plays nothing and says so, though its stream was looked up beside the link`() = runBlocking {
+    fun `an unreachable target plays nothing, though its stream was looked up beside the link`() = runBlocking {
         link.sink = null
         val deck = deck()
 

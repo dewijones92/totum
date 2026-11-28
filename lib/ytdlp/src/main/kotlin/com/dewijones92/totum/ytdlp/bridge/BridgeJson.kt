@@ -1,3 +1,5 @@
+@file:Suppress("TooManyFunctions")
+
 package com.dewijones92.totum.ytdlp.bridge
 
 import com.dewijones92.totum.common.Diag

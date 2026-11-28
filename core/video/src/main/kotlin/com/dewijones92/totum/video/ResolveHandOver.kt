@@ -20,7 +20,10 @@ class ResolveHandOver(
         }
         val age = now() - stored.savedAtMs
         if (age > MAX_AGE_MS) {
-            Diag.log("handover", "dewidebug ${item.item.id.value}: the stored resolve is ${age / MS_PER_MIN}m old, not handed over")
+            Diag.log(
+                "handover",
+                "dewidebug ${item.item.id.value}: the stored resolve is ${age / MS_PER_MIN}m old, not handed over"
+            )
             return null
         }
         Diag.log(
@@ -41,13 +44,19 @@ class ResolveHandOver(
         val watchUrl = HttpUrl.parse(handed.watchUrl)
         val lookup = FileLookupStore.decode(handed.lookup)
         if (watchUrl == null || lookup == null) {
-            Diag.warn("handover", "dewidebug a handed resolve for ${handed.watchUrl.takeLast(ID_CHARS)} was unreadable; resolving it here")
+            Diag.warn(
+                "handover",
+                "dewidebug a handed resolve for ${handed.watchUrl.takeLast(ID_CHARS)} was unreadable; resolving it here"
+            )
             return false
         }
         val id = watchUrl.value.takeLast(ID_CHARS)
         val own = lookups.load(watchUrl)
         if (own != null && own.savedAtMs >= lookup.savedAtMs) {
-            Diag.log("handover", "dewidebug $id: this Pi already holds a resolve as new as the one handed over; keeping its own")
+            Diag.log(
+                "handover",
+                "dewidebug $id: this Pi already holds a resolve as new as the one handed over; keeping its own"
+            )
             return false
         }
         val sample = lookup.metadata.formats.firstNotNullOfOrNull { format -> format.url?.let(HttpUrl::parse) }
@@ -65,7 +74,11 @@ class ResolveHandOver(
             return false
         }
         lookups.save(watchUrl, lookup)
-        Diag.log("handover", "dewidebug $id: the phone's resolve is kept (its stream answered $status here), so the Pi need not resolve it")
+        Diag.log(
+            "handover",
+            "dewidebug $id: the phone's resolve is kept (its stream answered $status here), " +
+                "so the Pi need not resolve it"
+        )
         return true
     }
 

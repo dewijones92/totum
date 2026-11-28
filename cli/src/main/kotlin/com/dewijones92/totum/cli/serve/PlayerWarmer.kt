@@ -24,6 +24,7 @@ internal class PlayerWarmer(
         }
     }
 
+    @Suppress("TooGenericExceptionCaught")
     internal suspend fun warmEngine() {
         val began = System.nanoTime()
         try {
@@ -36,6 +37,7 @@ internal class PlayerWarmer(
         }
     }
 
+    @Suppress("TooGenericExceptionCaught")
     internal suspend fun warmPlayer() {
         val url = try {
             currentPlayerUrl()
@@ -46,7 +48,10 @@ internal class PlayerWarmer(
             null
         }
         if (url == null) {
-            Diag.log("warm", "dewidebug no player build is known yet, so none was warmed (last warmed: ${warmed ?: "none"})")
+            Diag.log(
+                "warm",
+                "dewidebug no player build is known yet, so none was warmed (last warmed: ${warmed ?: "none"})"
+            )
             return
         }
         if (url == warmed) {

@@ -241,8 +241,8 @@ class TargetsRepository(
             "targets",
             "sending to $id: ${request.mode} of ${request.items.size} " +
                 "[${request.items.joinToString(limit = LOGGED_IDS) { it.itemId }}] startItem=${request.startItemId} " +
-                "startAtMs=${request.startAtMs ?: "none, the Pi resumes as usual"} shuffle=${request.shuffle} loop=${request.loop} " +
-                "repeat=${request.repeat}",
+                "startAtMs=${request.startAtMs ?: "none, the Pi resumes as usual"} " +
+                "shuffle=${request.shuffle} loop=${request.loop} repeat=${request.repeat}",
         )
         val answer = home.queue(id, request.copy(understandsStarting = true))
         logAnswer(id, "${request.mode} of ${request.items.size}", answer)
@@ -357,7 +357,11 @@ class TargetsRepository(
     private fun handedOver(play: Redirected): List<HandedResolve> {
         val item = startingItem(play) ?: return emptyList()
         if (!unmetered()) {
-            Diag.log("handover", "dewidebug ${item.item.id.value}: on a metered connection the phone's stream address may not suit the Pi, so none is handed over")
+            Diag.log(
+                "handover",
+                "dewidebug ${item.item.id.value}: on a metered connection the phone's stream address " +
+                    "may not suit the Pi, so none is handed over",
+            )
             return emptyList()
         }
         return listOfNotNull(handOver(item))
@@ -369,8 +373,10 @@ class TargetsRepository(
         Diag.log(
             "targets",
             "${play.label}: ${starting.value} starts from " +
-                (place?.let { "${it}ms, the place this phone would have resumed at" }
-                    ?: "no place this phone knows, so the Pi resumes it as usual"),
+                (
+                    place?.let { "${it}ms, the place this phone would have resumed at" }
+                        ?: "no place this phone knows, so the Pi resumes it as usual"
+                    ),
         )
         return place
     }

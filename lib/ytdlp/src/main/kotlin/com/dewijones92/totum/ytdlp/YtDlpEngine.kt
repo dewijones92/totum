@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.Flow
  * running yt-dlp (in progress), and [com.dewijones92.totum.ytdlp.fake.FakeYtDlpEngine]
  * for tests, previews, and development against the boundary.
  */
+@Suppress("TooManyFunctions")
 public interface YtDlpEngine {
 
     /** Versions of the moving parts, for diagnostics and update decisions. */
