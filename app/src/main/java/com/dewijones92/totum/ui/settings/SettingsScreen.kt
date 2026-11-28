@@ -85,7 +85,7 @@ fun SettingsScreen(container: AppContainer, onBack: () -> Unit, modifier: Modifi
                 // Scrolls: the screen already ran past the bottom of a phone once the
                 // SponsorBlock categories were added, and everything below was simply unreachable.
                 Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                    BackHeader(stringResource(R.string.settings), onBack)
+                    BackHeader(stringResource(R.string.settings), onBack, scrollsAway = false)
                     SettingsSearchBox(focus, open) { MainSettings(container, settings, open) }
                 }
             }

@@ -1,6 +1,8 @@
 package com.dewijones92.totum.ui.playlist
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -76,30 +78,32 @@ fun PlaylistScreen(
     Surface(modifier = modifier.fillMaxSize()) {
         PullToRefreshBox(isRefreshing = state.refreshing, onRefresh = viewModel::refresh) {
             SelectableMediaList("account-playlist", state.videos, shown, { it }, key = playlist.browseId) {
-                LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
+                Column(Modifier.fillMaxSize()) {
                     // The shared header rather than a hand-rolled Row: this screen had its own
                     // copy of back-arrow-plus-title, which is the same thing every layer under a
                     // tab needs and now gets from one place.
-                    item { PlaylistBackHeader(state.title, playlist, music, onBack) }
-                    when {
-                        state.loading -> item { ListLoading() }
-                        state.error -> item { ListMessage(stringResource(R.string.feed_error)) }
-                        state.videos.isEmpty() -> item { ListMessage(stringResource(R.string.feed_empty)) }
-                        else -> {
-                            item { VideosHeading(state, viewModel::setSort, listFilter, itemFilters) }
-                            filterField(listFilter, shown.size, state.videos.size, hosted = true)
-                            items(shown, key = { it.id.value }) { video ->
-                                MediaItemRow(
-                                    item = video,
-                                    subtitleLines = rowFacts(video, MediaKind.VIDEO),
-                                    downloadState = state.downloadStates[video.id] ?: DownloadState.NotDownloaded,
-                                    pillar = MediaKind.VIDEO,
-                                    onPlay = { viewModel.play(video) },
-                                    onDownload = { chooseDownload(video) },
-                                    onDeleteDownload = { viewModel.deleteDownload(video) },
-                                )
+                    PlaylistBackHeader(state.title, playlist, music, onBack)
+                    LazyColumn(state = listState, modifier = Modifier.weight(1f).fillMaxWidth()) {
+                        when {
+                            state.loading -> item { ListLoading() }
+                            state.error -> item { ListMessage(stringResource(R.string.feed_error)) }
+                            state.videos.isEmpty() -> item { ListMessage(stringResource(R.string.feed_empty)) }
+                            else -> {
+                                item { VideosHeading(state, viewModel::setSort, listFilter, itemFilters) }
+                                filterField(listFilter, shown.size, state.videos.size, hosted = true)
+                                items(shown, key = { it.id.value }) { video ->
+                                    MediaItemRow(
+                                        item = video,
+                                        subtitleLines = rowFacts(video, MediaKind.VIDEO),
+                                        downloadState = state.downloadStates[video.id] ?: DownloadState.NotDownloaded,
+                                        pillar = MediaKind.VIDEO,
+                                        onPlay = { viewModel.play(video) },
+                                        onDownload = { chooseDownload(video) },
+                                        onDeleteDownload = { viewModel.deleteDownload(video) },
+                                    )
+                                }
+                                if (state.loadingMore) item { LoadingMoreFooter() }
                             }
-                            if (state.loadingMore) item { LoadingMoreFooter() }
                         }
                     }
                 }

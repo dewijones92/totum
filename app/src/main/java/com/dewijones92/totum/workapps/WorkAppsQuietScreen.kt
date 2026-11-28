@@ -69,7 +69,7 @@ fun WorkAppsQuietScreen(workApps: WorkAppsQuiet, onBack: () -> Unit, modifier: M
     Surface(modifier = modifier.fillMaxSize()) {
         Box {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                BackHeader(stringResource(R.string.work_apps_name), onBack)
+                BackHeader(stringResource(R.string.work_apps_name), onBack, scrollsAway = false)
                 Text(
                     stringResource(R.string.work_apps_intro),
                     style = MaterialTheme.typography.bodyMedium,

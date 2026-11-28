@@ -45,6 +45,7 @@ import com.dewijones92.totum.playback.PlaybackState
 import com.dewijones92.totum.theme.TotumTheme
 import com.dewijones92.totum.ui.common.CountRecompositions
 import com.dewijones92.totum.ui.common.Dock
+import com.dewijones92.totum.ui.common.HeaderScrollHost
 import com.dewijones92.totum.ui.common.ItemActionSheet
 import com.dewijones92.totum.ui.common.LocalAnimationsHidden
 import com.dewijones92.totum.ui.common.LocalItemActions
@@ -533,12 +534,14 @@ private fun Destination(
     destination: TopLevelDestination,
     onOpenShorts: (ReelStart) -> Unit,
 ) {
-    when (destination) {
-        TopLevelDestination.Videos -> VideosScreen(container, onOpenShorts = onOpenShorts)
-        TopLevelDestination.Podcasts -> PodcastsScreen(container)
-        TopLevelDestination.Queue -> QueueScreen(container)
-        TopLevelDestination.Music -> MusicScreen(container)
-        TopLevelDestination.Library -> LibraryScreen(container)
+    HeaderScrollHost("tab ${destination.name}") {
+        when (destination) {
+            TopLevelDestination.Videos -> VideosScreen(container, onOpenShorts = onOpenShorts)
+            TopLevelDestination.Podcasts -> PodcastsScreen(container)
+            TopLevelDestination.Queue -> QueueScreen(container)
+            TopLevelDestination.Music -> MusicScreen(container)
+            TopLevelDestination.Library -> LibraryScreen(container)
+        }
     }
 }
 

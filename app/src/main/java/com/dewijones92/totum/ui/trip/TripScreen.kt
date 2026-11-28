@@ -44,7 +44,7 @@ fun TripScreen(container: AppContainer, onBack: () -> Unit, modifier: Modifier =
     var perGroup by rememberSaveable { mutableIntStateOf(trip.settings.value.perGroup) }
     Surface(modifier = modifier.fillMaxSize()) {
         Column(Modifier.verticalScroll(rememberScrollState())) {
-            BackHeader(stringResource(R.string.trip_title), onBack)
+            BackHeader(stringResource(R.string.trip_title), onBack, scrollsAway = false)
             Text(
                 text = stringResource(R.string.trip_intro),
                 style = MaterialTheme.typography.bodyMedium,
