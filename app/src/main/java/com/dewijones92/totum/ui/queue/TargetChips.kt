@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -86,6 +87,7 @@ fun TargetChips(targets: TargetsRepository, modifier: Modifier = Modifier) {
     val power = states.associate { it.target.id to it.power }
     val connection = states.associate { it.target.id to it.connection }
     val doing = doingLines(states)
+    val chipStates = stateLines(states)
     val switchable = states.filter { it.canSwitchOff && it.power != TargetPower.ASLEEP }.map { it.target.id }.toSet()
     val inUse = states.filter { it.entries.isNotEmpty() || it.target.id == selected }.map { it.target }
     val idle = states.map { it.target } - inUse.toSet()
@@ -113,7 +115,7 @@ fun TargetChips(targets: TargetsRepository, modifier: Modifier = Modifier) {
                     colour = TargetColours.of(colours, target.id),
                     selected = selected == target.id,
                     connection = connection[target.id],
-                    doing = doing[target.id],
+                    doing = chipStates[target.id],
                     onClick = { targets.select(target.id) },
                 )
                 if (selected == target.id && target.id in switchable) {
@@ -122,6 +124,7 @@ fun TargetChips(targets: TargetsRepository, modifier: Modifier = Modifier) {
                         colour = Color.Gray,
                         selected = false,
                         onClick = { targets.command(target.id, TargetAction.SWITCH_OFF) },
+                        modifier = Modifier.heightIn(min = CHIP_ROW_HEIGHT),
                     )
                 }
             }
@@ -151,6 +154,7 @@ private fun MoreDevices(
         colour = Color.Gray,
         selected = false,
         onClick = { picking = true },
+        modifier = Modifier.heightIn(min = CHIP_ROW_HEIGHT),
     )
     DropdownMenu(expanded = picking, onDismissRequest = { picking = false }) {
         val idleIds = idle.map { it.id }.toSet()
@@ -185,6 +189,7 @@ private fun ColouredChip(
             colour = colour.asColour(),
             selected = selected,
             onClick = onClick,
+            modifier = Modifier.heightIn(min = CHIP_ROW_HEIGHT),
             connection = connection,
             doing = doing,
             onLongClick = {
@@ -245,7 +250,7 @@ internal fun TargetChip(
         shape = MaterialTheme.shapes.small,
         color = if (selected) colour.copy(alpha = SELECTED_ALPHA) else Color.Transparent,
         border = BorderStroke(if (selected) SELECTED_BORDER else IDLE_BORDER, colour),
-        modifier = modifier.minimumInteractiveComponentSize(),
+        modifier = modifier.testTag(CHIP_TAG).minimumInteractiveComponentSize(),
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -281,7 +286,9 @@ internal fun TargetChip(
 const val CHIPS_MORE_TAG = "target-chips-more"
 const val CHIP_DOT_TAG = "target-chip-dot"
 const val CHIP_DOING_TAG = "target-chip-doing"
+const val CHIP_TAG = "target-chip"
 private val CHIP_MAX_WIDTH = 220.dp
+private val CHIP_ROW_HEIGHT = 50.dp
 private val SELECTED_BORDER = 2.dp
 private val IDLE_BORDER = 1.dp
 private const val SELECTED_ALPHA = 0.25f

@@ -50,7 +50,10 @@ sound processing on the Pi). Brief: [pi-plays-everywhere.md](../todos/pi-plays-e
   tracks) and Colour. Not offered, and why: playback speed (no speed stage in the Pi's sound chain or the Chromecast's stream), Listen/Watch
   (the device's kind decides), Explore and history (phone queue features).
 - **Boost under a picture.** A TV showing a picture is offered Boost (the Pi re-encodes the audio for it anyway) but not Skip silences.
-- **Chips and the Play on picker say what the device is doing:** `▶️ Toy Story`, `⏸️ Toy Story`, `⏳ Toy Story`, `⚪ Idle`, a second line that wraps.
+- **Chips say the state, the Play on menu says what each device plays.** A device's chip (the Queue's row and the Play on row's chip) reads
+  `▶️ Playing`, `⏸️ Paused`, `⏳ Starting` or `⚪ Idle` under its name, so every chip is one height and the Queue's chip row has no blank under a
+  shorter chip (2026-11-28, Dewi's option A; it was `▶️ <title>` on a second line that wrapped to 82 dp). The title is on the dock bar, the
+  remote card and the Play on menu items (`▶️ Toy Story`, `⏸️ Toy Story`, `⏳ Toy Story`, `⚪ Idle`, a second line that wraps), ADR 180.
 - **A soundbar has a seek bar** with Skip silences or Boost on: the Pi reports the source's length (ffprobe).
 - **A wake that failed no longer outlives the start that played.** The static ARP entry is a unit (`server/systemd/totum-tv-arp.service`).
 - **A speaker's Bluetooth link is logged** (RSSI, link quality, underruns, reconnects, drops) once per 30 s while it plays, from a host

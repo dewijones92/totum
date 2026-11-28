@@ -54,6 +54,14 @@ class TargetDockBarTest {
     }
 
     @Test
+    fun `a chip's state line names the state and never the title`() {
+        assertEquals("▶️ Playing", playingTv().stateLine())
+        assertEquals("⏸️ Paused", playingTv().copy(playing = false).stateLine())
+        assertEquals("⏳ Starting", playingTv().copy(playing = false, starting = true).stateLine())
+        assertEquals("⚪ Idle", TargetState(bar).stateLine())
+    }
+
+    @Test
     fun `an asleep device with a saved queue is idle, not paused`() {
         val asleep = playingTv().copy(playing = false, power = TargetPower.ASLEEP)
 

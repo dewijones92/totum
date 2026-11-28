@@ -63,6 +63,7 @@ fun PlayOnRow(targets: TargetsRepository, padStatusBar: Boolean, modifier: Modif
     val colours by targets.colours.collectAsStateWithLifecycle()
     val current = PlayOn.resolve(selected, options)
     val doing = doingLines(listed)
+    val chipStates = stateLines(listed)
     var open by remember { mutableStateOf(false) }
     var adding by remember { mutableStateOf(false) }
     Row(
@@ -89,7 +90,7 @@ fun PlayOnRow(targets: TargetsRepository, padStatusBar: Boolean, modifier: Modif
                     selected = true,
                     onClick = { open = true },
                     connection = listed.firstOrNull { it.target.id == current.id }?.connection,
-                    doing = doing[current.id],
+                    doing = chipStates[current.id],
                 )
                 DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
                     PlayOnMenuItems(options, colours, current.id, doing) {

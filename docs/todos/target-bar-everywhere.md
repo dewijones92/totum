@@ -4,7 +4,7 @@ kind: todo
 status: built 2026-11-20 (unit and instrumented tests written; screenshots at 1080x2400 and 320x640@160; lock-screen and notification controls built 2026-11-20, ADR 188, driven on the emulator only; not driven on a real TV, soundbar or lock screen)
 batch: C, task D
 priority: high
-updated: 2026-11-27
+updated: 2026-11-28
 ---
 
 # 🎛️ Control the selected device from anywhere
@@ -41,7 +41,7 @@ Dewi, 2026-11-20: *"do at least the basic play controls from my app and whatever
 
 - [x] One set of controls per screen: on the Queue tab the dock draws neither the device's bar nor the phone's mini player (`dockBarFor`).
 - [x] The card's tiles take the device's colour; boost is offered under a picture; a Captions tile appears while the receiver lists tracks.
-- [x] Chips and the Play on picker say what the device is doing (`▶️ title`, `⏸️ title`, `⏳ title`, `⚪ Idle`).
+- [x] Chips and the Play on picker say what the device is doing (`▶️ title`, `⏸️ title`, `⏳ title`, `⚪ Idle`). Since 2026-11-28 only the picker's menu items keep the title; the chips say the state (`▶️ Playing`, `⏸️ Paused`, `⏳ Starting`, `⚪ Idle`) so they are one height.
 - [x] **Lock-screen and notification controls** ([ADR 188](../adr/0188-the-selected-device-is-a-second-media-session-for-the-lock-screen-and-notification.md)):
   a second `MediaSession` in `PlaybackService` fronted by `RemoteTargetPlayer`, opened and closed by the dock bar's own rule; play and
   pause, back 10, forward 30 and next; title, art, device name and colour; read every 10 s playing and 30 s paused with the screen off.
