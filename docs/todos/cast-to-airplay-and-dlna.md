@@ -3,7 +3,7 @@ title: 📺 Cast to Apple TV (AirPlay) and DLNA players too
 kind: todo
 status: built 2026-11-14 (ADR 174 sound, ADR 175 picture and Kodi control); real-device tests owed
 priority: medium
-updated: 2026-11-14
+updated: 2026-11-28
 ---
 
 # 📺 Cast to Apple TV (AirPlay) and DLNA players too
@@ -43,7 +43,9 @@ Stick has a DLNA renderer.
 Owed, in order:
 
 1. **Real-device runs**: pair the LG (`totum airplay-pair "LG TV"`), play, pause, seek, stop; Kodi over DLNA. The LG may
-   refuse audio-only HLS (`supportsUIForAudioOnlyContent` is false).
+   refuse audio-only HLS (`supportsUIForAudioOnlyContent` is false). The first pairing try (28 Nov) died on an unpinned
+   `srptools` 2.0.0; the pins are in `server/totum-cli/requirements.txt` now, so rebuild the image and pair again
+   ([ADR 174](../adr/0174-dlna-and-airplay-are-more-controls-behind-the-one-cast-player.md) amendment).
 2. **The picture** over HLS: built ([ADR 175](../adr/0175-dlna-airplay-and-kodi-carry-the-picture-over-the-one-stream-servers-hls.md)),
    proven against ffmpeg's HLS demuxer, gmrender-resurrect and two stand-ins; unproven on the real LG and Kodi.
 3. **AirPlay inside `bin_private`**: if the LG stalls at start, the sender address given for AirPlay 2 timing is the
