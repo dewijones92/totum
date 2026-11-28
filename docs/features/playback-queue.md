@@ -3,7 +3,7 @@ title: Playback queue
 kind: feature
 area: playback
 status: shipped
-updated: 2026-11-27
+updated: 2026-11-28
 ---
 
 # Playback queue
@@ -304,6 +304,23 @@ the count, so they never sit in the queue; `route` and `QueueArming` still have 
 The player's Up next ✕ offering Undo and its long-press opening the item menu (instrumented); the empty-queue related
 fallback leaving out a Not for me item (a unit test around `playRelatedNext`'s filter); `PlaybackQueue.restoreAt` and
 `removingAt` with an anchor when the removed entry was the first or the last.
+
+## A shuffled album stays together, and a run keeps the queue's place (2026-11-28)
+
+Dewi asked whether an album shuffle had ever played other albums. It had not: `playAll` puts the shuffled run in as one
+block after the place, and the advance, gapless arming and the Next line walk the queue entry by entry (Explore, off by
+default, is the one thing that steps outside it). When the album ends the queue carries on with the next music in queue
+order, whatever group it is in; **Dewi decided to keep that (2026-11-28), no setting and no album-only mode**
+([ADR 26](../adr/0026-albums-artists-and-the-youtube-music-library.md)).
+
+One real fault came out of it: a run that re-added the entry the place was anchored on (a restored place or a peek, with
+the album already queued) lost the place in `QueueSnapshot.removing` and landed at the head of the queue
+(report 20261106T084701). `removing` now moves the place to the entry before the removed one, as `removingAll` does
+([ADR 56](../adr/0056-player-tabs-and-explore-mode.md)). Logged: `dewidebug play-all(N): "<group>" lands at #i of size
+[place before: current= anchor= place=; place after: ]`, `dewidebug removing the place's own entry …`, and an advance
+that changes group says `— leaves "A" for "B"`. Tests: `RemovingKeepsThePlaceTest` (`:core:data`),
+`ShufflingAnAlbumKeepsItsRunTogetherTest` (`:app`). At Dewi's scale (6,164 queued, 38 runs) the change is one `place`
+read per removal.
 
 ## Up next says what will be passed over (2026-11-27)
 

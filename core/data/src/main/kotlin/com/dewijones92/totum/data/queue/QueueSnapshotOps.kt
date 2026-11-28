@@ -128,7 +128,18 @@ public fun QueueSnapshot.inserted(run: List<QueueEntry>): QueueSnapshot {
 /** Drops matching entries, keeping the cursor on whatever it pointed at. */
 public fun QueueSnapshot.removing(match: (QueueEntry) -> Boolean): QueueSnapshot {
     val kept = entries.filterNot(match)
-    return copy(entries = kept, currentIndex = current?.let(kept::indexOf) ?: NOTHING_PLAYING)
+    val at = place
+    if (entries.getOrNull(at)?.let(match) != true) {
+        return copy(entries = kept, currentIndex = current?.let(kept::indexOf) ?: NOTHING_PLAYING)
+    }
+    val before = entries.take(at).lastOrNull { !match(it) }?.item?.item?.id
+    Diag.log(
+        "queue",
+        "dewidebug removing the place's own entry ${entries[at].item.item.id.value} (index $at, " +
+            "${if (currentIndex >= 0) "playing" else "anchor"}): the place moves to " +
+            "${before?.value ?: "the head of the queue"} [size ${entries.size} -> ${kept.size}]",
+    )
+    return copy(entries = kept, currentIndex = NOTHING_PLAYING, anchor = before)
 }
 
 public fun QueueSnapshot.removingAt(index: Int): QueueSnapshot =

@@ -2,7 +2,7 @@
 title: Player tabs, and Explore mode
 kind: adr
 status: accepted
-updated: 2026-10-15
+updated: 2026-11-28
 ---
 
 # 56. Player tabs, and Explore mode
@@ -58,3 +58,17 @@ Settings default.
   Next and a restored place all carry on from the place), `AutoAdvancerTest`, `GaplessArmerTest`, `WatchRatingTest`,
   `PlayerKeepsEveryControlTest` (device). Verified on totum-api35: explore → related → off → Next resumed the queue at
   the item after the one it left.
+
+## Amended 2026-11-28: a run that removes the place's own entry keeps the place
+
+Dewi asked whether an album shuffle had ever played other albums. The advance never leaves a shuffled album's run, but
+a run that re-adds the entry the place is anchored on lost the place: `QueueSnapshot.removing` dropped the anchor with
+the entry, `place` fell to -1, and `playAll` inserted the whole run at the head of the queue instead of after the place.
+Report 20261106T084701 shows it: an app that had just started (nothing current, so only a restored or peek anchor),
+an album already queued in full (46 of 46, size unchanged at 11,460) and `play-at-0`; what followed the album was the
+head of the queue ("Radio · Jackson 5"), not what followed the user's place. `removing` now behaves like
+`removingAll`: when the place's entry (the anchor, or the current entry) is removed, the place becomes the nearest
+entry before it, so every caller (`playAll`, Play now, Play next, add to end) lands where it was meant to. `playAll`
+logs where the run landed and which place it used (`dewidebug play-all(N): run lands at #i …`), and the advance
+says when it leaves a group (`— leaves "A" for "B"`). Tests: `RemovingKeepsThePlaceTest` (`:core:data`),
+`ShufflingAnAlbumKeepsItsRunTogetherTest` (`:app`).

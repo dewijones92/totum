@@ -563,6 +563,7 @@ class PlaybackQueue(
         }
         val start = run.firstOrNull { it.item.id == startAt } ?: run.first()
         var index = NOTHING_PLAYING
+        val placeBefore = _state.value
         mutate("play-all(${run.size})") { snapshot ->
             // The playing item is refreshed in place and NOT re-inserted. It is exempt from the
             // remove-and-re-add every other entry goes through, so adding it again left the queue
@@ -578,6 +579,13 @@ class PlaybackQueue(
                 // inserted after the cursor: it may be the entry the cursor is already on.
                 .also { now -> index = now.entries.indexOfFirst { it.item.item.id == start.item.id } }
         }
+        Diag.log(
+            "queue",
+            "dewidebug play-all(${run.size}): \"${group?.title ?: "no group"}\" lands at #$index of " +
+                "${_state.value.entries.size} [place before: current=${placeBefore.currentIndex} " +
+                "anchor=${placeBefore.anchor?.value ?: "none"} place=${placeBefore.place}; " +
+                "place after: ${_state.value.place}]",
+        )
         scope.launch { if (playAt(index, reason = reason) && byYou) pictureOffers.started(start, "play all") }
     }
 

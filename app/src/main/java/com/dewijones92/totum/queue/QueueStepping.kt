@@ -2,6 +2,7 @@ package com.dewijones92.totum.queue
 
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.queue.QueueEntry
+import com.dewijones92.totum.data.queue.QueueGroup
 import com.dewijones92.totum.domain.Listening
 import com.dewijones92.totum.domain.PlayReason
 import com.dewijones92.totum.domain.word
@@ -51,7 +52,8 @@ internal suspend fun PlaybackQueue.step(direction: Int, keepTo: Listening? = nul
             Diag.log(
                 "queue",
                 "${verbFor(direction)} from index $from to $index of ${state.value.entries.size} — \"$title\"" +
-                    passedOverNote(passedOver, keepTo) + finishedNote(finished),
+                    passedOverNote(passedOver, keepTo) + finishedNote(finished) +
+                    leavesGroupNote(snapshot.entries.getOrNull(from)?.group, entry.group),
             )
             return true
         } else {
@@ -77,6 +79,9 @@ private fun verbFor(direction: Int): String = if (direction == FORWARD) "advance
 
 private fun passedOverNote(passedOver: Int, keepTo: Listening?): String =
     if (passedOver > 0) " (passed over $passedOver ${keepTo?.other?.word} to stay in ${keepTo?.word})" else ""
+
+private fun leavesGroupNote(from: QueueGroup?, to: QueueGroup?): String =
+    if (from?.id == to?.id) "" else " — leaves \"${from?.title ?: "no group"}\" for \"${to?.title ?: "no group"}\""
 
 private fun finishedNote(finished: List<String>): String =
     if (finished.isEmpty()) {
