@@ -191,9 +191,14 @@ class FileLookupStore(private val dir: File, private val keep: Int = KEEP) : Loo
     @Serializable
     private data class Segment(val startMs: Long, val endMs: Long)
 
-    private companion object {
-        const val KEEP = 30
-        const val SUFFIX = ".lookup.json"
-        val json = Json { ignoreUnknownKeys = true }
+    companion object {
+        private const val KEEP = 30
+        private const val SUFFIX = ".lookup.json"
+        private val json = Json { ignoreUnknownKeys = true }
+
+        fun encode(lookup: StoredLookup): String = json.encodeToString(Stored.serializer(), Stored.of(lookup))
+
+        fun decode(text: String): StoredLookup? =
+            runCatching { json.decodeFromString(Stored.serializer(), text).toLookup() }.getOrNull()
     }
 }

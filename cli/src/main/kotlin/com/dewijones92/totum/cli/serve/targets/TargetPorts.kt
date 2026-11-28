@@ -76,6 +76,8 @@ internal fun interface TargetSounds {
     fun whyNone(item: PlayableItem): String = "no stream was found for it"
 
     fun refusedUntil(item: PlayableItem): Long? = null
+
+    fun resumeFor(item: PlayableItem): Long? = null
 }
 
 internal fun interface ProgressReporter {

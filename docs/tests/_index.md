@@ -1,7 +1,7 @@
 ---
 title: Testing
 kind: reference
-updated: 2026-11-20
+updated: 2026-11-27
 ---
 
 # Testing
@@ -1144,3 +1144,10 @@ plus the Pi downloads section and the group page in `ListFilterTest`.
 - `tools/crashlog-server/tests/test_screen.py` (two new, one seen failing first): the tunnel relay's address is accepted on its host only. `tools/state/test-newest-state.sh`: the newest state dump is never an emulator's `0.1.0-dev`, and both scripts use the one helper.
 
 2026-11-20, ADR 185 (🧘 Long ones): `:core:domain` `LongOnesTest` (the 20-minute line to the second, the 2-per-source cap with the next channel filling the gap, the limit, Shorts by kind and by link, lives, an ended stream, undated, the look-up list newest first, a source at its cap not worth a look-up, duplicates, one channel through two listings, a podcast show as one source); `:app` `LongOnesTest` (lengths from the feed asking nothing, a look-up kept and never repeated, the stored-lookup fallback, newest-first stopping when full, the per-refresh budget, the cap over look-ups, Shorts and lives never asked, a live answer set aside, played / half-played / Not for me left out, mobile data asking nothing, a no-look-up refresh, podcasts capped, one refresh at a time, one video from two listings), `VideoLengthsTest` (kept across a restart, the set-aside windows, a none never kept, a throwing ask, the feed's lengths kept without asking), `PublishDaysTest` (unchanged, now on the shared `KeptFacts`); `:core:video` `TheLengthCheckReadsALengthWithoutSolvingAnythingTest` (every answer, no `n` solved, a bot check backs off, backing off asks nothing), `LookupsSurviveRestartsTest` (a length from a stored lookup after its URLs expired).
+
+2026-11-27, ADR 189 (casting starts fast):
+- `:lib:ytdlp` test fixtures `YtDlpEngineContract` (4), run by `:lib:ytdlp-process` `ProcessYtDlpEngineContractTest` (seen failing against a process-per-call runner: 3 of 4 red), by `totum_engine_policy_test.py` (2, in preflight) and instrumented by `ChaquopyYtDlpEngineContractTest` (compiled; not yet run on a device).
+- `:core:data` `StartPointOnTheWireTest` (5; two seen failing first: an absent start point was sent as 0, and read as 0).
+- `:cli` `TargetDeckStartTest` (7 new: the account's place, explicit zero, a place the phone asked for, live and jumps, the look-up beside the link and not repeated, a look-up that threw), `PlayerWarmerTest` (5).
+- `:app` `TargetsRepositoryTest` (4 new: the place sent, the starting item's place, none known, none for add-to-end).
+- `:core:video` `ResolveHandOverTest` (8: offer, refusals, a kept resolve, a 403 and an unreachable stream, a newer Pi copy, unreadable, and a Pi that plays a handed resolve without extracting).

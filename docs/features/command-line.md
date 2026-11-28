@@ -3,7 +3,7 @@ title: Totum on the command line
 kind: feature
 status: shipped
 area: cli
-updated: 2026-11-06
+updated: 2026-11-27
 ---
 
 # `totum "jazz live stream"`
@@ -115,6 +115,13 @@ So the CLI is a **second front end, not a second app**:
 | Stream picking | `bestAudioFormat` / `bestPlayableFormat` | **the same functions** |
 | Playback | Media3 | `mpv` / `vlc` / `ffplay` |
 
+### One Python script, two engines, one contract
+
+`ProcessYtDlpEngine` keeps warm workers (`totum_ytdlp.py serve`: one JSON request per line, one `{"id","output"}` line back) instead
+of a Python per call, and `warmUp()` starts them ([ADR 189](../adr/0189-an-adapter-owns-transport-only-policy-is-shared-and-pinned-by-the-contract-suite.md)).
+What warm means is decided in the bridge, and `YtDlpEngineContract` (`:lib:ytdlp` test fixtures) is run against this engine,
+the bridge (`totum_engine_policy_test.py`) and `ChaquopyYtDlpEngine`. Downloads still stream from their own process.
+
 ### One Python script, two engines
 
 `totum_ytdlp.py` imports only `json`, `platform` and `yt_dlp` — nothing Chaquopy, nothing
@@ -170,6 +177,7 @@ different code path.
 | unit | `cli/…/CliBehaviourTest` | which stream, which player arguments, what is printed, what it exits with |
 | unit | `cli/…/PlayerCommandTest` | the exact words handed to mpv / vlc / ffplay |
 | unit | `lib/ytdlp-process/…/ProcessYtDlpEngineTest` | arguments, failures, and that the script is packaged |
+| contract | `lib/ytdlp-process/…/ProcessYtDlpEngineContractTest`, `lib/ytdlp-chaquopy/src/test/python/totum_engine_policy_test.py` | warm-up, no re-fetch or re-parse of a warmed player, the preprocessed cache on (needs python with yt-dlp and node; required under `CI`) |
 | live | `lib/ytdlp-process/…/LiveExtractionTest` | real python, real yt-dlp, real YouTube — `RUN_LIVE_EXTRACTION=1` |
 
 The live one is skipped by default: YouTube refuses datacentre addresses, which is the same

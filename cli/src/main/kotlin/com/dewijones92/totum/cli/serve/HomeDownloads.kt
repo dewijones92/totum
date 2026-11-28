@@ -20,6 +20,7 @@ import com.dewijones92.totum.data.home.HomeRetry
 import com.dewijones92.totum.data.home.PhoneDecoder
 import com.dewijones92.totum.data.net.OkHttpTextFetcher
 import com.dewijones92.totum.data.sponsorblock.SponsorBlockSegmentSource
+import com.dewijones92.totum.data.targets.TargetQueueRequest
 import com.dewijones92.totum.domain.DownloadState
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayHandle
@@ -49,6 +50,7 @@ import com.dewijones92.totum.video.FileLookupStore
 import com.dewijones92.totum.video.InnerTubePlayerStreams
 import com.dewijones92.totum.video.LiveStreamManifest
 import com.dewijones92.totum.video.PhoneCodecs
+import com.dewijones92.totum.video.ResolveHandOver
 import com.dewijones92.totum.video.SabrRoute
 import com.dewijones92.totum.video.SignedInTvPlayer
 import com.dewijones92.totum.video.StreamStatus
@@ -61,6 +63,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.MapSerializer
 import kotlinx.serialization.builtins.serializer
@@ -125,6 +128,8 @@ internal class HomeDownloads(
     private val embedded = EmbeddedPlayer(innerTube, HttpVisitorIdSource(http), HttpEmbedHostFlagsSource(http), stamps)
     private val skipSegments = SponsorBlockSegmentSource(OkHttpTextFetcher(http)) { emptySet() }
     private val lookups = FileLookupStore(File(dataDir, "lookups"))
+    private val handOver = ResolveHandOver(lookups)
+    private val streamStatus = StreamStatus(http)
     private val decodersFile = File(dataDir, "decoders.json")
     private val decodersOf = ConcurrentHashMap<String, List<PhoneDecoder>>(loadDecoders(decodersFile))
     private val resolvers = ConcurrentHashMap<List<PhoneDecoder>, VideoResolver>()
@@ -172,6 +177,7 @@ internal class HomeDownloads(
     }
 
     private fun resolverFor(decoders: List<PhoneDecoder>): VideoResolver = resolvers.getOrPut(decoders) {
+        val began = System.nanoTime()
         Diag.log("home", "a resolver for ${PhoneCodecs(decoders).screen}")
         VideoResolver(
             engine = engine,
@@ -188,7 +194,25 @@ internal class HomeDownloads(
             ),
             preferredAudioLanguages = { listOf("en") },
             lookupStore = lookups,
-            streamStatus = StreamStatus(http)::of,
+            streamStatus = streamStatus::of,
+        ).also {
+            Diag.log("home", "dewidebug that resolver was built in ${(System.nanoTime() - began) / NANOS_PER_MS}ms")
+        }
+    }
+
+    fun warmUp() {
+        PlayerWarmer(engine, stamps::playerScriptUrl).start(scope)
+        scope.launch { resolverFor(emptyList()) }
+    }
+
+    suspend fun acceptHanded(request: TargetQueueRequest) {
+        if (request.handed.isEmpty()) return
+        val began = System.nanoTime()
+        val kept = withTimeoutOrNull(HANDED_PROBE_MS) { handOver.accept(request.handed, streamStatus::of) } ?: 0
+        Diag.log(
+            "handover",
+            "dewidebug ${request.handed.size} handed resolve(s) from ${request.from?.label}: $kept kept, " +
+                "${(System.nanoTime() - began) / NANOS_PER_MS}ms",
         )
     }
 
@@ -386,3 +410,6 @@ private fun saveDecoders(file: File, all: Map<String, List<PhoneDecoder>>) {
     }
         .onFailure { Diag.warn("home", "decoders not saved", it) }
 }
+
+private const val NANOS_PER_MS = 1_000_000L
+private const val HANDED_PROBE_MS = 3_000L

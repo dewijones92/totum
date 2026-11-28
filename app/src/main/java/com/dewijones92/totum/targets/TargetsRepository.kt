@@ -6,6 +6,7 @@ import com.dewijones92.totum.data.backup.toBackup
 import com.dewijones92.totum.data.home.HomeAnswer
 import com.dewijones92.totum.data.home.TargetsApi
 import com.dewijones92.totum.data.queue.QueueGroup
+import com.dewijones92.totum.data.targets.HandedResolve
 import com.dewijones92.totum.data.targets.PlayOn
 import com.dewijones92.totum.data.targets.PlayOnOption
 import com.dewijones92.totum.data.targets.QueueMode
@@ -55,6 +56,8 @@ class TargetsRepository(
     private val sleepFade: () -> Duration = { SleepFade.DEFAULT_LENGTH },
     private val playOn: PlayOnStore = InMemoryPlayOn(),
     private val unmetered: () -> Boolean = { true },
+    private val resumePointMs: suspend (MediaItemId) -> Long? = { null },
+    private val handOver: (PlayableItem) -> HandedResolve? = { null },
 ) : QueueDestination {
 
     val available: Boolean get() = client != null
@@ -225,7 +228,7 @@ class TargetsRepository(
             "targets",
             "sending to $id: ${request.mode} of ${request.items.size} " +
                 "[${request.items.joinToString(limit = LOGGED_IDS) { it.itemId }}] startItem=${request.startItemId} " +
-                "startAtMs=${request.startAtMs} shuffle=${request.shuffle} loop=${request.loop} " +
+                "startAtMs=${request.startAtMs ?: "none, the Pi resumes as usual"} shuffle=${request.shuffle} loop=${request.loop} " +
                 "repeat=${request.repeat}",
         )
         val answer = home.queue(id, request.copy(understandsStarting = true))
@@ -332,6 +335,33 @@ class TargetsRepository(
         return true
     }
 
+    private fun startingItem(play: Redirected): PlayableItem? {
+        if (play.mode != QueueMode.PLAY && play.mode != QueueMode.REPLACE) return null
+        val id = play.startAt ?: play.items.firstOrNull()?.item?.id ?: return null
+        return play.items.firstOrNull { it.item.id == id }
+    }
+
+    private fun handedOver(play: Redirected): List<HandedResolve> {
+        val item = startingItem(play) ?: return emptyList()
+        if (!unmetered()) {
+            Diag.log("handover", "dewidebug ${item.item.id.value}: on a metered connection the phone's stream address may not suit the Pi, so none is handed over")
+            return emptyList()
+        }
+        return listOfNotNull(handOver(item))
+    }
+
+    private suspend fun startPointOf(play: Redirected): Long? {
+        val starting = startingItem(play)?.item?.id ?: return null
+        val place = resumePointMs(starting)?.takeIf { it > 0 }
+        Diag.log(
+            "targets",
+            "${play.label}: ${starting.value} starts from " +
+                (place?.let { "${it}ms, the place this phone would have resumed at" }
+                    ?: "no place this phone knows, so the Pi resumes it as usual"),
+        )
+        return place
+    }
+
     internal suspend fun redirect(play: Redirected, progress: Operations.Progress? = null): OperationEnd {
         val request = TargetQueueRequest(
             items = play.items.map { it.toBackup() },
@@ -339,7 +369,9 @@ class TargetsRepository(
             groupId = play.group?.id,
             groupTitle = play.group?.title,
             from = requester(),
+            startAtMs = startPointOf(play),
             startItemId = play.startAt?.value,
+            handed = handedOver(play),
         )
         return when (val answer = queue(play.id, request)) {
             is HomeAnswer.No -> answeredNo(play, answer, progress)

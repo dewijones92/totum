@@ -74,12 +74,16 @@ class TargetDeckStartTest {
         val asked = mutableListOf<String>()
         var backOffUntil: Long? = null
         var refuse: Set<String> = emptySet()
+        var fail = false
         override suspend fun urlFor(item: PlayableItem, picture: Boolean): String? {
             asked += item.item.id.value
+            if (fail) error("the look-up broke")
             return item.item.id.value.takeIf { it !in refuse && backOffUntil == null }?.let { "https://sound/$it" }
         }
         override fun whyNone(item: PlayableItem): String = "it is not on this Pi"
         override fun refusedUntil(item: PlayableItem): Long? = backOffUntil
+        val accountPlace = mutableMapOf<String, Long>()
+        override fun resumeFor(item: PlayableItem): Long? = accountPlace[item.item.id.value]
     }
 
     private val player = Player()
@@ -148,6 +152,34 @@ class TargetDeckStartTest {
         start.await()
         assertFalse(deck.state().starting)
         assertTrue(deck.state().playing)
+    }
+
+    @Test
+    fun `the look-up runs while the link is still coming up, and is not asked twice`() = runBlocking {
+        val deck = deck()
+        val start = startWaitingOnTheLink(deck, "a")
+        repeat(100) { if (sounds.asked.isEmpty()) Thread.sleep(20) }
+
+        assertEquals("the look-up waited for the link", listOf("a"), sounds.asked)
+        assertTrue("nothing plays before the link arrives", player.requests.isEmpty())
+
+        finishLinking(start)
+
+        assertEquals(1, player.requests.size)
+        assertEquals("the look-up was repeated after the link", listOf("a"), sounds.asked)
+    }
+
+    @Test
+    fun `a look-up that threw beside the link fails the start the same way a late one did`() = runBlocking {
+        val deck = deck()
+        sounds.fail = true
+        val start = startWaitingOnTheLink(deck, "a")
+
+        finishLinking(start)
+
+        assertFalse(deck.state().playing)
+        assertEquals(TroubleKind.COULD_NOT_PLAY, deck.state().trouble?.kind)
+        assertTrue(player.requests.isEmpty())
     }
 
     private fun CoroutineScope.startWaitingOnTheLink(deck: TargetDeck, vararg ids: String): Deferred<Unit> {
@@ -295,13 +327,14 @@ class TargetDeckStartTest {
     }
 
     @Test
-    fun `a target that cannot be reached is not asked for a stream first`() = runBlocking {
+    fun `a target that cannot be reached plays nothing and says so, though its stream was looked up beside the link`() = runBlocking {
         link.sink = null
         val deck = deck()
 
         deck.enqueue(send("a", "b"))
 
-        assertTrue("it resolved ${sounds.asked} for a target it could not reach", sounds.asked.isEmpty())
+        assertEquals("looked up once, beside the link, and not again", listOf("a"), sounds.asked)
+        assertTrue(player.requests.isEmpty())
         assertEquals(TroubleKind.NOT_CONNECTED, deck.state().trouble?.kind)
         assertEquals("📶 Couldn't reach LG soundbar: it isn't connected (off or out of range)", deck.state().problem)
         assertFalse(deck.state().playing)
@@ -361,6 +394,54 @@ class TargetDeckStartTest {
         assertEquals(TroubleKind.COULD_NOT_PLAY, deck.state().trouble?.kind)
         assertEquals("a", deck.state().trouble?.itemId)
         assertEquals("the player stopped with an error", deck.state().trouble?.reason)
+    }
+
+    @Test
+    fun `a start that names no place begins where the account says it was`() = runBlocking {
+        sounds.accountPlace["a"] = 115_000
+        val deck = deck()
+
+        deck.enqueue(send("a"))
+
+        assertEquals(115_000, player.requests.last().startAtMs)
+    }
+
+    @Test
+    fun `an explicit zero begins from the start even when the account has a place`() = runBlocking {
+        sounds.accountPlace["a"] = 115_000
+
+        deck().enqueue(TargetQueueRequest(listOf(item("a")), QueueMode.PLAY, startAtMs = 0))
+
+        assertEquals(0, player.requests.last().startAtMs)
+    }
+
+    @Test
+    fun `a place the phone asked for beats the account's`() = runBlocking {
+        sounds.accountPlace["a"] = 115_000
+
+        deck().enqueue(TargetQueueRequest(listOf(item("a")), QueueMode.PLAY, startAtMs = 134_221))
+
+        assertEquals(134_221, player.requests.last().startAtMs)
+    }
+
+    @Test
+    fun `a start that names no place and has no account place begins at zero`() = runBlocking {
+        deck().enqueue(send("a"))
+
+        assertEquals(0, player.requests.last().startAtMs)
+    }
+
+    @Test
+    fun `the account's place is not used for a live item or for a jump to another item`() = runBlocking {
+        sounds.accountPlace["live"] = 90_000
+        sounds.accountPlace["b"] = 50_000
+        val deck = deck()
+        deck.enqueue(TargetQueueRequest(listOf(item("live", MediaContentKind.LIVE), item("b")), QueueMode.REPLACE))
+        assertEquals(0, player.requests.last().startAtMs)
+
+        deck.control(TargetControl(TargetAction.NEXT))
+
+        assertEquals(0, player.requests.last().startAtMs)
     }
 
     @Test

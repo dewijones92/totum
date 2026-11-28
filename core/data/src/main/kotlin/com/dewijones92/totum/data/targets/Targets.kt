@@ -12,6 +12,8 @@ import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.RepeatMode
 import com.dewijones92.totum.playback.SleepFade
 import com.dewijones92.totum.playback.VolumeBoost
+import kotlinx.serialization.EncodeDefault
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
@@ -155,6 +157,10 @@ public data class TargetsAnswer(val targets: List<TargetState>, val browserAddre
 public enum class QueueMode { REPLACE, NEXT, END, PLAY }
 
 @Serializable
+public data class HandedResolve(val watchUrl: String, val lookup: String)
+
+@OptIn(ExperimentalSerializationApi::class)
+@Serializable
 public data class TargetQueueRequest(
     val items: List<BackupItem>,
     val mode: QueueMode,
@@ -162,11 +168,14 @@ public data class TargetQueueRequest(
     val groupId: String? = null,
     val groupTitle: String? = null,
     val from: Requester? = null,
-    val startAtMs: Long = 0,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    val startAtMs: Long? = null,
     val startItemId: String? = null,
     val repeat: RepeatMode? = null,
     val loop: Boolean = false,
     val understandsStarting: Boolean = false,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    val handed: List<HandedResolve> = emptyList(),
 ) {
     val group: QueueGroup? get() = groupOf(groupId, groupTitle)
 }

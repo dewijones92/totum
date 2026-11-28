@@ -6,6 +6,7 @@ import com.dewijones92.totum.data.backup.toBackup
 import com.dewijones92.totum.data.home.HomeAnswer
 import com.dewijones92.totum.data.home.TargetsApi
 import com.dewijones92.totum.data.queue.QueueGroup
+import com.dewijones92.totum.data.targets.HandedResolve
 import com.dewijones92.totum.data.targets.QueueMode
 import com.dewijones92.totum.data.targets.Requester
 import com.dewijones92.totum.data.targets.SleepKind
@@ -107,7 +108,10 @@ class TargetsRepositoryTest {
         sleepFade = { fade },
         playOn = playOn,
         unmetered = { unmetered },
+        resumePointMs = { id -> resumePoints[id.value] },
+        handOver = { item -> HandedResolve(item.item.id.value, "stored-lookup") },
     )
+    private val resumePoints = mutableMapOf<String, Long>()
     private var fade = 20.seconds
 
     private object FakeWords : TargetWords {
@@ -188,6 +192,88 @@ class TargetsRepositoryTest {
         assertEquals("b", request.startItemId)
         assertEquals(Requester("me", "My phone"), request.from)
         assertEquals(item("a").toBackup(), request.items.first())
+    }
+
+    @Test
+    fun `carrying on sends the place the phone would have resumed at, not zero`() = runTest {
+        api.answer = HomeAnswer.Ok(TargetsAnswer(listOf(tv)))
+        repository.refresh("test")
+        repository.select("lg-tv")
+        resumePoints["a"] = 134_221
+
+        repository.take(listOf(item("a")), QueueMode.PLAY, null, null)
+
+        assertEquals(134_221L, api.queued.single().second.startAtMs)
+    }
+
+    @Test
+    fun `the place sent is the one of the item that starts, not of the first in the list`() = runTest {
+        api.answer = HomeAnswer.Ok(TargetsAnswer(listOf(tv)))
+        repository.refresh("test")
+        repository.select("lg-tv")
+        resumePoints["a"] = 10_000
+        resumePoints["b"] = 20_000
+
+        repository.take(listOf(item("a"), item("b")), QueueMode.PLAY, null, MediaItemId("b"))
+
+        assertEquals(20_000L, api.queued.single().second.startAtMs)
+    }
+
+    @Test
+    fun `an item the phone has no place for names none, so the Pi resumes it as usual`() = runTest {
+        api.answer = HomeAnswer.Ok(TargetsAnswer(listOf(tv)))
+        repository.refresh("test")
+        repository.select("lg-tv")
+
+        repository.take(listOf(item("a")), QueueMode.PLAY, null, null)
+
+        assertNull(api.queued.single().second.startAtMs)
+    }
+
+    @Test
+    fun `the phone's resolve of the starting item goes with a play on an unmetered network`() = runTest {
+        api.answer = HomeAnswer.Ok(TargetsAnswer(listOf(tv)))
+        repository.refresh("test")
+        repository.select("lg-tv")
+
+        repository.take(listOf(item("a"), item("b")), QueueMode.PLAY, null, MediaItemId("b"))
+
+        assertEquals(listOf(HandedResolve("b", "stored-lookup")), api.queued.single().second.handed)
+    }
+
+    @Test
+    fun `no resolve is handed over on a metered connection, whose address may not suit the Pi`() = runTest {
+        api.answer = HomeAnswer.Ok(TargetsAnswer(listOf(tv)))
+        repository.refresh("test")
+        repository.select("lg-tv")
+        unmetered = false
+
+        repository.take(listOf(item("a")), QueueMode.PLAY, null, null)
+
+        assertTrue(api.queued.single().second.handed.isEmpty())
+    }
+
+    @Test
+    fun `no resolve is handed over when nothing starts`() = runTest {
+        api.answer = HomeAnswer.Ok(TargetsAnswer(listOf(tv)))
+        repository.refresh("test")
+        repository.select("lg-tv")
+
+        repository.take(listOf(item("a")), QueueMode.END, null, null)
+
+        assertTrue(api.queued.single().second.handed.isEmpty())
+    }
+
+    @Test
+    fun `adding to the end names no place, because nothing starts`() = runTest {
+        api.answer = HomeAnswer.Ok(TargetsAnswer(listOf(tv)))
+        repository.refresh("test")
+        repository.select("lg-tv")
+        resumePoints["a"] = 134_221
+
+        repository.take(listOf(item("a")), QueueMode.END, null, null)
+
+        assertNull(api.queued.single().second.startAtMs)
     }
 
     @Test
