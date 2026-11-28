@@ -10,11 +10,17 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Text
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotDisplayed
+import androidx.compose.ui.test.down
 import androidx.compose.ui.test.hasScrollToNodeAction
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isHeading
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.moveTo
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
@@ -22,6 +28,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeDown
 import androidx.compose.ui.test.swipeUp
+import androidx.compose.ui.test.up
 import androidx.compose.ui.unit.dp
 import androidx.test.platform.app.InstrumentationRegistry
 import com.dewijones92.totum.R
@@ -88,13 +95,24 @@ class HeaderSlidesAwayOnScrollTest {
         .maxBy { it.boundsInRoot.height }.boundsInRoot.top
 
     private fun swipeTheList(up: Boolean) {
+        val inset = SWIPE_INSET_DP * compose.density.density
+        val start = listTopPx() + inset
         compose.onRoot().performTouchInput {
             if (up) {
-                swipeUp(startY = height * SWIPE_FROM, endY = height * SWIPE_TO)
+                swipeUp(startY = start, endY = inset)
             } else {
-                swipeDown(startY = height * SWIPE_TO, endY = height * SWIPE_FROM)
+                swipeDown(startY = start, endY = start + SWIPE_DOWN_DP * density)
             }
         }
+        compose.waitForIdle()
+    }
+
+    private fun openTheQueueTab(container: FakeAppContainer) {
+        compose.setContent {
+            TotumTheme { CompositionLocalProvider(LocalHeadersFixed provides false) { AppShell(container) } }
+        }
+        compose.waitUntil(WAIT_MS) { container.targets.options.value.size > 1 }
+        compose.onNodeWithText(context.getString(R.string.destination_queue)).performClick()
         compose.waitForIdle()
     }
 
@@ -139,12 +157,7 @@ class HeaderSlidesAwayOnScrollTest {
     fun theQueueTabHidesItsChipsTitleAndActionsOnScrollingDownAndShowsThemOnScrollingUp() {
         val container = FakeAppContainer(targetsApi = Pi(listOf(lg)))
         container.playbackQueue.playAll((1..QUEUE_ROWS).map(::queued))
-        compose.setContent {
-            TotumTheme { CompositionLocalProvider(LocalHeadersFixed provides false) { AppShell(container) } }
-        }
-        compose.waitUntil(WAIT_MS) { container.targets.options.value.size > 1 }
-        compose.onNodeWithText(context.getString(R.string.destination_queue)).performClick()
-        compose.waitForIdle()
+        openTheQueueTab(container)
         val phoneChip = compose.onNodeWithText(context.getString(R.string.target_chip_phone))
         phoneChip.assertIsDisplayed()
         val density = compose.density.density
@@ -170,6 +183,57 @@ class HeaderSlidesAwayOnScrollTest {
         TestShots.take("header-queue-back")
     }
 
+    @Test
+    fun draggingTheHeaderItselfSlidesItAwayWhateverStripOfListShows() {
+        val container = FakeAppContainer(targetsApi = Pi(listOf(lg)))
+        container.playbackQueue.playAll((1..QUEUE_ROWS).map(::queued))
+        openTheQueueTab(container)
+        val phoneChip = compose.onNodeWithText(context.getString(R.string.target_chip_phone))
+        phoneChip.assertIsDisplayed()
+        val density = compose.density.density
+        val top = listTopPx()
+
+        val heading = compose.onAllNodes(isHeading() and hasText(context.getString(R.string.queue_title))).onFirst()
+        var drags = 0
+        var before = -1f
+        val headingShown = { runCatching { heading.assertIsDisplayed() }.isSuccess }
+        while (drags < MAX_HEADER_DRAGS && listTopPx() != before) {
+            before = listTopPx()
+            val x: Float
+            val from: Float
+            if (headingShown()) {
+                val title = heading.fetchSemanticsNode().boundsInRoot
+                x = title.center.x
+                from = title.center.y
+            } else {
+                x = SWIPE_INSET_DP * density
+                from = before - SWIPE_INSET_DP * density
+            }
+            compose.onRoot().performTouchInput {
+                down(Offset(x, from))
+                moveTo(Offset(x, from - HEADER_DRAG_DP * density / 2))
+                moveTo(Offset(x, (from - HEADER_DRAG_DP * density).coerceAtLeast(density)))
+                up()
+            }
+            compose.waitForIdle()
+            drags++
+        }
+        val hidden = listTopPx()
+        Log.i(
+            "dewidebug",
+            "header-slide dragged on the header: list top ${top / density}dp -> ${hidden / density}dp in $drags drag(s)"
+        )
+        assertTrue(
+            "dragging the header itself moved the list up by the header: ${(top - hidden) / density}dp",
+            top - hidden > MIN_GAIN_DP * density
+        )
+        phoneChip.assertIsNotDisplayed()
+
+        swipeTheList(up = false)
+        assertEquals("a swipe down on the list brings the header back in full", top, listTopPx(), 2f)
+        phoneChip.assertIsDisplayed()
+    }
+
     private companion object {
         const val HEADER_DP = 120
         const val ROW_DP = 48
@@ -177,7 +241,9 @@ class HeaderSlidesAwayOnScrollTest {
         const val QUEUE_ROWS = 40
         const val WAIT_MS = 10_000L
         const val MIN_GAIN_DP = 100
-        const val SWIPE_FROM = 0.7f
-        const val SWIPE_TO = 0.3f
+        const val SWIPE_INSET_DP = 8
+        const val SWIPE_DOWN_DP = 320
+        const val HEADER_DRAG_DP = 120
+        const val MAX_HEADER_DRAGS = 5
     }
 }
