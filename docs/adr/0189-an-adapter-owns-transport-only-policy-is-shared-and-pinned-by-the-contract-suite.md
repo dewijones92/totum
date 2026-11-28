@@ -2,7 +2,7 @@
 title: An adapter owns transport only; policy is shared and pinned by the contract suite
 kind: adr
 status: accepted
-updated: 2026-11-27
+updated: 2026-11-28
 ---
 
 # 189. An adapter owns transport only; policy is shared and pinned by the contract suite
@@ -53,7 +53,10 @@ engines must not drift again.
    `WorkerCommandRunner` runs two workers (solver commands; everything else), one request at a time each, so a long
    extraction never queues behind a solve and concurrency is bounded at two. A worker that dies, times out (120 s) or
    answers out of step is retired with a log line and restarted; a request that was never delivered is re-sent once.
-   Downloads still stream from their own process.
+   The timeout is one shared scheduled watchdog, cancelled when the answer arrives. `PythonWorkerTest` pins each of
+   these against a stub script (a request answered by its own id; a worker that dies mid-request, hangs, answers for
+   another request, or is killed between requests is replaced by a fresh one). Downloads still stream from their own
+   process.
 4. **The Pi warms itself.** `totum serve` calls `warmUp()` at start and warms the current player build
    (`PlayerWarmer`, which asks the signature-timestamp source for the build and calls `warmPlayer`, re-checking hourly),
    and builds the default resolver, so the first cast of a container's life is not the one that pays for them.
@@ -92,6 +95,26 @@ cast resolve builds its resolver, the Pi's JVM having never run that path, and a
 (23 Nov) shows 0.5 s there. The likely cost is first-use work on a Pi (class loading, building the resolver graph); the
 resolver is now built at start and a `resolver was built in N ms` line says what it costs. Check that line on the next
 restart before calling it closed.
+
+## Timings, before and after (laptop, 28 Nov 2026)
+
+Measured with the repo's own 3.0 MB player fixture served on loopback and a throwaway cache, through the same bridge
+script the Pi runs: a throwaway script drove `solve_n` once per process (what `ProcessYtDlpEngine` did) and then through
+`serve` (what it does now). The laptop was loaded by other work (load average 8), and it is several times faster than the
+Pi, so these show the shape and the ratio, not the Pi's seconds.
+
+| Step | Before: a process per solve | After: one warm worker |
+|---|---|---|
+| First solve for a new player build | 823 ms (start python, import yt-dlp, fetch, parse, preprocess, solve) | the parse (598 ms to `prepare_player`) is paid at start-up, then 173 ms |
+| Second solve, same build | 444 ms | 178 ms |
+| Third and fourth solves | 426, 465 ms | 182, 179 ms |
+| A restarted worker over the same cache | n/a (every solve was a restart) | 326 ms to warm, then 240, 187, 179 ms |
+
+So a warm solve is about 2.5 times faster than the old best case on the laptop and the first solve for a build no
+longer sits in a cast. The Pi's 3.8 to 21 s `solve_n` was its old per-process cost on slower hardware; the number to
+read after deploying is the `engine` line `worker solver: solve_n answered in N ms (start #S)` for casts after the first,
+and the `warm` line `player …: ok=true … took=N ms` for the one-off parse at start-up (see "Measuring it on the Pi" in
+`docs/todos/cast-start-speed.md`).
 
 ## What remains in a warm solve
 
