@@ -1,7 +1,7 @@
 ---
 title: Features
 kind: index
-updated: 2026-11-27
+updated: 2026-11-28
 ---
 
 # Features
@@ -12,6 +12,7 @@ alone until they need more.
 
 | Feature | Area | Status | Detail |
 |---|---|---|---|
+| 🧭 Headers slide away on scrolling down and return on scrolling up, from one shared seam; the Queue's 60 dp blank gap is gone | ui | built 2026-11-28 (ADR 198; JVM and instrumented tests; screenshots on totum-api35; not yet on the Pixel 7) | [visual-language.md](visual-language.md) |
 | 📱 On this phone: videos, music and photos stored on the phone, browsed a hundred at a time and played through the one player (queue, skip silence, boost, speed, resume, casting from the phone); a photo grid and viewer with a slideshow; ☁️ Google Photos picked into it through the Picker API | library/playback | built 2026-11-14 (ADR 176; video, audio and photos checked on totum-api35; Google Photos tested against a mock only, needs Dewi's Google Cloud client; Show on the TV not built) | [phone-media.md](phone-media.md) |
 | 📡 The Pi plays to targets: speakers, TVs and Chromecasts each with their own queue, chips and colours in the Queue tab, Send to…, the phone's skip-silence and boost run on the Pi, YouTube progress reported only for the owner's phone; plus 🎞️ Jellyfin browse and play from the Library | casting/pi | built 2026-11-07 (ADRs 152-154; tests written 2026-11-07; nothing run on a real TV, speaker or Chromecast) | [pi-plays-everywhere.md](pi-plays-everywhere.md) |
 | 🧳 Trip mode: say when you leave and how many per group; on Wi-Fi the phone fetches the next few of every queue group as one strip task and copies what the Pi has ready through the Pi copy path | downloads | built 2026-11-07, Batch A (ADR 149; tests written; not run on a device) | [trip-mode.md](trip-mode.md) |

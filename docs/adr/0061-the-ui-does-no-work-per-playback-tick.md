@@ -2,13 +2,16 @@
 title: The UI does no work per playback tick
 kind: adr
 status: accepted
-updated: 2026-10-28
+updated: 2026-11-28
 ---
 
 # 61. The UI does no work per playback tick
 
 - Status: Accepted
 - Date: 2026-10-15
+- Amended 2026-11-28 by [ADR 198](0198-a-header-slides-away-on-scrolling-down-and-comes-back-on-scrolling-up.md): the Queue's large title no longer
+  collapses on scroll (`CollapsingTitle` is deleted, the title is `ActionsHeader`), which ends the title-feedback loop below; every
+  header now slides away on scrolling down and returns on scrolling up
 
 ## Context
 

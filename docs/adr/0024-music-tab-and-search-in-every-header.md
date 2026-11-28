@@ -2,13 +2,15 @@
 title: A Music tab takes Search's place in the bar; search is an action in every header
 kind: adr
 status: accepted
-updated: 2026-10-09
+updated: 2026-11-28
 ---
 
 # 24. A Music tab takes Search's place in the bar; search is an action in every header
 
 - Status: Accepted
 - Date: 2026-10-09
+- Amended 2026-11-28 by [ADR 198](0198-a-header-slides-away-on-scrolling-down-and-comes-back-on-scrolling-up.md): the Queue's header is `ActionsHeader`
+  (was `CollapsingTitle`); both shared headers now go through `TitleAndActions`, which slides them away on scroll
 
 ## Context
 
