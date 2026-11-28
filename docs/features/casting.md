@@ -3,7 +3,7 @@ title: Casting
 kind: feature
 area: playback
 status: built — in use with the LG and the Chromecast Ultra (fixed from Dewi's diagnostics of 7 to 11 November, ADR 164); the TV volume, the read-ahead, the 12 s step-down, SubRip on the LG, the Pi's casting and casting from a friend's house (ADR 182, built 2026-11-27, nginx not yet applied) are not yet seen on a real TV
-updated: 2026-11-27
+updated: 2026-11-28
 ---
 
 # Casting
@@ -322,4 +322,13 @@ Not seen on a real Chromecast or the real Pi. Seen: the real `totum serve`, a re
 The Pi's cast of a YouTube item carries the same resolved caption tracks as a phone-direct cast (`TvSubtitles`, `CaptionPick`), under the
 deck's own caption choice (on in English until switched off). The remote card shows a Captions tile only while the receiver lists tracks. Not seen on
 the LG: whether the receiver reports the manifest's text tracks to the helper.
+
+## Waking the LG from deep standby, and what a target says when it cannot be reached (2026-11-28, [ADR 177](../adr/0177-a-device-says-how-it-comes-on-and-goes-off-lg-over-webos-kodi-started-over-adb.md) amended)
+
+Run on the real LG and the Fire Stick on 28 November: wake-on-LAN did not wake the LG from deep standby, and the Fire Stick's
+sleep-then-wake did (the stick tells the TV over HDMI-CEC). A paired LG is now on only while webOS says `Active`, so its
+dot no longer flaps with the cast port; a TV with a stick shown on it is nudged over CEC through that stick when wake-on-LAN
+got no answer; a volume set on a target with no link is refused in words, not logged as set; and a Kodi that refuses its
+sign-in says so. The Pi's logs carry what webOS and the cast port answered at every change and each step of a wake. Fixed
+against the fakes; not yet run on the real TV.
 

@@ -2,7 +2,7 @@
 title: A device says how it comes on and goes off in one place; the LG is driven over webOS and a Kodi Android has killed is started over adb
 kind: adr
 status: accepted
-updated: 2026-11-27
+updated: 2026-11-28
 ---
 
 # 177. A device says how it comes on and goes off in one place; the LG is driven over webOS and a Kodi Android has killed is started over adb
@@ -101,6 +101,8 @@ dial wrapper that presents one was added); and a start of an app shown on the st
 
 ## Not verified against the real devices
 
+(Superseded in part: the real LG and Fire Stick were run on 2026-11-28, see "Seen on the real devices" below.)
+
 Nothing here was paired with, powered, switched or started on the real LG or the real Fire Stick: every test runs against a
 fake SSAP websocket server (`FakeSsapServer`, on `MockWebServer`) and a fake adb shell (`FakeAdb`). What is therefore open until
 Dewi runs it once: that this LG accepts the signed registration manifest (the unsigned one is tried when it refuses), that its
@@ -146,3 +148,87 @@ unavailable reason. A TV closing the line as it powers off is expected.
   TV closed the connection (1008)` was in the warnings.
 - Not confirmed on the real LG: that the 1008 is what this TV sends in every case, and how soon after `turnOff` it comes (the
   two-minute window is a guess generous enough to cover a poll interval).
+
+## Seen on the real devices, 28 Nov 2026
+
+Between 02:21 and 02:29, on the Pi's `totum serve` v0.1.973, against the LG (webOS at 192.168.0.219, paired, a Chromecast
+built in as target `lg-tv`) and the Fire Stick running Kodi (target `kodi`, adb 192.168.0.211:5555, shown on the LG's HDMI_1),
+with the TV in deep standby. Read from `docker logs totum-fetch`, the webcam and `adb` by hand.
+
+**What worked.**
+
+- The webOS switch-off: `switched off (webOS system/turnOff)`, then the TV's 1008 close, handled as ADR 177's amendment of
+  27 Nov says. The switch-off path is unchanged by what follows and its tests stand.
+- Driving the stick by hand over adb from the Pi: `input keyevent KEYCODE_SLEEP`, six seconds, `KEYCODE_WAKEUP`. Within about
+  seven seconds the TV's screen lit and webOS on 3001 accepted connections. The stick announces itself to the TV over
+  HDMI-CEC ("Image View On") when it wakes, and that wakes the TV from deep standby.
+
+**What did not, and what each fix is.** Each is a fix built the same day, proved only against the fakes (no real device was
+touched by the change); the real-device run is owed.
+
+- **The power check flapped.** With the TV dark and untouched the target flipped `ASLEEP -> ON` and `ON -> ASLEEP` on every
+  cycle while webOS said `no answer within 5000ms`. The cause: `DevicePowers` answered `webos.panelOn() ?: portsAnswer()`, so
+  whenever webOS could not be asked the Chromecast port (8009) decided. That the TV's cast port answers intermittently in
+  networked standby is the presumed reason it flipped (the code path is certain; the port's behaviour was not measured, and
+  the new evidence in the log will show it). Now `TvPowerProbe` decides: a **paired** TV is on only while webOS says `Active`, and webOS being unreachable
+  is OFF, whatever the cast port says; the port decides only for a TV with no webOS or one that was never paired. This is
+  stricter than ADR 177's "the port probe is the fallback when the TV cannot be asked (not paired, not reachable)": **not
+  reachable no longer falls back**, and the cost is that a TV that is on but whose webOS is down (or whose stored key it
+  refuses) reads as asleep. Every power change now logs the evidence once, e.g. `LG TV: ON -> ASLEEP (power check) [webOS
+  power state Active Standby; cast port 192.168.0.219:8009 answers (not used: webOS is paired, so it decides)]`; the wake
+  lines carry it as well.
+- **Wake-on-LAN did not wake the TV from deep standby.** Five rounds over 25 s went unanswered (`did not answer within
+  25000ms of the wake; ❌ LG TV didn't wake…`). Two changes, both through the sticks that `TOTUM_SHOWN_ON` already names (no
+  new setting):
+  - the **CEC nudge** (`CecNudge`, `AdbSteps.kt`): put the stick to sleep, wait six seconds, wake it, which is exactly what
+    was done by hand. One nudge per stick, a lock around it, and none within 30 s of the last (a TV that is still coming on
+    must not be sent a sleep, which is a CEC standby), logged as skipped when it is.
+  - **A fallback wake step for the TV itself** (`CecWakeStep`): for a TV with a stick shown on it, after wake-on-LAN has been
+    sent and 5 s have passed in silence (one resend), the stick is nudged. `WakeStep` gained `startsAfterMs`, and
+    `SteppedPower` holds such a step back until the device has been silent that long and never runs it if the device
+    answers first. The order is the order of the log: `waking it (wake-on-LAN to …, wake LG TV over HDMI-CEC through Kodi
+    (adb sleep -> wake) after 5000ms of silence)`, then `silent 5000ms after the wake, now trying …`. A TV with no MAC has the
+    CEC step straight away. The wake timeout for such a TV is 45 s, not 25 s (the CEC cycle alone is 6 s and the TV took
+    about 7 s after it).
+  - and the Kodi wake: an **already-awake stick** was sent no key (`its Android device is already awake (mWakefulness=Awake),
+    no wake key sent`), so the TV never heard it. `AdbWakeStick` now, when its stick is awake and the display it is shown on
+    is not answering (and is not already being woken), nudges it, and says so.
+- **A volume set on a target with no link claimed success.** `control VOLUME volume=2` on `lg-tv` with `linked=false` was
+  logged `volume set to 2 … followed by a fade=false` and nothing was applied (`volume` stayed `null`): `PyCastControl.volume`
+  sends to a helper that is not running and says nothing. Now `TargetPlayer.volumeRefusal()` and `CastControl.volumeRefusal()`
+  (default none) say when a volume has nowhere to go; the deck logs `volume 2 NOT set: <reason>` instead of "set", and puts
+  `⚠️ Couldn't set LG TV's volume to 2: no connection to LG TV is open, so there is nowhere to send it` in the state's
+  `problem` (a `WONT_WAKE` trouble carrying its own words, the contract `didn't switch off` already uses, so no new
+  `TroubleKind` that an old phone could not read). The next volume that does go through, or any play, clears it. A speaker
+  with a hardware volume control is never refused.
+- **Kodi's HTTP 401 was reported as "not connected".** `[cast-target] Kodi: Kodi refused the sign-in (HTTP 401)` was in the
+  log while the state read `📶 Couldn't reach Kodi: it isn't connected (off or out of range)`. `CastControl.whyUnreachable`
+  (default none) carries a known reason from `reachable()`; `KodiControl` sets it for a refused sign-in
+  (`🔑 Kodi refused the sign-in: check its web server password`) and for no credentials file
+  (`🔑 Totum has no sign-in for Kodi: check TOTUM_KODI_CREDENTIALS`), `CastLink.connect` puts it in the link's trouble, and a
+  Kodi that does not answer at all still says "isn't connected". The 401 itself is a credentials problem on the Pi, not
+  fixed here.
+- **A false claim in the Kodi readiness line.** `Kodi: LG TV on, switched to input HDMI_1 did not succeed during getting it
+  ready` was logged with the LG dark and webOS unreachable: the step's name was a claim. `ShownOnStep` is now named for the
+  intent (`bring up LG TV and put it on input HDMI_1`), asks for the input only when the TV really is on (it used to dial a
+  webOS that could not answer), and logs what happened: `LG TV did not come on (woke=false, power=ASLEEP); input HDMI_1 was
+  not asked for` or `LG TV is on; switched to input HDMI_1`. A display with no way to be woken that is asleep is no longer
+  counted as on (`ensureAwake` answers true for "nothing to try").
+
+**Tests, and what turned them red** (run 2026-11-28 against the old code with the new API shaped but behaving as before):
+`DevicePowersTest` (+9): `expected:<ASLEEP> but was:<ON>` for the flapping check (a port that answers while webOS cannot be
+reached), the evidence missing from the power-change line, `expected:<[sleep, wake]> but was:<[]>` for the awake stick with
+its TV off, for the TV woken over CEC after wake-on-LAN, for the TV with no MAC, and for a TV that stays dark getting one
+cycle; `SteppedPowerDeferredStepTest` (3): `expected:<[cec@5000]> but was:<[cec@0]>`; `ShownOnStepTest` (4): `LG TV on,
+switched to input HDMI_1` in the log and `[ssap://system/getSystemInfo, ssap://tv/switchInput]` asked of a TV that was off;
+`CecNudgeTest` (5); `KodiUnreachableWordsTest` (4): `expected:<🔑 Kodi refused the sign-in: …> but was:<📶 Couldn't reach
+Kodi: it isn't connected …>`; `TargetDeckVolumeRefusalTest` (4): `expected:<[]> but was:<[2]>`. The tests that pin what did not
+change (an unpaired TV judged by its port, an awake stick whose TV is on left alone, a wake-on-LAN that works leaves the stick
+alone) passed before and after, on purpose. One test harness trap: the first flap test passed against the old code because its
+listening `ServerSocket` never accepted a connection, and the port most likely stopped answering once the backlog filled (not
+measured; the old code was seen answering `true` on a direct probe, then `false` a few probes later); the test listener now
+accepts and closes, and the test went red as it should.
+
+**Still not proven on the real devices:** that the cycle wakes the LG when it is sent by Totum rather than by hand, that
+five seconds of wake-on-LAN is the right moment to give up on it (the packets reached nothing that night, so the real
+timing of a wake that does work is unknown), and that a webOS-down-but-TV-on state does not happen in practice.
