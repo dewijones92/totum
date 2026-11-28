@@ -2,7 +2,7 @@
 title: The PC screen is a page the phone serves, found through a Pi bookmark
 kind: adr
 status: accepted
-updated: 2026-11-20
+updated: 2026-11-28
 ---
 
 # 81. The PC screen is a page the phone serves, found through a Pi bookmark
@@ -106,3 +106,10 @@ refused with a `400` every 30 minutes (report 20261120T200136: `diagnostics PC s
 narrow: it now also accepts `https://<a host in CRASHLOG_SCREEN_RELAY_HOSTS, default totum.333133333.xyz>/cast/screen#key=…`
 (exact host, exact path, same key shape), so the bookmark's redirect still cannot be pointed anywhere else.
 `tests/test_screen.py` has the accepted and refused cases. The Pi's crash-log container needs a rebuild to take it.
+
+
+## Amended 2026-11-28: the page takes a home-server link as it is
+
+Away from home the PC screen plays a home-only item from the home server's public cast link ([ADR 182](0182-a-friends-chromecast-fetches-home-items-from-the-home-server-by-a-session-link.md),
+amended 2026-11-28). The page used to rewrite every stream address onto its own origin; a `load` that carries `"direct":true` is now used as given,
+and every other `load` is rewritten as before. The page is still served by the phone and found through the Pi bookmark.

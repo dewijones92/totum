@@ -63,6 +63,8 @@ the tunnel was not the cause; if a run ends `STOPPED after 25m`, the heartbeat s
 Run 46076397579 failed only `SeveralSharedLinksAllLandTest` ("not everything shared was fetched…", 304 s). Cause: the last shared link played as a
 video over an HLS playlist, which the tee cannot cover, so the downloader held it while it streamed ([ADR 186](../adr/0186-one-fetch-per-item-a-playing-stream-is-its-own-download.md),
 amended 27 Nov) and nobody paused it. The test now pauses playback once all three are queued; the hold line says why an item is not teeable.
+From 28 Nov a YouTube video over HLS is fetched beside its stream (ADR 186 amended), so that case no longer waits; the test keeps its pause until a
+nightly shows which route the last share takes (a SABR one is still held).
 
 ## Still open
 

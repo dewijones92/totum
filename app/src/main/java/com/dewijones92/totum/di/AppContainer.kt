@@ -280,6 +280,7 @@ import com.dewijones92.totum.playback.Chosen
 import com.dewijones92.totum.playback.ExploreMode
 import com.dewijones92.totum.playback.MeteredAudioSwitch
 import com.dewijones92.totum.playback.NextUpPrefetcher
+import com.dewijones92.totum.playback.PlayRoutes
 import com.dewijones92.totum.playback.PlaybackController
 import com.dewijones92.totum.playback.PlaybackProgressStore
 import com.dewijones92.totum.playback.PlaybackSpeedStore
@@ -287,6 +288,7 @@ import com.dewijones92.totum.playback.PlaybackTee
 import com.dewijones92.totum.playback.SharedPrefsPlaybackSpeedStore
 import com.dewijones92.totum.playback.SleepTimer
 import com.dewijones92.totum.playback.StallWatchdog
+import com.dewijones92.totum.playback.StreamHold
 import com.dewijones92.totum.playback.activeModesFor
 import com.dewijones92.totum.playback.cast.LocalManifests
 import com.dewijones92.totum.playback.exploreModeFor
@@ -297,6 +299,7 @@ import com.dewijones92.totum.playback.startPlaybackContext
 import com.dewijones92.totum.playback.startStreamRecovery
 import com.dewijones92.totum.polite.Politeness
 import com.dewijones92.totum.polite.PrefsVisitorIdStore
+import com.dewijones92.totum.queue.BesideStream
 import com.dewijones92.totum.queue.GroupDownloads
 import com.dewijones92.totum.queue.ListeningSwitcher
 import com.dewijones92.totum.queue.MetadataLookups
@@ -316,6 +319,7 @@ import com.dewijones92.totum.queue.passOverReason
 import com.dewijones92.totum.queue.playFromTheTop
 import com.dewijones92.totum.queue.repeatGroupAfter
 import com.dewijones92.totum.queue.startSharedMetadataRepair
+import com.dewijones92.totum.queue.streamHolds
 import com.dewijones92.totum.recorder.RecorderChoiceStore
 import com.dewijones92.totum.recorder.RecorderDiagnostics
 import com.dewijones92.totum.recorder.withRecorderChoices
@@ -2451,6 +2455,12 @@ private fun startQueueAutoDownloader(c: DefaultAppContainer) {
             PlayerSpot(it.positionMs, it.durationMs, playing = it.wantsToPlay && !it.hasEnded)
         }
     }
+    val holds = streamHolds(
+        c.playbackQueue.streamingNow,
+        PlaybackTee.teeableNow,
+        PlayRoutes.changes,
+        PlayRoutes::of,
+    )
     QueueAutoDownloader(
         queue = c.playbackQueue.state,
         downloads = c.downloadManager,
@@ -2466,9 +2476,9 @@ private fun startQueueAutoDownloader(c: DefaultAppContainer) {
         // arose — a Ms Rachel video 52 minutes in, first in a 47-item queue, with no download
         // event at all while the pass ground through a 403ing podcast ahead of it.
         playingNow = { c.playbackQueue.nowPlaying.value?.item?.id },
-        heldWhileStreaming = combine(c.playbackQueue.streamingNow, PlaybackTee.teeableNow) { streaming, teeable ->
-            streaming?.takeUnless { it.value in teeable }
-        }.distinctUntilChanged(),
+        heldWhileStreaming = holds.map { (it as? StreamHold.Hold)?.id?.let(::MediaItemId) }.distinctUntilChanged(),
+        besideItsStream = holds.map { (it as? StreamHold.Beside)?.let { b -> BesideStream(MediaItemId(b.id), b.why) } }
+            .distinctUntilChanged(),
         whyNotTeeable = { PlaybackTee.whyNotTeeable(it.value) },
         groupAllows = c.groupDownloads::allows,
         atHome = { c.homeDownloads.atHome(it) != null },

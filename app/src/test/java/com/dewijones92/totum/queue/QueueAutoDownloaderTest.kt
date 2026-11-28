@@ -532,6 +532,87 @@ class QueueAutoDownloaderTest {
         )
     }
 
+    private fun besideDownloader(beside: MutableStateFlow<BesideStream?>, held: MutableStateFlow<MediaItemId?>) =
+        QueueAutoDownloader(
+            queue = queue,
+            downloads = downloads,
+            scope = CoroutineScope(dispatcher),
+            isEnabled = { true },
+            isAllowedOnThisNetwork = { true },
+            playingNow = { MediaItemId("a") },
+            heldWhileStreaming = held,
+            besideItsStream = beside,
+        )
+
+    @Test
+    fun `a video playing over HLS has its audio fetched while it plays, and the line says it is on purpose and why`() =
+        runTest(dispatcher) {
+            val lines = mutableListOf<String>()
+            val previous = Diag.sink
+            Diag.sink = Diag.Sink { _, tag, message, _ -> if (tag == "download") lines += message }
+            try {
+                besideDownloader(
+                    MutableStateFlow(BesideStream(MediaItemId("a"), "it plays as a YouTube HLS playlist [route=hls]")),
+                    MutableStateFlow(null),
+                ).start()
+                queue.value = QueueSnapshot(listOf(entry("a"), entry("b")))
+                advanceUntilIdle()
+            } finally {
+                Diag.sink = previous
+            }
+
+            assertEquals(
+                "the playing item is fetched first, beside its stream",
+                listOf("a", "b"),
+                downloads.requested.map { it.first.value },
+            )
+            val said = lines.filter { it.contains("beside its stream") }
+            assertEquals("said once: $lines", 1, said.size)
+            assertTrue(said.single(), said.single().contains("fetching \"a\" beside its stream, on purpose"))
+            assertTrue(said.single(), said.single().contains("[route=hls]"))
+            assertTrue("no hold line for it: $lines", lines.none { it.contains("not fetching \"a\" while it streams") })
+        }
+
+    @Test
+    fun `an item that is held while it streams is never announced as fetched beside its stream`() =
+        runTest(dispatcher) {
+            val lines = mutableListOf<String>()
+            val previous = Diag.sink
+            Diag.sink = Diag.Sink { _, tag, message, _ -> if (tag == "download") lines += message }
+            try {
+                besideDownloader(MutableStateFlow(null), MutableStateFlow(MediaItemId("a"))).start()
+                queue.value = QueueSnapshot(listOf(entry("a"), entry("b")))
+                advanceUntilIdle()
+            } finally {
+                Diag.sink = previous
+            }
+
+            assertEquals(listOf("b"), downloads.requested.map { it.first.value })
+            assertTrue(lines.toString(), lines.none { it.contains("beside its stream") })
+            assertTrue(lines.toString(), lines.any { it.contains("not fetching \"a\" while it streams") })
+        }
+
+    @Test
+    fun `an item held while its play is set up is fetched once its route is known to be HLS`() =
+        runTest(dispatcher) {
+            val held = MutableStateFlow<MediaItemId?>(MediaItemId("a"))
+            val beside = MutableStateFlow<BesideStream?>(null)
+            besideDownloader(beside, held).start()
+            queue.value = QueueSnapshot(listOf(entry("a")))
+            advanceUntilIdle()
+            assertEquals(
+                "held while the route is not known",
+                emptyList<String>(),
+                downloads.requested.map { it.first.value }
+            )
+
+            held.value = null
+            beside.value = BesideStream(MediaItemId("a"), "HLS [route=hls]")
+            advanceUntilIdle()
+
+            assertEquals(listOf("a"), downloads.requested.map { it.first.value })
+        }
+
     @Test
     fun `a streaming item that leaves the queue is not fetched when it stops`() = runTest(dispatcher) {
         val streaming = MutableStateFlow<MediaItemId?>(MediaItemId("a"))

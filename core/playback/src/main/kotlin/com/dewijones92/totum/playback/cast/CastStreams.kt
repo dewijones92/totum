@@ -84,8 +84,22 @@ internal class CastStreams(
 
     fun urlForChromecast(item: MediaItem): String? {
         val uri = item.localConfiguration?.uri?.toString() ?: return null
-        val pick = publicRoute?.pick(item.toCastItem(uri), tvPort.current()?.screen?.model, boostNow().name)
-        return (pick as? PublicCastPick.Public)?.url ?: urlFor(item)
+        return publicRoute.routedStream(
+            item.toCastItem(uri),
+            tvPort.current()?.screen?.model,
+            boostNow().name,
+            PublicCastAudience.CHROMECAST,
+        ) { urlFor(item) }?.url
+    }
+
+    fun urlForScreen(item: MediaItem): RoutedStream? {
+        val uri = item.localConfiguration?.uri?.toString() ?: return null
+        return publicRoute.routedStream(
+            item.toCastItem(uri),
+            model = null,
+            boost = boostNow().name,
+            audience = PublicCastAudience.PC_BROWSER,
+        ) { urlFor(item) }
     }
 
     fun stopAll() {

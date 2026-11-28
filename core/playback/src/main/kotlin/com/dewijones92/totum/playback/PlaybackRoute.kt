@@ -2,6 +2,10 @@ package com.dewijones92.totum.playback
 
 import com.dewijones92.totum.playback.cast.LocalManifests
 import com.dewijones92.totum.sabr.SabrSessions
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 
 /**
  * Which route a URI is HANDED TO, decided from the URI itself at the moment of play.
@@ -38,11 +42,21 @@ public object PlayRoutes {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String>?): Boolean = size > KEPT
     }
 
+    private val version = MutableStateFlow(0)
+
+    public val changes: StateFlow<Int> = version.asStateFlow()
+
     public fun record(itemId: String, route: String) {
         synchronized(routes) { routes[itemId] = route }
+        version.update { it + 1 }
     }
 
     public fun of(itemId: String): String? = synchronized(routes) { routes[itemId] }
+
+    public fun forget(itemId: String) {
+        val had = synchronized(routes) { routes.remove(itemId) != null }
+        if (had) version.update { it + 1 }
+    }
 }
 
 /**

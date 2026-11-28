@@ -2,13 +2,13 @@
 title: One fetch per item, a playing stream is its own download, and nothing swaps a healthy stream for a file
 kind: adr
 status: accepted
-updated: 2026-11-27
+updated: 2026-11-28
 ---
 
 # 186. One fetch per item: a playing stream is its own download, and nothing swaps a healthy stream for a file
 
 - Status: Accepted
-- Date: 2026-11-20 (amended 2026-11-27: the cast relay does not block on the cache; a video played as an HLS playlist cannot be teed, and the hold says why)
+- Date: 2026-11-20 (amended 2026-11-27: the cast relay does not block on the cache; a video played as an HLS playlist cannot be teed, and the hold says why; amended 2026-11-28: that video is fetched beside its stream, and the hold starts when the play is decided)
 
 ## Context
 
@@ -161,6 +161,47 @@ cannot be teed": its download waits until it pauses, ends or another item takes 
   opened through the cache): `dewidebug not fetching "<title>" while it streams: … [why it is not teeable: it plays as an HLS playlist (…) [route=hls]]`.
   The routes it names are HLS, SABR, a live manifest, the torrent server, a local file, no recorded route, and "a direct url with no audio stream opened through
   the cache" (a muxed stream, a podcast enclosure, or an audio stream not yet opened). A report can now settle this without reading the cache lines.
-- **Not changed, and a question for Dewi:** a video watched through HLS gets no offline audio copy until it pauses or stops, and the audio it would fetch
+- **Not changed on 27 Nov, and a question for Dewi (answered 2026-11-28, see the amendment below):** a video watched through HLS gets no offline audio copy until it pauses or stops, and the audio it would fetch
   (35 MB beside 435 MB of video for this item) is about 8% of what the stream carries. Fetching it beside the stream would break "one fetch" for that 8%.
-  The ADR keeps the hold; relaxing it for video streams is a decision for Dewi, not built here.
+  The ADR kept the hold; relaxing it for video streams was a decision for Dewi, not built then.
+
+
+## Amended 2026-11-28: a YouTube video over HLS is fetched beside its stream, and the hold starts when the play is decided
+
+Dewi, 2026-11-28, on the question the 27 Nov amendment left open: he accepts a second fetch of the audio, about 8% of the bytes (35 MB beside 435 MB of video
+in the nightly's case), for **a YouTube video streaming over an HLS playlist (`route=hls`)**, so that its offline copy lands while he watches instead of
+after. It is the one exception to "one fetch" and it is deliberate.
+
+- **Only that case.** `StreamHold.of(streaming, teeable, route)` (`:core:playback`) is the one rule: an item that can be teed is neither held nor
+  fetched beside (its download comes from the stream's bytes); `route=hls` is **fetched beside its stream** (`StreamHold.Beside`, with its reason);
+  everything else that streams is **held** until it pauses, ends or another item takes over (`StreamHold.Hold`): **podcast enclosures (`a direct url`),
+  SABR, live manifests, the torrent server** and an item whose route is not recorded yet. `route=hls` is read from the address handed to the player
+  (`hls_playlist`, YouTube's manifest path), so it is a YouTube video in practice; no other source produces it today.
+- **What the fetch is.** The ordinary strategy: `TeeDownloadStrategy` finds nothing to tee (`no audio stream of it is playing through the cache`) and the
+  audio-only download runs with yt-dlp, from the front of the pass (the playing item goes first). The hand-over rules of point 1 are unchanged: a
+  finished copy never replaces a healthy stream, and an audio-only copy does not stand in for a video being watched.
+- **The log line** (`download`): `dewidebug fetching "<title>" beside its stream, on purpose: it plays as a YouTube HLS playlist (video and audio cut into
+  segments the cache never stores), so there is no audio stream to copy; its audio is fetched beside the stream, a small fraction of what the video carries
+  [route=hls]`, once per play. The hold line for the cases that are still held is unchanged and still carries `TeeVerdict`'s reason.
+- **The race, which was real.** The 27 Nov run showed `ttiLcMUQq80`'s download starting at 23:15:34.740 and `PLAY wanted` at 23:15:35.379. The pass
+  puts the playing item first (`playingNow`, set when the play starts), but the hold read `controller.state` (`wantsToPlay` for that item), which is true only
+  after `launcher.play` has resolved the video and handed it to the player, several seconds for a YouTube video. In between the item was neither held nor
+  teeable, so the downloader fetched it with yt-dlp and the player then fetched the same bytes: a double fetch nobody chose, for every kind of item that
+  streams (an audio stream that WOULD have been teed, a podcast that would have been held). For a video over HLS it was harmless by luck (that case is now
+  fetched beside anyway); for the rest it was the duplicate point 2 exists to prevent. `StreamingIntent` (`:app`) closes it:
+  - the queue says an item is about to stream **when its route is decided** (`PlaybackQueue.route`, before the resolve), forgets the item's route from an
+    earlier play (`PlayRoutes.forget`, so a replay is not judged by last time's route) and logs `<id> is about to stream; the auto-download is told now`;
+  - the item counts as streaming until the call that plays it returns, and from then on the controller's `wantsToPlay` decides, as before;
+  - a lift (a pause, the end) is told after 1.5 s, so the moment between the call returning and the player saying it plays cannot flicker the hold off
+    and let a pass fetch the item; a route that never reached the player (refused, superseded, failed) is released the same way once its call returns;
+  - the downloader re-evaluates when a route is recorded (`PlayRoutes.changes`), so the hold turns into "fetch beside" (HLS) or stays a hold (SABR, a
+    podcast) the moment the player is handed the address, and into "tee" when the audio opens through the cache.
+- **Tests (seen failing first):** `StreamHoldTest` (5; `Hold(id=vid)` where `Beside` was expected), `PlayRoutesTest` (3 new; `expected null, but was hls`,
+  `expected:<1> but was:<0>`), `StreamingIntentTest` (6; `the downloader must be told before the player has the item ... expected:<[null, x]> but
+  was:<[null]>`), `QueueAutoDownloaderTest` (3 new; the beside line absent: `said once: [pass over 2 outstanding ...] expected:<1> but was:<0>`), `StreamHoldsTest`
+  (3: the hold turns to "beside" when an HLS route lands, a teeable item is neither, SABR/podcast/live stay held).
+- **Not changed:** `SeveralSharedLinksAllLandTest` still pauses the last (video) share once all three are queued. It would now pass without the pause when the
+  share plays over HLS, but a share that plays over SABR is still held, so the pause stays until a nightly has shown which route that link takes.
+- **Not proven on a device.** The decision, the intent window and the downloader's behaviour are unit-tested with fakes; no phone or emulator run has
+  shown `route=hls`, the beside line and the download completing while the video plays. The next report says it: the `fetching … beside its stream` line,
+  then `[download] start`, then `Downloaded`, with `[tee] … downloading it on its own: no audio stream of it is playing through the cache` between.

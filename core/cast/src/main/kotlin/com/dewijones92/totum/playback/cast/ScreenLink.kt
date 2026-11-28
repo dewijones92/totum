@@ -318,6 +318,21 @@ private fun nowJson(now: NowPlaying?, id: String): String {
         """"playing":${now.playing},"here":${now.onScreen == id}}"""
 }
 
+public data class ScreenLoad(
+    val load: Long,
+    val stream: RoutedStream,
+    val positionMs: Long,
+    val play: Boolean,
+    val rate: Float,
+    val title: String,
+    val subs: String?,
+)
+
+public fun loadCommand(it: ScreenLoad): String =
+    """{"do":"load","load":${it.load},"url":${quoted(it.stream.url)},"pos":${it.positionMs},"play":${it.play},""" +
+        """"rate":${it.rate},"title":${quoted(it.title)},"subs":${it.subs?.let(::quoted)}""" +
+        """${if (it.stream.direct) ""","direct":true""" else ""}}"""
+
 public fun showPictureCommand(url: String, title: String): String =
     """{"do":"show","url":${quoted(url)},"title":${quoted(title)}}"""
 

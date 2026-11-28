@@ -6,6 +6,7 @@ import com.dewijones92.totum.data.download.StrandedDownloads
 import com.dewijones92.totum.data.queue.QueueEntry
 import com.dewijones92.totum.data.queue.QueueSnapshot
 import com.dewijones92.totum.domain.DownloadState
+import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
@@ -80,6 +81,12 @@ class QueueAutoDownloader(
      * sound for 1.3 s). It is left alone until it pauses or stops, and fetched then if still queued.
      */
     private val heldWhileStreaming: Flow<MediaItemId?> = flowOf(null),
+    /**
+     * The playing item whose audio is fetched while it streams, on purpose: a YouTube video playing over an
+     * HLS playlist has no audio stream to copy, and its audio is a small fraction of the video's bytes
+     * (Dewi, 2026-11-28), so the offline copy lands while he watches rather than after.
+     */
+    private val besideItsStream: Flow<BesideStream?> = flowOf(null),
     private val whyNotTeeable: (MediaItemId) -> String = { "" },
     private val groupAllows: (String) -> Boolean = { true },
     private val atHome: (PlayableItem) -> Boolean = { false },
@@ -109,6 +116,11 @@ class QueueAutoDownloader(
 
     private var lastHeldWhileStreaming: MediaItemId? = null
 
+    @Volatile
+    private var beside: BesideStream? = null
+
+    private var lastBeside: MediaItemId? = null
+
     fun start() {
         scope.launch {
             // collectLatest, not collect: a pass over a long queue can take many minutes, and
@@ -121,8 +133,10 @@ class QueueAutoDownloader(
                 queue,
                 groupChoicesChanged.onStart { emit(null) },
                 heldWhileStreaming,
-            ) { snapshot, _, held ->
+                besideItsStream,
+            ) { snapshot, _, held, besideNow ->
                 streaming = held
+                beside = besideNow
                 snapshot
             }.collectLatest { snapshot -> pass(snapshot) }
         }
@@ -321,11 +335,26 @@ class QueueAutoDownloader(
                 // answers 403 again immediately. His successful attempt came six seconds later.
                 delay(retryBackoffMs * retry)
             }
+            announceBeside(item)
             // The whole entry, handle included, so the video route gets its watch URL.
             downloads.download(entry.item, audioOnly = true)
             state = awaitSettled(item.id) ?: return true
             if (state !is DownloadState.Failed) return true
         }
+    }
+
+    private fun announceBeside(item: MediaItem) {
+        val now = beside?.takeIf { it.id == item.id }
+        if (now == null) {
+            if (lastBeside == item.id) lastBeside = null
+            return
+        }
+        if (lastBeside == now.id) return
+        lastBeside = now.id
+        Diag.log(
+            "download",
+            "dewidebug fetching \"${item.title}\" beside its stream, on purpose: ${now.why}",
+        )
     }
 
     /**
@@ -464,6 +493,8 @@ class QueueAutoDownloader(
         const val MAX_NAMED = 5
     }
 }
+
+data class BesideStream(val id: MediaItemId, val why: String)
 
 private data class Skip(val label: String, val say: String? = null)
 
