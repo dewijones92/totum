@@ -35,12 +35,20 @@ class StreamRelayTest {
     }
 
     private fun youtube(answer: (HttpRequest) -> HttpReply = rangesOnly()): String {
-        val server = CastHttpServer({
-            synchronized(asked) { asked += it.header("range") }
-            answer(it)
-        }, InetAddress.getLoopbackAddress())
-        servers += server
-        return "http://127.0.0.1:${server.start(0)}/videoplayback?mime=video%2Fmp4"
+        val handle = { request: HttpRequest ->
+            synchronized(asked) { asked += request.header("range") }
+            answer(request)
+        }
+        while (true) {
+            val server = CastHttpServer(handle, InetAddress.getLoopbackAddress())
+            val bound = server.start(0)
+            if (bound == port) {
+                server.stop()
+                continue
+            }
+            servers += server
+            return "http://127.0.0.1:$bound/videoplayback?mime=video%2Fmp4"
+        }
     }
 
     private fun rangesOnly(cutPlainGetAt: Int = 1_000): (HttpRequest) -> HttpReply = { request ->
@@ -198,7 +206,7 @@ class StreamRelayTest {
         val log = File(dir, "ffmpeg-args.txt")
         val ffmpeg = File(dir, "ffmpeg.sh").apply {
             writeText(
-                "#!/bin/sh\nprintf '%s\\n' \"\$@\" >> \"${log.path}\"\n" +
+                "#!/bin/sh\nprintf '%s\\n' \"\$*\" >> \"${log.path}\"\n" +
                     "case \"\$*\" in *adts*) cat;; *) head -c 8192 /dev/zero;; esac\n",
             )
             setExecutable(true)
@@ -216,9 +224,10 @@ class StreamRelayTest {
         val manifest = s.urlFor(tv, CastItem("a", upstream, listening = true, durationMs = 5_000), SoundSettings())!!
         fetch(manifest.replace("manifest.mpd", "audio/0.m4s"))
 
-        val args = log.readLines()
-        val input = args[args.indexOf("-i") + 1]
-        assertTrue(args.toString(), Regex("""http://127\.0\.0\.1:\d+/y/[0-9a-f]{32}\.m4a""").matches(input))
-        assertFalse(args.toString(), args.contains(upstream))
+        val calls = log.readLines().map { it.split(' ') }
+        val decoder = calls.single { "-vn" in it }
+        val input = decoder[decoder.indexOf("-i") + 1]
+        assertTrue(calls.toString(), Regex("""http://127\.0\.0\.1:\d+/y/[0-9a-f]{32}\.m4a""").matches(input))
+        assertFalse(calls.toString(), calls.any { upstream in it })
     }
 }

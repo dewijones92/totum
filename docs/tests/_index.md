@@ -1211,3 +1211,25 @@ and the webOS 1008 line ([ADR 177](../adr/0177-a-device-says-how-it-comes-on-and
 | `test_audio_ctl.py` (+2, 3 changed), `test_audio_ctl_contract.py`, `HermesAdapterContractTest` (+1) | jazz is SomaFM Sonic Universe as a plain `audio=` podcast item, id `station:jazz`, no YouTube; the golden fixtures were regenerated. Red first: `'station:jazz' != 'Dx5qFachd3A'` |
 | `YouTubeGateTest` (+1), `MpvPlayerTest` (+1) | a plain http mp3 radio address reaches the speaker's mpv as it is and never touches YouTube or yt-dlp |
 | `tools/ci/preflight_conflict_markers_test.py` (13) | the merge-conflict marker guard (a whole conflict, a Markdown underline is not a marker, an opener or closer alone, diff3, prose mid-line, CRLF, the repo is clean) and the Python suite discovery (`server/**`, `tools/handoff/**`, nested, a directory named like a test). The guard was also seen failing preflight on a marker put into `AGENTS.md` for a minute |
+
+## `StreamRelayTest`: a released port is not yours, and two ffmpegs do not log in order (2026-11-28)
+
+CI run 46100073263 (f6d97a91) failed `a YouTube sound cast to a TV is decoded by ffmpeg from the Pi's own
+relay` with `java.net.ProtocolException: unexpected end of stream` at the fetch helper, once in 899 `:cli`
+tests. The fixture picks its Pi port with `ServerSocket(0).use { it.localPort }` (released at once) and the
+fake YouTube server asked for `bind(0)` before the Pi server bound that port. If the kernel hands the Pi's
+number to the fake, `CastHttpServer.start` falls back to a free port, the manifest still says the number it
+was given, and `audio/0.m4s` lands on the fake, which answers a plain GET with 1000 of 5000 bytes. Forcing
+the fake onto the Pi's port reproduced the exact stack (`StreamRelayTest.kt:79` via `:217`); a natural
+reproduction never came (0 of 100 idle, 0 of 100 under CPU pressure), so the one-off is explained by that
+mechanism and not seen to happen unforced.
+
+The loop under CPU pressure (`taskset -c 0-1` plus six `yes`) found a second race in the same test:
+12 of 200 runs failed because the two fake ffmpeg processes (decoder, encoder) each logged one argument
+per line into one file, so the lines interleaved and `indexOf("-i")` found the encoder's `-i -`. The fake
+now logs one line per invocation and the test reads the decoder's line (the one with `-vn`). 0 of 300 after.
+
+The fake upstream now re-binds until it is not on the Pi's port, and `CastHttpServer`'s fallback line says
+which port it took instead and that addresses built for the old one reach someone else. Other fixtures with
+the same release-then-bind pattern (`CastBrainTest`, `BrowserServingTest`, `CastOutEndToEndTest`) were not
+changed; none runs a second listener on `bind(0)` before the first binds.
