@@ -180,6 +180,9 @@ jobs:
       - name: Install yt-dlp for the bridge's Python tests
         run: python3 -m pip install yt-dlp yt-dlp-ejs
 
+      - name: Install the Pi image's pinned Python packages (AirPlay pairing smoke test)
+        run: python3 -m pip install -r server/totum-cli/requirements.txt
+
       - name: Install ffmpeg for the Pi's sound-processing tests
         run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
 

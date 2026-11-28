@@ -2,7 +2,7 @@
 title: DLNA and AirPlay devices are two more controls behind the one cast player, fed one more route of the one stream server
 kind: adr
 status: accepted
-updated: 2026-11-14
+updated: 2026-11-28
 ---
 
 # 174. DLNA and AirPlay are more controls behind the one cast player
@@ -111,7 +111,8 @@ the laptop:
   history of ADR 170 and the tests it already has readable; it is the one cast player.
 - `PyCastControl`'s `handbackFile` is now `stateFile` (the Chromecast hand-back or the AirPlay credentials).
 - The Pi image carries `pyatv==0.18.0` and `airplay_helper.py` (`TOTUM_AIRPLAY_HELPER`); the Kotlin arrives with the next
-  release. Pinned, because the helper uses pyatv internals (`http_connect`, the connection its `play_url` opens).
+  release. Pinned, because the helper uses pyatv internals (`http_connect`, the connection its `play_url` opens). Only
+  pyatv itself was pinned at first, which was not enough: see the amendment of 2026-11-28 below.
 
 ## Not proven, and why (read before relying on it)
 
@@ -149,10 +150,41 @@ Run on this laptop on 2026-11-14, nothing audible (fake sinks), against the buil
   left it alone and said why.
 - **Kodi's description and SCPD** (not driven): `MediaRenderer:1` with the actions `DlnaControl` uses.
 
+## Amendment, 2026-11-28: AirPlay pairing was broken by an unpinned dependency
+
+`totum airplay-pair "LG AirPlay"` on the Pi (image built from v0.1.984) found the LG, showed its PIN, took the right PIN and
+then failed: `pyatv.exceptions.PairingError: SRPClientSession.__init__() takes 2 positional arguments but 3 were given`.
+AirPlay pairing had therefore never worked on the image.
+
+- **Cause.** The Dockerfile pinned `pyatv==0.18.0` (the latest) but not what it depends on. pyatv declares only
+  `srptools>=0.2.0`, so the image took srptools **2.0.0**, whose `SRPClientSession(srp_context, *, private='')` made
+  `private` keyword-only; pyatv 0.18.0 still calls `SRPClientSession(context, private)` positionally, in
+  `pyatv/auth/hap_srp.py` (HAP pair-setup, the path the LG takes) and `pyatv/protocols/airplay/srp.py` (legacy). The
+  construction happens in `finish_pairing` after the PIN is typed, so every earlier step looked healthy. Python 3.14.9 and
+  3.12 behave the same: the break is the srptools major version, not the interpreter.
+- **Fix.** `server/totum-cli/requirements.txt` holds the Pi image's Python packages, pinned: `pyatv==0.18.0`,
+  `srptools==1.0.1` (the last release with the positional signature), `pychromecast==14.1.1`. The Dockerfile installs from
+  it. `yt-dlp` stays unpinned on purpose: the container's start command upgrades it every boot so YouTube fixes arrive
+  without a rebuild (that `pip install -U` upgrades only yt-dlp and what it needs, so it cannot move the pins above). The
+  other transitive packages (zeroconf, protobuf, cryptography, aiohttp, pydantic) are left to pyatv's and pychromecast's
+  own bounds: none of them has broken the helpers, and a full lock would tie the image to wheels for one interpreter.
+  Raise `srptools` only together with a pyatv release that supports it, in a change whose smoke test is green.
+- **Guard.** `airplay_helper_test.py` gained `PairingAgainstPyatvsOwnServerTest`: it runs the helper's own `pair()` to the end
+  against pyatv's server-side HAP pair-setup (`BaseAirPlayServerAuth`) behind a fake connection, with the receiver's PIN, and
+  asserts four-part credentials stored in a mode 600 file and not printed; a second, narrower test builds the client SRP
+  session from a PIN. Seen red against srptools 2.0.0 with the exact error above, green with 1.0.1. It runs in CI (the
+  workflow installs `requirements.txt` first, and the test **fails rather than skips** when `CI` is set and pyatv is
+  missing), in preflight where pyatv happens to be installed (it skips, loudly, on a laptop without it), and at image build
+  (`RUN` of the test in the venv), so a broken combination can no longer produce an image. Renovate's bump of any of the three
+  pins is therefore judged by the same test.
+- **Still not proven.** The test's receiver is pyatv's own model of the AirPlay 2 pair-setup, not the LG: the pairing
+  against the real TV (and that the LG accepts what pyatv sends) is unconfirmed until it is run after the image is rebuilt.
+
 ## Tests
 
 `HlsPlaylistTest`, `CastStreamServerTest` (HLS), `core:cast`; `UpnpTest`, `DlnaControlTest` (a fake renderer over real HTTP,
 including the 300-item and no-volume-on-load tests), `CastDevicesTest` (merging, order, first reachable, kinds the old
 phone knows, a kind it does not, pairing command), `ChromecastPlayerTest` (HLS format, sound-only notice),
 `CommandParsingTest`, `:cli`; `airplay_helper_test.py` (a fake device: the commands, the stopping that is not a finish,
-credentials mode 600 and never printed); `tools/cast-bench/discover_dlna_test.py`.
+credentials mode 600 and never printed; and a whole pairing against pyatv's own pair-setup server, which guards the pinned
+packages); `tools/cast-bench/discover_dlna_test.py`.

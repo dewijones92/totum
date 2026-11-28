@@ -230,6 +230,127 @@ class CredentialsTest(unittest.TestCase):
             self.assertIn("unreadable", out.getvalue())
 
 
+try:
+    import pyatv
+except ImportError:
+    pyatv = None
+
+PYATV_MISSING = pyatv is None and not os.environ.get("CI")
+
+
+@unittest.skipIf(PYATV_MISSING, "pyatv is not installed here; CI and the image build install the pinned set")
+class PairingAgainstPyatvsOwnServerTest(unittest.TestCase):
+    def setUp(self):
+        from ipaddress import IPv4Address
+
+        import pyatv.conf
+        import pyatv.protocols.airplay.pairing as pairing
+        import pyatv.protocols.airplay.server_auth as server_auth
+        from pyatv.auth.server_auth import PIN_CODE
+        from pyatv.const import Protocol
+        from pyatv.support.http import HttpRequest
+
+        self.pin = str(PIN_CODE)
+        self.server = self.server_class(server_auth)("Fake LG")
+        self.requests = []
+        server, requests = self.server, self.requests
+
+        class Connection:
+            closed = False
+
+            async def post(self, path, headers=None, body=None, allow_error=False):
+                requests.append(path)
+                wire = {key: str(value) for key, value in (headers or {}).items()}
+                response = server.handle_request(HttpRequest("POST", path, "RTSP", "1.0", wire, body or b""))
+                return response
+
+            def close(self):
+                self.closed = True
+
+        async def connect(address, port):
+            return Connection()
+
+        config = pyatv.conf.AppleTV(IPv4Address("192.168.0.219"), "Fake LG")
+        config.add_service(
+            pyatv.conf.ManualService("fake-lg", Protocol.AirPlay, 7000, {"features": "0x4A7FCA00,0x3C356BD0"})
+        )
+
+        async def scan(loop, hosts=None, timeout=5, **kwargs):
+            return [config]
+
+        for target in (
+            mock.patch.object(pairing, "http_connect", connect),
+            mock.patch.object(pyatv, "scan", scan),
+            mock.patch.object(server_auth, "new_server_session", self.keyword_server_session(server_auth)),
+        ):
+            target.start()
+            self.addCleanup(target.stop)
+
+    @staticmethod
+    def server_class(server_auth):
+        class FakeReceiver(server_auth.BaseAirPlayServerAuth):
+            def enable_encryption(self, output_key, input_key):
+                pass
+
+        return FakeReceiver
+
+    @staticmethod
+    def keyword_server_session(server_auth):
+        import binascii
+        import hashlib
+
+        from srptools import SRPContext, SRPServerSession, constants
+
+        def new_server_session(keys, pin):
+            context = SRPContext(
+                "Pair-Setup",
+                str(pin),
+                prime=constants.PRIME_3072,
+                generator=constants.PRIME_3072_GEN,
+                hash_func=hashlib.sha512,
+                bits_salt=128,
+                bits_random=512,
+            )
+            username, verifier, salt = context.get_user_data_triplet()
+            context_server = SRPContext(
+                username,
+                prime=constants.PRIME_3072,
+                generator=constants.PRIME_3072_GEN,
+                hash_func=hashlib.sha512,
+                bits_salt=128,
+                bits_random=512,
+            )
+            session = SRPServerSession(
+                context_server, password_verifier=verifier, private=binascii.hexlify(keys.auth).decode()
+            )
+            return session, salt
+
+        return new_server_session
+
+    def test_the_client_side_srp_session_can_be_built_from_a_pin(self):
+        from pyatv.auth.hap_srp import SRPAuthHandler
+
+        handler = SRPAuthHandler()
+        handler.initialize()
+        handler.step1(self.pin)
+
+    def test_pairing_with_the_pin_the_receiver_shows_stores_credentials(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "airplay", "airplay-fake-lg.json")
+            out = io.StringIO()
+
+            with mock.patch.object(sys, "stdout", out):
+                code = asyncio.run(airplay_helper.pair("192.168.0.219", path, self.pin, "Totum"))
+
+            saved = airplay_helper.Credentials(path).load()
+            self.assertEqual(0, code, out.getvalue())
+            self.assertEqual(["/pair-pin-start", "/pair-setup", "/pair-setup", "/pair-setup"], self.requests)
+            self.assertEqual(4, len(saved.split(":")), "a HAP credential is four hex parts")
+            self.assertTrue(all(all(c in "0123456789abcdef" for c in part) and part for part in saved.split(":")))
+            self.assertEqual(0o600, stat.S_IMODE(os.stat(path).st_mode))
+            self.assertNotIn(saved, out.getvalue())
+
+
 class ReadyTest(unittest.TestCase):
     def ready_event(self, video):
         said = Said()

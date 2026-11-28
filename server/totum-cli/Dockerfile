@@ -40,15 +40,20 @@ CMD ["/opt/totum/bin/totum", "ai-serve", "--port=8780"]
 
 FROM cli AS fetch
 
+COPY requirements.txt /tmp/requirements.txt
+
 RUN apt-get update \
  && apt-get install -y --no-install-recommends ffmpeg python3 python3-venv mpv bluez pulseaudio-utils systemd adb \
  && rm -rf /var/lib/apt/lists/* \
  && python3 -m venv /opt/venv \
- && /opt/venv/bin/pip install --no-cache-dir "yt-dlp[default]" "pychromecast>=14" "pyatv==0.18.0" \
+ && /opt/venv/bin/pip install --no-cache-dir -r /tmp/requirements.txt "yt-dlp[default]" \
  && chown -R totum:totum /opt/venv
 
 COPY chromecast_helper.py /opt/totum/chromecast_helper.py
 COPY airplay_helper.py /opt/totum/airplay_helper.py
+COPY airplay_helper_test.py /opt/totum/airplay_helper_test.py
+
+RUN CI=true PYTHONDONTWRITEBYTECODE=1 /opt/venv/bin/python /opt/totum/airplay_helper_test.py
 
 USER totum
 ENV TOTUM_PYTHON=/opt/venv/bin/python \
