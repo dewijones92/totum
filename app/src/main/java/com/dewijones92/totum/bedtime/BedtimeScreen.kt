@@ -60,7 +60,7 @@ fun BedtimeScreen(bedtime: Bedtime, onBack: () -> Unit, modifier: Modifier = Mod
     }
     Surface(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-            BackHeader(stringResource(R.string.bedtime_name), onBack)
+            BackHeader(stringResource(R.string.bedtime_name), onBack, scrollsAway = false)
             Text(
                 stringResource(R.string.bedtime_intro),
                 style = MaterialTheme.typography.bodyMedium,

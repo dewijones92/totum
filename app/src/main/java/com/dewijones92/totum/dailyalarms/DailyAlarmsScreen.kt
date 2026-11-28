@@ -63,7 +63,11 @@ fun DailyAlarmsScreen(
     Surface(modifier = modifier.fillMaxSize()) {
         Box {
             Column(modifier = Modifier.verticalScroll(rememberScrollState()).padding(bottom = 80.dp)) {
-                BackHeader(stringResource(R.string.alarms_tile), onBack) { NewAlarmButton { adding = true } }
+                BackHeader(
+                    stringResource(R.string.alarms_tile),
+                    onBack,
+                    scrollsAway = false
+                ) { NewAlarmButton { adding = true } }
                 OneOffSection(view, alarms, now)
                 Text(
                     stringResource(R.string.dailyalarm_name),

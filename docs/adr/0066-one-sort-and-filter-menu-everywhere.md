@@ -2,13 +2,15 @@
 title: One sort and filter menu everywhere; a queue sort changes the play order
 kind: adr
 status: accepted
-updated: 2026-11-14
+updated: 2026-11-28
 ---
 
 # 66. One sort and filter menu everywhere; a queue sort changes the play order
 
 - Status: Accepted
 - Date: 2026-10-16
+- Amended 2026-11-28 by [ADR 198](0198-a-header-slides-away-on-scrolling-down-and-comes-back-on-scrolling-up.md): `CollapsingTitle` is now
+  `ActionsHeader` with no 104 dp minimum; the wrapping rule is unchanged
 
 ## Context
 

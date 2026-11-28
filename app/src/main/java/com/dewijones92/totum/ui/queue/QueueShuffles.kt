@@ -5,6 +5,7 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.queue.QueueEntry
@@ -48,12 +49,14 @@ internal fun QueueOfflineSummary(
     entries: List<QueueEntry>,
     downloads: State<Map<MediaItemId, DownloadState>>,
     filters: MutableState<ItemFilters>,
+    modifier: Modifier = Modifier,
 ) {
     val settings by container.appPreferences.settings.collectAsStateWithLifecycle()
     val groupChoices by container.groupDownloads.choices.collectAsStateWithLifecycle()
     val offline by remember(container) { container.offlineChanges }.collectAsStateWithLifecycle(container.isOffline())
     val playable = entries.count { it.item.playsWithNoSignal(downloads.value[it.item.item.id] ?: NotDownloaded) }
     OfflineSummary(
+        modifier = modifier,
         readiness = readinessOf(entries, downloads.value) { GroupDownloads.fetchesAutomatically(it, groupChoices) },
         autoDownloadOff = !settings.autoDownloadQueue,
         waitingForWifi = settings.autoDownloadQueue && !container.autoDownloadAllowedNow(),

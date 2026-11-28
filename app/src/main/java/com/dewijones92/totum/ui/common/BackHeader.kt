@@ -28,11 +28,13 @@ fun BackHeader(
     title: String,
     onBack: () -> Unit,
     subtitle: String? = null,
+    scrollsAway: Boolean = true,
     trailing: @Composable () -> Unit = {},
 ) {
     val style = MaterialTheme.typography.headlineSmall
     TitleAndActions(
         titleWidth = rememberTextWidth(title, style, wholeLine = false) + BACK_AND_GUTTERS,
+        scrollsAway = scrollsAway,
         modifier = Modifier.padding(start = 12.dp, end = 8.dp, top = 10.dp, bottom = 6.dp),
         title = { place ->
             Row(place, verticalAlignment = Alignment.CenterVertically) {

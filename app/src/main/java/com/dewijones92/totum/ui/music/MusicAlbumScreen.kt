@@ -69,45 +69,49 @@ fun MusicAlbumScreen(container: AppContainer, page: MusicPage.Album, onBack: () 
     val tools = rememberListTools("album tracks ${page.title}")
     val everyTrack = (state as? MusicAlbumViewModel.State.Loaded)?.tracks.orEmpty()
     val tracks = tools.applyTo(everyTrack) { it }
-    LazyColumn(Modifier.fillMaxSize()) {
-        item {
-            val kind = (state as? MusicAlbumViewModel.State.Loaded)?.album?.kind
-            BackHeader(title = kind?.let { stringResource(it.labelRes) } ?: page.title, onBack = onBack) {
-                ListToolsActions(tools, everyTrack.size)
-            }
+    Column(Modifier.fillMaxSize()) {
+        val kind = (state as? MusicAlbumViewModel.State.Loaded)?.album?.kind
+        BackHeader(title = kind?.let { stringResource(it.labelRes) } ?: page.title, onBack = onBack) {
+            ListToolsActions(tools, everyTrack.size)
         }
-        when (val current = state) {
-            MusicAlbumViewModel.State.Loading -> item { MusicLoading() }
-            is MusicAlbumViewModel.State.Failed -> item { MusicFailed(viewModel::load) }
-            is MusicAlbumViewModel.State.Loaded -> {
-                item { AlbumHeader(current.album) }
-                item {
-                    val save = rememberAlbumSave(container.musicFavourites, container.applicationScope, current.album)
-                    val ask = rememberShuffleAsk()
-                    val downloadAsk = rememberHoldToConfirmAsk()
-                    MusicButtons(
-                        albumButtons(current.album, viewModel, context, offline, AlbumAsks(ask, downloadAsk)) +
-                            listOfNotNull(save?.saveButton()) +
-                            pinButtons(current.album.asPin()),
-                    )
-                }
-                item { OfflineLine(offline) }
-                item { AboutText(current.album.description) }
-                listToolsField(tools, tracks.size, everyTrack.size)
-                items(tracks, key = { item -> item.id.value }) { item ->
-                    val index = current.tracks.indexOf(item)
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        MediaItemRow(
-                            item = item,
-                            subtitleLines = listOfNotNull(
-                                "${index + 1}. " + (item.author ?: current.album.artist.orEmpty()),
-                            ),
-                            pillar = MediaKind.VIDEO,
-                            onPlay = { viewModel.play(fromIndex = index) },
-                            onDownload = actions?.let { a -> { a.download(item, audioOnly = true) } },
-                            modifier = Modifier.weight(1f),
+        LazyColumn(Modifier.weight(1f).fillMaxWidth()) {
+            when (val current = state) {
+                MusicAlbumViewModel.State.Loading -> item { MusicLoading() }
+                is MusicAlbumViewModel.State.Failed -> item { MusicFailed(viewModel::load) }
+                is MusicAlbumViewModel.State.Loaded -> {
+                    item { AlbumHeader(current.album) }
+                    item {
+                        val save = rememberAlbumSave(
+                            container.musicFavourites,
+                            container.applicationScope,
+                            current.album,
                         )
-                        if (isYouTubeVideoId(item.id.value)) TrackLikeHeart(item.id.value, item.title)
+                        val ask = rememberShuffleAsk()
+                        val downloadAsk = rememberHoldToConfirmAsk()
+                        MusicButtons(
+                            albumButtons(current.album, viewModel, context, offline, AlbumAsks(ask, downloadAsk)) +
+                                listOfNotNull(save?.saveButton()) +
+                                pinButtons(current.album.asPin()),
+                        )
+                    }
+                    item { OfflineLine(offline) }
+                    item { AboutText(current.album.description) }
+                    listToolsField(tools, tracks.size, everyTrack.size)
+                    items(tracks, key = { item -> item.id.value }) { item ->
+                        val index = current.tracks.indexOf(item)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            MediaItemRow(
+                                item = item,
+                                subtitleLines = listOfNotNull(
+                                    "${index + 1}. " + (item.author ?: current.album.artist.orEmpty()),
+                                ),
+                                pillar = MediaKind.VIDEO,
+                                onPlay = { viewModel.play(fromIndex = index) },
+                                onDownload = actions?.let { a -> { a.download(item, audioOnly = true) } },
+                                modifier = Modifier.weight(1f),
+                            )
+                            if (isYouTubeVideoId(item.id.value)) TrackLikeHeart(item.id.value, item.title)
+                        }
                     }
                 }
             }

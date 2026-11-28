@@ -23,6 +23,7 @@ import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.navigation.TopLevelDestination
 import com.dewijones92.totum.ui.ask.AskRequests
 import com.dewijones92.totum.ui.ask.AskScreen
+import com.dewijones92.totum.ui.common.HeaderScrollHost
 import com.dewijones92.totum.ui.common.MusicPage
 import com.dewijones92.totum.ui.music.MusicPageScreen
 import com.dewijones92.totum.ui.search.SearchScreen
@@ -113,11 +114,15 @@ internal fun TabOverlays(container: AppContainer, tabs: TabNavigation) {
     }
     BackHandler(enabled = tabs.showAsk && !tabs.showSearch && tabs.pages.isEmpty()) { tabs.closeAsk() }
     if (tabs.showAsk) {
-        Surface(Modifier.fillMaxSize()) { AskScreen(container, onBack = tabs::closeAsk) }
+        Surface(Modifier.fillMaxSize()) {
+            HeaderScrollHost("ask") { AskScreen(container, onBack = tabs::closeAsk) }
+        }
     }
     BackHandler(enabled = tabs.showSearch && tabs.pages.isEmpty()) { tabs.closeSearch() }
     if (tabs.showSearch) {
-        Surface(Modifier.fillMaxSize()) { SearchScreen(container, onBack = tabs::closeSearch) }
+        Surface(Modifier.fillMaxSize()) {
+            HeaderScrollHost("search") { SearchScreen(container, onBack = tabs::closeSearch) }
+        }
     }
     BackHandler(enabled = tabs.pages.isNotEmpty()) { tabs.back() }
     val pageStates = rememberSaveableStateHolder()
@@ -125,7 +130,9 @@ internal fun TabOverlays(container: AppContainer, tabs: TabNavigation) {
         key(page) {
             Surface(Modifier.fillMaxSize()) {
                 pageStates.SaveableStateProvider("${tabs.pages.size} ${page.label}") {
-                    MusicPageScreen(container, page, onBack = tabs::back)
+                    HeaderScrollHost("music page ${page.label}") {
+                        MusicPageScreen(container, page, onBack = tabs::back)
+                    }
                 }
             }
         }

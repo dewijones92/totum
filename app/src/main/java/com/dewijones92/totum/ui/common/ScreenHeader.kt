@@ -18,11 +18,13 @@ fun ScreenHeader(
     title: String,
     modifier: Modifier = Modifier,
     supporting: String? = null,
+    scrollsAway: Boolean = true,
     actions: @Composable RowScope.() -> Unit = {},
 ) {
     val style = MaterialTheme.typography.headlineLarge
     TitleAndActions(
         titleWidth = rememberTextWidth(title, style, wholeLine = false),
+        scrollsAway = scrollsAway,
         modifier = modifier.padding(start = 20.dp, end = 8.dp, top = 14.dp, bottom = 6.dp),
         title = { place ->
             Column(place) {

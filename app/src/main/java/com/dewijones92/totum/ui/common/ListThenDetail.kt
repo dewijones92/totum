@@ -16,6 +16,7 @@ internal fun <T : Any> ListThenDetail(
 ) {
     val places = rememberSaveableStateHolder()
     val showing = detail != null
+    RevealHeaderWhen(showing to listKey, "a page opened or closed over $listKey")
     LaunchedEffect(listKey, showing) {
         if (showing) Diag.log("place", "$listKey kept while a page is open over it")
     }
@@ -27,5 +28,7 @@ internal fun <T : Any> ListThenDetail(
 }
 
 @Composable
-internal fun KeepsEachPlace(key: String, content: @Composable () -> Unit) =
+internal fun KeepsEachPlace(key: String, content: @Composable () -> Unit) {
+    RevealHeaderWhen(key, "the place changed to $key")
     rememberSaveableStateHolder().SaveableStateProvider(key, content)
+}

@@ -56,7 +56,7 @@ fun KidTvScreen(container: AppContainer, onBack: () -> Unit, modifier: Modifier 
     KidTvToasts(status)
     Surface(modifier = modifier.fillMaxSize()) {
         Column(Modifier.verticalScroll(rememberScrollState())) {
-            BackHeader(stringResource(R.string.kidtv_title), onBack)
+            BackHeader(stringResource(R.string.kidtv_title), onBack, scrollsAway = false)
             Text(
                 text = stringResource(R.string.kidtv_intro),
                 style = MaterialTheme.typography.bodyMedium,

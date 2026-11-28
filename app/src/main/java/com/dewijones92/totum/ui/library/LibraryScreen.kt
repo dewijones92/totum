@@ -383,38 +383,40 @@ internal fun DownloadsContent(
     val lists = activeLists(inProgress, retryingAll, stoppedAll, home)
     Column(modifier = modifier.fillMaxSize()) {
         SelectableMediaList("downloads", downloaded, shown, { it.item }, Modifier.weight(1f)) {
-            LazyColumn(modifier = Modifier.fillMaxSize()) {
-                item { BackHeader(stringResource(R.string.library_downloads), onBack) }
-                item {
-                    val counts = SectionCounts(inProgress.size + retrying, stopped, downloaded.size, home)
-                    ChipsFor(current, counts) {
-                        chosen = it.name
-                        sections.onSection(it)
-                    }
-                }
-                activeBody(current, lists, sections, Handlers(onCancel, onCancelAll, onRetry, onDismiss))
-                if (current != DownloadsSection.ON_THE_PHONE) {
-                    Unit
-                } else if (downloaded.isEmpty()) {
-                    item { DownloadsEmpty() }
-                } else {
+            Column(Modifier.fillMaxSize()) {
+                BackHeader(stringResource(R.string.library_downloads), onBack)
+                LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth()) {
                     item {
-                        DownloadsListHeader(
-                            title = stringResource(R.string.downloads_on_the_phone),
-                            filter = listFilter,
-                            total = downloaded.size,
-                            sorts = DownloadSort.ALL,
-                            current = sort,
-                            onSelect = onSetSort,
-                            filters = itemFilters.value,
-                            onFilters = { itemFilters.value = it },
-                        )
+                        val counts = SectionCounts(inProgress.size + retrying, stopped, downloaded.size, home)
+                        ChipsFor(current, counts) {
+                            chosen = it.name
+                            sections.onSection(it)
+                        }
                     }
-                    item { StorageSummary(storage) }
-                    cleanupSection(cleanup) { reviewing = it }
-                    filterField(listFilter, shown.size, downloaded.size, hosted = true)
-                    items(shown, key = { it.item.id.value }) { entry ->
-                        FinishedRow(entry, onPlay, onDelete, onAddToPlaylist)
+                    activeBody(current, lists, sections, Handlers(onCancel, onCancelAll, onRetry, onDismiss))
+                    if (current != DownloadsSection.ON_THE_PHONE) {
+                        Unit
+                    } else if (downloaded.isEmpty()) {
+                        item { DownloadsEmpty() }
+                    } else {
+                        item {
+                            DownloadsListHeader(
+                                title = stringResource(R.string.downloads_on_the_phone),
+                                filter = listFilter,
+                                total = downloaded.size,
+                                sorts = DownloadSort.ALL,
+                                current = sort,
+                                onSelect = onSetSort,
+                                filters = itemFilters.value,
+                                onFilters = { itemFilters.value = it },
+                            )
+                        }
+                        item { StorageSummary(storage) }
+                        cleanupSection(cleanup) { reviewing = it }
+                        filterField(listFilter, shown.size, downloaded.size, hosted = true)
+                        items(shown, key = { it.item.id.value }) { entry ->
+                            FinishedRow(entry, onPlay, onDelete, onAddToPlaylist)
+                        }
                     }
                 }
             }
