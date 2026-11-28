@@ -1,11 +1,23 @@
 ---
 title: The nightly instrumented job was red every night from 15 to 27 November
 kind: todo
-status: four causes found and fixed 2026-11-27 (three proved red then green on totum-api35); the tunnel cause is a hypothesis, to be settled by the next nightly's heartbeat lines
+status: fixed; the nightly was fully green with the live phase running on 2026-11-28 (run 46083657361, v0.1.973), all 15 live suites passing (4K skips by its own assumption on the emulator)
 area: ci
 priority: high — Dewi, 2026-11-27: "if there are constantly red CIs, don't leave them unactioned"
-updated: 2026-11-27
+updated: 2026-11-28
 ---
+
+**Outcome (2026-11-27/28), three dispatched runs:**
+- **46071703184 (v0.1.966): green, but hollow.** The live phase skipped itself with `[live-test] egress check got NO answer through the
+  tunnel`. On the Pi, `wg-home` had been running since the 27 Nov reboot attached to **no network** (`Networks: {}`, so there was no
+  DNAT for 51820 or 18766, and no peer had ever completed a handshake). It was recreated alone, and dot-files `ffe1c22` records the trap.
+  So until then, no nightly after the reboot had actually reached YouTube.
+- **46076397579 (v0.1.970): live phase ran.** The tunnel heartbeat was steady and GitHub stayed reachable for the whole run, which
+  supports the tunnel fixes below. 14 of 15 suites passed, including `AnHourLongItemDoesNotRebufferTest`. `SeveralSharedLinksAllLandTest`
+  failed: the third shared video played over HLS and was held by ADR 186. The test now pauses it, and the hold line says why (`2b2635a9`).
+- **46083657361 (v0.1.973): fully green with the live phase running.**
+
+A green nightly whose live phase skipped looks exactly like a healthy one. Read the `[live-test]` lines before trusting it.
 
 # The nightly instrumented job: red every night
 
