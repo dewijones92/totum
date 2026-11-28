@@ -139,25 +139,7 @@ internal class SteppedPower(
             runReady()
             return@withLock true
         }
-        if (unsure()) {
-            val immediate = wakeSteps.filter { it.startsAfterMs <= 0 }
-            Diag.log(
-                "cast-target",
-                "$label: webOS could not be asked but the device may be on (unknown, maybe on)" +
-                    evidence()?.let { " [$it]" }.orEmpty() +
-                    "; " + (
-                    if (immediate.isEmpty()) "no wake is sent" else "sending ${immediate.joinToString { it.name }}"
-                    ) + " (harmless to a device that is on) and connecting at once, without waiting for webOS",
-            )
-            immediate.forEach { runStep(it, "the wake") }
-            sentWake = immediate.isNotEmpty()
-            return@withLock true
-        }
-        if (wakeSteps.isEmpty()) {
-            power = TargetPower.ASLEEP
-            Diag.log("cast-target", "$label: not answering and Totum has no way to wake it, so nothing was tried")
-            return@withLock true
-        }
+        withoutWaiting()?.let { return@withLock it }
         power = TargetPower.WAKING
         failure = null
         val startedAt = clock()
@@ -242,6 +224,28 @@ internal class SteppedPower(
                 Thread.sleep(everyMs)
             }
         }
+    }
+
+    private suspend fun withoutWaiting(): Boolean? {
+        if (unsure()) return sendImmediateWakeAndGoOn()
+        if (wakeSteps.isNotEmpty()) return null
+        power = TargetPower.ASLEEP
+        Diag.log("cast-target", "$label: not answering and Totum has no way to wake it, so nothing was tried")
+        return true
+    }
+
+    private suspend fun sendImmediateWakeAndGoOn(): Boolean {
+        val immediate = wakeSteps.filter { it.startsAfterMs <= 0 }
+        val sending = if (immediate.isEmpty()) "no wake is sent" else "sending ${immediate.joinToString { it.name }}"
+        Diag.log(
+            "cast-target",
+            "$label: webOS could not be asked but the device may be on (unknown, maybe on)" +
+                evidence()?.let { " [$it]" }.orEmpty() +
+                "; $sending (harmless to a device that is on) and connecting at once, without waiting for webOS",
+        )
+        immediate.forEach { runStep(it, "the wake") }
+        sentWake = immediate.isNotEmpty()
+        return true
     }
 
     private suspend fun runReady() {

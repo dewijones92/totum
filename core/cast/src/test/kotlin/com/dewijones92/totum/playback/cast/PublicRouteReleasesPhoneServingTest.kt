@@ -73,7 +73,10 @@ class PublicRouteReleasesPhoneServingTest {
         boost = null,
         audience = PublicCastAudience.CHROMECAST,
         onPublic = {
-            Diag.log("cast-out", "dewidebug ${film.mediaId}: public route chosen; releasing the phone's own serving of it")
+            Diag.log(
+                "cast-out",
+                "dewidebug ${film.mediaId}: public route chosen; releasing the phone's own serving of it"
+            )
             server.release(film.mediaId)
         },
     ) { server.urlFor(film) }
@@ -88,7 +91,10 @@ class PublicRouteReleasesPhoneServingTest {
         val away = routed()!!
 
         assertTrue(away.direct)
-        assertNull("a stale timeline would map the TV's clock through cuts it is not playing", server.timelineFor(film.mediaId))
+        assertNull(
+            "a stale timeline would map the TV's clock through cuts it is not playing",
+            server.timelineFor(film.mediaId)
+        )
         assertTrue(lines.toString(), lines.any { it.contains("public route chosen") })
         assertTrue(engines.single().closed)
     }
