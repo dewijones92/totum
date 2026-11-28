@@ -27,10 +27,12 @@ public fun PublicCastRoute?.routedStream(
     model: String?,
     boost: String?,
     audience: PublicCastAudience,
+    onPublic: () -> Unit = {},
     phoneDirect: () -> String?,
 ): RoutedStream? {
     val pick = this?.pick(item, model, boost, audience)
     return if (pick is PublicCastPick.Public) {
+        onPublic()
         RoutedStream(pick.url, direct = true)
     } else {
         phoneDirect()?.let { RoutedStream(it, direct = false) }

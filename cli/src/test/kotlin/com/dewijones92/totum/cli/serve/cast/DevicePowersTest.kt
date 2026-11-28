@@ -382,6 +382,21 @@ class DevicePowersTest {
         }
 
     @Test
+    fun `a silent cast port is named by its host and port in the power evidence, not left blank`() = runBlocking {
+        pairTv()
+        tv.powerState = "Active"
+        val power = powers(config(webos = "LG TV=127.0.0.1")).of("LG TV")!!
+        assertEquals(TargetPower.ON, refreshedTo(power, TargetPower.ON))
+
+        tv.closeNewConnectionsWith = 1008
+        assertEquals(TargetPower.ASLEEP, refreshedTo(power, TargetPower.ASLEEP))
+
+        val asleep = logged.single { it.contains("LG TV: ON -> ASLEEP (power check)") }
+        assertTrue(asleep, asleep.contains("cast port 127.0.0.1:$lgPort silent"))
+        assertFalse(asleep, asleep.contains("cast port  "))
+    }
+
+    @Test
     fun `a TV that was never paired is judged by its cast port, as before`() = runBlocking {
         lgListener = listening(lgPort)
         val power = powers(config(webos = "LG TV=127.0.0.1")).of("LG TV")!!
@@ -556,13 +571,13 @@ class DevicePowersTest {
             config(adbSpec = kodiAdb, shown = "Kodi=LG TV@HDMI_1", webos = "LG TV=127.0.0.1", timing = fastTiming),
         ).of("LG TV")!!
 
-        power.ensureAwake()
+        assertTrue(power.ensureAwake())
 
         assertTrue(events.toString(), events.any { it.startsWith("wol ") })
         assertEquals(emptyList<String>(), events.filter { it == "sleep" || it == "wake" })
         assertTrue(
             logged.toString(),
-            logged.any { it.contains("CEC nudge not sent") && it.contains("cast port") && it.contains("maybe on") },
+            logged.any { it.contains("unknown, maybe on") && it.contains("connecting at once") },
         )
     }
 
