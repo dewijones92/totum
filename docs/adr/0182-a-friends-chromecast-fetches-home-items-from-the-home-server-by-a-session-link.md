@@ -229,3 +229,20 @@ and, in the second run, a real local nginx built from the handoff files:
   `PublicCastRouteTest` (10), `HomeLanProbeTest` (7), `HomeOnlyTest` (5), `HttpPublicCastApiTest` (6), `CastStreamServerOpenForTest` (5).
   Seen red by neutering the expiry check, the allow-list and the removal of a revoked link: "expected:<404> but was:<200>" in the
   expiry, revoke and path tests (`screen expected:<404> but was:<200>`).
+
+## Amended 2026-11-28, later: choosing the public route releases the phone's own serving of the item
+
+`CastStreams.urlForChromecast` and `urlForScreen`, when the pick was the Pi's public route, left `CastStreamServer`'s entry for the item
+(`latest[mediaId]`, with its silence timeline) from an earlier phone-direct serving of the same item. After a home to away switch
+mid-cast, `TimeMappedCastPlayer` reads `timelineFor(mediaId)`, so it could map the TV's position through a timeline of cuts the TV was
+no longer playing (the public route never cuts silence).
+
+- `routedStream` gained an `onPublic` hook, run once when the pick is public; `CastStreams` passes `server.release(mediaId)` through it
+  for both the Chromecast and the PC screen, logging `dewidebug <id>: the <audience> audience takes the home server's route, so the
+  phone's own serving of it (and its silence timeline) is released`, and `release` logs its own `released N session(s)` line.
+  Releasing also closes the phone's engine for that item and forgets its stall and failure state, none of which a public cast uses.
+- The phone route is untouched: choosing it releases nothing.
+- Test: `PublicRouteReleasesPhoneServingTest` (2), a real `CastStreamServer` served phone-direct with silence cut, then the route
+  switched to public. Red first: `a stale timeline would map the TV's clock through cuts it is not playing expected null, but was:
+  <CastTimeline@…>`. The other test pins that the phone route releases nothing.
+- Not run on a phone: `CastStreams` is Android glue; it compiles, the decision and the server are tested on the JVM.

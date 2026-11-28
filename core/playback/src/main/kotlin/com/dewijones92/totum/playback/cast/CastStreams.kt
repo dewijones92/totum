@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.annotation.OptIn
 import androidx.media3.common.MediaItem
 import androidx.media3.common.util.UnstableApi
+import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.playback.BoostingAudioProcessor
 import com.dewijones92.totum.playback.EXTRA_AUDIO_ONLY
 import com.dewijones92.totum.playback.EXTRA_AUDIO_URL
@@ -89,6 +90,7 @@ internal class CastStreams(
             tvPort.current()?.screen?.model,
             boostNow().name,
             PublicCastAudience.CHROMECAST,
+            onPublic = { releasePhoneServing(item.mediaId, PublicCastAudience.CHROMECAST) },
         ) { urlFor(item) }?.url
     }
 
@@ -99,7 +101,17 @@ internal class CastStreams(
             model = null,
             boost = boostNow().name,
             audience = PublicCastAudience.PC_BROWSER,
+            onPublic = { releasePhoneServing(item.mediaId, PublicCastAudience.PC_BROWSER) },
         ) { urlFor(item) }
+    }
+
+    private fun releasePhoneServing(mediaId: String, audience: PublicCastAudience) {
+        Diag.log(
+            "cast-out",
+            "dewidebug $mediaId: the ${audience.name} audience takes the home server's route, so the phone's own " +
+                "serving of it (and its silence timeline) is released",
+        )
+        server.release(mediaId)
     }
 
     fun stopAll() {
