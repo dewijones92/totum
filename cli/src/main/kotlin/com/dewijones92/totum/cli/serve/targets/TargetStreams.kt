@@ -1,11 +1,13 @@
 package com.dewijones92.totum.cli.serve.targets
 
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.common.youTubeVideoId
 import com.dewijones92.totum.data.jellyfin.isJellyfin
 import com.dewijones92.totum.data.jellyfin.jellyfinId
 import com.dewijones92.totum.domain.MediaContentKind
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
+import com.dewijones92.totum.innertube.feeds.SeenProgress
 import com.dewijones92.totum.playback.cast.CastItem
 import com.dewijones92.totum.playback.cast.CastSubtitleSource
 import java.io.File
@@ -14,10 +16,21 @@ internal class TargetStreams(
     private val fromHome: suspend (PlayableItem, Boolean) -> String?,
     private val jellyfin: ((String) -> String)?,
     private val files: SoundFiles = SoundFiles(File("/sounds")),
+    private val accountPlaceOf: (String) -> Long? = { SeenProgress.positions.value[it]?.positionMs },
     private val liveRefusedUntil: () -> Long? = { null },
     private val jellyfinSubtitles: (suspend (String) -> List<CastSubtitleSource>)? = null,
     private val castFromHome: (suspend (PlayableItem, Boolean) -> CastItem?)? = null,
 ) : TargetSounds {
+
+    override fun resumeFor(item: PlayableItem): Long? {
+        val videoId = (item.handle as? PlayHandle.Video)?.watchUrl?.youTubeVideoId() ?: return null
+        val place = accountPlaceOf(videoId)
+        Diag.log(
+            "targets",
+            "$videoId: the account's place is ${place?.let { "${it}ms" } ?: "not known to this Pi"}",
+        )
+        return place
+    }
 
     override suspend fun streamFor(item: PlayableItem, picture: Boolean): TargetStream? {
         val fromYouTube = picture && item.handle is PlayHandle.Video && !item.item.id.isJellyfin &&

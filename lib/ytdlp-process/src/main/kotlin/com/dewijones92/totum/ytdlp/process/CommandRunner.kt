@@ -20,6 +20,8 @@ public fun interface CommandRunner {
     public suspend fun run(args: List<String>): String
 
     public fun lines(args: List<String>): Flow<String> = flow { run(args).lines().forEach { emit(it) } }
+
+    public suspend fun warm(): String = run(listOf("warm"))
 }
 
 /**

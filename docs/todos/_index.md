@@ -54,6 +54,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [Playing or queueing a Pi item never copies it to the phone](pi-files-never-copied-by-playing.md) | downloads/home | high | built 2026-11-06, Batch A (tests owed) |
 | [A Pi copy casts with its picture](cast-home-copy-picture.md) | casting | high | built 2026-11-06, Batch A (ADR 122); tests to follow |
 | [Cast the best quality only; Totum steps down itself](cast-best-quality-only.md) | casting | high | built 2026-11-06, Batch A (ADR 122); tests and device checks to follow |
+| [A cast through the Pi starts fast and carries your place](cast-start-speed.md) | casting | high | built 2026-11-27, Batch C (ADR 189); not yet on the Pi |
 | [Casting keeps your place and notices the end](cast-progress-and-end.md) | casting | high | built 2026-11-06 (tests pending), Batch A |
 | [A channel's Videos reload when reopened](channel-videos-reload.md) | video | medium | built 2026-11-06, Batch A (tests owed) |
 | [Starting an album or group switches Repeat one off](repeat-one-off-on-group-play.md) | queue | high | built 2026-11-06, Batch A (tests owed) |

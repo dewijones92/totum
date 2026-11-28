@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.Flow
  * running yt-dlp (in progress), and [com.dewijones92.totum.ytdlp.fake.FakeYtDlpEngine]
  * for tests, previews, and development against the boundary.
  */
+@Suppress("TooManyFunctions")
 public interface YtDlpEngine {
 
     /** Versions of the moving parts, for diagnostics and update decisions. */
@@ -46,6 +47,10 @@ public interface YtDlpEngine {
         "this engine has no ffmpeg"
 
     public suspend fun warmUp()
+
+    public suspend fun warmPlayer(playerUrl: String): PlayerWarmth = PlayerWarmth.unsupported()
+
+    public suspend fun engineState(): EngineState = EngineState.UNKNOWN
 
     /**
      * Downloads media described by [request]. The returned flow is cold:

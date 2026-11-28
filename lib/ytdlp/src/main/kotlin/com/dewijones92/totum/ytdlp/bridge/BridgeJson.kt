@@ -1,3 +1,5 @@
+@file:Suppress("TooManyFunctions")
+
 package com.dewijones92.totum.ytdlp.bridge
 
 import com.dewijones92.totum.common.Diag
@@ -5,10 +7,12 @@ import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.ytdlp.ChannelResult
 import com.dewijones92.totum.ytdlp.ChapterInfo
 import com.dewijones92.totum.ytdlp.DownloadEvent
+import com.dewijones92.totum.ytdlp.EngineState
 import com.dewijones92.totum.ytdlp.EngineVersions
 import com.dewijones92.totum.ytdlp.ExtractionResult
 import com.dewijones92.totum.ytdlp.MediaFormat
 import com.dewijones92.totum.ytdlp.MediaMetadata
+import com.dewijones92.totum.ytdlp.PlayerWarmth
 import com.dewijones92.totum.ytdlp.VideoSearchEntry
 import com.dewijones92.totum.ytdlp.VideoSearchResult
 import kotlinx.serialization.json.Json
@@ -32,6 +36,41 @@ public fun parseVersions(text: String): EngineVersions {
     return EngineVersions(
         ytDlp = obj.stringOrNull("yt_dlp") ?: "unknown",
         python = obj.stringOrNull("python") ?: "unknown",
+    )
+}
+
+public fun parseEngineState(text: String): EngineState {
+    val obj = runCatching { json.parseToJsonElement(text).jsonObject }.getOrElse {
+        Diag.warn("engine", "engine state returned unreadable JSON")
+        return EngineState.UNKNOWN
+    }
+    if (!obj.isOk()) return EngineState.UNKNOWN
+    fun flag(key: String) = obj[key]?.jsonPrimitive?.booleanOrNull ?: false
+    fun count(key: String) = obj[key]?.jsonPrimitive?.longOrNull?.toInt() ?: 0
+    return EngineState(
+        warm = flag("warm"),
+        solverReady = flag("solver_ready"),
+        solverPlayerCache = flag("solver_player_cache"),
+        sharedPlayerCaches = flag("shared_player_caches"),
+        networkShared = flag("network_shared"),
+        playerFetches = count("player_fetches"),
+        playerParses = count("player_parses"),
+        solves = count("solves"),
+        preprocessedPlayers = (obj["preprocessed_players"] as? JsonArray)
+            ?.mapNotNull { it.jsonPrimitive.contentOrNull }
+            .orEmpty(),
+    )
+}
+
+public fun parsePlayerWarmth(text: String): PlayerWarmth {
+    val obj = runCatching { json.parseToJsonElement(text).jsonObject }.getOrElse {
+        return PlayerWarmth(ok = false, alreadyHeld = false, tookMs = 0, detail = "unreadable JSON")
+    }
+    return PlayerWarmth(
+        ok = obj.isOk(),
+        alreadyHeld = obj["already"]?.jsonPrimitive?.booleanOrNull ?: false,
+        tookMs = obj["ms"]?.jsonPrimitive?.longOrNull ?: 0,
+        detail = obj.stringOrNull("detail"),
     )
 }
 

@@ -42,8 +42,10 @@ import com.dewijones92.totum.domain.skipsSilence
 import com.dewijones92.totum.playback.CaptionChoice
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.io.File
@@ -85,6 +87,9 @@ internal class TargetDeck(
     private var linkMs = 0L
     private var sinkWaitMs = 0L
     private var resolveMs = 0L
+    private var resolveWaitedMs = 0L
+    private var playMs = 0L
+    private var early: EarlyLookUp? = null
     private var sound = SoundSettings()
     private var repeat = RepeatMode.OFF
     private var captionChoice = CaptionChoice()
@@ -210,7 +215,8 @@ internal class TargetDeck(
                 it.item.item.id.value == (request.startItemId ?: wanted.first().item.id.value)
             }
             val at = first.coerceAtLeast(0)
-            pending = PendingStart(queue.entries[at].itemId(), at, request.startAtMs.takeIf { !request.shuffle } ?: 0)
+            val startAtMs = if (request.shuffle) 0L else request.startAtMs
+            pending = PendingStart(queue.entries[at].itemId(), at, startAtMs, clock())
             starting = true
         }
         save()
@@ -219,12 +225,37 @@ internal class TargetDeck(
 
     suspend fun startPending() {
         val wanted = lock.withLock { pending } ?: return
+        beginLookUpBesideTheLink(wanted)
         reachingFirst(needsLink = true) {
             if (pending === wanted) startPendingLocked() else startCalledOff(wanted)
         }
     }
 
+    private suspend fun beginLookUpBesideTheLink(wanted: PendingStart) {
+        lock.withLock {
+            if (pending !== wanted || destination != null) return
+            val index = indexOfPending(wanted) ?: return
+            val item = queue.entries[index].item
+            val picture = wantsPicture(item)
+            Diag.log(
+                "targets",
+                "${target.id}: looking up ${item.item.id.value} while the link is still being made " +
+                    "(waited ${clock() - wanted.acceptedAtMs}ms since the request was accepted)",
+            )
+            early = EarlyLookUp(
+                item.item.id.value,
+                picture,
+                clock(),
+                scope.async { runCatching { lookUp(item, picture) } },
+            )
+        }
+    }
+
+    private fun wantsPicture(item: PlayableItem): Boolean = target.kind.hasPicture && item.picture != Picture.NO
+
     private suspend fun startCalledOff(wanted: PendingStart) {
+        early?.result?.cancel()
+        early = null
         val handBack = pending == null && destination == null && reachedAhead != null
         Diag.log(
             "targets",
@@ -270,6 +301,8 @@ internal class TargetDeck(
         }
         val began = clock()
         resolveMs = 0
+        resolveWaitedMs = 0
+        playMs = 0
         try {
             startAt(index, start.startAtMs)
         } catch (e: CancellationException) {
@@ -285,11 +318,17 @@ internal class TargetDeck(
             playing = false
         } finally {
             starting = pending != null
+            early?.result?.cancel()
+            early = null
         }
+        val overlap = resolveMs - resolveWaitedMs
         Diag.log(
             "targets",
             "${target.id}: start of item $index done, playing=$playing " +
-                "link=${linkMs}ms sinkWait=${sinkWaitMs}ms resolve=${resolveMs}ms total=${clock() - began + linkMs}ms",
+                "accepted=${began - start.acceptedAtMs - linkMs}ms-before-the-link link=${linkMs}ms " +
+                "sinkWait=${sinkWaitMs}ms resolve=${resolveMs}ms resolveWaitedAfterLink=${resolveWaitedMs}ms " +
+                "play=${playMs}ms total=${clock() - began + linkMs}ms " +
+                "(resolve ${if (overlap > 0) "overlapped the link by ${overlap}ms" else "did not overlap the link"})",
         )
     }
 
@@ -750,7 +789,41 @@ internal class TargetDeck(
         return if (refusal != null) null to refusal else sounds.streamFor(item, picture) to null
     }
 
-    private suspend fun startAt(index: Int, startAtMs: Long = 0) {
+    private suspend fun lookUpBesideTheLinkOrNow(item: PlayableItem, picture: Boolean): Pair<TargetStream?, String?> {
+        val lookedUpAt = clock()
+        val beside = early?.takeIf { it.itemId == item.item.id.value && it.picture == picture }
+        early = null
+        val found = beside?.result?.await()?.getOrThrow() ?: lookUp(item, picture)
+        resolveMs += clock() - (beside?.beganAtMs ?: lookedUpAt)
+        resolveWaitedMs += clock() - lookedUpAt
+        return found
+    }
+
+    private fun startPointFor(item: PlayableItem, asked: Long?): StartPoint {
+        if (item.item.contentKind == MediaContentKind.LIVE) return StartPoint(0L, "the live edge")
+        if (asked != null) return StartPoint(asked, "the place it was asked for")
+        val account = sounds.resumeFor(item)
+            ?: return StartPoint(0L, "the start, no place was asked for or known")
+        return StartPoint(account, "the account's place, none was asked for")
+    }
+
+    private fun passOverForNoStream(item: PlayableItem, picture: Boolean, refusal: String?) {
+        val why = refusal ?: sounds.whyNone(item)
+        val until = sounds.refusedUntil(item)
+        val kind = if (until != null) TroubleKind.YOUTUBE_BACKOFF else TroubleKind.COULD_NOT_PLAY
+        problem = TroubleWords.problem(
+            target.label,
+            TargetTrouble(kind, item.item.id.value, why, until),
+            item.item.title,
+        )
+        Diag.warn(
+            "targets",
+            "${target.id}: no stream for ${item.item.id.value} (${item.item.title}) " +
+                "picture=$picture, passing over: $why",
+        )
+    }
+
+    private suspend fun startAt(index: Int, asked: Long? = 0) {
         var at = index
         while (at in queue.entries.indices) {
             val reached = destination ?: reachedAhead
@@ -767,30 +840,19 @@ internal class TargetDeck(
             }
             destination = reached
             val item = queue.entries[at].item
-            val picture = target.kind.hasPicture && item.picture != Picture.NO
+            val picture = wantsPicture(item)
             val itemSound = sound.copy(skipSilence = item.item.contentKind.skipsSilence(sound.skipSilence))
-            val lookedUpAt = clock()
-            val (stream, refusal) = lookUp(item, picture)
-            resolveMs += clock() - lookedUpAt
+            val (stream, refusal) = lookUpBesideTheLinkOrNow(item, picture)
             if (stream == null) {
-                val why = refusal ?: sounds.whyNone(item)
-                val until = sounds.refusedUntil(item)
-                val kind = if (until != null) TroubleKind.YOUTUBE_BACKOFF else TroubleKind.COULD_NOT_PLAY
-                problem = TroubleWords.problem(
-                    target.label,
-                    TargetTrouble(kind, item.item.id.value, why, until),
-                    item.item.title,
-                )
-                Diag.warn(
-                    "targets",
-                    "${target.id}: no stream for ${item.item.id.value} (${item.item.title}) " +
-                        "picture=$picture, passing over: $why"
-                )
+                passOverForNoStream(item, picture, refusal)
                 at++
                 continue
             }
             queue = queue.copy(currentIndex = at)
-            placeMs = if (item.item.contentKind == MediaContentKind.LIVE) 0 else startAtMs
+            val startPoint = startPointFor(item, asked)
+            val startAtMs = startPoint.ms
+            placeMs = startAtMs
+            val playBegan = clock()
             player.play(
                 PlayRequest(
                     stream.url,
@@ -803,6 +865,7 @@ internal class TargetDeck(
                     item.item.id.value,
                 ),
             )
+            playMs += clock() - playBegan
             playing = true
             lastSeenMs = null
             movedAtMs = clock()
@@ -813,8 +876,8 @@ internal class TargetDeck(
                 "targets",
                 "${target.id}: playing $at/${queue.entries.size} ${item.item.title} on $reached " +
                     "picture=$picture sound=$itemSound (asked for $sound, kind ${item.item.contentKind}) " +
-                    "from=${startAtMs}ms volume=${volumeNow() ?: "unknown"} mode=${volumeControl?.mode ?: "n/a"} " +
-                    "(a play never sets it)",
+                    "from=${startAtMs}ms (${startPoint.from}) volume=${volumeNow() ?: "unknown"} " +
+                    "mode=${volumeControl?.mode ?: "n/a"} (a play never sets it)",
             )
             save()
             queue.entries.getOrNull(at + 1)?.let { lookAhead(it.item) }
@@ -936,7 +999,16 @@ private val REACH_TROUBLES = setOf(
 
 private fun QueueEntry.itemId(): String = item.item.id.value
 
-private class PendingStart(val itemId: String, val index: Int, val startAtMs: Long)
+private class PendingStart(val itemId: String, val index: Int, val startAtMs: Long?, val acceptedAtMs: Long)
+
+private class StartPoint(val ms: Long, val from: String)
+
+private class EarlyLookUp(
+    val itemId: String,
+    val picture: Boolean,
+    val beganAtMs: Long,
+    val result: Deferred<Result<Pair<TargetStream?, String?>>>,
+)
 
 private val INDEXED_ACTIONS = setOf(TargetAction.JUMP, TargetAction.REMOVE)
 

@@ -136,6 +136,21 @@ an item but nothing names it [...]`, `dewidebug not asking where else it was wat
 `dewidebug step-down watch: the receiver names nothing; using <id>, the item Totum sent`, `dewidebug step-down watch: the TV is
 buffering and nothing names the item, ...`, `dewidebug silent tail not watched: nothing names the item`.
 
+## Starting a cast through the Pi: warm, overlapped and carrying your place (2026-11-27, [ADR 189](../adr/0189-an-adapter-owns-transport-only-policy-is-shared-and-pinned-by-the-contract-suite.md))
+
+Report 20261120T211551 and the Pi's logs of 20 to 26 November: a cast to the LG took 14 to 38 s, `solve_n` 3.8 to 21 s of it.
+
+- **Warm engine.** The Pi's `ProcessYtDlpEngine` talks to two long-lived Python workers running the phone's bridge
+  (`totum_ytdlp.py serve`), warmed at start with the current player build (`PlayerWarmer`, `warm` log lines). One
+  `YtDlpEngineContract` pins the policy for the Pi's engine and the phone's.
+- **The look-up runs beside the TV connection** (`TargetDeck.beginLookUpBesideTheLink`). The per-start line now reads
+  `accepted=…ms-before-the-link link=… sinkWait=… resolve=… resolveWaitedAfterLink=… play=… total=… (resolve overlapped the link by …ms)`.
+- **The phone hands over its resolve** with `PLAY` (`TargetQueueRequest.handed`, `ResolveHandOver`), on an unmetered network
+  only; the Pi keeps it only if one stream address answers 2xx there (`handover` log lines), else resolves for itself.
+- **Your place is carried.** The phone sends the place it would have resumed at; the Pi treats no `startAtMs` as "resume as usual"
+  (the account's place from the player answer) and an explicit 0 as "from the start". The Pi's `from=` log line says which.
+- Not yet seen on the real Pi: nothing here applies until the Pi runs this version.
+
 ## A generic Chromecast, and a TV that goes quiet (2026-11-20, [ADR 179](../adr/0179-a-silent-cast-moves-to-the-next-codec-and-an-unmeasured-tv-gets-h264-first.md))
 
 Reports of 14 to 17 November (v0.1.927): Kitchen TV and Living Room TV (model string "Chromecast", not the Ultra) fetched the

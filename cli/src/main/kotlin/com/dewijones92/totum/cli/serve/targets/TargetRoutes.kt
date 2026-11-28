@@ -19,6 +19,7 @@ import kotlinx.serialization.builtins.serializer
 internal class TargetRoutes(
     private val decks: TargetDecks,
     private val browserAddress: () -> String? = { null },
+    private val acceptHanded: suspend (TargetQueueRequest) -> Unit = {},
 ) : Routes {
 
     override fun handles(path: String): Boolean = path in PATHS
@@ -33,6 +34,7 @@ internal class TargetRoutes(
             method != "POST" -> exchange.reply(NOT_FOUND, """{"error":"no such route"}""")
             path == "/targets/queue" -> withDeck(exchange, TargetQueueRequest.serializer()) { deck, request ->
                 val began = System.currentTimeMillis()
+                acceptHanded(request)
                 when (val result = deck.accept(request)) {
                     is EnqueueResult.Accepted -> {
                         val start = decks.startInBackground(deck)

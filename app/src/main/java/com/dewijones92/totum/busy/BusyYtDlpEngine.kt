@@ -5,8 +5,10 @@ import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.ytdlp.ChannelResult
 import com.dewijones92.totum.ytdlp.DownloadEvent
 import com.dewijones92.totum.ytdlp.DownloadRequest
+import com.dewijones92.totum.ytdlp.EngineState
 import com.dewijones92.totum.ytdlp.EngineVersions
 import com.dewijones92.totum.ytdlp.ExtractionResult
+import com.dewijones92.totum.ytdlp.PlayerWarmth
 import com.dewijones92.totum.ytdlp.VideoSearchResult
 import com.dewijones92.totum.ytdlp.YtDlpEngine
 import kotlinx.coroutines.flow.Flow
@@ -32,6 +34,10 @@ class BusyYtDlpEngine(private val delegate: YtDlpEngine) : YtDlpEngine {
     override suspend fun versions(): EngineVersions = delegate.versions()
 
     override suspend fun warmUp(): Unit = delegate.warmUp()
+
+    override suspend fun warmPlayer(playerUrl: String): PlayerWarmth = delegate.warmPlayer(playerUrl)
+
+    override suspend fun engineState(): EngineState = delegate.engineState()
 
     override suspend fun extract(url: HttpUrl): ExtractionResult =
         Busy.during("extracting ${url.value.substringAfter("watch?v=").take(VIDEO_ID_LENGTH)}") {

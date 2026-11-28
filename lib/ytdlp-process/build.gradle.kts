@@ -26,7 +26,9 @@ sourceSets.named("main") { resources.srcDir(bridgeScript) }
 dependencies {
     api(project(":lib:ytdlp"))
     implementation(libs.kotlinx.coroutines.core)
+    implementation(libs.kotlinx.serialization.json)
 
+    testImplementation(testFixtures(project(":lib:ytdlp")))
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
 }

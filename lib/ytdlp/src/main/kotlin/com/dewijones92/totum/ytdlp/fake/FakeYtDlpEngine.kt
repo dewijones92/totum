@@ -8,6 +8,7 @@ import com.dewijones92.totum.ytdlp.EngineVersions
 import com.dewijones92.totum.ytdlp.ExtractionResult
 import com.dewijones92.totum.ytdlp.MediaFormat
 import com.dewijones92.totum.ytdlp.MediaMetadata
+import com.dewijones92.totum.ytdlp.PlayerWarmth
 import com.dewijones92.totum.ytdlp.VideoSearchEntry
 import com.dewijones92.totum.ytdlp.VideoSearchResult
 import com.dewijones92.totum.ytdlp.YtDlpEngine
@@ -58,6 +59,15 @@ public class FakeYtDlpEngine : YtDlpEngine {
 
     override suspend fun warmUp() {
         warmUps++
+    }
+
+    public val warmedPlayers: MutableList<String> = mutableListOf()
+
+    public var warmPlayerOk: Boolean = true
+
+    override suspend fun warmPlayer(playerUrl: String): PlayerWarmth {
+        warmedPlayers += playerUrl
+        return PlayerWarmth(ok = warmPlayerOk, alreadyHeld = false, tookMs = 0)
     }
 
     override suspend fun versions(): EngineVersions =

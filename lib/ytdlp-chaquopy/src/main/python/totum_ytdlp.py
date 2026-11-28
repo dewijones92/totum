@@ -427,17 +427,91 @@ def _network_state():
         return f"http unknown ({type(e).__name__})"
 
 
+_WARM = False
+
+
 def warm_up():
     import time
 
+    global _WARM
     started = time.monotonic()
-    _enable_solver_player_cache()
+    cache = _enable_solver_player_cache()
     with yt_dlp.YoutubeDL({"quiet": True, "logger": _CollectingLogger(), "js_runtimes": _js_runtimes()}) as ydl:
         _share_player_caches(ydl)
         _shared_network()._request_director
+        solver = _n_solver()
+        known = len(_cached_player_urls(solver, _PLAYER_BUILDS_KEPT))
         ready = f"yt-dlp {yt_dlp.version.__version__} ready in {round((time.monotonic() - started) * 1000)}ms"
+        ready += f", solver player cache {'on' if cache else 'off'}, {known} preprocessed player(s) on disk"
         ready += f", {_network_state()}"
+        _WARM = True
         return f"{ready}; {_preload_v8(ydl)}"
+
+
+_WARM_CHALLENGE = "totum-warm-challenge-0123456789"
+
+
+def prepare_player(player_url):
+    import time
+
+    started = time.monotonic()
+    before = dict(_COUNTS)
+    try:
+        if not _enable_solver_player_cache():
+            return json.dumps({"ok": False, "detail": "the solver's player cache is not available"})
+        solver = _n_solver()
+        if _has_preprocessed(solver, player_url):
+            return json.dumps({"ok": True, "already": True, "ms": round((time.monotonic() - started) * 1000)})
+        _solve_challenges("n", [_WARM_CHALLENGE], player_url)
+        done = _has_preprocessed(solver, player_url)
+        return json.dumps({
+            "ok": done,
+            "already": False,
+            "ms": round((time.monotonic() - started) * 1000),
+            "fetches": _COUNTS["player_fetches"] - before["player_fetches"],
+            "parses": _COUNTS["player_parses"] - before["player_parses"],
+            **({} if done else {"detail": "the solve ran but no preprocessed player was stored"}),
+        })
+    except Exception as e:  # noqa: BLE001
+        return json.dumps({"ok": False, "detail": "{}: {}".format(type(e).__name__, e)})
+
+
+def _has_preprocessed(extractor, player_url):
+    try:
+        return os.path.exists(extractor.cache._get_cache_fn("challenge-solver", f"player:{player_url}", "json"))
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def engine_state():
+    try:
+        from yt_dlp.extractor.youtube.jsc._builtin import ejs
+
+        cache_on = bool(ejs.EJSBaseJCP._ENABLE_PREPROCESSED_PLAYER_CACHE)
+    except Exception:  # noqa: BLE001
+        cache_on = False
+    players = []
+    shared = False
+    if _N_SOLVER is not None:
+        try:
+            players = _cached_player_urls(_N_SOLVER, _SOLVER_PLAYERS_KEPT)
+        except Exception:  # noqa: BLE001
+            players = []
+        shared = _N_SOLVER._code_cache is _SHARED_PLAYER_CODE and _N_SOLVER._player_cache is _SHARED_PLAYER_DATA
+    with _COUNTS_LOCK:
+        counts = dict(_COUNTS)
+    return json.dumps({
+        "ok": True,
+        "warm": _WARM,
+        "solver_ready": _N_SOLVER is not None,
+        "solver_player_cache": cache_on,
+        "shared_player_caches": shared,
+        "network_shared": _NETWORK is not None and "_request_director" in _NETWORK.__dict__,
+        "player_fetches": counts["player_fetches"],
+        "player_parses": counts["player_parses"],
+        "solves": counts["solves"],
+        "preprocessed_players": players,
+    })
 
 
 # The solver, built ONCE. Rebuilding it per call threw away yt-dlp's own cache of the
@@ -462,8 +536,47 @@ def _enable_solver_player_cache():
         from yt_dlp.extractor.youtube.jsc._builtin import ejs
 
         ejs.EJSBaseJCP._ENABLE_PREPROCESSED_PLAYER_CACHE = True
+        _instrument_solver()
         return True
     except Exception:  # noqa: BLE001 - see docstring
+        return False
+
+
+_COUNTS = {"player_fetches": 0, "player_parses": 0, "solves": 0}
+_COUNTS_LOCK = threading.Lock()
+_SOLVER_INSTRUMENTED = False
+
+
+def _count(name):
+    with _COUNTS_LOCK:
+        _COUNTS[name] += 1
+
+
+def _instrument_solver():
+    global _SOLVER_INSTRUMENTED
+    if _SOLVER_INSTRUMENTED:
+        return True
+    try:
+        from yt_dlp.extractor.youtube.jsc._builtin import ejs
+        from yt_dlp.extractor.youtube.jsc.provider import JsChallengeProvider
+
+        get_player = JsChallengeProvider._get_player
+        construct = ejs.EJSBaseJCP._construct_stdin
+
+        def counted_get_player(self, video_id, player_url):
+            _count("player_fetches")
+            return get_player(self, video_id, player_url)
+
+        def counted_construct(self, player, preprocessed, requests):
+            if not preprocessed:
+                _count("player_parses")
+            return construct(self, player, preprocessed, requests)
+
+        JsChallengeProvider._get_player = counted_get_player
+        ejs.EJSBaseJCP._construct_stdin = counted_construct
+        _SOLVER_INSTRUMENTED = True
+        return True
+    except Exception:  # noqa: BLE001 - a wheel that moves these must degrade to "uncounted", never a crash
         return False
 
 
@@ -476,7 +589,7 @@ _PLAYER_DATA_KEPT = 2000
 
 def _share_player_caches(ydl):
     try:
-        extractor = ydl.get_info_extractor("Youtube")
+        extractor = ydl.get_info_extractor("Youtube") if hasattr(ydl, "get_info_extractor") else ydl
         while len(_SHARED_PLAYER_CODE) > _PLAYER_BUILDS_KEPT:
             _SHARED_PLAYER_CODE.pop(next(iter(_SHARED_PLAYER_CODE)))
         if len(_SHARED_PLAYER_DATA) > _PLAYER_DATA_KEPT:
@@ -620,6 +733,7 @@ def _define_v8_provider():
                     mode = "preprocessed" if player else "raw"
                     if not player:
                         player = self._get_player(next((r.video_id for r in group), None), player_url)
+                        _count("player_parses")
                     stdout = _V8_RUNTIME.solveWithPlayer(player_url, json.dumps(player), mode == "preprocessed", wanted)
             except JsChallengeProviderError:
                 raise
@@ -656,6 +770,8 @@ def _cached_player_urls(ydl, newest):
     from urllib.parse import unquote
 
     section = os.path.join(ydl.cache._get_root_dir(), "challenge-solver")
+    if not os.path.isdir(section):
+        return []
     names = sorted(
         (n for n in os.listdir(section) if n.startswith("player")),
         key=lambda n: os.path.getmtime(os.path.join(section, n)),
@@ -704,6 +820,7 @@ def _n_solver():
         extractor = YoutubeIE()
         extractor.set_downloader(ydl)
         extractor.initialize()
+        _share_player_caches(extractor)
         _N_SOLVER = extractor
     return _N_SOLVER
 
@@ -761,6 +878,7 @@ def _solve_challenges(kind, challenges, player_url):
                 type=JsChallengeType.N,
                 input=NChallengeInput(challenges=list(challenges), player_url=player_url),
             )
+        _count("solves")
         solved = {}
         for _request, response in extractor._jsc_director.bulk_solve([request]):
             solved.update(response.output.results)
@@ -974,6 +1092,12 @@ def _main(argv):
         return solve_n(json.loads(args[0]), args[1])
     if command == "solve_sig":
         return solve_sig(json.loads(args[0]), args[1])
+    if command == "warm":
+        return json.dumps({"ok": True, "detail": warm_up()})
+    if command == "prepare_player":
+        return prepare_player(args[0])
+    if command == "state":
+        return engine_state()
     if command == "download":
         return download(args[0], args[1], args[2] or None, _ProgressLines(), args[3] or None, args[4])
     return json.dumps({"ok": False, "kind": "extractor", "detail": "unknown command " + command})
@@ -984,15 +1108,41 @@ class _ProgressLines:
         print("PROGRESS " + json.dumps([downloaded, total, eta]), flush=True)
 
 
-if __name__ == "__main__":
-    import os
+def _configure_from_env():
+    runtime = os.environ.get("TOTUM_JS_RUNTIME", "")
+    if ":" in runtime:
+        name, path = runtime.split(":", 1)
+        configure_js_runtime(path, name)
+
+
+def _serve():
     import sys
 
-    _runtime = os.environ.get("TOTUM_JS_RUNTIME", "")
-    if ":" in _runtime:
-        _name, _path = _runtime.split(":", 1)
-        configure_js_runtime(_path, _name)
+    reply = os.fdopen(os.dup(sys.stdout.fileno()), "w", encoding="utf-8")
+    sys.stdout = sys.stderr
+    for line in sys.stdin:
+        if not line.strip():
+            continue
+        try:
+            request = json.loads(line)
+            request_id, args = request["id"], request["args"]
+        except Exception as e:  # noqa: BLE001
+            reply.write(json.dumps({"id": None, "error": "unreadable request: {}".format(e)}) + "\n")
+            reply.flush()
+            continue
+        try:
+            output = _main(args)
+        except BaseException as e:  # noqa: BLE001 - a command must never take the worker down
+            output = json.dumps({"ok": False, "kind": "extractor", "detail": "worker: {}: {}".format(type(e).__name__, e)})
+        reply.write(json.dumps({"id": request_id, "output": output}) + "\n")
+        reply.flush()
+    return 0
 
-    # Written to stdout as one line; yt-dlp's own chatter goes to stderr and is ignored, which
-    # is why the caller must not merge the two streams.
+
+if __name__ == "__main__":
+    import sys
+
+    _configure_from_env()
+    if sys.argv[1:2] == ["serve"]:
+        sys.exit(_serve())
     sys.stdout.write(_main(sys.argv[1:]))

@@ -268,7 +268,7 @@ internal suspend fun serveAsk(port: Int, out: (String) -> Unit, polite: Politene
         health = health,
         polite = polite,
         posterFor = Cinemeta(OkHttpClient())::posterFor,
-    )
+    ).also { it.warmUp() }
     val targetsDir = File(home.dataDir, "targets")
     val shell = SystemShell()
     val streams = PiStreams(
@@ -311,7 +311,7 @@ internal suspend fun serveAsk(port: Int, out: (String) -> Unit, polite: Politene
     browsers.keepWatching(this, targets::sourcesChanged)
     val states = AskStates().also { sweepEvery(it) }
     val browserAddress = browserAddressOf(System.getenv("TOTUM_CAST_BASE")).takeIf { browserPage }
-    val targetRoutes = TargetRoutes(targets, browserAddress = { browserAddress })
+    val targetRoutes = TargetRoutes(targets, browserAddress = { browserAddress }, acceptHanded = home::acceptHanded)
     val routes = listOfNotNull(
         targetRoutes,
         castOutFromEnv(this, streams, jellyfin, home::fileOf),

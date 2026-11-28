@@ -380,6 +380,7 @@ import com.dewijones92.totum.video.PlayedByHandReporter
 import com.dewijones92.totum.video.PlayedStateRepair
 import com.dewijones92.totum.video.ProgressOutboxDrain
 import com.dewijones92.totum.video.ReadyAhead
+import com.dewijones92.totum.video.ResolveHandOver
 import com.dewijones92.totum.video.SignedInTvPlayer
 import com.dewijones92.totum.video.StreamChoices
 import com.dewijones92.totum.video.StreamStatus
@@ -1024,8 +1025,17 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             sleepFade = { bedtime.fade },
             playOn = PrefsPlayOn(context),
             unmetered = { !networkStatus.isMetered() },
+            resumePointMs = ::resumePointFor,
+            handOver = resolveHandOver::offer,
         )
     }
+
+    private val resolveLookups: FileLookupStore by lazy { FileLookupStore(File(context.cacheDir, "lookups")) }
+
+    private val resolveHandOver: ResolveHandOver by lazy { ResolveHandOver(resolveLookups) }
+
+    private suspend fun resumePointFor(id: MediaItemId): Long? =
+        randomStarts.peek(id) ?: accountProgressStore.resumePositionMs(id)
 
     override val deviceMarks: DeviceMarks by lazy {
         DeviceMarks(targets, playbackController.state.map { it?.itemId?.value }, applicationScope)
@@ -1299,7 +1309,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             // formats, so without this the app plays whichever the extractor happened to list
             // first — report 0.1.373 watched an English talk in German.
             preferredAudioLanguages = streamChoices::preferredAudioLanguages,
-            lookupStore = FileLookupStore(File(context.cacheDir, "lookups")),
+            lookupStore = resolveLookups,
             streamStatus = StreamStatus(httpClient)::of,
             liveStates = liveStates,
             online = networkStatus::isOnline,
