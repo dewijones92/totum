@@ -54,6 +54,8 @@ internal class KodiControl(
 
     @Volatile private var connected = false
 
+    @Volatile private var unreachableBecause: String? = null
+
     @Volatile private var deviceVolume: Int? = null
 
     @Volatile private var playerId: Int? = null
@@ -76,15 +78,24 @@ internal class KodiControl(
             Diag.log("cast-target", "$label: Kodi JSON-RPC answered at ${kodiHostPort(address)} (api $version)")
             readFacts()
             connected = true
+            unreachableBecause = null
             true
         } catch (e: KodiRefusedLogin) {
             Diag.warn("cast-target", "$label: ${e.message}; check the file named by TOTUM_KODI_CREDENTIALS")
+            unreachableBecause = if (e.noCredentials) {
+                "🔑 Totum has no sign-in for $label: check TOTUM_KODI_CREDENTIALS"
+            } else {
+                "🔑 $label refused the sign-in: check its web server password"
+            }
             false
         } catch (e: java.io.IOException) {
             Diag.warn("cast-target", "$label: Kodi JSON-RPC did not answer at ${kodiHostPort(address)}", e)
+            unreachableBecause = null
             false
         }
     }
+
+    override val whyUnreachable: String? get() = unreachableBecause
 
     private fun alive(): Boolean = try {
         rpc.call("JSONRPC.Version")

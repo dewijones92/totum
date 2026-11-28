@@ -76,6 +76,7 @@ internal class TargetDeck(
     private var playing = false
     private var destination: String? = null
     private var problem: Problem? = null
+    private var volumeProblem: Problem? = null
     private var starting = false
     private var pending: PendingStart? = null
     private var placeMs = 0L
@@ -302,12 +303,23 @@ internal class TargetDeck(
     private suspend fun volumeChanged(control: TargetControl): TargetState {
         val wanted = control.volume?.coerceIn(0, MAX_VOLUME)
         Diag.log("targets", "${target.id}: VOLUME wanted=$wanted at=${queue.currentIndex} playing=$playing")
-        if (wanted != null) {
-            val followed = sleep.personSetVolume(wanted)
-            Diag.log("targets", "${target.id}: volume set to $wanted from the phone, followed by a fade=$followed")
-            if (!followed) volumeControl?.set(wanted) ?: player.volume(wanted)
-        }
+        if (wanted != null) setVolumeFromThePhone(wanted)
         return state()
+    }
+
+    private suspend fun setVolumeFromThePhone(wanted: Int) {
+        val followed = sleep.personSetVolume(wanted)
+        val refusal = if (followed || volumeControl != null) null else player.volumeRefusal()
+        if (refusal != null) {
+            Diag.warn("targets", "${target.id}: volume $wanted NOT set: $refusal")
+            val text = "⚠️ Couldn't set ${target.label}'s volume to $wanted: $refusal"
+            volumeProblem = Problem(TargetTrouble(TroubleKind.WONT_WAKE, reason = text), text).also { problem = it }
+            return
+        }
+        Diag.log("targets", "${target.id}: volume set to $wanted from the phone, followed by a fade=$followed")
+        if (!followed) volumeControl?.set(wanted) ?: player.volume(wanted)
+        volumeProblem?.let { stale -> if (problem === stale) problem = null }
+        volumeProblem = null
     }
 
     @Suppress("CyclomaticComplexMethod")

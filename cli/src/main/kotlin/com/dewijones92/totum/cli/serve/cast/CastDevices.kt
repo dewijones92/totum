@@ -154,6 +154,10 @@ internal class FirstReachableControl(
 
     override fun volume(percent: Int) = current.volume(percent)
 
+    override fun volumeRefusal(): String? = current.volumeRefusal()
+
+    override val whyUnreachable: String? get() = controls.firstNotNullOfOrNull { it.second.whyUnreachable }
+
     override fun volumePercent(): Int? = current.volumePercent()
 
     override fun stop() = current.stop()
