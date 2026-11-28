@@ -2,7 +2,7 @@
 title: Record decisions as ADRs
 kind: adr
 status: accepted
-updated: 2026-10-01
+updated: 2026-11-28
 ---
 
 # 1. Record decisions as ADRs
@@ -23,6 +23,8 @@ on 2026-10-01, for a rule to *"remember to CRUD any ADR"*.
 - Making, changing or reversing a decision creates, updates or supersedes its ADR **in the same
   change**, exactly like the rest of the living docs.
 - The `CLAUDE.md` Decisions table stays as the summary and links to the ADR where one exists.
+  (Amended 2026-11-28 by [ADR 199](0199-claude-md-holds-the-rules-and-the-decisions-table-lives-in-docs.md): the table is now
+  [`docs/decisions.md`](../decisions.md); it is still the summary.)
 
 ## Consequences
 

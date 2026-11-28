@@ -1,15 +1,15 @@
 ---
 title: Totum docs
 kind: index
-updated: 2026-11-07
+updated: 2026-11-28
 ---
 
 # Totum documentation
 
 Living documentation for Totum — the single Android app replacing PipePipe
 (YouTube) and AntennaPod (podcasts) with one unified domain model. `CLAUDE.md`
-(repo root) holds the binding decisions and quality bar; these docs track the
-detail and keep it current.
+(repo root) holds the binding rules and quality bar; these docs hold the decisions, the
+procedures and the detail, and keep them current.
 
 ## Layout
 
@@ -17,6 +17,8 @@ detail and keep it current.
 |---|---|---|
 | [`spec.md`](spec.md) | What Totum IS, and the invariants of its core loop | one file |
 | [`architecture.md`](architecture.md) | The unified seams + module map | one file |
+| [`decisions.md`](decisions.md) | Every standing decision, one row each (the table that was in `CLAUDE.md`) | one file; a new row per decision, linking its ADR |
+| `how-to/` | Procedures, numbers and the incidents behind a `CLAUDE.md` rule (emulator, soak, Room schema, batch, logging, releases) | `<subject>.md`; `CLAUDE.md` holds the rule and wins |
 | [`features/`](features/_index.md) | One doc per feature — status, seam, files, tests | `<feature>.md` + `_index.md` |
 | [`todos/`](todos/_index.md) | The live backlog — one file per item | `<slug>.md` + `_index.md` |
 | [`tests/`](tests/_index.md) | Testing strategy + coverage map | one file |
