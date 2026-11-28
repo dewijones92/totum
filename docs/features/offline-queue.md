@@ -3,7 +3,7 @@ title: Offline queue
 kind: feature
 status: shipped
 area: downloads
-updated: 2026-11-27
+updated: 2026-11-28
 ---
 
 # Offline queue
@@ -27,9 +27,21 @@ download: the audio is completed from the cache's bytes (only the ranges the pla
 with no player swap. An item that streams and cannot be teed is left alone until it pauses, ends or another item takes over,
 and is then fetched if it is still queued. A finished download never replaces a healthy stream: the switch waits for a pause, a
 stall or a seek. The log says which (`tee`, `download`, `playback` lines) and the completion line gives the network bytes as a
-multiple of the file. A video that plays as one HLS playlist (the default for a shared link that opens as a video) is such an item:
-no audio stream of it opens through the cache, so its audio download waits until it pauses or stops, and the hold line says why it
-is not teeable (`TeeVerdict`: HLS, SABR, live, torrent, local file, or no audio stream opened through the cache).
+multiple of the file. Podcast enclosures, SABR, live streams and torrents that cannot be teed are still held, and the hold line says why
+(`TeeVerdict`: SABR, live, torrent, local file, or no audio stream opened through the cache).
+
+**A video playing over HLS gets its audio while it plays (2026-11-28, ADR 186 amended).** A YouTube video that plays as one HLS playlist
+(`route=hls`, the default for a shared link that opens as a video) has no audio stream to copy, so by Dewi's decision its audio is
+fetched **beside the stream**, about 8% of the bytes the stream carries (35 MB beside 435 MB in the nightly's case), and the offline
+copy lands while he watches. The line says so: `fetching "<title>" beside its stream, on purpose: it plays as a YouTube HLS playlist …
+[route=hls]`. Nothing else changes: the finished copy still never replaces a healthy stream, and an audio-only copy does not stand in for a
+video being watched.
+
+**The hold starts when the play is decided (2026-11-28).** The queue told the downloader an item was streaming only once the player had it,
+several seconds after the play began, so the playing item (first in the pass) was fetched by yt-dlp beside its own stream before the hold or
+the tee existed (`ttiLcMUQq80`: download at 23:15:34.740, `PLAY wanted` at 23:15:35.379). It is now told when the route is decided
+(`StreamingIntent`; log `<id> is about to stream; the auto-download is told now`), and released a moment after the call that plays it
+returns if the player never took it, or 1.5 s after a pause or the end, so nothing flickers it off between the call and the player.
 
 **Every skip is counted (2026-11-27, [ADR 197](../adr/0197-the-auto-downloader-counts-every-skip-and-restarts-a-download-nothing-is-running.md)).**
 A pass ends with one `dewidebug pass skips:` line giving a count per reason (already on the phone, a local file, downloading

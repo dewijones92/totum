@@ -23,6 +23,36 @@ class PlayRoutesTest {
     }
 
     @Test
+    fun `a play that has been decided but not handed over does not inherit the route of an earlier play`() {
+        PlayRoutes.record("replayed-later", "hls")
+
+        PlayRoutes.forget("replayed-later")
+
+        assertNull(PlayRoutes.of("replayed-later"))
+    }
+
+    @Test
+    fun `recording a route, and forgetting one, each tell whoever watches the routes`() {
+        val before = PlayRoutes.changes.value
+
+        PlayRoutes.record("watched", "sabr")
+        val afterRecord = PlayRoutes.changes.value
+        PlayRoutes.forget("watched")
+
+        assertEquals(before + 1, afterRecord)
+        assertEquals(afterRecord + 1, PlayRoutes.changes.value)
+    }
+
+    @Test
+    fun `forgetting a route nobody recorded changes nothing`() {
+        val before = PlayRoutes.changes.value
+
+        PlayRoutes.forget("never-recorded")
+
+        assertEquals(before, PlayRoutes.changes.value)
+    }
+
+    @Test
     fun `only the most recent items are kept`() {
         (1..200).forEach { PlayRoutes.record("bounded-$it", "hls") }
 

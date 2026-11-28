@@ -43,6 +43,7 @@ import com.dewijones92.totum.domain.pictureForSwitching
 import com.dewijones92.totum.domain.routeNow
 import com.dewijones92.totum.domain.titleOf
 import com.dewijones92.totum.music.labelledForPlay
+import com.dewijones92.totum.playback.PlayRoutes
 import com.dewijones92.totum.playback.PlaybackController
 import com.dewijones92.totum.playback.PlaybackEvent
 import com.dewijones92.totum.playback.PlaybackState
@@ -55,7 +56,6 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filterIsInstance
@@ -202,12 +202,9 @@ class PlaybackQueue(
 
     private val rescueIntent = RescueIntent(controller)
 
-    private val _streaming = MutableStateFlow<MediaItemId?>(null)
+    private val streamingIntent = StreamingIntent(controller.state.map(::playingWantedId).distinctUntilChanged())
 
-    val streamingNow: Flow<MediaItemId?> = combine(
-        _streaming,
-        controller.state.map(::playingWantedId).distinctUntilChanged(),
-    ) { streaming, wanted -> streaming?.takeIf { it == wanted } }.distinctUntilChanged()
+    val streamingNow: Flow<MediaItemId?> = streamingIntent.now
 
     private fun playingWantedId(state: PlaybackState?): MediaItemId? =
         state?.takeIf { it.wantsToPlay && !it.hasEnded }?.itemId
@@ -1362,7 +1359,33 @@ class PlaybackQueue(
         Diag.log("playback", routeLine)
         recentRoutes.remember(routeLine)
         lastRoute = queued.item.id to route
-        _streaming.value = queued.item.id.takeIf { route is PlayRoute.VideoStream || route is PlayRoute.AudioStream }
+        val streams = route is PlayRoute.VideoStream || route is PlayRoute.AudioStream
+        if (streams) {
+            PlayRoutes.forget(queued.item.id.value)
+            Diag.log(
+                "download",
+                "dewidebug ${queued.item.id.value} is about to stream; the auto-download is told now, " +
+                    "not when the player has it"
+            )
+        }
+        streamingIntent.decided(queued.item.id.takeIf { streams })
+        try {
+            return startRoute(decision, queued, startPositionMs, request, forceVideo)
+        } finally {
+            streamingIntent.handedOver(queued.item.id)
+        }
+    }
+
+    private suspend fun startRoute(
+        decision: Decision,
+        queued: PlayableItem,
+        startPositionMs: Long,
+        request: Long,
+        forceVideo: Boolean,
+    ): Boolean {
+        val route = decision.route
+        val onDisk = decision.onDisk
+        val audioNow = decision.audio
         return when (route) {
             is PlayRoute.File -> {
                 val audioOnly = route.audioOnly
