@@ -47,7 +47,9 @@ engines must not drift again.
    without fetching it. The counts come from a hook in the bridge, so the suite asserts the mechanism and not a time.
    It runs against `ProcessYtDlpEngine` in JVM tests (skipped on a machine with no yt-dlp or node, required under
    `CI`), against the bridge directly in `totum_engine_policy_test.py` (run by preflight), and against
-   `ChaquopyYtDlpEngine` as `ChaquopyYtDlpEngineContractTest` (instrumented).
+   `ChaquopyYtDlpEngine` as `ChaquopyYtDlpEngineContractTest` (an `:app` instrumented test: only the app bundles QuickJS,
+   so in `:lib:ytdlp-chaquopy`'s own test app every solve answered "no JavaScript runtime bundled" and three of the four
+   failed). It passed 4 of 4 on `totum-api35` on 2026-11-28, through the V8-over-QuickJS path the phone really uses.
 3. **The Pi keeps warm workers.** `totum_ytdlp.py serve` reads one JSON request per line on stdin and writes one
    `{"id","output"}` line, `output` being the exact string the command prints, so no parser changed.
    `WorkerCommandRunner` runs two workers (solver commands; everything else), one request at a time each, so a long
