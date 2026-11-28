@@ -177,6 +177,8 @@ public fun TargetState.doingLine(title: String?): String {
     }
 }
 
+public fun TargetState.stateLine(): String = doingLine(null)
+
 public data class BarDecision(val state: TargetState?, val why: String)
 
 public fun List<TargetState>.barDecision(selected: String?): BarDecision {

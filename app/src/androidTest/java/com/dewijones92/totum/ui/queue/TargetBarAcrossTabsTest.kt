@@ -215,13 +215,48 @@ class TargetBarAcrossTabsTest {
     }
 
     @Test
-    fun aDevicesChipSaysWhatItIsDoingInWordsThatWrap() {
+    fun aDevicesChipSaysItsStateAndNotWhatItPlays() {
         start(Pi(listOf(lg, soundbar)))
         tab(R.string.destination_queue)
         compose.waitUntil(WAIT_MS) { doingNodes().fetchSemanticsNodes().isNotEmpty() }
 
-        doingNodes().onFirst().assertTextEquals("▶️ Episode one")
+        doingNodes().onFirst().assertTextEquals("▶️ Playing")
         TestShots.take("target-chips-doing")
+    }
+
+    @Test
+    fun aPlayingDevicesChipIsNoTallerThanAnIdleOnesHoweverLongItsTitle() {
+        val title = "A very long episode title that would wrap over several lines inside a narrow device chip"
+        val long = lg.copy(entries = listOf(TargetEntry(item("a", title)), TargetEntry(item("b", "Episode two"))))
+        start(Pi(listOf(long, soundbar)))
+        tab(R.string.destination_queue)
+        compose.waitUntil(WAIT_MS) { doingNodes().fetchSemanticsNodes().isNotEmpty() }
+        compose.waitForIdle()
+        TestShots.take("target-chips-long-title")
+
+        val heights = compose.onAllNodesWithTag(CHIP_TAG).fetchSemanticsNodes().map { it.size.height }
+        assertTrue("the phone's chip, the device's chip and ➕ More are all drawn: $heights", heights.size >= 3)
+        assertTrue(
+            "every chip in the row is the same height, give or take a pixel of rounding: $heights",
+            heights.max() - heights.min() <= ROUNDING_PX
+        )
+        doingNodes().onFirst().assertTextEquals("▶️ Playing")
+    }
+
+    @Test
+    fun theTitleStaysInThePlayOnMenuWhileTheRowsChipSaysOnlyTheState() {
+        start(Pi(listOf(lg, soundbar)))
+        tab(R.string.destination_videos)
+        compose.waitUntil(WAIT_MS) { doingNodes().fetchSemanticsNodes().isNotEmpty() }
+
+        doingNodes().onFirst().assertTextEquals("▶️ Playing")
+        compose.onNodeWithTag(CHIP_TAG).performClick()
+        compose.waitUntil(WAIT_MS) {
+            compose.onAllNodesWithTag(PLAY_ON_DOING_PREFIX + "lg-tv", useUnmergedTree = true)
+                .fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithTag(PLAY_ON_DOING_PREFIX + "lg-tv", useUnmergedTree = true)
+            .assertTextEquals("▶️ Episode one")
     }
 
     private fun doingNodes() = compose.onAllNodesWithTag(CHIP_DOING_TAG, useUnmergedTree = true)
@@ -235,10 +270,11 @@ class TargetBarAcrossTabsTest {
         compose.onNodeWithTag(PLAY_ON_ROW_TAG).assertIsDisplayed()
         tab(R.string.destination_queue)
         compose.waitUntil(WAIT_MS) { doingNodes().fetchSemanticsNodes().isNotEmpty() }
-        doingNodes().onFirst().assertTextEquals("⏸️ Episode one")
+        doingNodes().onFirst().assertTextEquals("⏸️ Paused")
     }
 
     private companion object {
         const val WAIT_MS = 10_000L
+        const val ROUNDING_PX = 2
     }
 }

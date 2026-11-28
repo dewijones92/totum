@@ -17,6 +17,7 @@ import com.dewijones92.totum.data.targets.TargetConnection
 import com.dewijones92.totum.data.targets.TargetKind
 import com.dewijones92.totum.data.targets.TargetState
 import com.dewijones92.totum.data.targets.doingLine
+import com.dewijones92.totum.data.targets.stateLine
 import com.dewijones92.totum.data.targets.toQueueEntry
 import com.dewijones92.totum.ui.common.face
 
@@ -64,6 +65,9 @@ internal fun doingLines(states: List<TargetState>): Map<String, String> {
     }
     return lines
 }
+
+internal fun stateLines(states: List<TargetState>): Map<String, String> =
+    states.associate { it.target.id to it.stateLine() }
 
 internal fun Color.readableOn(): Color = if (luminance() > BLACK_READS_BETTER_ABOVE) Color.Black else Color.White
 

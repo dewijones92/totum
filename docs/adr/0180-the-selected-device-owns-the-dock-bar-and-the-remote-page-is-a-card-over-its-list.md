@@ -2,7 +2,7 @@
 title: The selected device owns the dock's now-playing bar on every tab, and its remote page is one scrolling list with a compact card on top
 kind: adr
 status: accepted
-updated: 2026-11-27
+updated: 2026-11-28
 ---
 
 # 180. The selected device owns the dock's now-playing bar on every tab, and its remote page is one scrolling list with a compact card on top
@@ -138,4 +138,23 @@ different colours"*, and, on 27 Nov, that the device in use should be obvious at
   `⏳ Toy Story` while starting, `⚪ Idle` when nothing is queued or the device is asleep with a saved queue, with the title through the
   spoiler shield like every row. It sits under the device's name on its chip and in the Play on row and picker (a second line that wraps, a
   chip is at most 220 dp wide), from the same polled `TargetState` the bar and the page read, in the device's tinted, bordered chip.
+- **Amended 2026-11-28 (Dewi's option A, report 20261128T021751 finding 245): a chip says the state, never the title.** A playing device's
+  chip carried its title on a second line that wrapped, so it was 82 dp tall against 50 dp for its neighbours, and the Queue's chip row,
+  which is as tall as its tallest chip and top-aligned, left a blank under every shorter chip (ADR 198 found it and left it as a product
+  call). The chip's second line is now `TargetState.stateLine()`: `▶️ Playing`, `⏸️ Paused`, `⏳ Starting`, `⚪ Idle`, which is
+  `doingLine(null)`, so the words and the emoji come from the one function. This applies to every `TargetChip` that is given a `doing`
+  line: the Queue's chips and the chip in the shell's Play on row (both fed by `stateLines`). The title is still shown where it can
+  be read: the dock bar (`📺 LG TV · ▶️ Playing` over the title), the remote card (title under the heading), and the Play on menu,
+  whose items keep `doingLine(title)` (`▶️ Toy Story`, from `doingLines`) so you can see what each device plays before you pick one. A
+  chip's other markers are unchanged: 💤 and ⏰ on the name, the connection dot. The 220 dp cap stays for a long device name, which still
+  wraps (ADR text rule). The chips in the Queue's row take a 50 dp minimum (the height of a two-line chip), so the single-line chips
+  (This phone, ➕ Play on…, Switch off) match the two-line ones instead of the row being as tall as its tallest chip with blank under the
+  rest. Tests: `TargetDockBarTest` (`stateLine` never carries a title), instrumented `TargetBarAcrossTabsTest`
+  (`aPlayingDevicesChipIsNoTallerThanAnIdleOnesHoweverLongItsTitle`, seen red on 1080x2400@420 against the title-on-the-chip build:
+  "every chip in the row is the same height: [126, 215, 126]", that is 48, 82 and 48 dp; green after, within 2 px of rounding; and
+  `theTitleStaysInThePlayOnMenuWhileTheRowsChipSaysOnlyTheState`). Both screenshots are in `~/claude-tasks/chip-state-shots/`.
+  `HeaderSlidesAwayOnScrollTest.draggingTheHeaderItselfSlidesItAwayWhateverStripOfListShows` asserted `assertIsNotDisplayed()` on the
+  phone chip after five drags, which only held because that chip ended 1.5 dp above the row's bottom edge while the header was left
+  20 dp tall (the 50 dp lg chip beside it already showed that sliver); with the chips all 50 dp the sliver of the phone chip is 3 px, so
+  it now asserts that less than a quarter of the chip is still visible.
 

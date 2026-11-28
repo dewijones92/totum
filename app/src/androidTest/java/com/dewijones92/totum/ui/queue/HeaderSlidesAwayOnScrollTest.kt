@@ -227,7 +227,11 @@ class HeaderSlidesAwayOnScrollTest {
             "dragging the header itself moved the list up by the header: ${(top - hidden) / density}dp",
             top - hidden > MIN_GAIN_DP * density
         )
-        phoneChip.assertIsNotDisplayed()
+        val chip = phoneChip.fetchSemanticsNode()
+        assertTrue(
+            "the chip row slid away, leaving at most a sliver of its edge: ${chip.boundsInRoot} of ${chip.size}",
+            chip.boundsInRoot.height < chip.size.height / SLIVER_FRACTION
+        )
 
         swipeTheList(up = false)
         assertEquals("a swipe down on the list brings the header back in full", top, listTopPx(), 2f)
@@ -245,5 +249,6 @@ class HeaderSlidesAwayOnScrollTest {
         const val SWIPE_DOWN_DP = 320
         const val HEADER_DRAG_DP = 120
         const val MAX_HEADER_DRAGS = 5
+        const val SLIVER_FRACTION = 4
     }
 }

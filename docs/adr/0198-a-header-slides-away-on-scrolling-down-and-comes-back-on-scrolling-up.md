@@ -123,7 +123,8 @@ place, fixing starting).
 - A list that fits on the screen with its header shown can have the header slide away on a drag and leave a blank area under the
   list; a drag the other way brings it back. A header is not revealed just because the list is at the top (that fed back into the
   list's size); it is revealed by any scroll up, a touch, or a page change.
-- **Open question for Dewi (the chip row's other blank):** options are (A) a chip's second line says only the state
+- **Answered 2026-11-28: Dewi chose A** (built; recorded in [ADR 180](0180-the-selected-device-owns-the-dock-bar-and-the-remote-page-is-a-card-over-its-list.md)).
+  **Was an open question for Dewi (the chip row's other blank):** options were (A) a chip's second line says only the state
   ("▶️ Playing", "⏸️ Paused", "⚪ Idle"), the title living in the Play on menu, the dock bar and the remote page; (B) keep the
   title and the blank, now at least hidden on scrolling down; (C) the title only on the selected chip. A is recommended; it
   changes ADR 152's wording and the tests that assert the chip's title.
