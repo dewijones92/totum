@@ -74,6 +74,22 @@ class CecNudgeTest {
     }
 
     @Test
+    fun `any sign the TV is on stops the nudge, which is logged with the sign, and does not start the gap`() =
+        runBlocking {
+            val nudge = nudge()
+
+            assertTrue(nudge.announce("LG TV is not on") { "cast port 192.168.0.219:8009 answers: maybe on" })
+
+            assertTrue(keys.isEmpty())
+            assertTrue(adb.commands.isEmpty())
+            val said = logged.toList().joinToString("\n")
+            assertTrue(said, said.contains("CEC nudge not sent (LG TV is not on): cast port 192.168.0.219:8009"))
+
+            assertTrue(nudge.announce("LG TV is not on") { null })
+            assertEquals(2, keys.size)
+        }
+
+    @Test
     fun `adb that cannot connect sends no key and says it did not work`() = runBlocking {
         adb.connectSays = "failed to connect to '192.168.0.211:5555'"
 

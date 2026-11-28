@@ -9,6 +9,15 @@ internal class TvPowerProbe(
     @Volatile var evidence: String? = null
         private set
 
+    suspend fun signOfLife(): String? {
+        val reading = webos?.takeIf { it.paired }?.panelReading()
+        if (reading?.on == true) return "webOS says the panel is Active"
+        val open = ports.filter { it.answers() }
+        if (open.isEmpty()) return null
+        return "cast port ${open.joinToString { it.where }} answers while webOS " +
+            (reading?.said ?: "is not asked") + ": unknown, maybe on"
+    }
+
     suspend fun answers(): Boolean {
         val reading = webos?.panelReading()
         val open = ports.filter { it.answers() }

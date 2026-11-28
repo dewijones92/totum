@@ -157,7 +157,7 @@ internal class DevicePowers(
         val adb = config.adb[device.id]?.let { Adb(it.address, config.shell, config.adbBinary) }
         val startsApp = adb != null && app != null
         val hasWol = device.mac?.let(WakeOnLan::parseMac) != null
-        val cec = cecStepsFor(device, hasWol)
+        val cec = cecStepsFor(device, hasWol, probe::signOfLife)
         val wake = buildList<WakeStep> {
             device.mac?.let(WakeOnLan::parseMac)?.let { mac ->
                 add(
@@ -198,6 +198,7 @@ internal class DevicePowers(
             off = off,
             startsApp = startsApp,
             evidence = { probe.evidence },
+            signsOfLife = probe::signOfLife,
             timeoutMs = when {
                 startsApp -> AdbStartApp.START_TIMEOUT_MS
                 cec.isNotEmpty() -> config.timing.cecWakeTimeoutMs
@@ -218,12 +219,13 @@ internal class DevicePowers(
         }
     }
 
-    private fun cecStepsFor(device: KnownDevice, hasWol: Boolean): List<WakeStep> =
+    private fun cecStepsFor(device: KnownDevice, hasWol: Boolean, signOfLife: suspend () -> String?): List<WakeStep> =
         config.shownOn.entries
             .filter { (stickId, shown) -> castIdOf(shown.display) == device.id && stickId in config.adb }
             .mapNotNull { (stickId, _) ->
                 val stick = byId[stickId] ?: return@mapNotNull null
                 val nudge = nudgeFor(stickId) ?: return@mapNotNull null
-                CecWakeStep(device.name, stick.name, nudge, if (hasWol) config.timing.cecAfterWolMs else 0L)
+                val after = if (hasWol) config.timing.cecAfterWolMs else 0L
+                CecWakeStep(device.name, stick.name, nudge, after, signOfLife)
             }
 }

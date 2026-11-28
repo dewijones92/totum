@@ -40,7 +40,15 @@ internal class CecNudge(
 
     @Volatile private var lastSentAtMs: Long? = null
 
-    suspend fun announce(why: String): Boolean = lock.withLock {
+    suspend fun announce(why: String, signOfLife: suspend () -> String? = { null }): Boolean = lock.withLock {
+        signOfLife()?.let { sign ->
+            Diag.log(
+                "adb",
+                "$label: CEC nudge not sent ($why): $sign; a sleep would send the TV a CEC standby, so the wake " +
+                    "is left to wake-on-LAN alone",
+            )
+            return@withLock true
+        }
         val ago = lastSentAtMs?.let { clock() - it }
         if (ago != null && ago < minGapMs) {
             Diag.log(
@@ -80,6 +88,8 @@ internal class ShownTv(val label: String, private val display: DevicePower) {
         if (power == TargetPower.WAKING) return false
         return !display.answersNow()
     }
+
+    suspend fun signOfLife(): String? = display.signOfLife()
 }
 
 internal class CecWakeStep(
@@ -87,12 +97,13 @@ internal class CecWakeStep(
     private val stickLabel: String,
     private val nudge: CecNudge,
     override val startsAfterMs: Long,
+    private val signOfLife: suspend () -> String? = { null },
 ) : WakeStep {
     override val name: String = "wake $tvLabel over HDMI-CEC through $stickLabel (adb sleep -> wake)"
 
     override val note: String = "📺 Waking $tvLabel through $stickLabel…"
 
-    override suspend fun run(): Boolean = nudge.announce("$tvLabel did not answer the wake-on-LAN")
+    override suspend fun run(): Boolean = nudge.announce("$tvLabel did not answer the wake-on-LAN", signOfLife)
 }
 
 internal class AdbWakeStick(
@@ -117,7 +128,10 @@ internal class AdbWakeStick(
                     "$label: its Android device is already awake ($power), but ${shownOn.label} is not on, so it " +
                         "has sent no HDMI-CEC 'image view on'",
                 )
-                return nudge.announce("${shownOn.label} is not on although $label's Android device is awake")
+                return nudge.announce(
+                    "${shownOn.label} is not on although $label's Android device is awake",
+                    shownOn::signOfLife,
+                )
             }
             Diag.log("adb", "$label: its Android device is already awake ($power), no wake key sent")
             return true

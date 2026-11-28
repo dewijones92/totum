@@ -498,6 +498,70 @@ class DevicePowersTest {
         }
 
     @Test
+    fun `a TV whose webOS is down but whose cast port answers may be on, so the stick is not cycled`() = runBlocking {
+        lgMac = "02:00:00:00:00:01"
+        pairTv()
+        tv.close()
+        lgListener = listening(lgPort)
+        adb.wakefulness = "mWakefulness=Awake"
+        adb.onSleepKey = { events += "sleep" }
+        adb.onWakeKey = { events += "wake" }
+        val power = powers(
+            config(adbSpec = kodiAdb, shown = "Kodi=LG TV@HDMI_1", webos = "LG TV=127.0.0.1", timing = fastTiming),
+        ).of("LG TV")!!
+
+        power.ensureAwake()
+
+        assertTrue(events.toString(), events.any { it.startsWith("wol ") })
+        assertEquals(emptyList<String>(), events.filter { it == "sleep" || it == "wake" })
+        assertTrue(
+            logged.toString(),
+            logged.any { it.contains("CEC nudge not sent") && it.contains("cast port") && it.contains("maybe on") },
+        )
+    }
+
+    @Test
+    fun `an awake stick is not cycled when its TV's webOS is down and the cast port answers`() = runBlocking {
+        pairTv()
+        tv.close()
+        lgListener = listening(lgPort)
+        adb.wakefulness = "mWakefulness=Awake"
+        adb.onSleepKey = { events += "sleep" }
+        adb.onWakeKey = { events += "wake" }
+        adb.onStart = { kodiListener = ServerSocket(kodiPort) }
+        val power = powers(
+            config(
+                adbSpec = kodiAdb,
+                apps = kodiApp,
+                shown = "Kodi=LG TV@HDMI_1",
+                webos = "LG TV=127.0.0.1",
+                timing = fastTiming,
+            ),
+        ).of("Kodi")!!
+
+        assertTrue(power.ensureAwake())
+
+        assertEquals(emptyList<String>(), events)
+        assertTrue(logged.toString(), logged.any { it.contains("CEC nudge not sent") && it.contains("maybe on") })
+    }
+
+    @Test
+    fun `a TV that webOS says is on standby, with its cast port answering, is not cycled either`() = runBlocking {
+        pairTv()
+        tv.powerState = "Active Standby"
+        lgListener = listening(lgPort)
+        adb.onSleepKey = { events += "sleep" }
+        adb.onWakeKey = { events += "wake" }
+        val power = powers(
+            config(adbSpec = kodiAdb, shown = "Kodi=LG TV@HDMI_1", webos = "LG TV=127.0.0.1", timing = fastTiming),
+        ).of("LG TV")!!
+
+        power.ensureAwake()
+
+        assertEquals(emptyList<String>(), events)
+    }
+
+    @Test
     fun `a TV with a stick shown on it but no wake-on-LAN is woken over CEC straight away`() = runBlocking {
         pairTv()
         tv.powerState = "Active Standby"

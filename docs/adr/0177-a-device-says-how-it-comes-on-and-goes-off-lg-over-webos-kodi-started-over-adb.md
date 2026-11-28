@@ -190,6 +190,16 @@ touched by the change); the real-device run is owed.
     (adb sleep -> wake) after 5000ms of silence)`, then `silent 5000ms after the wake, now trying …`. A TV with no MAC has the
     CEC step straight away. The wake timeout for such a TV is 45 s, not 25 s (the CEC cycle alone is 6 s and the TV took
     about 7 s after it).
+  - **The nudge never runs while there is any sign the TV is on** (added the same day, after review). A stick's sleep sends the
+    TV a CEC standby, so nudging a TV that is on but whose webOS is down would switch it off under someone watching. The
+    nudge runs only when webOS does not say `Active` (or cannot be asked) **and** the cast port (8009) is silent. If the
+    port answers while webOS is down or says standby, that is "unknown, maybe on": nothing is sent, the wake is left to
+    wake-on-LAN alone, and the log says why (`CEC nudge not sent (LG TV did not answer the wake-on-LAN): cast port
+    192.168.0.219:8009 answers while webOS unavailable (…): unknown, maybe on; a sleep would send the TV a CEC standby, so
+    the wake is left to wake-on-LAN alone`). The check is made at the moment of the nudge (`DevicePower.signOfLife`,
+    `TvPowerProbe`). The cost: the cast port answered intermittently in networked standby (the presumed cause of the flap),
+    so on such a night a nudge can be withheld at that moment, and the wake then rests on wake-on-LAN, which did not work
+    from deep standby. Withheld nudges are logged, so the next real run shows how often.
   - and the Kodi wake: an **already-awake stick** was sent no key (`its Android device is already awake (mWakefulness=Awake),
     no wake key sent`), so the TV never heard it. `AdbWakeStick` now, when its stick is awake and the display it is shown on
     is not answering (and is not already being woken), nudges it, and says so.
@@ -216,12 +226,14 @@ touched by the change); the real-device run is owed.
   counted as on (`ensureAwake` answers true for "nothing to try").
 
 **Tests, and what turned them red** (run 2026-11-28 against the old code with the new API shaped but behaving as before):
-`DevicePowersTest` (+9): `expected:<ASLEEP> but was:<ON>` for the flapping check (a port that answers while webOS cannot be
+`DevicePowersTest` (+12; the three of the sign-of-life guard were run red separately, `expected:<[]> but was:<[sleep, wake]>`, for a
+TV with webOS down and the cast port answering through the TV's own CEC step and through an awake Kodi stick, and for a TV
+webOS says is on standby with the port answering): `expected:<ASLEEP> but was:<ON>` for the flapping check (a port that answers while webOS cannot be
 reached), the evidence missing from the power-change line, `expected:<[sleep, wake]> but was:<[]>` for the awake stick with
 its TV off, for the TV woken over CEC after wake-on-LAN, for the TV with no MAC, and for a TV that stays dark getting one
 cycle; `SteppedPowerDeferredStepTest` (3): `expected:<[cec@5000]> but was:<[cec@0]>`; `ShownOnStepTest` (4): `LG TV on,
 switched to input HDMI_1` in the log and `[ssap://system/getSystemInfo, ssap://tv/switchInput]` asked of a TV that was off;
-`CecNudgeTest` (5); `KodiUnreachableWordsTest` (4): `expected:<🔑 Kodi refused the sign-in: …> but was:<📶 Couldn't reach
+`CecNudgeTest` (6); `KodiUnreachableWordsTest` (4): `expected:<🔑 Kodi refused the sign-in: …> but was:<📶 Couldn't reach
 Kodi: it isn't connected …>`; `TargetDeckVolumeRefusalTest` (4): `expected:<[]> but was:<[2]>`. The tests that pin what did not
 change (an unpaired TV judged by its port, an awake stick whose TV is on left alone, a wake-on-LAN that works leaves the stick
 alone) passed before and after, on purpose. One test harness trap: the first flap test passed against the old code because its
@@ -231,4 +243,4 @@ accepts and closes, and the test went red as it should.
 
 **Still not proven on the real devices:** that the cycle wakes the LG when it is sent by Totum rather than by hand, that
 five seconds of wake-on-LAN is the right moment to give up on it (the packets reached nothing that night, so the real
-timing of a wake that does work is unknown), and that a webOS-down-but-TV-on state does not happen in practice.
+timing of a wake that does work is unknown), and how often the sign-of-life guard withholds a nudge on the real TV.

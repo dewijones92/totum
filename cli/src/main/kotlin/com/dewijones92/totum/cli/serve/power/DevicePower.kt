@@ -22,6 +22,8 @@ internal interface DevicePower {
 
     suspend fun answersNow(): Boolean
 
+    suspend fun signOfLife(): String?
+
     fun markAsleep()
 
     suspend fun ensureAwake(): Boolean
@@ -60,6 +62,7 @@ internal class SteppedPower(
     private val off: PowerOff? = null,
     override val startsApp: Boolean = false,
     private val evidence: () -> String? = { null },
+    private val signsOfLife: suspend () -> String? = { null },
     private val timeoutMs: Long = WAKE_TIMEOUT_MS,
     private val pause: suspend (Long) -> Unit = { delay(it) },
     private val clock: () -> Long = System::currentTimeMillis,
@@ -103,6 +106,8 @@ internal class SteppedPower(
     }
 
     override suspend fun answersNow(): Boolean = answers()
+
+    override suspend fun signOfLife(): String? = signsOfLife()
 
     override fun markAsleep() {
         if (power == TargetPower.ASLEEP) return

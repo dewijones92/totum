@@ -212,7 +212,8 @@ sound processing on the Pi). Brief: [pi-plays-everywhere.md](../todos/pi-plays-e
   tells the TV over HDMI-CEC). So a paired TV is **on only while webOS says `Active`** (no fallback to the cast port when webOS
   cannot be reached; every change logs what webOS and the port said), a TV with a stick shown on it (`TOTUM_SHOWN_ON`) is woken
   by wake-on-LAN first and then, after 5 s of silence, by cycling the stick's sleep and wake (45 s allowed), a Kodi on an awake
-  stick whose TV is off gets the same cycle, and a volume with nowhere to go is refused in words
+  stick whose TV is off gets the same cycle (never while webOS says Active or the cast port answers: "maybe on" sends nothing and
+  leaves the wake to wake-on-LAN), and a volume with nowhere to go is refused in words
   (`⚠️ Couldn't set LG TV's volume to 2: …`) instead of logged as set. Kodi's refused sign-in reads
   `🔑 Kodi refused the sign-in: check its web server password`, not "isn't connected". Built the same day against the fakes, **not
   yet run on the real TV**; see [webos-and-kodi-power](../todos/webos-and-kodi-power.md).
