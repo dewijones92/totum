@@ -11,8 +11,9 @@ consequences (the same shape as Loquax's `docs/adr/`). **Create, update or super
 ADR in the same change as the code** (see `CLAUDE.md`, Living docs). A superseded ADR stays, with
 its status changed to `superseded by NNNN`, so the history of why still reads end to end.
 
-Decisions made before 2026-10-01 live in the Decisions table in `CLAUDE.md`. That table remains the
-one-line summary of every standing decision; a row whose decision has an ADR links to it.
+Decisions made before 2026-10-01 live only in the Decisions table, which is
+[`docs/decisions.md`](../decisions.md) (it was in `CLAUDE.md` until 2026-11-28, ADR 199). That table
+remains the one-line summary of every standing decision; a row whose decision has an ADR links to it.
 
 | # | Decision | Status |
 |---|---|---|
@@ -208,3 +209,4 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 196 | [The treat button puts a chosen film or playlist on a TV for a while, and the Pi ends it](0196-the-treat-button-puts-a-film-on-the-tv-for-a-while-and-the-pi-ends-it.md) | Accepted |
 | 197 | [The auto-downloader counts every skip, and restarts a download that says it is running when nothing is](0197-the-auto-downloader-counts-every-skip-and-restarts-a-download-nothing-is-running.md) | Accepted |
 | 198 | [A header slides away on scrolling down and comes back on scrolling up, from one place](0198-a-header-slides-away-on-scrolling-down-and-comes-back-on-scrolling-up.md) | Accepted |
+| 199 | [CLAUDE.md holds the rules, and the Decisions table lives in docs/decisions.md](0199-claude-md-holds-the-rules-and-the-decisions-table-lives-in-docs.md) | Accepted |

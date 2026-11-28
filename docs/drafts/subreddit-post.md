@@ -71,12 +71,12 @@ Happy to answer questions about how the agent workflow goes, including where it 
 |---|---|
 | Replaces PipePipe and AntennaPod; one queue for both | `CLAUDE.md` (Totum section), `docs/spec.md` |
 | GPL-3.0 | `LICENSE`, [ADR 146](../adr/0146-gpl-3-and-reports-go-to-the-pi-only-when-signed-in.md) |
-| Silero VAD in plain Kotlin, pinned to ONNX Runtime's outputs | `CLAUDE.md` Decisions table (Voice detection), `SpeechModelTest` |
+| Silero VAD in plain Kotlin, pinned to ONNX Runtime's outputs | `docs/decisions.md` (Voice detection), `SpeechModelTest` |
 | ✨ Ask: Haiku on the Pi picks titles, the app finds and ranks the copies, you confirm; needs a home server | [ask.md](../features/ask.md), [ADR 109](../adr/0109-ask-haiku-picks-what-the-app-finds-and-ranks-which-copy.md) |
 | Flight recorder | [crash-reporting.md](../features/crash-reporting.md), [ADR 120](../adr/0120-a-flight-recorder-and-reasons-for-every-pause.md) |
 | Sleep timer that fades | [bedtime-sleep-timer.md](../features/bedtime-sleep-timer.md) |
 | Casting with Totum's audio processing | [casting.md](../features/casting.md) |
 | Kid lock | [ADR 76](../adr/0076-kid-lock-pins-the-app-to-a-bare-video.md) |
 | Recorder | [totum-recorder.md](../features/totum-recorder.md) |
-| Not on the Play Store; signed APKs on GitHub, Obtainium | `CLAUDE.md` (CI/CD row) |
+| Not on the Play Store; signed APKs on GitHub, Obtainium | `docs/decisions.md` (CI/CD row) |
 | "Almost entirely with Claude Code" | not in the docs as a statement; the commit history carries Claude as co-author. Dewi's to confirm. |

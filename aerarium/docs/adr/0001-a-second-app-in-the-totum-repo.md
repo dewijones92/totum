@@ -2,7 +2,7 @@
 title: A second app in the Totum repo, fully separate
 status: accepted
 date: 2026-10-31
-updated: 2026-10-31
+updated: 2026-11-28
 ---
 
 # 0001 · A second app in the Totum repo
@@ -29,3 +29,11 @@ aerarium/**`. Each has its own concurrency group.
 - An Aerarium push never builds or releases a Totum APK, and a red Totum build never blocks Aerarium.
 - `main` has no branch protection, so there are no required checks that a path filter could leave pending.
 - Renovate sees both apps; Aerarium's npm updates arrive as their own PRs.
+
+## Reconsidered 2026-11-28: it stays here
+
+An outside review (Fable, 28 Nov 2026) suggested moving Aerarium to its own private repo, on the grounds that a finance app
+sits in a public media repo. Dewi declined: *"don't move it to its own repo … I wanted to share the same Claude MD in this
+repo … I want to not repeat myself"*. One root `CLAUDE.md` (the quality bar, logging, testing and agent rules) governs both
+apps, and a second repo would mean a second copy of it to keep in step. The public-repo risk stays with [ADR 0004](0004-no-personal-data-in-the-public-repo.md)
+(no personal data in the repo, enforced by the privacy guard on every push), not with where the code lives.

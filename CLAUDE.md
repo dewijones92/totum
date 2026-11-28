@@ -10,240 +10,294 @@
 > `aerarium/docs/adr/`, never the root `docs/adr/`. Neither app's CI builds, releases or blocks the other
 > ([Aerarium ADR 0001](aerarium/docs/adr/0001-a-second-app-in-the-totum-repo.md)).
 
-**Totum** — Latin for "the whole". One app for all of it; the name deliberately avoids
-"duo"/"uni" so a third pillar wouldn't make it a lie. Named 2026-07-25 (was UniApp);
-`applicationId` is `com.dewijones92.totum`.
+**Read this whole file before you work: about 410 lines, never `head` it.** It holds every rule. The detail that used to
+sit here (the Decisions table, recipes, incident histories) is in `docs/`, and "Read before you…" below says which doc is
+required reading for which job.
 
-One Android app that replaces two: **PipePipe** (YouTube-style streaming client) and
-**AntennaPod** (podcast manager). Streaming and podcasts are both first-class pillars
-sharing one unified domain model — subscriptions, playback queue, downloads, and history
-behave identically whether the source is a video channel or an RSS feed.
+**Totum** — Latin for "the whole" (was UniApp until 2026-07-25; `applicationId` `com.dewijones92.totum`). One Android app
+that replaces **PipePipe** (YouTube-style streaming) and **AntennaPod** (podcasts): streaming and podcasts are both
+first-class pillars on one unified domain model, so subscriptions, queue, downloads and history behave identically
+whether the source is a video channel or an RSS feed. The original brief is `init`; the decisions here supersede it.
 
-The original brief lives in `init` at the repo root. Decisions below supersede it where
-they conflict (notably: the `ytdlp-kt` fork dependency mentioned in `init` was dropped
-in favour of a from-scratch library — see Decisions).
+## Hard stops
 
-**Living docs:** `AGENTS.md` → `docs/` holds a maintained hierarchy (frontmatter'd
-markdown) documenting features, the backlog (`docs/todos/`), tests, and architecture.
-Keeping them current is part of "done": ship/change a feature → update
-`docs/features/<name>.md`; start/finish/drop a backlog item → update `docs/todos/`;
-change coverage → update `docs/tests/`. Bump each doc's `updated`.
+Breaking one of these destroys something only Dewi can restore, costs a release, or is not yours to decide. 1 to 4 and 6
+are Totum's; 5 and 7 bind both apps.
 
-**CRUD the ADRs** (Dewi, 2026-10-01: *"remember to CRUD any ADR"*). Decisions live in
-`docs/adr/` (`NNNN-title.md`; status, date, context, decision, consequences). Making a decision
-creates its ADR; changing one updates it; reversing one marks it `superseded by NNNN` and writes the
-new one, all **in the same change as the code**. A Decisions-table row below whose decision has an
-ADR links to it, and a new decision gets both. Read the relevant ADRs before changing an area: they
-say why it is the way it is.
+1. **Never run instrumented tests via `./gradlew` on the signed-in emulator.** `totum-api35` is signed in to Dewi's real
+   YouTube account, and a fresh sign-in needs a device code only he can approve at google.com/device.
+   `./gradlew connectedAndroidTest` UNINSTALLS the app when it finishes, which destroys the sign-in; so does `pm clear` and
+   any reinstall that wipes data. Use `adb shell am instrument -w -r -e class <FQN>
+   com.dewijones92.totum.test/com.dewijones92.totum.TotumTestRunner` against an already-installed APK, and `adb install -r`
+   (never `-t` fresh) when the APK must change. **A test must never touch the real token store** (`SharedPrefsTokenStore`
+   takes a `prefsName` for exactly that reason).
+2. **One emulator, owned by the orchestrator** (2026-11-13: two builders each booted `totum-api35`, both copies died, and
+   RAM allows only one). A builder never boots it; it takes `flock /tmp/totum-emulator.lock` for each short session, checks
+   `adb -s emulator-5554 emu avd name` says `totum-api35`, and installs the app and test APKs AND runs the tests inside one
+   lock hold (another builder's install between them fails the test falsely).
+3. **Never re-run an older `main` CI run while one is in flight**: `ci.yml` sets `concurrency: cancel-in-progress`, so it
+   *cancels the current one*, and the tip run is what publishes the APK; a spuriously failed old run is proved by the newer
+   commit, the tip being a superset. The release is published when the build job ("Quality gates + build", ~17-19 min)
+   ends, so **pushes closer together than that release nothing**: leave ~20 min between pushes, or batch commits into one
+   push. Check `gh release view <tag> --json targetCommitish` before concluding a fix did not ship.
+4. **Every YouTube call goes through the one gate** (at most 4 in flight, back-off on a 429 or a "not a bot" refusal),
+   on the phone, the Pi and the CLI: "Be a polite client to YouTube" below.
+5. **Nothing secret or personal goes into the repo (it is public), a log or a link**: the release signing key ("Repo,
+   signing, releases" below), the emulator's token file `~/.credentials/totum-emulator/youtube_account.xml`, Dewi's state
+   dumps in `~/claude-tasks/state-dumps/` (600, never committed or sent anywhere), home-server tokens (header only; ADR 90).
+6. **Torrent tests use copyright-free media only** — media this repo generates, and public-domain titles — and never
+   resolve a real magnet.
+7. **Stop and ask Dewi before** building a pillar-specific split, building a deliberate inconsistency, adding a second
+   copy of logic that already exists, changing the behaviour of something shipped or settling a trade-off with no clear
+   default, or writing any of a batch's code. Each is spelled out below.
 
-## Decisions (agreed with Dewi, July 2026)
+## Quality bar (non-negotiable; binds both apps)
 
-| Decision | Choice | Why |
-|---|---|---|
-| Scope | Both pillars from day one | Unified data model proven early |
-| Stack | Kotlin + Jetpack Compose, single Gradle project | Native fit, strongest type safety |
-| minSdk | **33** (Android 13; was 34 until 2026-10-14) | Personal modern devices, including Dewi's Pixel 4a on stock Android 13; Android-14 calls are guarded in `reminders/kit/ForegroundKind.kt`. [ADR 39](docs/adr/0039-minsdk-33-for-the-pixel-4a.md) |
-| Extraction | **From-scratch library in this repo** (`:lib:ytdlp`), replacing dewijones92/youtubedl-android fork | Own a clean, tested Kotlin API around the real yt-dlp |
-| Python runtime | Chaquopy 17 (revised from "official CPython" once that proved tier-3/no artifact) | Mature drop-in embed, MIT, pip support |
-| ffmpeg | **Bundled** — minimal static build in jniLibs | Merges best-quality DASH streams (SponsorBlock is no longer cut from downloads: [ADR 16](docs/adr/0016-downloads-keep-sponsor-segments.md)) |
-| CI/CD | GitHub Actions; signed APKs on GitHub Releases | No Play Store (yt-dlp app) |
-| YouTube account (July 2026) | Own minimal InnerTube client (`:lib:innertube`) + **TV device-code OAuth**, SmartTube-style; yt-dlp stays for extraction/playback | Signed-in features (subs, history, comments, likes) need auth + writes; yt-dlp is read-only and removed OAuth login; Google blocks WebView logins, and the device flow is the login it expects from TVs |
-| UI bar | Genuinely nice, modern | Material 3 expressive, dark/light, edge-to-edge, considered motion — never template-default |
-| Voice detection (Sep 2026) | **Silero VAD run in plain Kotlin** (`SpeechModel`), weights exported to `silero_vad.bin` in `:core:sound`'s Java resources | Smart skip-silence needs a neural speech detector; ONNX Runtime's arm64 library alone is ~12 MB compressed / 33 MB installed, about twice the agreed budget. The network is small (filter bank, 4 convs, one LSTM), and `SpeechModelTest` pins the Kotlin to ONNX Runtime's outputs |
-| Exsurge et Disce (Oct 2026) | A **side-quest module**, pure `:lib:exsurge` + Android adapters; exact alarms; a sticky health-FGS banner holds the step counter; the voice is an alarm, not media; tests opt-in and path-filtered; the break length is chosen at the summons and fixed for that break | Dewi's stand-up-and-study nudge into Loquax. See [ADRs 2–8 and 10](docs/adr/_index.md) |
-| Fast switch to video (Oct 2026) | yt-dlp's solver player cache on for every extraction; a resolve trusted until shortly before its URLs expire, and kept across restarts; one shared HTTP pool; caption translations only for offered languages; videos looked up before the tap (menu open, next in queue, audio copy) on unmetered networks; Watch offered for an audio copy | Downloaded audio → video took 16.7 s on Dewi's phone, 85% of it extraction; [ADR 11](docs/adr/0011-make-switching-to-video-fast.md) |
-| JS challenge solver (Oct 2026) | **Android's V8** (`androidx.javascriptengine`) as a yt-dlp provider above QuickJS, keeping the solver library and two players loaded; QuickJS is the automatic fallback | QuickJS parsed a 3–4 MB script per solve (1.1–7.9 s on the Pixel 7); V8 solves a kept player in 15–80 ms; [ADR 12](docs/adr/0012-solve-youtube-challenges-in-v8.md) |
-| Playback start (Oct 2026) | A 403 on a YouTube URL under 15 s old is retried when YouTube accepts it (issue + 4.8 s); the player is built through the preload manager so held bytes are played; a copy on disk is used before re-extracting, and takes over when its download lands | Fresh `web_embedded` URLs 403 for ~4.5 s, which the fast solver exposed; [ADR 13](docs/adr/0013-playback-start-young-urls-held-bytes-and-copies.md) |
-| Gapless queue (Oct 2026) | In an item's last 75 s (longer than the 60 s silent tail that can end it early) the queue routes the next item as usual and **arms** it as the player's second playlist entry (Wi-Fi, or a downloaded next item); the player crosses over itself and the queue **adopts** it through its ordinary play path; a "Gapless queue" setting, on by default | Hand-overs took 0.5–1.3 s rebuilding the player even with bytes preloaded; [ADR 20](docs/adr/0020-gapless-queue-the-player-holds-the-next-item.md) |
-| Background playback (Oct 2026) | The playback service stays in the foreground for 2 h after playback stops (Media3 default: 10 min) | After a long pause Android refused to restart it from the background and froze the process mid-file; Exsurge's own foreground service had been hiding this; [ADR 14](docs/adr/0014-playback-service-stays-foreground-after-a-pause.md) |
-| Exsurge on the lock screen (Oct 2026) | The banner is an Android 16 **Live Update** in every state (lock screen, always-on display, status-bar chip), public on the lock screen; channel unchanged | A silent notification is hidden from a Pixel lock screen by default; [ADR 15](docs/adr/0015-exsurge-banner-is-a-live-update.md) |
-| Daily alarms (Oct 2026) | A second side quest: Totum asks each weekday morning whether you want an alarm (pickup 17:30 first) and rings it itself full screen; built on a **reminder kit** shared with Exsurge (`:lib:reminders` + `app/…/reminders/kit/`); all alarms on **one board, always pinned**, soonest first; the board and the Exsurge banner alert silently so they show on every lock screen | Dewi's toddler-pickup alarm; [ADRs 17, 18, 21, 23](docs/adr/_index.md) |
-| One-off alarms (Oct 2026) | ➕ New alarm on the alarms page: a title, recent titles, +15 min to +2 h or a clock, a day; a `DailyAlarm` with a date (`once`), so the same machine, board and ring; once rung it leaves the list and its title stays as a recent; also an app-icon shortcut, a Quick Settings tile and a Library tile | Dewi's "7 PM tonight, deployed to production"; [ADR 91](docs/adr/0091-a-one-off-alarm-is-a-daily-alarm-with-a-date.md) |
-| Quick alarm (Oct 2026) | ⚡ on the alarm notification opens a lock-screen quick screen: saved presets (stairs ×5 first, last used chosen, long-press to edit) and the clock dial; Set is a one-off that rings full screen | Dewi's pre-meeting stairs; [ADR 99](docs/adr/0099-a-quick-alarm-from-the-alarm-notification.md) |
-| Smooth video at any speed (Nov 2026) | Every extractor is wrapped: a video track with no frame rate in its file has its first 12 frames held until the rate is worked out from their times, so the decoder is configured with it (operating rate = rate × speed); the live manifest states `frameRate`; one `VideoSurface` asks the window for the refresh rate that shows the frames evenly | Dewi's Pixel 7 showed 2x at 8.5 fps: YouTube's streams state no rate, so the hardware AV1 decoder ran at a low clock; [ADR 139](docs/adr/0139-the-decoder-and-the-screen-are-told-the-frame-rate.md) |
-| Main-thread stalls (Oct 2026) | A watcher pings the main thread every 100 ms while a screen is started; a stall of about 400 ms or more is one `[main]` line with where the thread was (stack samples as retraceable frames), counted when close together; the queue auto-downloader asks the network gate only before a fetch | Dewi's "weird random lags": report 0.1.762 froze 2 s after every queue change and said nothing about why; [ADR 100](docs/adr/0100-a-stalled-main-thread-logs-where-it-was.md) |
-| Stranded downloads (Nov 2026) | The queue auto-downloader counts every skip by reason in one `pass skips:` line (logged only when it changes); a `Downloading` row the download manager has no live job for is stranded, and `DownloadManager.recoverStranded()` (also the start-up resume of ADR 80) restarts it, at most twice, else leaves it Failed for Retry, naming the ids in one `stranded downloads:` line | The nightly's shared-link test saw two videos sit in `Downloading` at 0 MB for five minutes with no log line at all; [ADR 197](docs/adr/0197-the-auto-downloader-counts-every-skip-and-restarts-a-download-nothing-is-running.md) |
-| Audiobooks (Oct 2026) | Free books from the Internet Archive (LibriVox included), a book is an `archive.org/metadata/<id>` podcast feed read by `ArchiveItemParser`; audiobook torrents by category (AudioBook Bay as a custom Prowlarr definition, TPB cat 102, no Torrentio); 🎧 sections in search; `BookPlayer` queues a book as one group from where you were; `MediaContentKind.AUDIOBOOK` keeps speed, never skips silence | Dewi's "search audiobooks … similar to the way we do for torrents"; [ADR 105](docs/adr/0105-audiobooks-are-books-from-the-archive-and-torrents.md) |
-| BBC programmes (Nov 2026) | A BBC programme is a followable `PodcastFeed` at its iBL episodes address (`ibl.api.bbci.co.uk`, no key, read by `IblEpisodesParser` the way a book is read by `ArchiveItemParser`), so subscribing, refresh, groups, badges, notifications and the Library work unchanged; its episodes are `PlayHandle.External` items whose `PlayRoute.External` hands the iPlayer link to the iPlayer app, else the browser (a hand-off that worked marks the episode played), and never enters the player, the queue or a download; rows say `⏳ On iPlayer until …` from `MediaItem.availableUntil` (Room v29); search has a 📺 BBC tab; BBC answers are cached 15 minutes; no new pillar | Dewi's "follow Have I Got News for You … see 🆕 … open it in iPlayer"; [ADR 184](docs/adr/0184-bbc-programmes-are-followable-sources-that-open-in-iplayer.md) |
-| Torrent trust badges (Oct 2026) | Each result has words chips: uploader standing (TPB VIP/trusted from apibay, asked by the phone beside Torrentio and merged by info hash; YTS official), release group, health, red flags (cinema copy, too small, a program); flagged results sorted down before the cap; a program among prepared files is named | Dewi's "green skulls and pink skulls … general"; [ADR 101](docs/adr/0101-torrent-results-carry-trust-badges.md) |
-| ✨ Ask (Oct 2026) | Say what you want; headless Haiku on the Pi (`totum serve` in `server/totum-fetch`, Claude Code, web search only, a JSON schema) picks 3–5 titles; the app's own searches find each and rank the copies; Haiku only vets the top copies are the right work; you confirm through the normal ⬇️ sheet; 10-bit x265 first within each seeder band in every torrent list; scored by `tools/finder-eval` | Dewi's "a popular film related to the Gruffalo that my toddler would like … come back for me to confirm"; [ADR 109](docs/adr/0109-ask-haiku-picks-what-the-app-finds-and-ranks-which-copy.md) |
-| Downloads at home (Oct 2026) | ⬇️ asks 📱 On this phone / 🏠 At home (🏠 suggested on mobile data); the Pi's `totum serve` downloads with the app's own routes (YouTube resolution now in `:core:video`, `videoAndPodcastDownloads` shared, the phone's sign-in handed over, its decoders choosing the format); the phone plays the Pi's file until it has its own copy, copies only when asked (or on Wi-Fi with a setting that is off by default; the queue's auto-download skips anything at home) through `HomeCopyFirst`, and shows it on rows, the strip, notifications and a 🏠 section; deleting deletes both | Dewi's "kick off torrent film downloads … on the Raspberry Pi … my phone sometimes doesn't have good internet"; [ADR 110](docs/adr/0110-downloads-at-home-the-pi-fetches-with-the-apps-own-code.md) |
-| Filing at home (Oct 2026) | A finished torrent at home is filed into Jellyfin's movies or series by Haiku (existing show and season folders reused, the plan checked, rules when Haiku can't), renamed on one disk, its download record moved with it, and Jellyfin told by `Library/Media/Updated`; dry runs against the real library with `totum file-check` | Dewi's "move it into the Jellyfin series or movies and pick the appropriate subfolder"; [ADR 111](docs/adr/0111-finished-torrents-at-home-are-filed-into-jellyfin.md) |
-| AI service and Pi health (Nov 2026) | Claude Code (Haiku only) in its own container, `totum ai-serve`, prompts in and structured answers out for any service on the Pi, every call logged for usage graphs; totum-fetch thinks through it; the Pi judges its own health (disk, AI, Jellyfin, stalled downloads) and the phone shows it on a banner and notifies new problems | Dewi's "a dedicated container … AI service … reusable by other stuff" and "a health dashboard"; [ADR 113](docs/adr/0113-an-ai-service-on-the-pi-and-health-the-pi-judges.md) |
-| AI tools per caller (Nov 2026) | The AI service holds one table of which tools each caller may use (`ask`, `vet`, `file`, `ask-state` jq only, `for-you`, `digest`, `transcript`, `spoiler`); a call may ask for fewer, never more, and anything else is refused with 403, logged and counted | ✨ Ask reading the app's own state must never also reach the web; [ADR 121](docs/adr/0121-the-ai-service-decides-each-callers-tools.md) |
-| Ask sees the app (Nov 2026) | One ✨ chat; a no-tool Haiku router (sees only your own words) picks app, web or both per message; a snapshot of the app's state (the backup plus queue groups, downloads, stats, trail, event log; run through the one shared redactor, which cuts keys, tokens, emails, IPs, the home host and the path of every address in free text; an item id that is itself an address keeps its path) is gzipped and sent before every ask, kept 10 min in the Pi's memory, and an app question runs `Bash(jq:*)` alone in a private temp directory holding it, never a web tool; "both" is two separate calls, or, when the web half needs facts from your data, the app half first and then the web half given that answer's text (scrubbed and cut; never the snapshot) with your taste and owned titles; answers are text plus cards of your own items (play, queue), never an action | Dewi's "Haiku answers about the queue, history, downloads … jq only" and "one chat, the router decides"; [ADR 140](docs/adr/0140-ask-answers-about-your-own-app-with-jq-only.md) |
-| Play on… (Nov 2026) | One remembered choice, the last used device, is where every play, add, play next and shuffle all goes from any tab (kept across restarts, no longer ended by leaving the Queue tab); at home (home server answered, unmetered connection) every device the Pi lists is offered, switched off ones with 💤, away only this phone; a slim "▶️ Play on" row under every header and "📡 Play on…" in every item menu change it, and picking a sleeping device wakes it; the device's colour badge is on rows, the queue, the mini player and the full player; Peek stays on the phone | Dewi's "device picker on every play/queue action, one-tap default" and "when I'm home, I want my home devices to be listed, even if they're off … switch them on"; [ADR 169](docs/adr/0169-play-on-is-a-choice-that-remembers-the-last-device.md) |
-| Lock screen for the selected device (Nov 2026) | While the dock bar is a device's (`barDecision`), `PlaybackService` holds a second `MediaSession` (`totum-remote-target`, notification 1002) fronted by `RemoteTargetPlayer`, so the lock screen and shade show its title, art, name and colour with play and pause, back 10, forward 30 and next, sent as the dock bar's own `TargetAction`s; the phone's session, Exsurge's Live Update and the foreground rules are untouched, and the app's controller never sees it; **one card at a time** (`NotificationCards`): the phone's when no device is shown or only the phone is playing, else the device's, the other's notification withdrawn by id (Media3 posts one of two by timing, which hid the device); read every 10 s playing and 30 s paused with the screen off, never when the screen's read is fresh | Swapping the one session's player would have fed another device's items to the controller that saves progress and advances the phone's queue; Dewi's "remote bar first, lock screen later"; [ADR 188](docs/adr/0188-the-selected-device-is-a-second-media-session-for-the-lock-screen-and-notification.md) |
-| Device bar and remote page (Nov 2026) | The device chosen in Play on… replaces the phone's mini player on every tab while it has something to show (`barFor`): the same `NowPlayingBarFrame`, in its colour, with back 10, play/pause, forward 30 and skip, and a tap opens its remote page; the remote page is one `LazyColumn` with a compact card on top (heading with the link state, seek, a filled play/pause, volume with its reason behind an info tap) and Repeat, Sleep, silences, boost and colour behind one Controls row of the player's own tiles; chips get a connection dot, a scroll hint and a colour long-press; the Chromecast is 📽️; the soundbar's `sepN/fdN` transport is found, Pi discovery logs on change, and keep-awake backs off on "Host is down" | Dewi's "do at least the basic play controls from my app … so I can really distinguish"; [ADR 180](docs/adr/0180-the-selected-device-owns-the-dock-bar-and-the-remote-page-is-a-card-over-its-list.md) |
-| DLNA and AirPlay targets (Nov 2026) | A DLNA renderer (`TOTUM_DLNA_TARGETS=name=http://host:port/desc.xml`) and an AirPlay receiver (`TOTUM_AIRPLAY_TARGETS=name=host`, paired once with `totum airplay-pair`) are two more `CastControl`s behind the one cast player (`DlnaControl` over UPnP SOAP; AirPlay is `PyCastControl` with pyatv's `airplay_helper.py`); the one stream server gained one route, `hls.m3u8`, the same processed AAC segments as an HLS playlist (with a picture since [ADR 175](docs/adr/0175-dlna-airplay-and-kodi-carry-the-picture-over-the-one-stream-servers-hls.md)); no new `TargetKind` (an old phone cannot read one, so they are `TV` on the wire); one device with several protocols is one target that uses the first that answers (`TOTUM_CAST_PROTOCOL_FIRST`) | Dewi's "the DLNA and AirPlay I want similar experience to the Chromecast … DRY" and "ONE BRAIN"; the LG has AirPlay, Kodi on the Fire Stick has a DLNA renderer; [ADR 174](docs/adr/0174-dlna-and-airplay-are-more-controls-behind-the-one-cast-player.md) |
-| DLNA, AirPlay and Kodi carry the picture (Nov 2026) | `hls.m3u8` is a master playlist of the picture and the processed sound whenever the session has a picture, cut from the same `Session` as the Chromecast's DASH manifest (a remux as an fMP4 playlist; a fragmented MP4 by `EXT-X-BYTERANGE` from its `sidx`; H.264 and HEVC in MP4 only, never VP9, WebM or AV1: a ladder is ranked for HLS with VP9 off the screen); a device that lists no video (DLNA sink, AirPlay features) gets `CastItem.soundOnly()` and a notice; Kodi is driven by its own JSON-RPC (`KodiControl`, `TOTUM_KODI_TARGETS=name=host:port`, sign-in read from the 600 file in `TOTUM_KODI_CREDENTIALS` at every call, `Application.SetVolume` for the slider only), tried before the same device's DLNA renderer; `DlnaControl` and `KodiControl` share one polling machine, `RendererWatch` | Dewi's "similar experience to the Chromecast … ONE BRAIN"; [ADR 175](docs/adr/0175-dlna-airplay-and-kodi-carry-the-picture-over-the-one-stream-servers-hls.md) |
-| Device power (Nov 2026) | How a target comes on and goes off is one Pi-side seam, `DevicePower` (`SteppedPower` over wake steps and one power-off way; `TvWake` is gone): wake-on-LAN, an Android stick woken and an app started over adb, a display switched on and put on an input, or by hand; the LG is driven over webOS SSAP (wss 3001; on only while `getPowerState` is `Active`, since 3001 stays open in standby; paired by PIN with `totum webos-pair`, key and pinned certificate in a 600 file under `$TOTUM_DATA/webos/`, never printed or logged); ⏻ Switch off on a TV's remote panel and chip, and a sleep-timer option (off by default) that switches off after the fade; a Kodi that does not answer has its stick woken and Kodi started over adb (`TOTUM_ADB_TARGETS`, `TOTUM_START_APPS`, `TOTUM_SHOWN_ON`), saying "🔌 Starting Kodi on the Fire Stick…" or "❌ Kodi didn't start" | Dewi's "switch the LG off, after a sleep timer too" and "Android kills Kodi in the background on the Fire Stick"; proved against a fake SSAP server and a fake adb shell, not yet on the real devices; [ADR 177](docs/adr/0177-a-device-says-how-it-comes-on-and-goes-off-lg-over-webos-kodi-started-over-adb.md) |
-| Browser target (Nov 2026) | Any browser on the home network that opens the Pi's cast address (port 8771, no key) is a `BROWSER` target with its own queue and colour, driven like a Chromecast (`BrowserControl` is a `CastControl`) from the same manifest; the PC screen page (`screen.html`) lives in `:core:cast` and is served by both the phone and the Pi; "🖥️ Add a browser…" shows the address; away from home is decided, not built; a speaker switched on by hand reads "🔌 Off · switch it on by hand" and is never sent a wake; every surface takes a device's colour from `TargetColours.of` | Dewi's "a link to open in any browser … at a friend's"; [ADR 170](docs/adr/0170-a-browser-is-a-target-the-pi-plays-to-found-by-opening-its-address.md) |
-| Casting from a friend's house (Nov 2026) | At a friend's, the phone drives the friend's Chromecast through its normal Cast session; an item only home can serve (a Jellyfin id, or an address on the home server: Jellyfin, a torrent, a 🏠 home copy) is built by the Pi's one casting brain and fetched by the Chromecast from `https://totum.<home>/cast-out/<64 hex>/<file>`; the link is minted through the device-token gate (`POST /fetch/cast-out/session`), 256-bit, kept as a hash, constant-time compared, valid six hours, revoked when the cast ends, served by a separate Pi listener (8773) that has nothing but live links; "away" is the Pi not answering on its own LAN address (`HomeLanProbe`), unknown or any failure means the phone serves it as before; YouTube stays phone-direct; skip silence and live are off on this route | Dewi's "the Chromecast fetches it from the Pi over the internet … a link scoped to that one item/session"; the one exception to ADR 90; [ADR 182](docs/adr/0182-a-friends-chromecast-fetches-home-items-from-the-home-server-by-a-session-link.md) |
-| Jellyfin app as a target (Nov 2026) | `TOTUM_JELLYFIN_CLIENTS=<label>=<device name contains or id>;...` makes each named running Jellyfin client (Fire Stick, LG, web) a TV-kind target on the Pi, `ON` while Jellyfin lists a controllable session for it and `ASLEEP` ("open it by hand") otherwise; the Pi hands it the item id (`PlayNow` + start ticks) through the Sessions API with the key it already holds and watches the session with the shared `RendererWatch`, so queue, volume, sleep timer and problems are the deck's; it is a `TargetPlayer`, not a `CastControl` (nothing to build or relay), and takes **only Jellyfin items** (`TargetState.plays`; the Pi refuses the rest, the picker says so, a mixed batch plays on the phone): the API has no URL parameter | Dewi's "drive what the Jellyfin app on the Fire Stick or the LG is playing from Totum"; [ADR 187](docs/adr/0187-a-running-jellyfin-app-is-a-target-the-pi-drives-by-item-id.md) |
-| Back and forward (Nov 2026) | A browser-like trail of the last 50 things that played, any kind; "⬅️ Back" and "➡️ Forward" tiles in the player's quick strip, going through the item's queue row when it is still queued | Dewi's "back and forward … a history of what items I've been playing"; [ADR 114](docs/adr/0114-back-and-forward-through-what-played.md) |
-| The Pi plays to targets (Nov 2026) | A target is anything the Pi plays to (Bluetooth speaker, TV, Chromecast; browser is modelled, not built), each with its own queue held by a `TargetDeck` on the Pi (`/targets`, was ADR 116's `/speakers`); the Queue tab has chips per target with a colour each (automatic, editable), a remote chip shows that queue on the same row, and while one is selected every Play, Add, Play next and Shuffle all from the phone goes there through `PlaybackQueue.destination`; 📡 Send to… moves the playing item and the rest of its group, the phone letting go only once the target says it is playing; only items queued from the owner's phone (signed in to YouTube) report progress to YouTube from the Pi | Dewi's "cast to any speaker, any browser, and any TV … not dependent on my phone"; [ADR 152](docs/adr/0152-a-target-is-anything-the-pi-plays-to-and-each-has-its-own-queue.md) |
-| Speakers kept awake, one volume (Nov 2026) | `TOTUM_SPEAKERS_KEEP_AWAKE=<names or ids, optional @HH:mm-HH:mm>` keeps those speakers linked after a queue ends, reconnects a dropped one with a growing wait and sends two seconds of inaudible sound to its sink about a minute apart while nothing plays (silence, or `noise` if silence is not enough); unnamed speakers are untouched; a speaker's volume slider writes the Bluetooth transport's absolute `Volume` through `busctl` (mpv stays at 100%) and shows what the speaker reports, falling back to mpv's volume with a logged reason when the transport offers none; only the slider ever writes a level; `TargetState` carries `volumeMode` and `keepAwake` | Dewi's "Soundmic: Pi keeps a connection so it doesn't sleep … two volume controls problem (mpv vs the speaker's own)"; [ADR 165](docs/adr/0165-a-speaker-is-kept-awake-and-has-one-volume-its-own.md) |
-| Sleep fade (Nov 2026) | One fade policy in `:core:sound` (`SleepFade`, `FadeRamp`), used by the phone's `SleepTimer` and the Pi's `TargetDeck`: a steady ramp over the fade length (Bedtime page, 20 s, 0 = off) that is linear in how loud it sounds, never above where it began, logged once at the start and once at the end; a sleep timer set on a selected target's page becomes a `DeckSleep` on the Pi (`TargetAction.SLEEP`), which ramps that target's volume, pauses or stops, and puts the volume back; a target whose volume is unknown is not faded, still stops | Dewi's "gradual sleep-timer fade (~20 s, steady)" for Marvin's nap stories on a bedroom speaker, also on Pi targets; [ADR 166](docs/adr/0166-the-sleep-timer-fades-by-how-loud-it-sounds-on-the-phone-and-on-a-target.md) |
-| Sound on the Pi (Nov 2026) | The phone's own skip-silence and boost run on the Pi from `:core:sound` (`PcmChain`: cutter, then boost); ffmpeg only decodes and encodes; a speaker is fed processed PCM through mpv's stdin, a TV is cast the phone's own stream, the manifest of `CastStreamServer` in `:core:cast` (one casting brain for the phone and the Pi: only MediaCodec and ffmpeg differ, behind `AudioEngine`), with the Pi's sound as processed AAC segments; position is the source's (time plus what was cut); TVs are driven by `pychromecast` from configured addresses | Dewi's option B, one sound engine, and "are we reinventing the wheel?"; [ADR 153](docs/adr/0153-the-pi-runs-the-phones-sound-processing.md), [ADR 156](docs/adr/0156-one-casting-brain-the-pi-casts-with-the-phones-own-code.md) |
-| Jellyfin in Totum (Nov 2026) | The Pi browses (`/jellyfin/browse`) and proxies (`/jellyfin/stream/<id>.<ext>`, ranges kept) Jellyfin with the key it already holds; an item is a `PlayableItem` with id `jellyfin:<id>` and the Pi's stream address, so queue, groups, resume and the Pi targets work unchanged; a Library tile and page walk films, series, seasons and episodes | Dewi's "browse and play what the Pi files into Jellyfin"; [ADR 154](docs/adr/0154-jellyfin-is-browsed-and-streamed-through-the-pi.md) |
-| On this phone (Nov 2026) | A Library tile and page for the videos, music and photos stored on the phone: MediaStore read a hundred rows at a time (search, sort, folder chips); a video is `PlayHandle.LocalVideo(path)` and a song `PlayHandle.Podcast(path)`, so the one player, queue, skip silence, boost, speed, resume and the phone's casting apply with nothing added; the item id carries the path (`phone:<kind>:<id>.<base64 path>`); permissions asked on the page by a button, per kind, with Android 14 partial access; a photo grid, pinch/swipe viewer and slideshow; **☁️ Google Photos** through the Photos Picker API, signed in by Totum's own PKCE + loopback flow (the TV device-code client cannot carry the scope) and copied into the app's storage, behind a "needs setup" state until `totum.photosClientId` / `totum.photosClientSecret` exist; phone files never go to the Pi's targets; a photo can be mirrored to a browser on the phone's screen page (🖥️ Show on a screen), not yet to a Chromecast or the Pi's targets | Dewi's "view ANY media on our phone … within the app … Google photos connectors"; [ADR 176](docs/adr/0176-on-this-phone-is-a-source-behind-the-one-player.md) |
-| Crash screen and state dumps (Nov 2026) | A crash opens a screen at the next launch (trace, 🐙 Report on GitHub with the whole trace, 📋 Copy, 🏠 Send to my Pi); sending to the Pi is a setting, on by default; every crash or diagnostics report the Pi accepts brings one gzipped state dump (the backup with the live queue, the Ask snapshot, all preferences but the credential files, through the one redactor) **linked to its report by id** (`X-Totum-Report-Id`), kept by the server for as long as the report is unconsidered and deleted when it is (a size cap drops the oldest; a dump with no id keeps the newest five), the report and its state staying pending on the phone together and retried state-only; `triage.sh considered` marks reports that still have theirs with 📦, and `tools/emulator/load-state.sh [report id]` restores one into the emulator | Dewi's "a crash screen like PipePipe's … a state dump with every diagnostics report … load it into the emulator", then (14 Nov) "app state auto sent with every diags and only deleted once the diags is considered"; [ADR 159](docs/adr/0159-a-crash-screen-and-a-state-dump-for-every-report.md) |
-| Licence and reports (Nov 2026) | GPL-3.0; the sink (`crashlog.<the configured home server>`, derived, never a fixed address) gets reports and the PC-screen announce only from a phone signed in to that server, the token sent only to its own hosts; everyone else gets "🐙 Report on GitHub": a redacted preview of an allow-listed body, copied, the new-issue form opened, nothing posted by the app | Dewi's "GPL-3.0 … reports reach my Pi only from signed-in phones, everyone else GitHub"; [ADR 146](docs/adr/0146-gpl-3-and-reports-go-to-the-pi-only-when-signed-in.md) |
-| Screen on for video (Nov 2026) | One helper (`KeepScreenOnForVideo`) for the full player and the Shorts reel: a playing video keeps the screen on; paused in full screen, only while charging; the kid lock keeps its own always-on window | Dewi's "keep the screen on in full screen"; [ADR 161](docs/adr/0161-the-screen-stays-on-for-a-video-and-for-a-paused-one-on-the-charger.md) |
-| Exsurge settings history (Nov 2026) | The last 20 settings changes (time, source, field diff) are kept and shown in the state block; a start-up that finds the settings changed since the last write records it | Finding 160, the 5 Nov overnight change nobody could explain; [ADR 162](docs/adr/0162-exsurge-keeps-a-durable-history-of-its-settings-changes.md) |
-| Exsurge walking and sliders (Nov 2026) | The summons screen's break and snooze lengths are `SnappingSlider`s (break 1 to 15 in ones, snooze 5 to 60 in fives, ones when the saved length is off the fives); a sitting clock reset by walking says so on the banner, the Live Update chip, the hero and the tile (`BannerLine.Walking`, "🚶 Walking · timer reset 40 s ago", steady minutes beside it); **five steady minutes of walking** (each at least 40 steps, from the first step, a gap or slow minute starts again; both are settings) are a finished break from a sitting clock with the schedule on: a credited outcome, the day tally, a fresh clock, nothing while Off, Paused or Dormant; Exsurge's settings page writes a distinct source per control and a flip of `enabled` within 2 s of the last one is noted in the history | Dewi's "Exsurge summons duration slider" and report 20261116T134953 ("the timer stays at 19 min while I walk"); the 16 November walk measured 78 steps a minute; [ADR 181](docs/adr/0181-exsurge-lengths-are-sliders-a-walk-says-so-and-steady-walking-counts.md) |
-| Long silence cuts on video (Nov 2026) | While a video track is selected the heard clock releases at most 400 ms per read and owes the rest, and the video renderer drops (not draws) the frames that fall in what is owed, so the picture still shows only what you hear; cuts, jumps and dropped frames are counted into one periodic line; audio-only is uncapped; whether it stops the stall is open until the logs say | Finding 129: 7.5 s of buffering after a long cut; [ADR 163](docs/adr/0163-a-long-silence-cut-on-a-video-is-paid-out-in-short-clock-jumps.md) |
-| Sponsor button (Nov 2026) | A Settings row to the sponsor page, drawn only while `totum.sponsorUrl` (one build value) is a usable https link, `https://ko-fi.com/totum` since 2026-11-13 with `.github/FUNDING.yml` (`ko_fi: totum`); no URL is invented | Dewi's "sponsor up to you" (GitHub Sponsors, Ko-fi meanwhile); [ADR 147](docs/adr/0147-the-sponsor-link-is-one-build-value-and-hidden-when-empty.md) |
-| Home torrents hold together (Nov 2026) | A job the Pi is retrying is waiting with its plan (`HomeJob.retry`), never "failed"; a job keeps the phone's own address; torrent reads wait 10 minutes and a failure resets TorrServer; a torrent's files are MAIN / EXTRA / SAMPLE (the film first, extras unticked under a collapsed group, "At home" only when the main file is); posters by title and year; a late-Tracks MKV is remuxed when filed and an unwritable folder is skipped for a fresh one; 📥 Move to 📱 Phone deletes at home only after a same-size copy; the last 300 events survive a restart | Reports of 2026-11-07 and 2026-11-09 (Spider-Man "failed" while filing, Spinal Tap's featurettes ready before the film); [ADR 168](docs/adr/0168-home-torrents-hold-together-retries-shown-main-file-first-and-a-fixed-remux.md) |
-| Repair and shield logging (Nov 2026) | `SharedMetadataRepair` does every lookup on `Dispatchers.IO` (and `Cinemeta.get` reads its own reply there), asks a poster once per torrent name, works 20 rows at a time with a second between batches, and logs one `pass:` line per pass; the spoiler shield logs one `faces:` line per 2 s window and one `verdicts:` line per answer, a line of its own only where the rules overrode the model | Report 20261114T050301 (v0.1.918, 5,857 queue rows): 114 poster lookups threw `NetworkOnMainThreadException` and 989 of 1,400 events were per-row `spoiler` lines; [ADR 171](docs/adr/0171-repair-runs-off-the-main-thread-once-per-torrent-in-batches-and-logs-one-line-per-pass.md) |
-| Kid TV (Nov 2026) | A Library tile casts a chosen pinned playlist to a chosen TV in kid mode with one tap; kid mode has two doors, the phone lock and the TV (`KidLock.modeOn` carries the rules, `locked` the stage and pin); stopping pauses then ends the cast | Dewi's "one button casts a chosen kid playlist to the LG in kid mode"; [ADR 148](docs/adr/0148-kid-tv-is-kid-mode-on-the-tv-and-a-pinned-playlist.md) |
-| Treat button (Nov 2026) | A Library tile (and an app-icon shortcut) puts a chosen pinned playlist or film on a chosen **Pi target** TV for 5 to 90 minutes (default 15) and arms that target's own timer on the Pi (`DeckSleep`, one more `stop` flag), so a locked phone or a closed app cannot leave it running; the end is switch the TV off (default), pause or stop, falling back to stop when the TV cannot be switched off, said once; saved defaults, a sheet for this-time changes with "Save as default"; a strip entry with time left and Stop (`OperationKind.TREAT`, `Operation.detail`) and a self-counting notification; a timer that cannot be set stops the TV | Dewi's "Toy Story on the TV for 15 minutes, then off", configurable; [ADR 196](docs/adr/0196-the-treat-button-puts-a-film-on-the-tv-for-a-while-and-the-pi-ends-it.md) |
-| Play next stacks (Nov 2026) | Play next puts the item (or the whole group) straight after the last item you put next while that item is still queued, still ahead of the playing item and the same item still plays, else straight after the playing item; one rule (`placingNext` in `:core:data`) for every list, multi-select, group header, Move up and Pi target queue; remembered across a restart in a preferences value, no Room change | Dewi's "A, B, C should play in that order"; [ADR 195](docs/adr/0195-play-next-stacks-in-the-order-you-chose.md) |
-| Trip mode (Nov 2026) | Say when you leave and how many per group; on Wi-Fi the next few of every queue group are fetched as one strip task (`EpisodeDownloads.fetchBatch`) and what the Pi has ready is copied through `HomeDownloads.copyNow` only; films and torrents are never started for you; ends at departure | Dewi's "I'm leaving in 2 hours"; [ADR 149](docs/adr/0149-trip-mode-fills-the-phone-through-the-existing-download-paths.md) |
-| Long ones (Nov 2026) | A Library tile "🧘 Long ones" opens a page of unwatched videos over 20 minutes from what you follow, newest first, 12 at most and 2 per channel or show; built from caches (newest upload per channel, the cached Subscriptions feed, followed shows' episodes), lengths from the item, a kept file, an earlier lookup, then a lean `player` ask (no `n` solve) 4 at a time in the background lane, 40 a refresh, unmetered only, kept for good; Shorts and every live stream (on now, not started or ended) are left out, and so is any video over 4 hours (a podcast episode has no cap); podcasts included under the same 2-per-show cap; it does not obey the Videos feed's dopamine-fast gate; refreshes on opening the page, the app, and the 2-hourly new-uploads job | Dewi's "videos that won't blast my dopamine receptors"; [ADR 185](docs/adr/0185-long-ones-are-built-from-what-is-cached-and-fill-in-lengths-lazily.md) |
-| Views everywhere (Nov 2026) | One read of a watch page (`WatchNextParser.facts`) gives description, day, wording and views to Related, the group day lookup and the signed-in description; Related and Up next read a bare compact count beside the date; the resolver, yt-dlp and `withStreamFrom` carry views; `SharedMetadataRepair` fills views for queue rows near the playhead and downloads from the date's own read (`Need.VIEWS`); RSS rows read `media:statistics`; a day-only date says "Today", "Yesterday", "5 days ago", never hours; a group's new video is announced by id, not by when the group was opened; Discover reads heard neighbours to reach hop two and falls back for composers; New uploads pages through the subscriptions feed | Dewi's "there should be view counts on every item … I want it more consistent" | [ADR 192](docs/adr/0192-one-watch-page-parse-fills-views-everywhere.md) |
-| Phone use (Nov 2026) | Unlocks, screen time and the first app opened come from Android's own usage history (Usage access), settled into the stats log; Library → Stats has a 📱 Phone use section; an optional nudge (off, 2–30 min window) asks "still want in?" full screen on a quick re-unlock, held five seconds, never blocking and kept out of calls, camera, navigation, Exsurge, alarms, the kid lock and Totum video | Dewi's "how many times do I unlock my phone … maybe lock the phone"; no app can lock a phone, so it only asks; [ADR 160](docs/adr/0160-phone-use-is-read-from-androids-own-history-and-the-nudge-only-asks.md) |
-| Tab badges (Oct 2026) | A tab wears "🆕 N" for what arrived since you last looked at it (Podcasts: new episodes; Library: group news), never the tab you are on; Videos has none by choice (ADR 19) | Dewi's "a number that pops … podcasts especially"; [ADR 107](docs/adr/0107-a-tab-says-what-is-new-since-you-looked.md) |
-| Torrent posters (Oct 2026) | A result's picture is its site's poster, else the poster for its IMDb id (Prowlarr, apibay, Torrentio), else one borrowed from a copy of the same work in the same search; queued files carry it as their thumbnail | Dewi's "pictures associated with the torrent … throughout the app"; [ADR 106](docs/adr/0106-a-torrent-wears-its-poster.md) |
-| Torrent progress (Oct 2026) | Each result says what you watched (`✅ Watched`, `▶️ 34 of 96 min`, `✅ 3 of 10 watched · ▶️ S01E04`), or that you played another copy; prepared torrents are remembered (`TorrentsSeen`, latest 500); a tap starts at the file in progress, else the next unwatched; the episode picker marks files; a quality chip from the name | Dewi's "have I viewed one? Am I half in the middle of one? … I trust you"; [ADR 102](docs/adr/0102-torrent-results-say-what-you-have-watched.md) |
-| Torrents hold their place; downloads retry (Oct 2026) | A stalled torrent never moves on mid-item (replays from its place); a transient download failure retries itself after 30 s, 2, 8, 32 min, resuming; the preloader never holds an HLS playlist; every seek logs who asked; TorrServer uploads at 1 KB/s (`server/README.md`) | Dewi's "buffered then restarted … 20 mins in" and "downloads failed … retry from the same place"; [ADR 103](docs/adr/0103-a-torrent-holds-its-place-and-downloads-retry-themselves.md) |
-| Downloads page and notifications (Oct 2026) | The page shows one section at a time by chips (⬇️ In progress incl. waiting and retrying, ❌ Failed with 🔁 Try all again / 🧹 Clear all, 📥 On the phone); one notification with its own bar per running download (≤4) under the summary; every download notification opens Library → Downloads at its section | Dewi's "download page … difficult to use … I can only see like one at a time … click it and go into the app"; [ADR 104](docs/adr/0104-downloads-in-three-sections-and-a-notification-per-download.md) |
-| Reminders and the one-tap page (Oct 2026) | A reminder is a `DailyAlarm` with `kind = REMINDER`: no morning question, a heads-up with a sound at its time and again every 10 min (six times) until ✅ Done, on the same board; Close the fridge at 21:00 every day seeded once; tap a card's time for the clock (dial or typed), −15/+15, days toggled in place, the rest under ⚙️ More, delete with Undo; one ➕ sheet adds every kind (Once / Every day / Weekdays / Choose days), switched on | Dewi's fridge left ajar overnight, and his "I just want to be able to easily change the time or add the time"; [ADR 92](docs/adr/0092-a-reminder-is-a-daily-alarm-that-nags-and-every-time-is-one-tap.md) |
-| Groups (Oct 2026) | A group of channels or shows is one list in true date order (each channel's RSS for its newest 15, then each older video's publish day asked once and kept); the Library opens with its groups, a tile per group ("🆕 3 new"), the Library button pulses with a "🆕 N" badge when there is something new, and a group page with 🆕 markers under "New since you last looked", rename, channels and delete; one notification per new video, checked hourly on any network | July's merge never merged (every date was null); Dewi's Backpacker Ben / Carry On Cat / Bald and Bankrupt; [ADRs 94, 95](docs/adr/_index.md) |
-| Follow mark (Oct 2026) | Every row shows ✅ subscribed / ➕ not subscribed / ❔ unknown beside its channel or show, for both pillars; ➕ subscribes, ✅ asks first; one rule in `:core:domain` (`FollowedSources`) | Dewi wanted it obvious while scrolling; [ADR 22](docs/adr/0022-every-row-says-whether-you-follow-its-source.md) |
-| Music tab (Oct 2026) | **Music** replaces Search in the bar (Videos · Podcasts · Music · Queue · Library); search is a 🔍 in every tab header, opening over the tab; the Music tab is `SearchViewModel` in a MUSIC scope (songs, albums, artists); album and artist pages from YouTube Music; your library via the TV client; music items are `MediaContentKind.MUSIC` and play as sound until Watch | Dewi's "nice way to play/search music/albums"; [ADRs 24–26](docs/adr/_index.md) |
-| Radio, repeat, shuffle (Oct 2026) | Radio tops itself up from YouTube Music's continuation; repeat (off / queue / this one) is decided in `AutoAdvancer`; shuffle up next in the Queue header; repeat and shuffle serve both pillars | [ADR 27](docs/adr/0027-radio-repeat-and-shuffle-are-queue-features.md) |
-| Discover (Nov 2026) | 🔭 beside Radio and Mix everywhere they appear: a station inside `MusicRadio` whose songs come from artists one then two hops out on YouTube Music's similar-artists lists (a random top-five song each), skipping artists played or liked recently and the last one picked, preferring ones you do not follow; two artist pages a top-up, none twice, cached, background lane; a progress-strip operation and "📭 Couldn't find anything new near …"; a Recently action and a pin | Dewi's "Radio plays the same sort of thing … a bit more varied and daring … be bold"; [ADR 167](docs/adr/0167-discover-a-bolder-radio-that-walks-the-related-artist-graph.md) |
-| Shortcuts (Oct 2026) | Anything can be pinned (`Pin`, one sealed type for both pillars); a Pinned row on the Music home and Library, and home-screen icons (`totum://pin/<key>`); a pin plays at once through `PinPlayer`, a video opening the player | Dewi's Miss Rachel video and Pablo album; [ADR 28](docs/adr/0028-pins-and-home-screen-shortcuts.md) |
-| Shuffle all (Oct 2026) | 🔀 on channel and podcast pages and a row on a selected group: `WholeSource` walks every page of every source, Shorts asked each time, nothing skipped, no cap, shuffled into one `shuffle:` queue group after what is playing | Dewi's "shuffle ALL videos of a channel"; [ADR 30](docs/adr/0030-shuffle-all-walks-every-page-into-one-queue-group.md) |
-| Live tab (Nov 2026) | A channel page has a **Live** tab for its past and current streams (`YouTubeChannel.streams`, browse params `EgdzdHJlYW1z8gYECgJ6AA==`), listed only while the channel has streams; a first page counts only when the selected tab is Live (a channel without one answers with its Home or Videos tab); every first page's tab list is remembered, so a channel with no Live tab is never asked, asked after its Videos page; Shuffle all always walks lives (`SourcePart.LIVE`, after the same source's uploads), groups and New uploads keep reading page plus RSS | Dewi's "past live streams are missing from channel pages"; a no-Live-tab channel's answer is 1.9 to 2.2 MB of another tab; [ADR 178](docs/adr/0178-a-channels-past-streams-are-its-live-tab-found-through-its-tab-list.md) |
-| Yours in search (Nov 2026) | Search has a first tab, **📥 Yours**, shown first whenever it has matches: what you already have, matched by the list filter's fuzzy matching, in the phone's finished downloads (📱), the Pi's finished jobs (🏠) and the Jellyfin library (🎞️, searched on the Pi by `GET /jellyfin/browse?search=`), each row saying where it is and played through the queue's `routeNow`; the same item in two places is one row, a Jellyfin film merging with a home or phone file only on a matching title and year; the phone's matches arrive first and a Pi that does not answer adds "🏠 Home not reachable"; the queue and pins are not searched; "Downloaded" on list headers stays phone-only | Dewi's "I want to only see the ones I've downloaded" (Spinal Tap II, at home and in Jellyfin, not on the phone); [ADR 183](docs/adr/0183-search-shows-what-you-already-have-first.md) |
-| Downloads clean-up (Oct 2026) | Cards at the top of Downloads suggest four groups (30+ days unopened, finished, over 500 MB, not queued), reviewed with everything ticked before deleting; deleting a queued item dequeues it; the download row records when it was downloaded and last opened | Dewi's "suggest group to batch delete"; [ADR 31](docs/adr/0031-downloads-suggest-groups-to-delete.md) |
-| Music favourites (Oct 2026) | Like (song menu), Save (album page), Follow (artist page) write to the YouTube Music account through the TV client, and count only once a read-back shows the change; "Your favourites" tops the Music home | Dewi's "starring" on his real account; [ADR 32](docs/adr/0032-music-favourites-live-on-the-account.md) |
-| Side-quest look (Oct 2026) | Roman and bold: a laurel gold (`LocalLaurel`) only the side quests use; the Exsurge hero is Surgius in a countdown ring; settings in icon cards with sliders on the old steps; each alarm a compact card with a huge next time and Edit | Dewi's "sexy while keeping functional"; [ADR 34](docs/adr/0034-the-side-quests-look-roman-and-bold.md) |
-| Recently and Even out (Oct 2026) | Recent actions (shuffle all, albums, radios) come back as a Recently row and app-icon shortcuts; a third boost mode, Even out, rides the level passage by passage; every boost is at full loudness within ~100 ms of the first word (the limiter smooths only its cut, 20 ms look-ahead) | [ADRs 35, 36, 112](docs/adr/_index.md) |
-| Exsurge nudges (Oct 2026) | Off stays off and never summons; while off, one silent "Exsurge is off" reminder when active hours start each day, and a phone flat for a minute in active hours gets a "Sat down?" nudge | Dewi was summoned while he thought it was off; [ADRs 37, 71](docs/adr/_index.md) (71 supersedes 38) |
-| Signed-in TV streams (Oct 2026) | The signed-in TV player request is SmartTube's: its Cobalt agent, the web-scale timestamp and `isInlinePlaybackNoAd`; no PO token; ciphered links signed; signed in, the account answers **first** and yt-dlp is the backup | YouTube bot-blocked every anonymous client on the home IP, and the old request's links all returned 403; [ADRs 49, 50](docs/adr/_index.md) |
-| Resume and per-show skips (Oct 2026) | Resuming talk rewinds 2–20 s by how long it was paused (in a session, or since the position was saved), never music; a show or channel can have its intro and outro skipped (set in Details), as skip segments through the SponsorBlock ticker; Explore follows a podcast into its show's next episode and can be capped; five seconds of silence in an item's last minute ends it (not music), and SponsorBlock end cards are skipped by default | Dewi's picks from the product review and his "dead time at the end of videos"; [ADRs 56, 57, 58](docs/adr/_index.md) |
-| Played state on the account (Nov 2026) | Totum's played state is pushed to YouTube and repaired there: an item Played here that an account read shows below 100%, or in progress and ahead, has its final or position re-sent **once** through the outbox (`PlayedStateRepair`, `accountRepairFor`), only while the account has not moved since Totum last acted on it, so a newer position from another device still wins; `setPlayed` on a YouTube item (menu, bulk select, group, start again) reaches the account, a reset pinging 0 only where the account holds a position; a second completion of a video is reported; `yt-sync-item` is a kept log tag with one line per item end and one read-back line per account read; a refusal YouTube means for good (claimed content, copyright, private) ends its outbox row after 3 tries and shows as `yt-sync.refused`; a SponsorBlock skip is clamped to the duration and given up on when it repeats 3 times in 10 s | Dewi's "play status, progress, finished should match YouTube on the web"; reports 22, 23 and 27 Nov showed Played in Totum against the 10% floor on the account; [ADR 193](docs/adr/0193-totums-played-state-is-pushed-to-and-repaired-on-the-account.md) |
-| Transcript tab (Oct 2026) | Up next · Related · Comments · Transcript · Details; the Transcript tab only when one exists: YouTube captions (human in your language, else auto) or the feed's `podcast:transcript`; follows the spoken line, tap to seek, search | Dewi's pick from the product review; [ADR 60](docs/adr/0060-a-transcript-tab.md) |
-| New uploads (Oct 2026) | One check (`NewUploads`) feeds a shuffled channel or show's new uploads next into its queue group, and chosen sources' (or every subscription's) into a "📥 New" group at the end; every 2 h on Wi-Fi, on opening, and ⋮ → 🔄 Pull new uploads | Dewi's Peep Show mealtimes; [ADR 59](docs/adr/0059-new-uploads-flow-into-shuffled-groups-and-an-inbox.md) |
-| Drive backup (Oct 2026) | Everything but downloads and the queue, to a Drive folder (or one file) chosen in the system picker; latest + 7 dailies; on every change (30 s settle, 5 min max); restore merges; one shared backup for both phones | Dewi's "backup to my personal Google Drive"; [ADR 53](docs/adr/0053-google-drive-backup.md) |
-| Out-of-date banner (Oct 2026) | The installed version is checked against GitHub's latest release at launch and every 30 min; when behind, a red, undismissable banner tops every tab with **Update** (Obtainium, else the release page); reports carry `update.*` | A report came from 0.1.602 with 0.1.603 already out; [ADR 29](docs/adr/0029-an-out-of-date-build-says-so-on-every-tab.md) |
-| Stats (Oct 2026) | Library → 📊 Stats from an append-only JSON-lines log (`:lib:stats` pure, `StatsLog` in the app; not Room, so no schema bump), aggregated when the page opens; a play counts at 30 s or half; Exsurge back-fills from its outcomes | Dewi's "pretty rich stats page with drill downs"; [ADR 44](docs/adr/0044-stats-are-an-append-only-event-log.md) |
-| State emoji (Oct 2026) | Every state string (status, setting value, empty/error, notification) starts with an emoji, in the string itself; nothing spoken or used as a description carries one; one vocabulary (✅ ❌ ⚠️ ⏳ 📭 …) | Dewi's "prefix … with emoji"; [ADR 43](docs/adr/0043-every-state-string-starts-with-an-emoji.md) |
-| Music ⇄ talk (Oct 2026) | One tap jumps within the queue between music (`MediaContentKind.MUSIC`) and talk: the item of the other kind left last, else the nearest; no music queued plays the newest music from Recently; mini player, full player, Queue header and an extra notification slot | Dewi's "save me going in to the queue ui each time"; [ADR 42](docs/adr/0042-one-tap-switches-between-music-and-talk.md) |
-| Queue drag and groups (Oct 2026) | The queue drags with `sh.calvin.reorderable` by real positions (Dewi's choice over a hand-rolled rewrite); a group header drags its whole group, and its ⋮ moves it to top / bottom / next or shuffles it; 🔀 also shuffles the order of groups; a split group's second header is hidden mid-drag | The hand-rolled drag jumped 88–90dp off the finger crossing a group; [ADR 40](docs/adr/0040-the-queue-drags-by-real-positions.md) |
-| Dependency updates (Oct 2026) | Renovate at weekends, merging only its own green PRs (`platformAutomerge` off: `main` is unprotected); patch/minor merge by themselves after 3 days, security fixes at once, majors and the risky ones (Kotlin, AGP, Chaquopy, Media3 `needs-soak`, FFmpeg/QuickJS `needs-manual-rebuild`) are held and looked at at the start of every batch | It had never opened a PR: its Monday-before-6am window kept being missed; [ADR 41](docs/adr/0041-renovate-runs-at-weekends-and-media3-waits-for-a-soak.md) |
-| Player tabs and Explore (Oct 2026) | Under the controls: Up next · Related · Comments · Details (Related in Listen mode and for songs too); **Explore** follows related videos as peeks and leaves the queue waiting, resuming after the item it left when switched off; toggles in the player, Queue header, mini player and Settings | Dewi's "section for related … what's playing next … a mode for automatically playing related videos"; [ADR 56](docs/adr/0056-player-tabs-and-explore-mode.md) |
-| Videos hidden until asked (Oct 2026) | The Videos feed sits behind a **Show videos** button, hidden again whenever you leave the tab; a setting, on by default | Dewi's dopamine fast; [ADR 19](docs/adr/0019-videos-hidden-until-asked.md) |
-| Video fullscreen (Oct 2026) | Landscape rotation opens immersive video; portrait exits automatic fullscreen; the button keeps its landscape lock | Rotation and a deliberate button press have different orientation ownership; [ADR 9](docs/adr/0009-rotation-follows-video-fullscreen.md) |
-| UI performance (Oct 2026) | Screens read derived playback fields, players go through `SteadyPlayback` with position in `LocalLivePosition`; play/download states are a `State<Map>` read per row; video in a `SurfaceView`; nothing animates unseen (equaliser, busy bar still over the player); the position ticker sleeps while nothing plays | Peep Show stuttered on both phones: 130–150 ms frames every position tick; [ADR 61](docs/adr/0061-the-ui-does-no-work-per-playback-tick.md) |
-| Quick strip, queue headings, stay in kind (Oct 2026) | Listen/Watch, speed, boost, skip silences and sleep sit in a strip under the player's title and left the tile grid; ungrouped queue runs get "➕ Added by you", the playing group's header says ▶️ and 🔊 Playing now; auto-play (and gapless arming) stays in music or talk, the other kind left queued, then Explore or stop; manual ⏭ unchanged | Dewi's "currently I have to scroll down", "not added to Peep Show", "if I'm in non-music mode … I don't want music"; [ADRs 62–64](docs/adr/_index.md) |
-| Everything about the item (Oct 2026) | An "ℹ️ About this" card tops Details for any item (`itemFacts`); the description comes from the watch page when the TV player has none; a channel page stamps its channel on its rows | Dewi's "display everything about the item … a general rule"; [ADR 65](docs/adr/0065-the-player-says-everything-about-the-item.md) |
-| Sort and filter (Oct 2026) | One sheet on every list header (`SortAndFilterSheet`, `MediaSort`, `ItemFilters` in `:core:domain`); queue sorts change the play order within each group, the playing item fixed, with Undo; queue filters view only; date added in Room v28; a header's buttons wrap under its title rather than squeezing it (`TitleAndActions`) | Dewi's "sort … a group in the queue by date added … any possible filter"; [ADR 66](docs/adr/0066-one-sort-and-filter-menu-everywhere.md) |
-| Casting (Oct 2026) | The TV plays a static DASH stream the phone serves: original video packets relayed, Totum's processed audio as AAC segments; formats from measured TV profiles (VP9/H.264/HEVC; never AV1); a video the TV can't show goes as sound only with a "📺 Casting to …" strip saying why; the phone's Subtitles button drives the TV; tested without a TV on a Shaka-in-Edge stand-in (`tools/cast-bench/standin/`) | Dewi's "cast with Totum as the brain"; [ADR 68](docs/adr/0068-cast-a-stream-the-phone-serves.md) |
-| Casting fixes (Nov 2026) | Back 10 s and forward 30 s on every player (`SeekSteps`); a stall is counted once and a picture frozen for 12 s steps down (`CastStallJudge`); the video relay reads the next range ahead and, on the phone, goes through the playback cache (`VideoRelay`); a file with no readable tracks and a cast that keeps failing say why; SubRip sidecars reach the TV; the PC screen page has a seek bar | Dewi's diagnostics of 7 to 11 November; [ADR 164](docs/adr/0164-casting-fixes-from-the-diagnostics-of-7-to-11-november.md) |
-| Silent casts (Nov 2026) | A model `CastScreen.of` does not recognise is sent **H.264 first**; a TV that fetches the picture and asks for no sound within 8 s is moved to the next codec through the stall step-down's re-send, with "📺 TV didn't start VP9, trying H.264" on the strip, and the refusal is remembered per model only once the other codec plays; the receiver's status, `MediaError` and every begun and in-flight relay request are logged; a route selected with no session callback in 5 s says so (Play Services version) and offers Retry; `NoTracksWatch` stays quiet while the file plays; a DNS failure waits for the network instead of running yt-dlp through every client, and is never logged as "unavailable" | Reports of 14 to 17 Nov (v0.1.927): Kitchen and Living Room TVs (generic Chromecasts) fetched the VP9 init and index, then nothing; a Spinal Tap MKV playing under a "can't play" toast; a download 29 s slow on flapping DNS; [ADR 179](docs/adr/0179-a-silent-cast-moves-to-the-next-codec-and-an-unmeasured-tv-gets-h264-first.md) |
-| PC screen (Oct 2026) | A receiver page the **phone** serves (`/screen` on the cast server, keyed), played with Shaka in Edge; the page is one more player (`ScreenPlayer`, `PcScreens`), fed the TV's stream; the Pi bookmark (`crashlog…/screen`, Google-gated) only redirects to the phone's latest page address, which the phone posts to `/ingest` | Dewi's "watch from my phone on my PC display"; an https Pi page cannot play the phone's http stream (mixed content); [ADR 81](docs/adr/0081-the-pc-screen-is-a-page-the-phone-serves.md). Since 2026-10-29 a "📱 Dewi's Totum" private-area tile opens it, the page names what the phone plays and **▶️ Watch here** takes over (the queue's current item when nothing is loaded), and the phone says "🖥️ Ready for your PC" while charging on Wi-Fi; [ADR 93](docs/adr/0093-the-private-area-opens-the-pc-screen-and-watch-here-takes-over.md) |
-| Live streams (Oct 2026) | The signed-in TV answer for live carries no manifest, so Totum builds one (SmartTube's recipe): a head request (`X-Head-Seqnum`), a DASH manifest of `&sq=$Number$` segments served on loopback; a live item starts at the edge, never a saved place; live segments skip the chunked ranges | Live looped on one segment; [ADR 69](docs/adr/0069-live-streams-play-a-manifest-totum-builds.md) |
-| Live not started yet (Nov 2026) | A refused upcoming live is typed (`UpcomingLive`, scheduled start when given) and held in `UpcomingLives`; rows say "🔴 Starts soon", a tap says so, and a progress-strip wait checks politely (signed-in TV then anonymous player, never yt-dlp; 2 min then backing off, 6 h cap) and notifies with Play when it is live | Report 20261104T171409: tapping an event before it began showed nothing; [ADR 69](docs/adr/0069-live-streams-play-a-manifest-totum-builds.md) (amended) |
-| Spoiler shield (Nov 2026) | For channels you choose, Haiku rewrites titles without the result (two players always in alphabetical order of surname, because a plain "A vs B" title names the winner first), pictures blur, lengths and descriptions hide until played or revealed by hand; one title seam (`ItemShield`/`ItemFace` in `:core:domain`, `SpoilerShield` in `:core:data`) read by every surface that shows or sends a title (rows, the player session, notifications and toasts, Next line, share, the stats screen, Ask's pack and taste; logs and the stats records keep the real title) and the transcript tab says "🙈 Hidden until watched"; fails closed ("🙈 Title hidden") and a rule check in code beats the model | Dewi's "spoiler shield for sport"; dry runs on 104 real titles found 31 of 48 two-player titles unchanged by the first prompt; [ADR 141](docs/adr/0141-a-spoiler-shield-hides-results-in-titles-pictures-and-lengths.md) |
-| TL;DR, chapters, ask about this video (Nov 2026) | One transcript digest: the Transcript tab's "✨ Summarise this" (items of 10 min or more; three lines and tap-to-jump chapters, kept on disk per item) and "✨ Ask about this" (an answer with moments, each confirmed against the transcript in code); the phone sends timed blocks, the Pi's `transcript-digest` and `transcript-ask` tasks answer with no tools; a long transcript is thinned (digest) or chosen by the question's words (ask) to fit the model's context, and every prompt goes to `claude -p` on stdin | Dewi's "TL;DR and chapters" and "ask about this video"; [ADR 142](docs/adr/0142-tl-dr-chapters-and-ask-about-this-video-are-one-transcript-digest.md) |
-| Morning job (Nov 2026) | One daily job at about 07:30 with two switches in Settings → Morning, off by default: a "🤖 For you" playlist (Haiku names up to 6 videos and 4 shows from taste incl. starred and liked; the app's own search finds each; none from what you follow) and a 🌅 digest (while on, new group videos go to an inbox instead of notifying, and two Haiku lines, or plain ones if the Pi is down, replace them), told as one notification that also says when For you failed; re-armed to the next 07:30 after each run | Dewi's "daily For you feed" and "morning digest"; [ADR 143](docs/adr/0143-for-you-and-the-morning-digest-are-one-morning-job.md) |
-| Listen and Watch (Oct 2026) | Offered for anything with a picture, whatever its source: YouTube, a torrent of a video file, a video podcast (`Picture` in `:core:domain`, by extension; the player settles unknowns); Listen takes an audio-only address where there is one, else switches the video track off | Torrents and video podcasts had no switch, because it was gated on the YouTube pillar; [ADR 70](docs/adr/0070-listen-and-watch-follow-the-picture-not-the-pillar.md) |
-| Playback cache (Oct 2026) | One 1 GB `SimpleCache` above the ranged fetcher for every stream (videos, podcasts, torrents); YouTube keyed by stream id + itag + length so a new signature still hits, anything else for this launch only; live, SABR, manifests and local files bypass it; the seek bar shows the buffer ahead (pale tangerine) and what played this session (cyan) | Dewi's "rewind without buffering … for anything"; [ADR 72](docs/adr/0072-a-playback-cache-under-every-stream.md) |
-| Skip finished (Oct 2026) | Moving on (auto-advance, ⏭, gapless) passes over played talk; never music, never while a repeat is on; ⏮ and taps unchanged | Dewi's "skip items already marked played"; [ADR 74](docs/adr/0074-the-queue-passes-over-finished-talk.md) |
-| Locked downloads (Oct 2026) | 🔒 on any download: kept from clean-up and every delete (one decorator, `LockingDownloadManager`), a delete asks to unlock; locks in their own prefs file | Dewi's Miss Rachel; [ADR 75](docs/adr/0075-a-locked-download-is-kept-until-unlocked.md) |
-| Kid lock (Oct 2026) | 👶 in the player or a locked home-screen shortcut: a bare full-screen video, touches and back ignored, Android app pinning asked for (unpin with the phone's PIN lifts it); with pinning off, a 3 s corner hold unlocks; since Nov 2026 kid mode: 1x, no silence skipping, looping what the icon started, a tap shows the badge and a brightness slider | Dewi's Peppa Pig; [ADR 76](docs/adr/0076-kid-lock-pins-the-app-to-a-bare-video.md) |
-| Download choice (Oct 2026) | ⬇️ asks 🎧 Sound or 🎬 Video (best/1080/720/480) with "remember"; once remembered it just downloads and press and hold asks again; one `DownloadChooser` for every list; the height is a ceiling passed to every strategy | Dewi's "choose audio, video and quality"; [ADR 77](docs/adr/0077-a-download-asks-sound-or-video-and-quality.md) |
-| Captions (Oct 2026, Nov 2026) | On in English by default for everything; switching them off **stays off across items and restarts until turned on** (a persisted `CaptionChoice`); a chosen language carries on; the CC menu also lists a file's own subtitle tracks (torrent MKVs); no captions fetched in Listen | Report 0.1.686 and Dewi's "defaulted on English"; then report 20261101T225545 and Dewi's "off stays off"; [ADR 78](docs/adr/0078-captions-are-on-in-english-and-off-is-for-one-item.md), superseded in part by [ADR 123](docs/adr/0123-subtitles-off-stays-off.md) |
-| Stars (Oct 2026) | ⭐ in every item's menu (and the player's Like) for both pillars; kept in a built-in "⭐ Starred" playlist, so it is backed up; a YouTube item's star is also its Like on the account; Library → ⭐ Starred merges the account's Liked videos | Dewi's "star anything"; [ADR 79](docs/adr/0079-a-star-for-anything-likes-youtube-items.md) |
-| Episode downloads (Oct 2026) | A queue group's ⋮ and a torrent result's ⬇️ open one sheet: every episode ticked except what is on the phone, the ADR 77 choice for YouTube items (torrents and podcasts as files); four at a time; any interrupted download starts again by itself at the next launch, with its height, at most twice | Dewi's "download a whole series"; [ADR 80](docs/adr/0080-choose-episodes-to-download-and-resume-interrupted-ones.md) |
-| Listen offers the picture (Oct 2026) | Starting something with a picture yourself while listening shows "🎬 … has a picture" over the mini player for 8 s with Watch / Keep listening; never music, never the app's own moves (`byYou = false`) | Dewi's "prompt me, do you want to switch to video mode?"; [ADR 84](docs/adr/0084-listen-offers-the-picture-when-you-start-it.md) |
-| Recent searches (Oct 2026) | Every search box offers its recent searches as chips while empty: list filters (one list per kind of list), a channel's search, the transcript; a query is kept when it stood 2.5 s and found something, or on the keyboard's search key | Dewi's "every search in the app must contain recently searched"; [ADR 83](docs/adr/0083-every-search-box-offers-its-recent-searches.md) |
-| Pi back end (Oct 2026) | The torrent chain the app talks to lives in `server/` here, one compose project each, deployed from the Pi's clone; nginx and gluetun stay in `dot-files` | Dewi's "front end and back end all in this repo"; [ADR 85](docs/adr/0085-the-pi-back-end-lives-in-this-repo.md) |
-| Home-server tokens (Oct 2026) | A token per device, minted at the Google-gated sign-in and checked by `server/totum-auth` (nginx `auth_request`); only ever sent as the `X-Totum-Token` header (`HomeServerAuth`: OkHttp and the player's data sources), never in a link; 30 days unused and it expires; sign out per device | One shared, never-rotated token rode in every stream link and leaked; [ADR 90](docs/adr/0090-a-token-per-device-and-none-in-links.md) |
-| Torrent search sources (Oct 2026) | Torrentio (Cinemeta for the IMDb id) is one more source beside each Prowlarr indexer, asked by the phone; a hash-only result gets a built magnet; the same info hash from two sources is listed once, best-seeded | Report 0.1.707's slow indexers; Dewi's "prototype it beside Prowlarr"; [ADR 86](docs/adr/0086-torrentio-beside-prowlarr.md) |; a result with only an indexer's download link (1337x) keeps that link and asks Prowlarr for the magnet when chosen ([ADR 89](docs/adr/0089-a-result-without-a-magnet-is-resolved-when-chosen.md))
-| AVI audio (Oct 2026) | The AVI extractor is wrapped (`totumExtractors()`): an MP3 track stored as a byte stream is cut into whole frames before the decoder; every other container untouched | Report 0.1.709's XviD AVIs failed at 0 ms in Android's MP3 decoder; [ADR 87](docs/adr/0087-mp3-in-an-avi-is-cut-into-whole-frames.md) |
-| Keeping your place (Oct 2026) | A page opened over a list goes through `ListThenDetail`, which keeps the list's saveable state (its scroll) for when the page closes, and gives the page system back; a channel's tabs and the music page stack keep one place each | Dewi's "remember where I was … in general through the app"; [ADR 88](docs/adr/0088-a-page-opened-over-a-list-keeps-its-place.md) |
-| Headers slide away (Nov 2026) | One nested-scroll behaviour (`ui/common/HeaderScroll.kt`, `Modifier.scrollsAway()` read in the layout pass, a `HeaderScrollHost` per tab in `Destination`) slides every list's header away on scrolling down and back on any scroll up, the Queue's chip row and offline banner with it; it resets on a tab change and on a page opening or closing, and stays fixed under TalkBack or with animations off; settings-style pages and the slim Play on row on the other tabs stay put (an ADR 108 exception) | Dewi's report 20261128T021751: the Queue's header took over a third of the screen; [ADR 198](docs/adr/0198-a-header-slides-away-on-scrolling-down-and-comes-back-on-scrolling-up.md) |
-| Library hub (Oct 2026) | The Library tab fits on one screen (Recently, Pinned, tiles); Downloads is a tile with a count line and opens its own page | The download manager under the tiles made every other Library page a long scroll away; [ADR 73](docs/adr/0073-the-library-is-a-hub-and-downloads-have-their-own-page.md) |
-| Brand (July 2026) | **Bright and playful** — tangerine hero, cyan counterpart, lemon highlight; **dynamic colour OFF by default** | Dewi's explicit choice. Dynamic colour would substitute the wallpaper's palette on every modern device, so a defined brand would never actually be seen. Palette lives only in `theme/Color.kt` |
-
-## Quality bar (from the brief, non-negotiable)
-
-- **Unified, always** — this and DRY are the project's twin laws. The app has two
-  pillars but every capability gets ONE seam that serves both: one domain model
-  (`MediaItem` is a podcast episode *and* a video), one playback path
-  (`PlaybackController` + one mini player), one search port (`SearchSource` →
-  sealed `SearchHit`), one HTTP text port, one URL type. Before building any
-  feature, ask "what is the pillar-agnostic seam?" and build that; pillar
-  specifics live in small adapters behind it. A feature implemented twice —
-  once per pillar — is a design failure even if neither copy shares a line.
-  **Every feature must be unified across YouTube/video and podcasts by default.**
-  A pillar-specific split is allowed *only* when there is a genuinely strong
-  technical reason it cannot be one seam — and when that happens you must stop
-  and surface the reason to Dewi for a decision, not silently build two paths.
-  (Dewi, explicit, 2026-07-24.)
-- **Testing pyramid, every time**: many fast unit tests; fewer integration tests; few
-  instrumented/UI tests. New behaviour lands with tests, and a bug fix lands with a test
-  **written first and seen to fail against the old code** — otherwise it is a description of
-  the fix rather than a guard on it. Dewi has asked for this repeatedly; it is not optional.
-  Where several components answer one question, test the ANSWER end to end as well as each
-  part: on 2026-08-09 six green unit tests sat on top of a bug only the end-to-end test saw.
+- **Unified, always** — this and DRY are the project's twin laws. The app has two pillars but every capability gets ONE
+  seam that serves both: one domain model (`MediaItem` is a podcast episode *and* a video), one playback path
+  (`PlaybackController` + one mini player), one search port (`SearchSource` → sealed `SearchHit`), one HTTP text port, one
+  URL type. Before building any feature, ask "what is the pillar-agnostic seam?" and build that; pillar specifics live in
+  small adapters behind it. A feature implemented twice — once per pillar — is a design failure even if neither copy
+  shares a line. **Every feature must be unified across YouTube/video and podcasts by default.** A pillar-specific split
+  is allowed *only* when there is a genuinely strong technical reason it cannot be one seam — and when that happens you
+  must stop and surface the reason to Dewi for a decision, not silently build two paths. (Dewi, explicit, 2026-07-24.)
+- **Testing pyramid, every time**: many fast unit tests; fewer integration tests; few instrumented/UI tests. New behaviour
+  lands with tests, and a bug fix lands with a test **written first and seen to fail against the old code** — otherwise it
+  is a description of the fix rather than a guard on it. Dewi has asked for this repeatedly; it is not optional. Where
+  several components answer one question, test the ANSWER end to end as well as each part.
 - **Consistent everywhere, special cases discussed** (Dewi, 2026-10-31: *"I want this app to be as consistent as
-  possible … in the special cases, we'll discuss"*, after a video opened from a notification showed no date while
-  the same video had one in every list). The same kind of thing looks, behaves and carries the same facts wherever
-  it appears: an item shows the same facts in every list, an action offered for one kind of item is offered for
-  every kind it makes sense for, and every path that builds an item fills what is known. When a change touches one
-  path, check its siblings (every list, every way in: tap, link, notification, search, restore). A deliberate
-  exception is never built silently: stop and ask Dewi, then record it in [ADR 108](docs/adr/0108-consistent-everywhere-and-its-recorded-exceptions.md), which also lists what the 2026-10-31 audit left to do.
-  Shifted left (Dewi, 2026-11-06: *"in general for this whole repo - i want consistency"*): every builder or change
-  checks the siblings of what it touches before it is done, and a consistency sweep runs after every phase of a batch,
-  not only at its end, with what holds up fixed before the next phase starts.
+  possible … in the special cases, we'll discuss"*). The same kind of thing looks, behaves and carries the same facts
+  wherever it appears: an item shows the same facts in every list, an action offered for one kind of item is offered for
+  every kind it makes sense for, and every path that builds an item fills what is known. When a change touches one path,
+  check its siblings (every list, every way in: tap, link, notification, search, restore). A deliberate exception is never
+  built silently: stop and ask Dewi, then record it in ADR 108, which also lists what the 2026-10-31 audit left to do.
+  Shifted left (Dewi, 2026-11-06: *"in general for this whole repo - i want consistency"*): every builder or change checks
+  the siblings of what it touches before it is done, and a consistency sweep runs after every phase of a batch, not only
+  at its end, with what holds up fixed before the next phase starts.
 - **No duplication from a discussed idea** (Dewi, 2026-11-01: *"if we discuss an idea, I don't want you to then
-  duplicate stuff"*). Before building anything, a scout searches for code that already does each part, and the plan
-  names what it **reuses** for each part; a new copy of existing logic needs a stated reason Dewi has agreed. Code
-  that one module needs but another owns is **moved** to the shared module (as the queue operations moved to
-  `:core:data` for the speaker queues), never re-written. The end-of-batch review checks for duplicated logic, and a
-  copy-paste detector in the gate (`./gradlew cpdCheck`: PMD CPD, Kotlin, 100+ tokens) fails on any duplicated block
-  not listed in `config/cpd/baseline.txt` (the five known on 2026-11-01; remove a line once it is fixed).
-- **Strictly DRY** — this matters a lot to Dewi. Knowledge lives in exactly one
-  place: versions and SDK levels only in `gradle/libs.versions.toml`; Android
-  build defaults (compileSdk/minSdk/Java level/lint policy) only in the root
-  build's `androidDefaults`; shared code in a shared module (`:lib:common`),
-  never copy-pasted. Before writing similar code twice, factor it — and if a
-  duplication is ever deliberate, it must be recorded here with its reason.
-  **This applies across front ends too**, not only within the app: the CLI and the Android
-  app share one extraction stack, one bridge contract and one set of selection rules, and a
-  second copy of any of them is a defect. When you find one place with a rule, go and count
-  the others — on 2026-08-09 five separate pickers answered "which stream?" and four were
-  wrong, which is exactly what a shared seam prevents.
+  duplicate stuff"*). Before building anything, a scout searches for code that already does each part, and the plan names
+  what it **reuses** for each part; a new copy of existing logic needs a stated reason Dewi has agreed. Code that one module
+  needs but another owns is **moved** to the shared module (as the queue operations moved to `:core:data` for the speaker
+  queues), never re-written. The end-of-batch review checks for duplicated logic, and `./gradlew cpdCheck` (PMD CPD,
+  Kotlin, 100+ tokens) fails on any duplicated block not listed in `config/cpd/baseline.txt` (remove a line once fixed).
+- **Strictly DRY** — this matters a lot to Dewi. Knowledge lives in exactly one place: versions and SDK levels only in
+  `gradle/libs.versions.toml`; Android build defaults (compileSdk/minSdk/Java level/lint policy) only in the root build's
+  `androidDefaults`; shared code in a shared module (`:lib:common`), never copy-pasted. Before writing similar code twice,
+  factor it — and if a duplication is ever deliberate, it must be recorded here with its reason. **This applies across
+  front ends too**: the CLI and the Android app share one extraction stack, one bridge contract and one set of selection
+  rules, and a second copy of any of them is a defect. When you find one place with a rule, go and count the others
+  (five separate pickers once answered "which stream?" and four were wrong).
 - **SOLID**: small focused types, dependencies point inward.
-- **Maximum compile-time safety** (the brief's "dependent types" translated to Kotlin):
-  sealed hierarchies, value classes over primitives, exhaustive `when`, no platform types
-  leaking, illegal states unrepresentable.
+- **Maximum compile-time safety** (the brief's "dependent types" translated to Kotlin): sealed hierarchies, value classes
+  over primitives, exhaustive `when`, no platform types leaking, illegal states unrepresentable.
 - CI must stay green; quality gates (lint, static analysis, tests) block merges.
 
-## Performance (measured 2026-07-12, API-35 emulator)
+## Read before you…
 
-- **Cold start** ~1.5s warm / ~3.3s first-ever. The embedded Python engine is
-  never started AT launch, so startup pays nothing for it — keep it that way. Since
-  2026-10-06 (Dewi's choice, ADR 11) it is warmed 10 s AFTER launch in the background
-  (`TotumApplication.warmTheEngineSoon`, ~1.5 s on the emulator), so a session's first
-  video does not pay ~2.7 s for it; never under instrumentation (`TotumTestRunner`).
-- **Memory**: ~115MB idle; ~196MB once the Python interpreter is resident.
-  Reasonable for an embedded CPython; watch it if it climbs.
-- **APK**: release is **arm64-v8a only + R8 (minify + resource shrink)** →
-  **~33MB**, down from 94MB. Debug stays multi-ABL/unminified for the emulator.
-  Build a release for the emulator with `-PemulatorAbis` (adds x86_64).
-- R8 verified end-to-end on-device (podcasts, Room, Media3, Chaquopy/Python
-  search all survive minification). App keep-rules: `app/proguard-rules.pro`
-  (kept minimal — library consumer rules handle Room/Media3/Chaquopy/Compose).
+Read the doc **in full** before the job: this file gives the rule, the doc gives the procedure, the numbers and the traps
+that earned it. A builder brief names the rows that apply to its task.
 
-## Build & test
+| Before you… | Read |
+|---|---|
+| change any area | its ADRs (`docs/adr/_index.md`), its `docs/features/<name>.md`, and its rows in `docs/decisions.md` (search that file by name or ADR number; do not read it whole) |
+| add a module, a seam or a dependency between modules | `docs/architecture.md` |
+| boot or use the emulator, run instrumented tests, sign it in | `docs/how-to/emulator.md` |
+| run a soak | `docs/how-to/soak.md` |
+| bump the Room schema or edit a migration | `docs/how-to/room-schema.md` |
+| refine, run or close a batch | `docs/how-to/batch-process.md` |
+| add a log line, a state block or a diagnostics field | `docs/how-to/logging.md` |
+| push, release, look into a cancelled CI run, touch signing | `docs/how-to/release-and-performance.md` |
+| write or move a test | `docs/tests/_index.md` |
+| decide what to work on | `docs/spec.md`, `docs/todos/_index.md` |
+| touch `server/` or anything on the Pi | `server/README.md` (ADR 85); the crash sink is `tools/crashlog-server/` |
+| work in `aerarium/` | `aerarium/CLAUDE.md` |
+
+`AGENTS.md` is the entry point for the docs and `docs/README.md` is their map.
+
+**Living docs:** keeping them current is part of "done": ship/change a feature → update `docs/features/<name>.md`;
+start/finish/drop a backlog item → update `docs/todos/`; change coverage → update `docs/tests/`. Bump each doc's `updated`.
+
+**CRUD the ADRs** (Dewi, 2026-10-01: *"remember to CRUD any ADR"*). Decisions live in `docs/adr/` (`NNNN-title.md`;
+status, date, context, decision, consequences). Making a decision creates its ADR; changing one updates it; reversing one
+marks it `superseded by NNNN` and writes the new one, all **in the same change as the code**. A row in
+`docs/decisions.md` whose decision has an ADR links to it, and a new decision gets both. Read the relevant ADRs before
+changing an area: they say why it is the way it is.
+
+## Working agreements
+
+General (both apps):
+
+- **Opus orchestrates; Sonnet builds; Haiku investigates** (Dewi, 2026-11-13: *"I don't want Opus to build
+  anything … Opus to be the orchestrator … Sonnet agents to build everything and then possibly Haikus to
+  investigate"*). The main session (Opus) refines, plans, briefs, merges, deploys, tests on the real devices and
+  reports; every code, test and doc change for a feature or a fix is made by a Sonnet `builder` agent in a worktree,
+  and every broad read (scouts, sweeps, reuse searches) by a Haiku `scout`. The end-of-batch `reviewer` stays Opus.
+  The orchestrator's own edits are limited to merge fixes (a renumbered ADR, a conflict, a row in `docs/decisions.md`),
+  the task file and this file. Every builder brief names CLAUDE.md's full gate, not an `:app`-only shortcut: `detekt
+  cpdCheck :cli:installDist lint compileDebugAndroidTestKotlin testDebugUnitTest test koverVerify` (unprefixed tasks run
+  in every module, as CI does).
+- **Iterate quickly and keep shifting left** (Dewi, 2026-10-21: *"we want to iterate quickly … any big cycles that
+  take time … find bottlenecks and shift left"*). Treat a slow loop as a defect: measure where the minutes go, then move
+  the check earlier and cheaper (a laptop prototype for an unknown, a debug broadcast instead of screen taps
+  (`DEBUG_CAST`, `DEBUG_QUEUE_PLAY_ALL`; `tools/cast-bench/bench.sh`), a JVM test instead of a device run, the full gate
+  left to CI), and fix the tooling in the same session rather than paying the cost again.
+- Commit as you go — small, coherent commits at each green state.
+- **Say which repo files would make life easier** (Dewi, 2026-11-20: *"if there's any file in this repo … that we need to
+  CRUD to make our lives easier … improve diagnostics or something, anything … let me know. This is a rule from now
+  onwards"*). Whenever work shows that creating, updating or deleting a file here would help (a missing log or state
+  block, a stale doc, a script that would save a slow loop, a dead file, a fixture, a preflight check), list it to Dewi in
+  the report under 🔍 Found, with the file and what it would buy, rather than letting it pass.
+- **How a batch runs** (Dewi, 2026-10-14, 2026-10-15, 2026-10-23 and 2026-11-06; the orchestrator reads the full account,
+  `docs/how-to/batch-process.md`, before a batch):
+  1. **Refine the whole batch before building any of it** (Dewi, 2026-11-06: *"before we start a big batch of work, we
+     refine a big batch of work … we investigate as we go, we probe … we shift left … scouts … a holistic approach"*); no
+     code is written until Dewi says so. Refining: read every unconsidered diagnostics report
+     (`tools/crashlog-server/triage.sh considered` with no date) and turn each note into a finding or an item; settle
+     hypotheses with evidence, not guesses; a Haiku scout per item for what it can reuse (this repo AND the Pi, including
+     `dot-files`), then one review of the whole batch for shared seams and copied code (check a scout's claim before you
+     repeat it); ask Dewi only what only he can answer, a few at a time with a recommendation each, never facts the code
+     can answer; write it down (`docs/todos/<item>.md` each, an overview doc, the session's task file).
+     **Dewi's real app state is a lens on everything** (Dewi, 2026-11-14: *"I want my app state to be one of the lens that we
+     do everything as this is real world usage"*): refining reads the newest state dump (`~/claude-tasks/state-dumps/`, 600,
+     never committed or sent anywhere), every builder brief names it and asks how the change behaves at that scale and
+     with those contents, and every batch ends with a pass on the emulator loaded with it (`tools/emulator/load-state.sh`)
+     after the clean soak, looking at the changed screens and timing what scales with it. **Take a fresh dump before every
+     big batch** (Dewi, 2026-11-20): tap the Quick Settings tile **📦 Send my state**, then run `tools/state/pull-state.sh`.
+  2. **Each feature ships on its own** so Dewi can try it on his phone: tests (a bug fix's test seen red first), docs and
+     ADRs in the same change, preflight and `./gradlew detekt` across all modules until clean, the changed tests run, a
+     look at the changed screen on the emulator, then push and watch CI on the commit to its end. No soak per feature.
+  3. **The batch ends with a soak, an Opus review and Haiku sweeps in parallel** (Dewi, 2026-11-01): one or two sweeps
+     check each change for consistency across every list, way in and kind of item (tap, link, notification, search,
+     restore, queue, home), and one looks for use cases the batch missed; a sweep's finding is a hypothesis, so check it
+     against the code first. Then the soak (below) against the release from before the batch, and a `reviewer` agent on
+     the batch's commits, given the requests and the accepted decisions. Read the whole report, check each finding against
+     the code, fix what holds up with a test seen red first, and push.
+  4. **Then report** in the end-of-run shape (🚧 Needs you, Changed, 🔍 Found, ⚠️ Couldn't confirm), and mark the
+     phone reports the batch answered as fixed, with the first release that contains each fix.
+- **Anything that asks an AI gets dry runs before it ships** (Dewi, 2026-11-01: *"anything I ask you to do with AI,
+  you need to do a few dry runs, test runs … to make sure the AI is going to do the right thing and amend the prompt"*).
+  Run the real model on a spread of realistic inputs (several rounds, follow-ups included), read every answer, and fix
+  the prompt or the code until they come out right; a rule the model keeps ignoring is enforced in code after the call
+  (as `AskAnswer.tidied` does). Record the runs and what changed in the ADR. Check the dry-run rig answers with the
+  build under test (an old `totum serve` still holding the port once answered three rounds of "edited" prompts).
+- **Every async operation shows itself** (Dewi, 2026-10-23: *"as a general rule of thumb in this repo … all async ops
+  … should have ui indicators … notification or something"*). Anything the user starts that does not finish at once
+  (a shuffle that walks pages, a page loading, a torrent preparing, a batch of downloads, a sign-in, a backup) reports
+  through ONE seam, the live progress strip under every tab's header: what it is, a running count, Cancel, and a
+  result when it ends (✅/❌, never silent). Work that outlives the screen also gets a notification. A new async
+  feature that shows nothing while it runs is not done, and a second, private spinner is a DRY defect.
+- **Text wraps; nothing truncates.** No `TextOverflow.Ellipsis` anywhere in `app/src/main`, and a `maxLines` cap only
+  with a declared reason in `tools/ci/preflight.py` (Dewi, 2026-09-21: *"dont use ... please in the app - just wrap the
+  text"*). A row grows to fit its title. Preflight fails on a reintroduction (a Compose test cannot see it: a truncated
+  `Text` still reports its whole string).
+- **Every state string starts with an emoji** (ADR 43): a status, setting value, empty or error message or notification
+  carries it in the string itself; nothing spoken or used as a description carries one; one vocabulary (✅ ❌ ⚠️ ⏳ 📭 …).
+- **Log generously — err on the side of far more** (Dewi, 2026-07-28: *"would we benefit from FAR MORE THINGS being
+  logged??? in this repo, always err on the side of MORE LOGS/DIAGS."*). This app is debugged almost entirely from
+  diagnostics reports sent off a phone that is not in front of you, so an unlogged decision is an unanswerable question.
+  Every branch that decides something a user would notice (advance or don't, skip or don't, retry or give up, this
+  stream or that one) **logs the decision and the reason for it**, not just the outcome; prefer a line that says why
+  nothing happened. The report buffer is bounded, so anything firing many times a second is counted and logged
+  periodically (`SILENCE_LOG_EVERY`), never dropped: counted, never silent.
+- **Every change must be provable in the wild from its logs and diagnostics alone — this is a MUST, not a preference**
+  (Dewi, 2026-08-06: *"we need to collect logs+diags verbosely to make sure what we do works in the wild … this is a
+  MUST!!! and be able to be read very well after the fact"*). A feature is not done when it passes tests; it is done when
+  a report sent from his phone a week later can settle **whether it actually worked there**: ask *if this silently
+  misbehaves on his device, which line in the next report tells me?* If the answer is "none", the instrumentation is part
+  of the change, not a follow-up. Three rules follow: **log the inputs, not only the outcome**
+  (`route <id> -> … [handle=Video copy=audio-only offline=true listen=false]`); **a report must be able to answer the
+  obvious next question** (state blocks carry the counters AND the per-item detail, e.g. `downloads.queueStates`);
+  **write it to be read months later by someone with no context** (name the field `playing=`, `copy=`, spell the units,
+  prefer a whole phrase over a flag, never let two different situations produce the same line).
+- Debug logging must be prefixed `dewidebug`. **Keep it committed** until Dewi says otherwise (his standing rule, which
+  reverses the earlier strip-before-commit one): these lines are often useful again. Make a chatty one reasonable — log
+  only the interesting case, or lower its frequency — rather than deleting it.
+- **A doc's `status` is a claim, and a stale claim is worse than none.** When you touch an area, **re-read its status
+  against the code and correct it**, treat a disagreement between a file and the index as a bug in both, and when you
+  find a status was wrong, say so in the doc rather than quietly fixing it — the next person needs to know the map has
+  been unreliable there.
+- **Every flow that matters gets an e2e in CI.** Dewi, 2026-08-06: *"make sure you have e2e of all these flows … in the
+  ci/cd please"*. A flow with no e2e is one whose next regression is found on a plane. Where a flow depends on something
+  CI cannot reach (the Pi, live YouTube), write **both**: a deterministic test against a stand-in that runs on every
+  commit, and a live one behind `tools/ci/live-test-via-home.sh` that is allowed to skip. Never let the skippable one be
+  the only coverage. Torrent tests: hard stop 6. The coverage map is `docs/tests/_index.md`, including what is
+  deliberately uncovered.
+- **Own the repo.** Dewi's explicit steer (2026-07-25): *"feel empowered to make big moves e.g. refactoring — you own
+  this repo"*. Take the structurally right option rather than the timid one: collapse duplicated types, rename for
+  honesty, move code to where it belongs. The guardrails stay — gate green, verify on-device, one coherent commit per
+  move, and surface a decision that's genuinely Dewi's (a behaviour change to something shipped, or a trade-off with no
+  clear default).
+
+Totum only:
+
+- **Be a polite client to YouTube** (Dewi, 2026-10-15: *"I want to be mindful of raising suspicion"*). Every YouTube call
+  (InnerTube, yt-dlp extraction and solving, page walks, feeds, subtitles) goes through ONE global gate of at most **4 in
+  flight**; nothing fans out past it, however many items a "shuffle all" or "play all" touches. Player bytes are outside
+  it, and downloads keep their own cap of 4. A **429** (or `Retry-After`) means exponential back-off with jitter, never a
+  tight retry; a **"not a bot"** refusal backs yt-dlp off (1, 2, 4 … 60 min, reset by a success). Either one shows a banner
+  on every tab while it lasts, and is logged and counted. A new feature that talks to YouTube uses the gate rather than its
+  own `async` fan-out. **The Pi's `totum serve` and the CLI are bound by it too** (2026-11-07): one `Politeness` per
+  process (`Politeness.gated(engine)`, `Politeness.gated(clientBuilder)`); `HomeDownloads` and `YtDlpLiveHls` require it, so
+  a new Pi path to YouTube takes it as a parameter rather than building its own client or engine.
+- **Repo, signing, releases.** Remote `github.com/dewijones92/totum` (public); the laptop's clone and the Pi's are both
+  `~/code/totum`; default branch `main`, pushing to it is fine and CI must stay green (CI runs: hard stop 3). Every push to
+  main publishes a signed APK to its **own** release, tagged `v0.1.<run number>` to match `versionName`, deliberately
+  **not** a prerelease (Dewi's Obtainium reads the repo's "Latest release"); versionCode is `100 + run number`. The release
+  signing key lives in three places, never this repo: `/home/dewi/code/dewiuniapp-signing/`, this repo's Actions secrets
+  (CI signing; write-only), and the PRIVATE `dewijones92/uniapp-signing-backup` (survives laptop loss). Those keep their
+  old names on purpose: renaming anything holding release keys buys tidiness at the cost of risk.
+
+## Decisions, and the seams new work must reuse
+
+Every standing decision is a row in `docs/decisions.md`: the choice and why, most with an ADR, which is the authority.
+The file is about 70 KB, so search it (`grep -n -i 'gapless' docs/decisions.md`); do not read it whole.
+
+**A new decision** gets its ADR and its row at the end of that table, in the same change as the code. It adds a line to
+*this* file only when every later change has to obey it: a seam for the list below, a foundation changed, a hard stop, or
+a standing rule from Dewi (with his words, under Quality bar or Working agreements). A feature decision adds nothing here.
+
+**Foundations**, which supersede `init`: both pillars from day one; Kotlin + Jetpack Compose, one Gradle project;
+**minSdk 33** (ADR 39; Android-14 calls guarded in `reminders/kit/ForegroundKind.kt`); from-scratch `:lib:ytdlp` (no
+youtubedl-android fork); Chaquopy 17; ffmpeg bundled; our own InnerTube client (`:lib:innertube`) with **TV device-code
+OAuth**, yt-dlp staying for extraction and playback; GitHub Actions, signed APKs on GitHub Releases, no Play Store;
+GPL-3.0 (ADR 146); a UI that is genuinely nice and modern (Material 3 expressive, dark/light, edge-to-edge, considered
+motion, never template-default); brand tangerine, cyan and lemon (palette only in `theme/Color.kt`), **dynamic colour OFF
+by default**.
+
+**One seam each.** These decisions made one place for a thing; new work goes through it, never beside it. Read the row
+and its ADR before you touch one.
+
+- **A title shown or sent anywhere** (rows, player session, notifications, toasts, share, stats, Ask): `ItemShield` /
+  `ItemFace` (spoiler shield, ADR 141); logs and stats records keep the real title.
+- **Anything leaving the phone** (a report, a state dump, an Ask snapshot): the one shared redactor (ADRs 140, 159);
+  reports reach the Pi only from a phone signed in to it (ADR 146).
+- **Home-server calls**: `HomeServerAuth`, a per-device token in the `X-Totum-Token` header only, never in a link (ADR 90;
+  the one exception is the cast-out link of ADR 182).
+- **Where a play goes**: Play, Add, Play next and Shuffle all go to the remembered Play on… device through
+  `PlaybackQueue.destination` (ADRs 152, 169); Play next is placed by `placingNext` (ADR 195).
+- **Downloads**: ⬇️ asks through `DownloadChooser` (ADR 77); every delete goes through `LockingDownloadManager` (ADR 75).
+- **Lists**: the header is `SortAndFilterSheet` + `TitleAndActions` (ADR 66) and slides away with
+  `Modifier.scrollsAway()` (ADR 198); a page opened over a list uses `ListThenDetail` (ADR 88); every search box offers
+  its recent searches (ADR 83).
+- **Rows and item pages**: the follow mark comes from `FollowedSources` (ADR 22), the facts from `itemFacts` (ADR 65),
+  views and dates on every item (ADR 192).
+- **The player**: `SeekSteps` (back 10 s, forward 30 s) on every player (ADR 164); `KeepScreenOnForVideo` (ADR 161);
+  Listen and Watch follow the picture (`Picture`), not the pillar (ADR 70).
+- **No UI work per playback tick** (ADR 61): screens read derived playback fields, players go through `SteadyPlayback`
+  with the position in `LocalLivePosition`, per-row states are a `State<Map>`, nothing animates unseen.
+- **Kinds**: music and audiobooks are `MediaContentKind`s with their own rules (an audiobook never skips silence; music
+  is never passed over as finished, rewound on resume or ended by a silent tail). Check the kind before adding behaviour.
+- **Pi targets**: a new protocol is one more `CastControl` behind the one cast player and `CastStreamServer`
+  (ADRs 156, 174), or a `TargetPlayer` when the device is handed an id (ADR 187); power is `DevicePower` (ADR 177); a
+  device's colour is `TargetColours.of` (ADR 170); the sleep fade is `SleepFade`, on the phone and on a target (ADR 166).
+- **AI calls** go through the Pi's AI service (`totum ai-serve`, Haiku only; ADR 113), and a new caller joins its
+  tools-per-caller table (ADR 121).
+- **Side quests** build on the reminder kit (`:lib:reminders` + `app/…/reminders/kit/`, ADR 17) and alone use the laurel
+  gold `LocalLaurel` (ADR 34). **Stats** are an append-only log (`:lib:stats`), not Room (ADR 44).
+- **Dependencies** are Renovate's (ADR 41); the PRs it holds (majors, Kotlin, AGP, Chaquopy, Media3 `needs-soak`,
+  FFmpeg/QuickJS `needs-manual-rebuild`) are looked at at the start of every batch.
+
+## Build & test (Totum)
 
 ```bash
 ./gradlew assembleDebug          # build debug APK
@@ -251,585 +305,108 @@ python3 tools/ci/preflight.py    # what the Gradle gate CANNOT see — run befor
 ./gradlew detekt                 # with preflight, the only checks run before a push; CI runs the rest
 ./gradlew detekt cpdCheck lint test koverVerify assembleDebugAndroidTest   # the full gate, = CI's "Quality gates + build"
 ./gradlew :app:assembleDebug     # the gate does NOT rebuild app-debug.apk: run this before installing after it
-./gradlew connectedDebugAndroidTest  # instrumented tests (device/emulator needed)
+./gradlew connectedDebugAndroidTest  # instrumented tests (device/emulator needed): NEVER on the signed-in emulator, hard stop 1
 ./gradlew :core:sound:test -Ptotum.audioQualityTests   # skip-silence + boost on real speech (needs ffmpeg)
 ```
 
-**Quick checks locally, the rest in CI** (Dewi, 2026-11-04: *"quick checks locally, then the rest in the CI"*).
-Before a push run only preflight, `./gradlew detekt` until clean, and the tests you wrote or changed (a bug fix's
-test seen red first); then push and **watch CI on that commit to its end** (every workflow it triggers, not just the
-release), fixing a red run with the very next push. The full gate locally duplicated CI's own job. Kept local because
-CI cannot do them: the soak (real YouTube, signed in, home network) and looking at a changed screen.
+**Quick checks locally, the rest in CI** (Dewi, 2026-11-04: *"quick checks locally, then the rest in the CI"*). Before a
+push run only preflight, `./gradlew detekt` until clean, and the tests you wrote or changed (a bug fix's test seen red
+first); then push and **watch CI on that commit to its end** (every workflow it triggers, not just the release), fixing a
+red run with the very next push. Kept local because CI cannot do them: the soak (real YouTube, signed in, home network)
+and looking at a changed screen.
 
-The live YouTube instrumented phase runs **nightly and by hand** (`gh workflow run ci.yml --ref main`), not on push
-(2026-10-15): it leaves through the home broadband, which YouTube bot-blocked, so per-push runs were always red and
-added requests to the blocked IP. A push run logs "live YouTube phase skipped on push".
-
-`-Ptotum.exsurgeTests` does not ADD Exsurge's tests, it RESTRICTS every module's test task to them:
-the opt-in filter includes only the requested phases. Run it as its own command; combined with another
-module's `test` it reports "0 tests" for that module, which reads as a pass (2026-10-07). The reverse bites too (2026-10-22): `--tests '*ExsurgeControllerTest'` WITHOUT the flag runs none of them and
-still succeeds, so a change to Exsurge passed locally and went red in CI. Any change under `exsurge` gets
-`./gradlew test -Ptotum.exsurgeTests` before the push.
-
-The audio-quality suite (`…playback.audioquality.*`) is excluded from `test` and runs in CI only when a
-push touches the silence/boost code (`.github/workflows/audio-quality.yml`), so run it yourself whenever
-you change that code, and name any new source file in this area so the workflow's `paths:` match it
-(preflight fails otherwise).
-
-**Suppressing a warning is Claude's call, case by case** (Dewi, 2026-10-21) — detekt, lint, compiler or any
-other: when a rule fights the code's shape (a binary-format parser full of offsets, an adapter whose size is its
-interface, a `Player` wrapper that is all overrides, a wake lock held across calls by design), suppress it on that
-declaration and say why in the commit message; when it points at a real smell (a long method doing several things,
-a tangled condition), fix the code.
-
-**detekt autocorrects and still fails the run that found the issue**, per module and fail-fast: a
-gate that is red on `ImportOrdering`/`Indentation`/`ArgumentListWrapping` alone usually goes green on
-the next run without an edit, and a build that touched N modules can need N reruns. Only a rule detekt
-cannot autocorrect (`LongMethod`, `TooManyFunctions`, `MaxLineLength`) needs a hand.
-
-Run `tools/ci/install-hooks.sh` once per clone (`core.hooksPath -> .githooks`) and preflight then runs
-on every `git push` automatically. The hook is deliberately **only** the sub-second checks: one that ran
-the Gradle gate would be disabled within a day, and a disabled hook protects nothing. `--no-verify`
-bypasses it.
-
-**`preflight.py` is part of the gate, not an extra.** Dewi, 2026-08-18: *"shift left to catch stuff
-faster"*. Two red builds that day were both invisible to `detekt lint test koverVerify`, because neither
-was about Kotlin: a live test missing from the CI exclusion list, and a shell variable that does not
-survive `android-emulator-runner` (it runs **each line** of `script:` in its own shell). Each cost an
-eleven-minute round trip to learn something a local check answers in under a second. Preflight is
-verified against all three known failure modes — see its docstring.
-
-On-device testing matters: the podcast RSS bug (Android's Expat parser rejecting
-`DocumentBuilder` bean-property toggles) passed every JVM test and only surfaced
-when driven on the emulator. Verify real flows on a device, not just via tests.
+- **`preflight.py` is part of the gate, not an extra** (Dewi, 2026-08-18: *"shift left to catch stuff faster"*): it catches
+  what `detekt lint test koverVerify` cannot (a live test missing from the CI exclusion list; a shell variable that does
+  not survive `android-emulator-runner`, which runs **each line** of `script:` in its own shell). Run
+  `tools/ci/install-hooks.sh` once per clone (`core.hooksPath -> .githooks`) so it runs on every `git push`; the hook is
+  deliberately **only** the sub-second checks (`--no-verify` bypasses it).
+- The live YouTube instrumented phase runs **nightly and by hand** (`gh workflow run ci.yml --ref main`), not on push.
+- `-Ptotum.exsurgeTests` does not ADD Exsurge's tests, it RESTRICTS every module's test task to them: run it as its own
+  command (with another module's `test` it reports "0 tests", which reads as a pass; `--tests '*ExsurgeControllerTest'`
+  without the flag runs none and still succeeds). Any change under `exsurge` gets `./gradlew test -Ptotum.exsurgeTests`
+  before the push.
+- The audio-quality suite is excluded from `test` and runs in CI only when a push touches the silence/boost code
+  (`.github/workflows/audio-quality.yml`): run it yourself when you change that code, and name any new source file there
+  so the workflow's `paths:` match (preflight fails otherwise).
+- **Suppressing a warning is Claude's call, case by case** (Dewi, 2026-10-21) — detekt, lint, compiler or any other: when
+  a rule fights the code's shape (a binary-format parser full of offsets, an adapter whose size is its interface, a
+  `Player` wrapper that is all overrides, a wake lock held across calls by design), suppress it on that declaration and
+  say why in the commit message; when it points at a real smell (a long method doing several things, a tangled condition),
+  fix the code.
+- detekt autocorrects and still fails the run that found the issue, per module and fail-fast: rerun before editing (a
+  build that touched N modules can need N reruns); only a rule it cannot autocorrect (`LongMethod`, `TooManyFunctions`,
+  `MaxLineLength`) needs a hand.
+- Verify real flows on a device, not just via tests (the RSS bug passed every JVM test). **A Compose change is not
+  verified until the screen has been LOOKED AT**: screenshot it on the emulator (`adb exec-out screencap -p`) before
+  calling UI work done.
+- **Performance:** the embedded Python engine is never started AT launch (warmed 10 s after, in the background, never under
+  instrumentation; ADR 11): keep it that way. Release is **arm64-v8a only + R8** (~33 MB; `-PemulatorAbis` adds x86_64).
+- JDK 21 is at `/home/dewi/code/jdk/`; Android SDK at `/home/dewi/code/android-sdk` (see `local.properties`, not committed);
+  the `android` CLI (`~/.local/bin/android`) does emulators, screenshots, layout inspection, docs search.
 
 ### Before shipping a playback or extraction change: soak it against the build before
 
-Dewi, 2026-10-07: *"are you testing thoroughly enough on the emulator before u ship? maybe not?"* — no.
-Two regressions reached his phone that day (every lookup stuck at 360p; playback frozen after a long
-pause) because each change was checked with one or two taps that proved its mechanism fired, never a
-session, never the build before it for comparison, and never on an emulator set up like his phone.
+Dewi, 2026-10-07: *"are you testing thoroughly enough on the emulator before u ship? maybe not?"* — no. For a batch that
+touched extraction, resolving, playback, the queue or downloads, the soak runs **once at the end of a batch** (Dewi,
+2026-10-23), against the release before the batch, in parallel with the Opus review; each feature is pushed as soon as its
+gate is green and it has been checked on the emulator. A regression the soak finds is fixed with a test seen red first and
+pushed straight away. **Read `docs/how-to/soak.md` in full before running one**: it has the commands, and the traps that
+have each produced a false result. The rules: build the previous build **fresh from the previous release's tag** into a
+directory named after it, soak both with `tools/emulator/soak.py run` (three passes), then `soak.py compare before.json
+after.json`: more failing passes, a median start 1.5× + 2 s slower, or a lower quality is a regression and blocks the
+push; put the table in the commit message. One pass is NOT enough, and a gap of a few failures between builds is noise
+until a third run repeats it. A change to how the queue hands over also gets a queue soak (`soak.py queue`). Before every
+run: Exsurge and Daily alarms OFF for both builds, queue cleared or queue auto-download off, the app launched, the laptop
+idle. A soak cannot prove the phone will behave: one tap proves a mechanism, never the app.
 
-**When the soak runs (Dewi, 2026-10-23):** each feature is pushed as soon as its gate is green and it has been checked
-on the emulator, so Dewi can try it on his phone; the soak below runs **once at the end of a batch**, against the
-release before the batch, in parallel with the Opus review (see "How a batch runs"). A regression the soak finds is
-fixed with a test seen red first and pushed straight away. This replaces soaking before every playback push.
+### Room schema changes
 
-The soak itself, for a batch that touched extraction, resolving, playback, the queue or downloads:
-
-1. **Build the previous build too**, without touching the working copy:
-   `git archive <ref> | tar -x -C <scratch>/baseline && cp local.properties <scratch>/baseline/ && (cd
-   <scratch>/baseline && ./gradlew -q :app:assembleDebug)`. Both are debug-signed, so `adb install -r`
-   swaps them and keeps the sign-in.
-2. **Soak both** on `totum-api35`: `ANDROID_SERIAL=emulator-5554 tools/emulator/soak.py run --label <x>
-   --out <scratch>/soak/<x>.json --start-budget-ms 12000` (three passes by default, ~15 minutes). It plays
-   the videos from past reports as shared
-   links (the worst case for the fresh-URL window), clears saved lookups first so the runs are comparable,
-   and records from the app's own `dewidebug` lines: time to sound, quality, video decoded, 403s, fatal
-   403s, stalls, underruns, the 360p/TV fallback, and falling back to the disk.
-3. **`tools/emulator/soak.py compare before.json after.json`** — failing on more passes, a median start
-   1.5× + 2 s slower, or a lower quality is a regression and blocks the push. Put the table in the commit
-   message. One pass is NOT enough: the same video by the same route started in 0.8 s and 2.6 s on two runs,
-   and stalls and underruns come and go on the emulator in both builds. The first soak (one pass each) called
-   six regressions, four of them noise; it also caught a real one, an all-clients retry firing on 6 of 10
-   videos that already had 1080p.
-
-**A change to how the queue hands over gets a queue soak too:** `ANDROID_SERIAL=emulator-5554
-tools/emulator/soak.py queue --label <x> --out <scratch>/queue.json` builds a real YouTube queue through a
-debug-only receiver (`QueueDebugReceiver`), seeks each item to 40 s before its end, and records every
-hand-over (crossed over or not, silence, stalls, adopted) with gapless off and then on. 2026-10-07: off 4.6 /
-3.7 / 4.4 s, on 0 / 0 / 0 s. It caught a race no device test reproduced (an item under 45 s never put its
-successor in line, because the queue's adoption cancelled the arming); local files win that race, streams lose it.
-
-**A schema bump needs the whole `:core:database` instrumented suite, not just its migration test (2026-10-16):** `VideoIdMigrationTest` and `DownloadDatesTest` write a database at the current version and roll it back by hand, so a new column breaks them with "duplicate column name"; v28 went red in CI that way while `DownloadsMigrationTest` was green locally. Add the column to `RollBack.kt` (androidTest) when you bump.
-
-**A schema bump blocks the baseline (2026-10-13):** Room has no downgrade path, so the previous build crashes on the newer database. Roll it back in place rather than wiping it: force-stop, pull `databases/totum.db*` with `run-as … cat`, `PRAGMA wal_checkpoint(TRUNCATE)`, drop the new columns, `PRAGMA user_version=<old>`, and set `room_master_table.identity_hash` to the old build's hash (`RoomOpenDelegate(<old>, "<hash>"` in its `build/generated/ksp`); push it back and delete `-wal`/`-shm`. The new build re-migrates it. Also: in `echo "$(date +%T) exit $?"` the `$?` is `date`'s, not the soak's.
-
-**Name the baseline by its commit, and expect a wide noise band (2026-10-14):** a baseline directory reused from an earlier day was v0.1.604, not the 0.1.605 it was reported as, so a "605 vs 606" soak measured three changes. Build the baseline fresh from the previous release's tag (`gh release list`, then `git archive v0.1.<n>`) into a directory named after it. The same build failed 3/30 and 8/30 an hour apart (all underruns and `edon5wb5Qsc` give-ups), and emulator CPU did not separate failed plays from passing ones (idle ~100% vs ~110% of 400%, app ~140% either way), so a gap of a few failures between builds is noise until a third run repeats it.
-
-**Skip finished confounds the queue soak (2026-10-22):** a baseline run plays its items to the end, so the next build passes over all of them (ADR 74) and reports "no hand-over seen"; the debug play-all now marks its items unplayed first. Read the `[queue] … passed over N finished` line before calling a queue soak a regression.
-
-**Queue auto-download confounds a soak (2026-10-14):** each soak play leaves its video in the queue, so later runs inherit more undownloaded items and the queue auto-download fetches them during the plays (0 and 1 downloads in the two v0.1.606 runs, 3 and 5 in the two later runs of the new build, whose failures were 7 and 7 against 3 and 4). Check the header's other services for `DownloadKeepAliveService`, and clear the queue or switch queue auto-download off before every run.
-
-**A soak no longer reports its plays to Dewi's YouTube account (2026-10-28):** the emulator is signed in to his real
-account, so every soak play used to land in his YouTube history and push his own videos off the page the app reads.
-`soak.py run` and `soak.py queue` hold reports for their whole run (a prefs file, removed at the end); a run killed
-half-way leaves the hold on, so delete `shared_prefs/totum_test_holds.xml` with `run-as` if one dies. Writing the hold force-stops the app, and from 2026-10-28 to 2026-11-04 nothing relaunched it before `queue`'s
-broadcasts, so every queue soak read "never started" on every hand-over; the hold now relaunches the app.
-
-Keep the laptop idle while a soak runs (2026-10-12): a Gradle build or test run during a pass steals the emulator's CPU and makes that build's starts and underruns look worse, so build and test before or after, never during.
-
-Two traps in the tool itself (2026-10-09): `soak.py run` **exits 1 when any play fails**, so chain the
-queue soak after it with `;`, not `&&` (an `&&` silently skipped the baseline's queue soak); and the queue
-soak drives the app through a broadcast, which a **force-stopped app never receives** (every hand-over
-reads "never started"), so launch the app first. `compare` reads only `run` reports; compare queue
-reports by hand, and re-run a queue soak before believing one lost adoption: a run with another
-foreground service left over from instrumented tests adopted 2/3, the clean rerun 3/3.
-
-**Switch Exsurge (and Daily alarms) off on the emulator before a soak, for both builds.** On 2026-10-07
-the third of three soaks ran with Exsurge off and the first two with it on; the third looked far better
-(30/30 started, 18 stalls vs 45-50) and none of that could be credited to the change. A summons can also
-pause a soak video outright.
-
-Keep the emulator honest: its header line lists the app's other running services, and Exsurge's banner
-service masks foreground-service bugs (it hid ADR 14's freeze for a week). YouTube's experiments vary by
-visitor and by day, so a soak cannot prove the phone will behave; it catches what a session on the same
-network would. One tap proves a mechanism; it never proves the app.
-
-### A schema change with no version bump makes the app un-openable — and it looks like nothing
-
-Room **does** throw on an identity-hash mismatch (`IllegalStateException: Room cannot verify the
-data integrity … Expected identity hash: X, found: Y`), and it throws when the DB is opened, which
-on this app is during startup. Two things make it hard to read:
-
-- **The crash can be invisible.** `com.dewijones92.uniapp` — the pre-rename app — is still installed
-  on `totum-api35`, so when Totum died at launch the launcher fell through to THAT app, which looks
-  almost identical and has its own empty database. I spent several minutes reading "No podcasts yet"
-  and a stale schema as evidence about Totum. Check `adb shell pidof com.dewijones92.totum` and
-  `dumpsys activity activities | grep topResumedActivity` before believing any screen.
-- **Amending an already-applied migration is what causes it.** Editing the body of a migration whose
-  version a dev device has already run (fine to do while the commit is unpushed) leaves that device
-  on a schema whose hash no longer matches. The cheap fix keeps the sign-in: force-stop, then
-  `run-as com.dewijones92.totum rm -f databases/totum.db*` — the DB goes, `shared_prefs/` and the
-  YouTube token stay — and re-add whatever test data you need.
+A schema bump needs the whole `:core:database` instrumented suite, not just its migration test (add the new column to
+`RollBack.kt` in androidTest, or `VideoIdMigrationTest` and `DownloadDatesTest` go red in CI), and it blocks the baseline
+soak (Room has no downgrade path; roll the DB back in place). Amending the body of a migration a dev device has already
+run (fine while unpushed) leaves that device un-openable; the fix keeps the sign-in: force-stop, then `run-as
+com.dewijones92.totum rm -f databases/totum.db*`. The crash can be invisible: the pre-rename `com.dewijones92.uniapp` is
+still installed on `totum-api35` and the launcher falls through to it, so check `adb shell pidof com.dewijones92.totum`
+before believing any screen. Recipes: `docs/how-to/room-schema.md`.
 
 ### The emulator: `totum-api35`, and its YouTube sign-in is perishable
 
-The project's emulator AVD is **`totum-api35`** (API 35, x86_64). Boot it with
-`-gpu swiftshader_indirect` — the hardware GPU segfaults on sustained 4K/live decode and takes the whole
-emulator down mid-test.
+Hard stops 1 and 2 come first. Recipes and history: `docs/how-to/emulator.md`.
 
-**One emulator, owned by the orchestrator** (2026-11-13: two builders each booted `totum-api35` at once, both
-copies died, and RAM allows only one). The orchestrator boots it; a builder never does. A builder takes
-`flock /tmp/totum-emulator.lock` for each short session and checks `adb -s emulator-5554 emu avd name` says
-`totum-api35` (another session's SmartTube emulator has used 5554). Install the app and test APKs AND run the tests inside one lock hold: another
-builder's install between them swaps the app under the test and fails it falsely (seen 2026-11-13). Boot with the isolated **36.6.11** binary,
-because the SDK's 37.2 hangs and crashes on a cold start here: `systemd-run --user --scope
-/home/dewi/claude-tasks/totum-playback-fixes-20261012/emulator-36/emulator/emulator -avd totum-api35 -no-window -gpu
-swiftshader_indirect -no-boot-anim -no-audio -no-snapshot -cores 2 -memory 2048` (its own scope, so an OOM kill takes
-the emulator, not the session).
+- The AVD is **`totum-api35`** (API 35, x86_64): the orchestrator boots it with `-gpu swiftshader_indirect`, the isolated
+  **36.6.11** binary, in its own `systemd-run --user --scope` (the command and the reasons are in the how-to).
+- **The sign-in is perishable.** Do not trust any sentence saying it is signed in: **check** that `run-as
+  com.dewijones92.totum ls -l shared_prefs/` shows a non-empty `youtube_account.xml`, before and after anything drastic.
+  Lost? `tools/emulator/restore-youtube-signin.sh` restores it in ~2 s from
+  `~/.credentials/totum-emulator/youtube_account.xml` (600, outside the repo; a real OAuth credential); ask Dewi for a new
+  code only if the restore fails. `SignInOnThisDeviceTest` returns at once when signed in, the cheapest check; it is
+  also how to sign in without the UI (watch logcat for `dewidebug signin code`), after which back the token up again.
+- To reproduce a report with the phone's own queue and settings: `tools/emulator/load-state.sh [dump]` (ADR 159).
 
-To reproduce a report with the phone's own queue and settings, `tools/emulator/load-state.sh [dump]` loads the newest state dump from the Pi (read-only ssh) into `totum-api35` through the debug-only `StateDebugReceiver`, never touching the sign-in ([ADR 159](docs/adr/0159-a-crash-screen-and-a-state-dump-for-every-report.md)); it finds the AVD by name because the serial is not always 5554.
+## Architecture (rules; modules and seams are in `docs/architecture.md`)
 
-**It is signed IN as of 2026-08-20 17:26.** Do not trust that sentence — this section has been wrong in
-both directions within a day, so **check** rather than read: a non-empty `youtube_account.xml` in
-`run-as com.dewijones92.totum ls -l shared_prefs/` is the only answer that counts. It was signed out
-twice in two days, each time by an unclean kill (WSL restarting) bringing the emulator back on an older
-snapshot, once with the app not even installed. A sign-in survives an ordinary reboot only if the
-emulator is shut down cleanly.
+Package root `com.dewijones92.totum`; dependencies point inward. Only `:app`, `:core:database`, `:core:playback` and
+`:lib:ytdlp-chaquopy` are Android modules; every other module is pure JVM, where an Android dependency is a compile
+error, and `explicitApi()` stays on where it is on. Business logic lives in `:core:data`, testably, off Android;
+`:core:database` is the only place entities meet domain types; `:lib:ytdlp` is deliberately independent of
+`:core:domain`. `:core:database` and `:core:playback` are Kover-exempt adapters. `:core:video`, `:core:cast` and
+`:core:sound` are shared with the Pi's `:cli`, so the Pi runs the phone's own code (cast and sound: ADR 119).
 
-**But losing it is now cheap, and that is the point.** The token is backed up off-device at
-`~/.credentials/totum-emulator/youtube_account.xml` (600, outside the repo — it is a real OAuth
-credential), and `tools/emulator/restore-youtube-signin.sh` puts it back in about two seconds. The
-**refresh token is long-lived**, so a restore works months later: the app exchanges it for a fresh
-access token on the next call. Restore first; ask Dewi for a new code only if the restore fails.
-Verified end to end on 2026-08-20 — restore, then `SignInOnThisDeviceTest` returns immediately with
-`signin already signed in — nothing to do`, which is the cheapest signed-in check there is.
-
-**A fresh sign-in is expensive, whoever holds it.** It needs a device code approved by hand at
-google.com/device: the automation browser profile is signed out, so nobody but Dewi can do it, and a
-code is single-use and short-lived. So treat the token as an asset:
-
-- **`./gradlew connectedAndroidTest` UNINSTALLS the app when it finishes**, which destroys the sign-in.
-  So does `pm clear` and any reinstall that wipes data. Check `run-as com.dewijones92.totum ls
-  shared_prefs/` for a non-empty `youtube_account.xml` before and after anything drastic.
-- **A test must never touch the real token store.** `SharedPrefsTokenStore` takes a `prefsName` for
-  exactly that reason — `ASignInSurvivesTheProcessTest` clears its own file, and the version that used
-  the default signed the device out (2026-08-19, throwing away an approval from minutes earlier).
-- **Never run instrumented tests via `./gradlew` while signed in.** Use
-  `adb shell am instrument -w -r -e class <FQN> com.dewijones92.totum.test/com.dewijones92.totum.TotumTestRunner`
-  against an already-installed APK, and `adb install -r` (never `-t` fresh) when the APK must change.
-- To sign in without the UI, run `SignInOnThisDeviceTest` and watch logcat for `dewidebug signin code`.
-  It drives the real `YouTubeAccount.signIn()`, which persists the tokens itself — and it early-returns
-  when already signed in, so it doubles as the signed-in assertion. Back the token up again afterwards.
-
-**A Compose change is not verified until the screen has been LOOKED AT.** 2026-09-07: eleven queue UI
-tests were green while every queue row shipped solid red with its drag handle hidden (cbf9916). A test
-asserts the state it was written to assert; a screenshot (`adb exec-out screencap -p`) catches what nobody
-thought to assert. Screenshot the changed screen on the emulator before calling UI work done.
-
-Signed-in state matters for more than convenience: the subs feed, history, comments and likes all need
-it, and (since the TV `/player` works again, 2026-09-06) `docs/todos/youtube-requires-attestation.md` turns on whether a **signed-in TV SABR session** behaves
-differently from an anonymous one — which cannot be tested on a signed-out device.
-
-- JDK 21 lives at `/home/dewi/code/jdk/`; Android SDK at `/home/dewi/code/android-sdk`
-  (see `local.properties`, not committed).
-- The `android` CLI (`~/.local/bin/android`) is available for emulators, screenshots,
-  layout inspection, and docs search.
-
-## Architecture
-
-- `:app` — Compose UI: `AppShell` bottom navigation (Videos / Podcasts / Music / Queue / Library),
-  search as a header action over the tab (`TabNavigation`), theme, screens.
-- `:core:domain` — pure-Kotlin (JVM) unified media model: `MediaSource`
-  (VideoChannel | PodcastFeed), `MediaItem`, `Subscription`, `SourceId`. No
-  Android dependency — leakage is a compile error. `explicitApi()` is on.
-- `:core:data` — pure-Kotlin (JVM): `RssParser` (hardened DOM), the
-  `PodcastRepository` with its `HttpTextFetcher`/`PodcastStore` ports, OkHttp
-  fetcher, and the unified search seam: `SearchSource` port returning sealed
-  `SearchHit`s (Podcast | Video), implemented by `ItunesPodcastSearchSource`
-  (iTunes directory API) and `YtDlpVideoSearchSource` (engine `ytsearch`).
-  Also `SkipSegmentSource` (SponsorBlock-backed, fail-open: lookup failure =
-  no segments). Business logic lives here, testably, off Android.
-- Skip segments (`SkipSegment` + `skipTargetFor` in `:core:domain`) are
-  enforced in exactly one place — `Media3PlaybackController`'s position
-  ticker — so any pillar's playback skips them.
-- **Downloads** (`DownloadManager` port in `:core:data`, `RoomDownloadStore`
-  in `:core:database`): one seam, one port, taking a `PlayableItem` — the
-  handle is both the pillar and, for a video, the watch URL to fetch from.
-  The manager takes a single `DownloadStrategy`; `RoutedDownloadStrategy`
-  (wired in `AppContainer`, the only place pillar routing lives) picks by
-  `PlayHandle.pillar` in an exhaustive `when` — `EngineDownloadStrategy`
-  for video (yt-dlp fetches best video+audio and merges via the bundled
-  ffmpeg; since ADR 16 it no longer cuts SponsorBlock segments, and files on disk skip them live
-  from the stored list that `SkipSegmentsOnDisk` refreshes), `HttpDownloadStrategy` for podcast
-  enclosures (a plain HTTP GET). A third pillar cannot be added without that
-  `when` failing to compile. `DownloadState` in `:core:domain`; playback
-  prefers the local file wherever one exists — decided by `routeNow` below, for
-  both pillars, so a downloaded video needs no re-resolution. Interrupted downloads (a `Downloading` row at
-  startup) start again by themselves, with their variant and height, at most twice, then are left Failed for Retry
-  (ADR 80; until 2026-08-31 they were dropped, then left Failed).
-  Strategy IO runs off the main thread (`flowOn(Dispatchers.IO)`). Verified
-  offline in airplane mode; video merge verified on-device (AV1 4K + Opus →
-  one Matroska, played locally).
-- **A download record carries its item**, on the same `PlaylistItemColumns`
-  the queue, playlists and history use (four tables, one mapper). So
-  `observeDownloaded()` returns `DownloadedMedia` (item + path + variant) and
-  the Library tab lists **both pillars** from the download store alone, with
-  no catalogue to join against — it previously joined podcast episodes, which
-  is why a downloaded video was on disk and invisible. `DownloadedMedia.offline`
-  supplies the local handle, so an audio-only video plays as audio and a full
-  one as `LocalVideo`.
-- **"How do I play this, right now?" is answered once**, by `routeNow` in
-  `:core:domain` (`PlayRoute.kt`), for both pillars: it takes any copy on disk,
-  whether there is a network and whether Listen mode is on, and returns one of
-  four routes (`VideoFile` | `AudioFile` | `VideoStream` | `AudioStream`) or a
-  `Refused` with its reason. `PlaybackQueue.route` is the only caller and does
-  nothing but carry it out. It exists because the question had **one branch per
-  pillar and the branches disagreed**: the podcast branch asked the download store
-  for a local copy and the video branch never did, so a downloaded YouTube item
-  was refused in airplane mode with its file on the disk (reported 2026-08-06).
-  The handle-to-disk swap is shared with `DownloadedMedia.offline`
-  (`playedFromDisk`), so the Library and the queue cannot drift apart again.
-  One deliberate asymmetry, Dewi's call: an **audio-only** copy of a video does
-  not stand in while you are *watching* (it would silently drop the picture) —
-  it does the moment you are listening or offline.
-- **"Is this a video?" is answered once**, by `MediaItem.pillar` in
-  `:core:domain`, and "where do the bytes come from" once by
-  `PlayableItem.fetchUrl`. Both used to exist twice with rules that disagreed
-  (`youtube.com/watch` vs any YouTube host), so a Shorts URL downloaded as a
-  video but queued as a podcast enclosure. Anything holding a `PlayHandle`
-  reads `PlayHandle.pillar` instead — it knows exactly rather than guessing.
-- **ffmpeg IS bundled** as a minimal static binary (`libffmpeg.so` in
-  `app/src/main/jniLibs/<abi>`, ~7MB; built from FFmpeg 7.1.1 by
-  `tools/ffmpeg/build-ffmpeg-android.sh`, remux-only — no decoders/encoders).
-  **ffprobe is bundled too** (`libffprobe.so`, another ~7MB per ABI): yt-dlp's
-  ModifyChapters postprocessor — the one that cut SponsorBlock segments out of
-  a download until ADR 16 — asks ffprobe for the media duration and fails with "ffprobe not
-  found" without it. Together they are ~30MB of the repo's 36MB working tree,
-  which is why the tracked binaries look disproportionate and are not a mistake.
-  PyPI has no `aarch64-linux-android` ffmpeg wheel, so it can't be
-  pip'd; a shipped binary is the only way. Under Android 14 W^X the only
-  app-private executable location is `nativeLibraryDir`, so the `.so` is
-  extracted there (`packaging { jniLibs { useLegacyPackaging = true } }`) and
-  `FfmpegBinary` symlinks it to the name yt-dlp expects; the engine passes
-  `ffmpeg_location`. This unblocks merged best-quality video and download-side
-  SponsorBlock removal. The interpreter and ffmpeg can't self-update (W^X);
-  yt-dlp itself (pure Python) still can.
-- `:core:database` — Android library (Room via KSP): entities, DAO, and
-  `RoomPodcastStore` implementing `:core:data`'s `PodcastStore` port. The only
-  place entities meet domain types. Verified by instrumented tests; exempt from
-  the Kover JVM gate.
-- `:core:playback` — the unified playback seam: `PlaybackController` port +
-  `PlaybackState`, implemented by `Media3PlaybackController` connected to a
-  `MediaSessionService` (`PlaybackService`, foreground, Media3-managed
-  notification with title/artist/artwork, seek back 10s / forward 30s, audio
-  focus + becoming-noisy handling). Both pillars play through it — anything
-  with a `MediaItem.mediaUrl` is playable, and every system surface
-  (notification, lock screen, Bluetooth/headset media keys, Assistant)
-  controls that one session. `POST_NOTIFICATIONS` is requested once as the shell
-  composes (`RequestNotificationPermissionOnce`) — required on API 33+ or the
-  notification never shows. It used to be asked for at FIRST PLAY, which was a
-  defect: the dialog is another activity, so it paused ours and released the video
-  surface, and pressing play on a fresh install stopped the picture. CI was red on
-  it for five days reading as "the stream stopped". `fake.FakePlaybackController` for tests/previews.
-  Kover-exempt adapter (Media3 glue; instrumented-verified).
-  **Video renders on the same seam**: `PlaybackState.hasVideo` (from the track
-  list) drives a `PlayerSurface` (media3-ui-compose) in the one `FullPlayer` —
-  podcasts show artwork/controls, videos show the picture; no separate video
-  player. The port exposes the `Player` so the UI binds a surface; the surface
-  must appear before the decoder reports a size, so `hasVideo` (not video size)
-  gates it, defaulting to 16:9 until `videoAspectRatio` is known. Streaming is
-  pre-muxed quality; merged best quality comes via downloads (ffmpeg).
-- Manual DI: `AppContainer` (in `:app`) wires the graph; construction is code,
-  errors are compile-time. No Hilt/Koin.
-- **Cleartext HTTP is deliberately permitted** (network_security_config):
-  podcast enclosures in the wild are frequently plain http (BBC media hosts
-  included); refusing them breaks playback of legitimate feeds. Same policy
-  as AntennaPod.
-- `:core:video` — YouTube resolution (`VideoResolver`, `SignedInTvPlayer`, `PlayerStreams`, `VideoQuality`,
-  `RangedFetch`, `LookupStore`, the `VideoCodecSupport` port), pure JVM since 2026-10-31 so the Pi's download
-  service (the CLI) resolves with the same code as the app. Only the decoder list (`PlatformVideoCodecSupport`)
-  and the SABR download route stay in `:app`.
-- `:core:cast` — the plain-Kotlin half of casting (manifest, rung choice, container layouts and remuxers, the cast HTTP
-  server, reach, `ScreenLink`, captions, probes, the `CastTvPort`), pure JVM with `explicitApi()`, package
-  `…playback.cast`, so the Pi's `:cli` runs the same code as the phone (ADR 119). `:core:playback` keeps what touches
-  Media3, MediaCodec or Android (`CastStreams` as an adapter, `MediaCodecAudioEngine`, `CastHost`, `CastStatus`, `ScreenPlayer`); the stream server itself (`CastStreamServer`, `ProcessedAudio`) is here. Held by `koverVerify` (87.5%
-  on 2026-11-07).
-- `:core:sound` — the sound processing (`SilenceCutter`, `SpeechModel`, `SpeechTrack`, `LoudnessBoost`, `VolumeBoost`,
-  `LookaheadLimiter`), pure JVM with `explicitApi()`, shared with the Pi (ADR 119). The Silero weights
-  (`silero_vad.bin`) are its Java resource, read by `SpeechWeights.bundled()`; the Media3 wrappers
-  (`SilenceCuttingAudioProcessor`, `BoostingAudioProcessor`, `AudioChain`) stay in `:core:playback`. Its audio-quality
-  suite is `:core:sound:test -Ptotum.audioQualityTests`.
-- `:lib:ytdlp` — from-scratch yt-dlp library (replaces the youtubedl-android
-  fork). **Pure JVM on purpose** — it is the platform-neutral API (types,
-  port, fake); only the real engine module needs Android. Public API:
-  `YtDlpEngine` (suspend `extract`, `searchVideos`, cold-`Flow` `download`,
-  sealed results), `bestPlayableFormat()` selection. Deliberately independent
-  of `:core:domain` (standalone, reusable).
-- `:lib:ytdlp-chaquopy` — the real engine: yt-dlp on embedded CPython 3.12
-  via Chaquopy 17 (MIT). `totum_ytdlp.py` is a thin JSON-in/JSON-out bridge;
-  `BridgeJson.kt` parses it (JVM unit-tested); `ChaquopyYtDlpEngine`
-  implements the API. Chaquopy constraints: exactly ONE module per app may
-  apply the plugin; build-host Python minor version must match the target
-  (3.12 here); NOT configuration-cache compatible (config cache disabled in
-  gradle.properties because of this). ABIs: arm64-v8a + x86_64. Adds ~80MB
-  to the APK (Python runtime per ABI). **yt-dlp self-updates at runtime**:
-  `YtDlpUpdater` fetches the latest wheel from PyPI on every launch (background,
-  SHA-256-verified, never starts Python) into a cache dir; `totum_bootstrap.py`
-  prepends it to `sys.path` before `import yt_dlp` so a YouTube-breaking fix
-  applies on the next start without an app update — a bad wheel is dropped and
-  the bundled copy used. The interpreter and ffmpeg can't self-update (W^X).
-  ffmpeg is bundled separately in `:app` jniLibs (see Downloads above).
-- `:lib:innertube` — pure-JVM **YouTube account seam**, the second engine
-  beside `:lib:ytdlp` (which stays read-only): signed-in capabilities — subs
-  feed, history, comments, likes/actions — talk YouTube's private InnerTube
-  API here, authenticated SmartTube-style via Google's **TV device-code OAuth
-  flow** (user visits google.com/device and types a short code; no WebView —
-  Google blocks embedded logins; endpoints + public TV client identity
-  live-verified 2026-07-13). Auth layer: `YouTubeAuth` port +
-  `HttpYouTubeAuth` (OkHttp), `DeviceLogin` cold-flow driver owning all
-  protocol pacing (poll interval, slow_down backoff, expiry; transient poll
-  failures retried until the code expires), `TokenStore` port (app supplies
-  storage; access token ~1h, refresh token long-lived, `invalid_grant` on
-  refresh = signed out, re-login). Token value classes redact themselves in
-  `toString()` so credentials can't leak into logs. Fakes for tests/previews.
-- `:lib:exsurge` — **Exsurge et Disce**, the side quest (not a pillar): after 30 minutes of
-  sitting, Surgius (a Roman-orator mascot) takes over the screen and sends Dewi into Loquax
-  (`dev.hanzi.hanzi_practice`) for five minutes. Pure JVM: one sealed state machine and the stats.
-  `app/…/exsurge/` holds the Android adapters. Two things here are deliberately not the shared
-  seam: its **voice clips play on their own `MediaPlayer`** (alarm sounds, never media; ADR 3), and
-  its **state is not in Room** (ADR 2). It pauses and resumes playback only through
-  `PlaybackController.setPlaying` and `PlaybackInterruption` (ADR 4). Its tests are an opt-in phase
-  (`-Ptotum.exsurgeTests`) with their own workflow (ADR 7). Feature doc:
-  `docs/features/exsurge-et-disce.md`.
-- `:lib:reminders` + `app/…/reminders/kit/` — the **reminder kit** shared by the side quests (ADR 17):
-  waveforms, choice lists, next-weekday-time maths and time serializers; exact and alarm-clock alarms, an
-  alarm-channel voice (clips and text-to-speech), the alarm tone, the buzzer, chips, a clock picker, a
-  lock-screen helper and a JSON prefs store.
-- `:lib:stats` — the stats log's events and every aggregation, pure; `app/…/stats/` records them and
-  `app/…/ui/stats/` shows them (ADR 44).
-- `:lib:dailyalarms` — **Daily alarms** (ADR 18): `DailyAlarm` and the per-day state machine.
-  `app/…/dailyalarms/` holds the controller, `RingService` (systemExempted foreground service that owns
-  the ringing), the question and ring screens, notifications, receiver, tile and settings.
-- `server/` — what the app talks to on the home Pi (Prowlarr, FlareSolverr, TorrServer and its watchdog,
-  totum-audio), one compose project each, deployed from the Pi's `~/code/totum`; nginx and gluetun stay in the
-  Pi's `dot-files`. See `server/README.md` and ADR 85. The crash sink is `tools/crashlog-server/`.
-- `:lib:common` — pure-Kotlin utility module with no app dependencies, shared
-  by app modules and standalone libraries alike (it would be published
-  alongside `:lib:ytdlp`, like the old youtubedl-android's `common` module).
-  Home of `HttpUrl`, the single validated URL type used everywhere.
-- detekt, the Android lint policy, and Android build defaults
-  (compileSdk/minSdk/Java level) apply to every module automatically from the
-  root build — never configure them per module.
-- Package root: `com.dewijones92.totum`.
-
-## Working agreements
-
-- **Iterate quickly and keep shifting left** (Dewi, 2026-10-21: *"we want to iterate quickly … any big cycles that
-  take time … find bottlenecks and shift left"*). Treat a slow loop as a defect: measure where the minutes go
-  (2026-10-21: a 1-line change rebuilt in 17 s and installed in 2 s; the minutes were the full gate and UI-driving
-  scripts), then move the check earlier and cheaper — a laptop prototype for an unknown (the Python spike servers that
-  settled the TVs' formats in seconds), a debug broadcast instead of screen taps (`DEBUG_CAST`, `DEBUG_QUEUE_PLAY_ALL`;
-  `tools/cast-bench/bench.sh`), a JVM test instead of a device run, the full gate left to CI.
-  When a cycle is slow, fix the tooling in the same session rather than paying it again.
-- **Opus orchestrates; Sonnet builds; Haiku investigates** (Dewi, 2026-11-13: *"I don't want Opus to build
-  anything … Opus to be the orchestrator … Sonnet agents to build everything and then possibly Haikus to
-  investigate"*). The main session (Opus) refines, plans, briefs, merges, deploys, tests on the real devices and
-  reports; every code, test and doc change for a feature or a fix is made by a Sonnet `builder` agent in a worktree,
-  and every broad read (scouts, sweeps, reuse searches) by a Haiku `scout`. The end-of-batch `reviewer` stays Opus.
-  The orchestrator's own edits are limited to merge fixes (a renumbered ADR, a conflict), the task file and this
-  file. Every builder brief names CLAUDE.md's full gate, not an `:app`-only shortcut: `detekt cpdCheck
-  :cli:installDist lint compileDebugAndroidTestKotlin testDebugUnitTest test koverVerify` (unprefixed tasks run in
-  every module, as CI does).
-- Commit as you go — small, coherent commits at each green state.
-- **Say which repo files would make life easier** (Dewi, 2026-11-20: *"if there's any file in this repo … that we need to
-  CRUD to make our lives easier … improve diagnostics or something, anything … let me know. This is a rule from now
-  onwards"*). Whenever work shows that creating, updating or deleting a file in this repo would help (a missing log or
-  state block, a stale doc, a script that would save a slow loop, a dead file, a fixture, a preflight check), list it to
-  Dewi in the report under 🔍 Found, with the file and what it would buy, rather than letting it pass.
-- **How a batch runs** (Dewi, 2026-10-14, 2026-10-15, 2026-10-23 and 2026-11-06):
-  1. **Refine the whole batch before building any of it** (Dewi, 2026-11-06: *"before we start a big batch of work, we
-     refine a big batch of work … we investigate as we go, we probe … we shift left … scouts … a holistic approach"*).
-     A batch mixes big items, little items and many of them, and no code is written until Dewi says so. Refining means:
-     - **Read every unconsidered diagnostics report** (`tools/crashlog-server/triage.sh considered` with no date lists every one
-       whatever its age, and its footer gives the server-wide count; until 2026-11-20 it hid anything older than 7 days) and turn each note into a finding or an item.
-     - **Investigate and probe as you go:** settle a hypothesis with evidence, not a guess. That means a quick proof of
-       concept on the real device (the LG and the webcam, a laptop server), a spike with real data (Dewi's own backup,
-       tokens stripped), or the compiled code run against the real input. Several of the 2026-11-05/06 hypotheses
-       changed this way.
-     - **Scouts for every item, then one for the batch as a whole:** Haiku scouts (read-only) find what each item can
-       reuse, so the plan names it — in this repo AND on the Pi (its running services, `systemctl --user`, containers, and the
-       `dot-files` repo: on 2026-11-06 the speaker queues turned out to duplicate `hermes-audio-ctl`, which no scout had looked
-       at); then one review reads every item together for shared seams, items to merge and
-       items that would copy existing code, so each seam is built once and first. Check a scout's claim before you
-       repeat it.
-     - **Ask Dewi only what only he can answer** (scope, defaults, trade-offs), a few at a time with a recommendation
-       each; never facts the code can answer.
-     - **Write it down:** one `docs/todos/<item>.md` per item with its decision, evidence and reuse; an overview doc
-       with the phases, their order and what was declined; the session's task file, so it survives a context reset.
-  - **Dewi's real app state is a lens on everything** (Dewi, 2026-11-14: *"I want my app state to be one of the lens that we
-    do everything as this is real world usage"*). The newest state dump (Settings → send my state, or every report; the Pi keeps
-    five, ADR 159) is copied to `~/claude-tasks/state-dumps/` (600, redacted, never committed or sent anywhere). Refining reads it
-    for the real shapes and sizes (on 2026-11-14: 5,857 queue items, 1,623 subscriptions, 509 downloads, 1,207 progress records);
-    every builder brief names it and asks how the change behaves at that scale and with those contents; every batch ends with a
-    pass on the emulator loaded with it (`tools/emulator/load-state.sh`), after the clean soak, looking at the changed screens and
-    timing what scales with it (opening the queue, start-up, search, groups). **Take a fresh dump before every big batch** (Dewi,
-    2026-11-20): tap the Quick Settings tile **📦 Send my state** on the phone, then run `tools/state/pull-state.sh`, which copies
-    the Pi's newest dump into `~/claude-tasks/state-dumps/` (600), prints its app version and age and warns past 3 days.
-  2. **Each feature ships on its own** so Dewi can try it on his phone: tests (a bug fix's test seen red first), docs
-     and ADRs in the same change, preflight and `./gradlew detekt` across all modules until clean, the changed
-     tests run, a look at the changed screen on the emulator, then push and watch CI on the commit to its end (the
-     full gate is CI's job; see Build & test). No soak per feature.
-  3. **The batch ends with a soak, an Opus review and Haiku sweeps in parallel** (Dewi, 2026-11-01). The sweeps:
-     one or two check each change for consistency across every list, way in and kind of item (tap, link,
-     notification, search, restore, queue, home; the queue rows that lost their dates were this kind of miss), and
-     one looks for use cases the batch missed. A sweep's finding is a hypothesis: check it against the code first.
-     Then the soak (see "Before shipping a playback or
-     extraction change") against the release from before the batch, and a `reviewer` agent on the batch's commits,
-     given the requests and the accepted decisions. Read the whole report, check each finding against the code, fix
-     what holds up with a test seen red first, and push.
-  4. **Then report** in the end-of-run shape (🚧 Needs you, Changed, 🔍 Found, ⚠️ Couldn't confirm), and mark the
-     phone reports the batch answered as fixed, with the first release that contains each fix.
-- Remote: `github.com/dewijones92/totum` (public; renamed from `dewiuniapp` on
-  2026-07-25 — GitHub redirects the old URL, so stale clones keep working). Local
-  clone is `~/code/totum`, and the Pi's is `~/code/totum`. The **signing**
-  directories keep their old names on purpose (`~/code/dewiuniapp-signing`, the
-  private `dewijones92/uniapp-signing-backup`): renaming anything holding release
-  keys buys tidiness at the cost of risk. Default branch is
-  `main`; pushing to it is fine and CI (GitHub Actions) must stay green.
-- Every push to main publishes a signed APK to its **own** release, tagged
-  `v0.1.<run number>` to match `versionName` (consumed by Dewi's Obtainium).
-  It is deliberately **not** a prerelease, so it becomes the repo's "Latest
-  release" and `/releases/latest/download/totum.apk` stays a stable URL.
-  This replaced a rolling `latest` tag on 2026-07-27: Obtainium's default
-  version string for a GitHub source is the release *tag*, and a tag that
-  never changes means an update is only ever detected via non-default
-  settings. Now the tag, the release title and the installed app all agree.
-- **Never re-run an older `main` CI run while one is in flight.** `ci.yml` sets
-  `concurrency: cancel-in-progress` on `${{ github.ref }}`, so re-running an old
-  run *cancels the current one* — and since the tip run is what publishes the
-  rolling APK, that silently leaves Obtainium without a build. If an old run
-  failed spuriously (it happens — a run can complete with zero jobs, which is a
-  GitHub scheduling fault, not a test failure), just let the newer commit prove
-  it: the tip is a superset. Learned 2026-07-25, at the cost of the Totum APK. A newer push cancels the older
-  run too, but the release is published as soon as the build job is done, so what gets cancelled is the later
-  instrumented tests, not the APK (2026-10-15: two "cancelled" runs had both released). Check
-  `gh release view <tag> --json targetCommitish` before concluding a fix did not ship. **But the build job
-  ("Quality gates + build") takes ~17-19 min and publishes only at its end, so pushes closer together than that
-  release nothing** (2026-10-23: four pushes ~15 min apart, three cancelled builds, no release for an hour while a
-  crash fix waited). Leave ~20 min between pushes, or batch commits into one push. Release signing key lives in
-  three places, never this repo: locally at `/home/dewi/code/dewiuniapp-signing/`,
-  in this repo's Actions secrets (CI signing; write-only), and backed up in
-  the PRIVATE repo `dewijones92/uniapp-signing-backup` (survives laptop
-  loss). versionCode is `100 + run number`, so it only ever increases.
-- **Be a polite client to YouTube** (Dewi, 2026-10-15: *"I want to be mindful of raising suspicion"*). Every
-  YouTube call (InnerTube, yt-dlp extraction and solving, page walks, feeds, subtitles) goes through ONE global
-  gate of at most **4 in flight**; nothing fans out past it, however many items a "shuffle all" or "play all"
-  touches. Player bytes are outside it, and downloads keep their own cap of 4. A **429** (or `Retry-After`) means
-  exponential back-off with jitter, never a tight retry; a **"not a bot"** refusal backs yt-dlp off (1, 2, 4 … 60
-  min, reset by a success). Either one shows a banner on every tab while it lasts, and is logged and counted. A new
-  feature that talks to YouTube uses the gate rather than its own `async` fan-out. **The Pi's `totum serve` and the CLI are
-bound by it too** (2026-11-07): one `Politeness` per process, attached with `Politeness.gated(engine)` and
-`Politeness.gated(clientBuilder)`; `HomeDownloads` and `YtDlpLiveHls` require it, so a new Pi path to YouTube takes it as a
-parameter rather than building its own client or engine.
-- **Anything that asks an AI gets dry runs before it ships** (Dewi, 2026-11-01: *"anything I ask you to do with AI,
-  you need to do a few dry runs, test runs … to make sure the AI is going to do the right thing and amend the prompt"*).
-  Run the real model on a spread of realistic inputs (several rounds, follow-ups included), read every answer, and fix
-  the prompt or the code until they come out right; a rule the model keeps ignoring is enforced in code after the call
-  (as `AskAnswer.tidied` does). Record the runs and what changed in the ADR. Check the dry-run rig answers with the
-  build under test: on 2026-11-01 an old `totum serve` still held the port and answered three rounds of "edited" prompts.
-- **Every async operation shows itself** (Dewi, 2026-10-23: *"as a general rule of thumb in this repo … all async ops
-  … should have ui indicators … notification or something"*). Anything the user starts that does not finish at once
-  (a shuffle that walks pages, a page loading, a torrent preparing, a batch of downloads, a sign-in, a backup) reports
-  through ONE seam, the live progress strip under every tab's header: what it is, a running count, Cancel, and a
-  result when it ends (✅/❌, never silent). Work that outlives the screen also gets a notification. A new async
-  feature that shows nothing while it runs is not done, and a second, private spinner is a DRY defect.
-- **Text wraps; nothing truncates.** No `TextOverflow.Ellipsis` anywhere in `app/src/main`, and a
-  `maxLines` cap only with a declared reason in `tools/ci/preflight.py` (Dewi, 2026-09-21: *"dont
-  use ... please in the app - just wrap the text"*). A row grows to fit its title. Preflight fails
-  on a reintroduction — not a Compose test, because a truncated `Text` still reports its whole
-  string to the semantics tree, so no assertion about text can see the difference.
-- **Log generously — err on the side of far more.** Dewi's standing instruction
-  (2026-07-28): *"would we benefit from FAR MORE THINGS being logged??? in this repo,
-  always err on the side of MORE LOGS/DIAGS."* This app is debugged almost entirely
-  from diagnostics reports sent off a phone that is not in front of you, so an
-  unlogged decision is an unanswerable question. It has cost real time twice: a
-  23-second stall was invisible because nothing recorded stalls, and "the position
-  clears when I switch tabs" could not be investigated at all because tab switches
-  were not recorded. When adding any branch that decides something a user would
-  notice — advance or don't, skip or don't, retry or give up, use this stream or that
-  one — **log the decision and the reason for it**, not just the outcome. Prefer a
-  line that says why nothing happened; silence is the hardest thing to debug.
-  The one real constraint is the report buffer: it holds a bounded number of events,
-  so anything firing many times a second must be counted and logged periodically
-  (see `SILENCE_LOG_EVERY`) rather than dropped. Counted, never silent.
-- **Every change must be provable in the wild from its logs and diagnostics alone —
-  this is a MUST, not a preference.** Dewi, 2026-08-06: *"we need to collect
-  logs+diags verbosely to make sure what we do works in the wild … this is a MUST!!!
-  and be able to be read very well after the fact"*. A feature is not done when it
-  passes tests; it is done when a report sent from his phone a week later can settle
-  **whether it actually worked there**. So when you ship anything, ask: *if this
-  silently misbehaves on his device, which line in the next report tells me?* If the
-  answer is "none", the instrumentation is part of the change, not a follow-up.
-  Three rules follow, each earned:
-  - **Log the inputs, not only the outcome.** A decision line that omits what it
-    decided from cannot be re-judged after the fact. "skipped it" was identical whether
-    a downloaded file existed or not — which is exactly how the offline-video bug
-    survived (2026-08-06). Now the line carries the copy, the network and the mode:
-    `route <id> -> … [handle=Video copy=audio-only offline=true listen=false]`.
-  - **A report must be able to answer the obvious next question.** Report 0.1.346
-    carried the whole 97-item queue and every setting, and not one word about what was
-    on the disk — so "was it downloaded?" was unanswerable and the diagnosis had to come
-    from reading code instead. State blocks are cheap; add the counters AND the per-item
-    detail (`downloads.queueStates`), because a total cannot say whether the item that
-    was *tapped* was there.
-  - **Write it to be read months later by someone with no context**: name the field
-    (`playing=`, `copy=`), spell the units, prefer a whole phrase over a flag, and never
-    let two different situations produce the same line.
-- Debug logging must be prefixed `dewidebug`. **Keep it committed** until Dewi says
-  otherwise (his standing rule, which reverses the earlier strip-before-commit one):
-  these lines are often useful again. Make a chatty one reasonable — log only the
-  interesting case, or lower its frequency — rather than deleting it.
-- **A doc's `status` is a claim, and a stale claim is worse than none.** Twice on 2026-08-06 a
-  status line was simply wrong: `public-domain-film-tv` said "app side not started" when the whole
-  client, the zero-config host and the sign-in flow had shipped — which sent that session's opening
-  recommendation in the wrong direction — and `audio-video-switching` said `refining` in its
-  frontmatter while the index said "shipped". So: when you touch an area, **re-read its status
-  against the code and correct it**, treat a disagreement between a file and the index as a bug in
-  both, and when you find a status was wrong, say so in the doc rather than quietly fixing it — the
-  next person needs to know the map has been unreliable there.
-- **Every flow that matters gets an e2e in CI.** Dewi, 2026-08-06: *"make sure you have e2e of
-  all these flows … in the ci/cd please"*. A flow with no e2e is one whose next regression is
-  found on a plane. Where a flow depends on something CI cannot reach (the Pi, live YouTube),
-  write **both**: a deterministic test against a stand-in that runs on every commit, and a live
-  one behind `tools/ci/live-test-via-home.sh` that is allowed to skip. Never let the skippable
-  one be the only coverage. Torrent tests use **copyright-free media only** — media this repo
-  generates, and public-domain titles — and never resolve a real magnet. The map of what is and
-  is not covered lives in `docs/tests/_index.md`, including what is deliberately uncovered.
-- **Own the repo.** Dewi's explicit steer (2026-07-25): *"feel empowered to make big
-  moves e.g. refactoring — you own this repo"*. So take the structurally right option
-  rather than the timid one: collapse duplicated types, rename for honesty, move code
-  to where it belongs. The guardrails stay — gate green, verify on-device, one
-  coherent commit per move, and surface a decision that's genuinely Dewi's (a
-  behaviour change to something shipped, or a trade-off with no clear default).
+- **One answer, in one place.** "How do I play this, right now?" is `routeNow` in `:core:domain` (`PlaybackQueue.route` is
+  its only caller); "is this a video?" is `MediaItem.pillar` / `PlayHandle.pillar`; "where do the bytes come from" is
+  `PlayableItem.fetchUrl`; skip segments are enforced only in `Media3PlaybackController`'s position ticker; pillar routing of
+  downloads lives only in `AppContainer` (`RoutedDownloadStrategy`, an exhaustive `when`). One deliberate asymmetry, Dewi's
+  call: an **audio-only** copy of a video does not stand in while you are *watching*, only when listening or offline.
+- `PlaybackController` exposes `state` (how things ARE) and `events` (what HAPPENED): if you are asking "has X changed?",
+  you are on the wrong flow (`docs/architecture.md`).
+- Manual DI: `AppContainer` wires the graph, construction is code, errors are compile-time; no Hilt/Koin. detekt, the lint
+  policy and Android build defaults apply from the root build: never configure them per module.
+- **Chaquopy:** exactly ONE module per app may apply the plugin; the build-host Python minor version must match the target
+  (3.12); it is not configuration-cache compatible. ffmpeg **and ffprobe** are bundled (`libffmpeg.so`/`libffprobe.so` in
+  `app/src/main/jniLibs/<abi>`, ~7 MB each per ABI): the tracked binaries are not a mistake.
+- **Cleartext HTTP is deliberately permitted** (network_security_config): podcast enclosures are often plain http. Same
+  policy as AntennaPod. `POST_NOTIFICATIONS` is requested once as the shell composes, never at first play (the dialog
+  releases the video surface). Credentials never reach logs: `:lib:innertube` token types redact themselves in `toString()`.
+- Exsurge deliberately breaks the shared seam in two places: its voice clips play on their own `MediaPlayer` (alarm sounds,
+  never media; ADR 3) and its state is not in Room (ADR 2); it pauses/resumes playback only through
+  `PlaybackController.setPlaying` and `PlaybackInterruption` (ADR 4).
