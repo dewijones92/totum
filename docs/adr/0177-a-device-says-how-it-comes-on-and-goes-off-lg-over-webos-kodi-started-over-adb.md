@@ -266,11 +266,40 @@ said as much.
 - **Consequence for a dark TV at start-up:** the state starts as ON, so a dark TV whose cast port happens to answer while webOS is
   down stays shown as on until the port goes silent or webOS answers; once it is ASLEEP, an answering port with webOS down no
   longer flips it back (the first flap).
-- **Not changed, and open:** `ensureAwake` (a play to the TV) still treats "webOS could not be asked" as not answering, so a play
-  that lands in such a blip on a TV that is on sends wake-on-LAN and waits out the 45 s before failing. Treating "unknown" as awake
-  there would also stop the wake-on-LAN being sent for a TV that is only maybe on; left for Dewi to decide.
+- **Not changed here, changed later the same day:** `ensureAwake` (a play to the TV) still treated "webOS could not be asked" as
+  not answering, so a play that landed in such a blip on a TV that was on sent wake-on-LAN and waited out the 45 s before failing.
+  See "Amended 2026-11-28, later: a play to a TV that may be on connects at once".
 - Tests: `DevicePowersTest` (+2). The reported sequence (webOS `Active`, then one refused connection, then `Active` again, with the
   port up) was red first, `the blip read as ASLEEP expected:<ON> but was:<ASLEEP>`, and now holds ON with one "unsure" line and
   no `ON -> ASLEEP`/`ASLEEP -> ON`; webOS unreachable with the port silent, and webOS answering `Suspend` with the port up, are
   still asleep. The earlier "webOS down, port answering is asleep" test was rewritten to the case that remains true (a TV that is
   already asleep stays asleep when the port starts answering).
+
+## Amended 2026-11-28, later: a play to a TV that may be on connects at once
+
+The real run of 28 Nov showed what the open point above costs: with the TV on and casting, a play that landed while webOS could not
+be asked (the cast port answering) sent wake-on-LAN and then waited out the full wake timeout, about 45 s with the CEC step, before
+reporting failure, although the receiver was reachable the whole time.
+
+- **`SteppedPower.ensureAwake` has a third case**, between "answers" and "needs waking". When the power check is `unsure` (the
+  `TvPowerProbe` "unknown, maybe on": a paired TV's webOS could not be asked and the cast port answers), it sends the wake steps
+  that start at once (wake-on-LAN, and a TV with no MAC its CEC step, which still refuses on the same sign of life), does **not**
+  wait for webOS or run the deferred steps, leaves `power` as it was, runs no "ready" steps (they need a confirmed-on device), and
+  returns `true`, so `CastLink.connect` goes straight to the answering cast port. `sentWake` is true when a step was sent, so the
+  link makes its usual two tries at the receiver.
+- **A TV that is really off is unchanged**: its cast port is silent, so the check is not unsure and the wake, the poll, the deferred
+  CEC step and the timeout run exactly as before.
+- **The decision is logged**: `LG TV: webOS could not be asked but the device may be on (unknown, maybe on) [<evidence>]; sending
+  wake-on-LAN to … (harmless to a device that is on) and connecting at once, without waiting for webOS` (or `no wake is sent` when
+  a device has no immediate step).
+- **The power evidence names a silent cast port**: the evidence read `cast port  silent (…)` with the host and port missing when the
+  port did not answer, because it listed only the probes that answered; it now names every probe asked (`cast port
+  192.168.0.219:8009 silent`, or `cast port (none known)` for a device with none).
+- **Tests:** `SteppedPowerUnsureTest` (3): the play to a maybe-on TV returns `true` with only `wol@0` run and no wait (red first:
+  `AssertionError` at the first `assertTrue(wake.ensureAwake())`, the old code waiting out the timeout and returning `false`); a TV
+  that is really off is still woken and waited for; a TV that answers is neither woken nor treated as unsure.
+  `DevicePowersTest`: the silent cast port is named (red first: `cast port  silent (not used: webOS is paired, so it decides)`);
+  and "a TV whose webOS is down but whose cast port answers may be on" now asserts the play connects and the decision line, instead
+  of the CEC guard's line, because the wake stops before the CEC step is reached (the guard itself is still covered by the
+  standby-with-port-answering test).
+- Not confirmed on the real LG: that a play in such a blip then reaches the receiver at once.

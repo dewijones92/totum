@@ -571,13 +571,13 @@ class DevicePowersTest {
             config(adbSpec = kodiAdb, shown = "Kodi=LG TV@HDMI_1", webos = "LG TV=127.0.0.1", timing = fastTiming),
         ).of("LG TV")!!
 
-        power.ensureAwake()
+        assertTrue(power.ensureAwake())
 
         assertTrue(events.toString(), events.any { it.startsWith("wol ") })
         assertEquals(emptyList<String>(), events.filter { it == "sleep" || it == "wake" })
         assertTrue(
             logged.toString(),
-            logged.any { it.contains("CEC nudge not sent") && it.contains("cast port") && it.contains("maybe on") },
+            logged.any { it.contains("unknown, maybe on") && it.contains("connecting at once") },
         )
     }
 

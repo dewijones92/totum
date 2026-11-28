@@ -139,6 +139,20 @@ internal class SteppedPower(
             runReady()
             return@withLock true
         }
+        if (unsure()) {
+            val immediate = wakeSteps.filter { it.startsAfterMs <= 0 }
+            Diag.log(
+                "cast-target",
+                "$label: webOS could not be asked but the device may be on (unknown, maybe on)" +
+                    evidence()?.let { " [$it]" }.orEmpty() +
+                    "; " + (
+                    if (immediate.isEmpty()) "no wake is sent" else "sending ${immediate.joinToString { it.name }}"
+                    ) + " (harmless to a device that is on) and connecting at once, without waiting for webOS",
+            )
+            immediate.forEach { runStep(it, "the wake") }
+            sentWake = immediate.isNotEmpty()
+            return@withLock true
+        }
         if (wakeSteps.isEmpty()) {
             power = TargetPower.ASLEEP
             Diag.log("cast-target", "$label: not answering and Totum has no way to wake it, so nothing was tried")
