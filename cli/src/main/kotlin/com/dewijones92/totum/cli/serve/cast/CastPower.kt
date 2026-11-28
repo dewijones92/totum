@@ -199,6 +199,7 @@ internal class DevicePowers(
             startsApp = startsApp,
             evidence = { probe.evidence },
             signsOfLife = probe::signOfLife,
+            unsure = { probe.unsure },
             timeoutMs = when {
                 startsApp -> AdbStartApp.START_TIMEOUT_MS
                 cec.isNotEmpty() -> config.timing.cecWakeTimeoutMs

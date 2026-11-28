@@ -209,8 +209,9 @@ sound processing on the Pi). Brief: [pi-plays-everywhere.md](../todos/pi-plays-e
   started, again every 20 s for up to a minute; otherwise "❌ Kodi didn't start".
 - **Seen on the real devices, 28 Nov 2026** ([ADR 177](../adr/0177-a-device-says-how-it-comes-on-and-goes-off-lg-over-webos-kodi-started-over-adb.md)):
   the webOS switch-off worked; wake-on-LAN did not wake the LG from deep standby, but the Fire Stick's sleep-then-wake did (it
-  tells the TV over HDMI-CEC). So a paired TV is **on only while webOS says `Active`** (no fallback to the cast port when webOS
-  cannot be reached; every change logs what webOS and the port said), a TV with a stick shown on it (`TOTUM_SHOWN_ON`) is woken
+  tells the TV over HDMI-CEC). So a paired TV is **on only while webOS says `Active`** (the cast port never makes it on; when webOS cannot be
+  asked and the port answers, the state is held as it was, "unknown, maybe on", and asleep only once the port is silent too; every
+  change logs what webOS and the port said), a TV with a stick shown on it (`TOTUM_SHOWN_ON`) is woken
   by wake-on-LAN first and then, after 5 s of silence, by cycling the stick's sleep and wake (45 s allowed), a Kodi on an awake
   stick whose TV is off gets the same cycle (never while webOS says Active or the cast port answers: "maybe on" sends nothing and
   leaves the wake to wake-on-LAN), and a volume with nowhere to go is refused in words

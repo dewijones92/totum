@@ -225,6 +225,9 @@ touched by the change); the real-device run is owed.
   not asked for` or `LG TV is on; switched to input HDMI_1`. A display with no way to be woken that is asleep is no longer
   counted as on (`ensureAwake` answers true for "nothing to try").
 
+(Superseded in part, see "Amended 2026-11-28, after v0.1.978": webOS unreachable no longer reads as asleep while the cast
+port answers.)
+
 **Tests, and what turned them red** (run 2026-11-28 against the old code with the new API shaped but behaving as before):
 `DevicePowersTest` (+12; the three of the sign-of-life guard were run red separately, `expected:<[]> but was:<[sleep, wake]>`, for a
 TV with webOS down and the cast port answering through the TV's own CEC step and through an awake Kodi stick, and for a TV
@@ -244,3 +247,30 @@ accepts and closes, and the test went red as it should.
 **Still not proven on the real devices:** that the cycle wakes the LG when it is sent by Totum rather than by hand, that
 five seconds of wake-on-LAN is the right moment to give up on it (the packets reached nothing that night, so the real
 timing of a wake that does work is unknown), and how often the sign-of-life guard withholds a nudge on the real TV.
+
+## Amended 2026-11-28, after v0.1.978: one failed webOS connect with the TV on is not "asleep"
+
+v0.1.978 on the Pi woke the LG by wake-on-LAN in 4.3 s, and the webOS switch-off and the treat timer worked. One flap remained:
+with the TV on and casting, right after the receiver app quit, one webOS connect failed (`could not connect (wss://192.168.0.219:3001:
+no answer within 5000ms)`) with the cast port answering, the check logged `ON -> ASLEEP`, and five seconds later `ASLEEP -> ON`.
+The rule above, "webOS unreachable is off", was too strict, and the CEC guard (never nudge when the port answers) had already
+said as much.
+
+- **One rule, in one place** (`TvPowerProbe`): a paired TV's webOS is `Active` (on), answers anything else, `Suspend` or standby
+  (asleep), or **cannot be asked**. Cannot be asked with the cast port silent is asleep; cannot be asked with the cast port
+  answering is **unknown, maybe on**. The power check holds the state it had when the answer is unknown (it logs once, `LG TV:
+  power check unsure [webOS unavailable (…); cast port … answers (webOS is paired but could not be asked: unknown, maybe
+  on)]; keeping ON until it is answered or its cast port goes silent`), and the CEC nudge refuses on the same "unknown" (and, more
+  strictly, on any answering port, since a sleep key sent to a TV that is on switches it off). Only "webOS answered a non-Active
+  state" or "webOS unreachable and the port silent" move the state to ASLEEP.
+- **Consequence for a dark TV at start-up:** the state starts as ON, so a dark TV whose cast port happens to answer while webOS is
+  down stays shown as on until the port goes silent or webOS answers; once it is ASLEEP, an answering port with webOS down no
+  longer flips it back (the first flap).
+- **Not changed, and open:** `ensureAwake` (a play to the TV) still treats "webOS could not be asked" as not answering, so a play
+  that lands in such a blip on a TV that is on sends wake-on-LAN and waits out the 45 s before failing. Treating "unknown" as awake
+  there would also stop the wake-on-LAN being sent for a TV that is only maybe on; left for Dewi to decide.
+- Tests: `DevicePowersTest` (+2). The reported sequence (webOS `Active`, then one refused connection, then `Active` again, with the
+  port up) was red first, `the blip read as ASLEEP expected:<ON> but was:<ASLEEP>`, and now holds ON with one "unsure" line and
+  no `ON -> ASLEEP`/`ASLEEP -> ON`; webOS unreachable with the port silent, and webOS answering `Suspend` with the port up, are
+  still asleep. The earlier "webOS down, port answering is asleep" test was rewritten to the case that remains true (a TV that is
+  already asleep stays asleep when the port starts answering).

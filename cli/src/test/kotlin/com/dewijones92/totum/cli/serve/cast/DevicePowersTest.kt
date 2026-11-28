@@ -320,13 +320,13 @@ class DevicePowersTest {
     }
 
     @Test
-    fun `a paired TV whose webOS cannot be reached is asleep, even while its cast port answers`() = runBlocking {
+    fun `a dark paired TV stays asleep when its cast port starts answering, webOS being down`() = runBlocking {
         pairTv()
         tv.close()
-        lgListener = listening(lgPort)
         val power = powers(config(webos = "LG TV=127.0.0.1")).of("LG TV")!!
 
         assertEquals(TargetPower.ASLEEP, refreshedTo(power, TargetPower.ASLEEP))
+        lgListener = listening(lgPort)
         repeat(STEADY_CHECKS) {
             power.refresh()
             delay(REFRESH_WAIT_MS)
@@ -334,6 +334,52 @@ class DevicePowersTest {
         }
         assertFalse(logged.toString(), logged.any { it.contains("ASLEEP -> ON (power check)") })
     }
+
+    @Test
+    fun `a failed webOS connect while the TV is on and its cast port answers does not read as asleep`() = runBlocking {
+        pairTv()
+        tv.powerState = "Active"
+        lgListener = listening(lgPort)
+        val power = powers(config(webos = "LG TV=127.0.0.1")).of("LG TV")!!
+        assertEquals(TargetPower.ON, refreshedTo(power, TargetPower.ON))
+
+        tv.closeNewConnectionsWith = 1008
+        repeat(STEADY_CHECKS) {
+            power.refresh()
+            delay(REFRESH_WAIT_MS)
+            assertEquals("the blip read as ${power.power}", TargetPower.ON, power.power)
+        }
+        tv.closeNewConnectionsWith = null
+        repeat(STEADY_CHECKS) {
+            power.refresh()
+            delay(REFRESH_WAIT_MS)
+            assertEquals(TargetPower.ON, power.power)
+        }
+
+        assertFalse(logged.toString(), logged.any { it.contains("ON -> ASLEEP") || it.contains("ASLEEP -> ON") })
+        val held = logged.filter { it.contains("LG TV: power check unsure") }
+        assertEquals(logged.toString(), 1, held.size)
+        assertTrue(held.single(), held.single().contains("unknown, maybe on") && held.single().contains("keeping ON"))
+    }
+
+    @Test
+    fun `webOS unreachable with a silent cast port is asleep, and so is webOS answering standby`() =
+        runBlocking {
+            pairTv()
+            tv.powerState = "Active"
+            val power = powers(config(webos = "LG TV=127.0.0.1")).of("LG TV")!!
+            assertEquals(TargetPower.ON, refreshedTo(power, TargetPower.ON))
+
+            tv.closeNewConnectionsWith = 1008
+            assertEquals(TargetPower.ASLEEP, refreshedTo(power, TargetPower.ASLEEP))
+
+            tv.closeNewConnectionsWith = null
+            tv.powerState = "Active"
+            assertEquals(TargetPower.ON, refreshedTo(power, TargetPower.ON))
+            lgListener = listening(lgPort)
+            tv.powerState = "Suspend"
+            assertEquals(TargetPower.ASLEEP, refreshedTo(power, TargetPower.ASLEEP))
+        }
 
     @Test
     fun `a TV that was never paired is judged by its cast port, as before`() = runBlocking {
