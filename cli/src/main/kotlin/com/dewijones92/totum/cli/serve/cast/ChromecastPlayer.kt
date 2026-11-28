@@ -11,6 +11,7 @@ import com.dewijones92.totum.data.targets.TargetPower
 import com.dewijones92.totum.data.targets.TargetTrouble
 import com.dewijones92.totum.data.targets.TroubleKind
 import com.dewijones92.totum.playback.cast.CaptionPick
+import com.dewijones92.totum.playback.cast.CastFormat
 import com.dewijones92.totum.playback.cast.CastItem
 import com.dewijones92.totum.playback.cast.LocalManifests
 import com.dewijones92.totum.playback.cast.soundOnly
@@ -120,7 +121,7 @@ internal class ChromecastPlayer(
         if (manifest != null) {
             mediaId = item.mediaId
             soundOnlyNote(request)
-            control.load(manifest, format.mime, request.title, request.startAtMs)
+            control.load(manifest, CastFormat.mimeOf(manifest, format), request.title, request.startAtMs)
             watchTheCutEnd(item.mediaId)
         } else {
             val url = streams.givenAsItIs(label, request.url)

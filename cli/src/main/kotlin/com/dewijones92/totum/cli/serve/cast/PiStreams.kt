@@ -14,7 +14,9 @@ import com.dewijones92.totum.playback.cast.HttpRequest
 import com.dewijones92.totum.playback.cast.LocalManifests
 import com.dewijones92.totum.playback.cast.MediaTools
 import com.dewijones92.totum.playback.cast.OpenedCast
+import com.dewijones92.totum.playback.cast.PatientUpstream
 import com.dewijones92.totum.playback.cast.ScreenLink
+import com.dewijones92.totum.playback.cast.UpstreamReply
 import java.util.concurrent.ConcurrentHashMap
 
 internal class PiStreams(
@@ -24,6 +26,7 @@ internal class PiStreams(
     private val relay: StreamRelay = StreamRelay(),
     tools: MediaTools? = null,
     private val liveHls: LiveHls? = null,
+    upstream: (String, String?) -> UpstreamReply = PatientUpstream()::get,
 ) {
     private class Playing(val sound: SoundSettings, val durationUs: Long?)
 
@@ -48,14 +51,17 @@ internal class PiStreams(
         tools = tools,
         port = port,
         alsoServes = { request -> lanCheck(request) ?: relay.handle(request) },
+        upstream = upstream,
     )
 
     val available: Boolean get() = base != null
 
+    fun start(): Int = server.start()
+
     fun serveScreens(screens: ScreenLink): Boolean {
         if (base == null) return false
         server.screens = screens
-        val port = server.start()
+        val port = start()
         Diag.log("cast-target", "the browser page is served at ${base.trimEnd('/')}/ (listening on $port)")
         return true
     }
@@ -68,7 +74,8 @@ internal class PiStreams(
         return server.urlFor(item, format).also {
             Diag.log(
                 "cast-target",
-                "${tv.label}: ${item.mediaId} -> ${it ?: "given as it is"} as ${format.name} " +
+                "${tv.label}: ${item.mediaId} -> ${it ?: "given as it is"} as " +
+                    "${if (it == null) format.name else CastFormat.mimeOf(it, format)} " +
                     "(uri=${hostOf(item.uri)} " +
                     "separateAudio=${item.separateAudioUrl != null} ladder=${item.ladder.size} " +
                     "listening=${item.listening})",

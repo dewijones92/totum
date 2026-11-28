@@ -202,4 +202,5 @@ public object Http {
     public const val KB: Long = 1024
     public const val MILLIS: Long = 1000
     public const val MPD: String = "application/dash+xml"
+    public const val HLS_PLAYLIST: String = "application/x-mpegURL"
 }
