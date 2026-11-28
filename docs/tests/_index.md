@@ -1231,3 +1231,24 @@ but doing what the old code did).
 Harness trap: the first version of the flapping test passed against the old code, because its listener never accepted a connection and
 the port most likely stopped answering once the listener's backlog filled (not measured; the old code was seen answering `true` on a
 direct probe, then `false` a few probes later). The listener now accepts and closes each connection, and the test went red as it should.
+## `StreamRelayTest`: a released port is not yours, and two ffmpegs do not log in order (2026-11-28)
+
+CI run 46100073263 (f6d97a91) failed `a YouTube sound cast to a TV is decoded by ffmpeg from the Pi's own
+relay` with `java.net.ProtocolException: unexpected end of stream` at the fetch helper, once in 899 `:cli`
+tests. The fixture picks its Pi port with `ServerSocket(0).use { it.localPort }` (released at once) and the
+fake YouTube server asked for `bind(0)` before the Pi server bound that port. If the kernel hands the Pi's
+number to the fake, `CastHttpServer.start` falls back to a free port, the manifest still says the number it
+was given, and `audio/0.m4s` lands on the fake, which answers a plain GET with 1000 of 5000 bytes. Forcing
+the fake onto the Pi's port reproduced the exact stack (`StreamRelayTest.kt:79` via `:217`); a natural
+reproduction never came (0 of 100 idle, 0 of 100 under CPU pressure), so the one-off is explained by that
+mechanism and not seen to happen unforced.
+
+The loop under CPU pressure (`taskset -c 0-1` plus six `yes`) found a second race in the same test:
+12 of 200 runs failed because the two fake ffmpeg processes (decoder, encoder) each logged one argument
+per line into one file, so the lines interleaved and `indexOf("-i")` found the encoder's `-i -`. The fake
+now logs one line per invocation and the test reads the decoder's line (the one with `-vn`). 0 of 300 after.
+
+The fake upstream now re-binds until it is not on the Pi's port, and `CastHttpServer`'s fallback line says
+which port it took instead and that addresses built for the old one reach someone else. Other fixtures with
+the same release-then-bind pattern (`CastBrainTest`, `BrowserServingTest`, `CastOutEndToEndTest`) were not
+changed; none runs a second listener on `bind(0)` before the first binds.

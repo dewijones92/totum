@@ -60,11 +60,18 @@ public class CastHttpServer(
             }
         }
             .getOrElse {
-                Diag.warn("cast", "port $preferredPort is taken; serving on any free port", it)
-                ServerSocket().apply {
+                val fallback = ServerSocket().apply {
                     reuseAddress = true
                     bind(InetSocketAddress(address, 0))
                 }
+                Diag.warn(
+                    "cast",
+                    "dewidebug port $preferredPort is taken (${it.message}); " +
+                        "serving on ${fallback.localPort} instead, so any address built for port " +
+                        "$preferredPort reaches whoever holds it, not this server",
+                    it,
+                )
+                fallback
             }
         socket = s
         Thread({ accept(s) }, "cast-http-accept").apply { isDaemon = true }.start()
