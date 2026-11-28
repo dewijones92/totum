@@ -31,6 +31,8 @@ internal interface TargetPlayer {
     fun pause(paused: Boolean)
     fun seek(positionMs: Long)
     fun volume(percent: Int)
+
+    fun volumeRefusal(): String? = null
     val volumePercent: Int?
     val fadeBasePercent: Int? get() = volumePercent
     fun stop()

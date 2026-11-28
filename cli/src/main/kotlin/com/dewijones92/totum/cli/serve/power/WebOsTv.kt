@@ -127,6 +127,8 @@ internal class WebOsSession(
 
 internal class WebOsInput(val id: String, val label: String, val connected: Boolean)
 
+internal class PanelReading(val on: Boolean?, val said: String)
+
 internal class WebOsTv(
     private val label: String,
     private val dial: WebOsDial,
@@ -143,7 +145,12 @@ internal class WebOsTv(
 
     val paired: Boolean get() = keys.isPaired
 
-    suspend fun panelOn(): Boolean? = (ask(this::readPanelState) as? Outcome.Value)?.value
+    suspend fun panelOn(): Boolean? = panelReading().on
+
+    suspend fun panelReading(): PanelReading = when (val outcome = ask(this::readPanelState)) {
+        is Outcome.Value -> PanelReading(outcome.value, "power state ${lastState ?: "unreadable"}")
+        is Outcome.Unavailable -> PanelReading(null, "unavailable (${outcome.why})")
+    }
 
     private fun readPanelState(session: WebOsSession): Boolean {
         val state = WebOsReply.textOf(session.request(WebOsWire.POWER_STATE)["state"])

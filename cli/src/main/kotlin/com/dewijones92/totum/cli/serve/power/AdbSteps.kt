@@ -2,6 +2,10 @@ package com.dewijones92.totum.cli.serve.power
 
 import com.dewijones92.totum.cli.serve.speakers.Shell
 import com.dewijones92.totum.common.Diag
+import com.dewijones92.totum.data.targets.TargetPower
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 internal class Adb(
     private val address: String,
@@ -24,7 +28,90 @@ internal class Adb(
     }
 }
 
-internal class AdbWakeStick(private val label: String, private val adb: Adb) : WakeStep {
+internal class CecNudge(
+    private val label: String,
+    private val adb: Adb,
+    private val settleMs: Long = SETTLE_MS,
+    private val minGapMs: Long = MIN_GAP_MS,
+    private val pause: suspend (Long) -> Unit = { delay(it) },
+    private val clock: () -> Long = System::currentTimeMillis,
+) {
+    private val lock = Mutex()
+
+    @Volatile private var lastSentAtMs: Long? = null
+
+    suspend fun announce(why: String, signOfLife: suspend () -> String? = { null }): Boolean = lock.withLock {
+        signOfLife()?.let { sign ->
+            Diag.log(
+                "adb",
+                "$label: CEC nudge not sent ($why): $sign; a sleep would send the TV a CEC standby, so the wake " +
+                    "is left to wake-on-LAN alone",
+            )
+            return@withLock true
+        }
+        val ago = lastSentAtMs?.let { clock() - it }
+        if (ago != null && ago < minGapMs) {
+            Diag.log(
+                "adb",
+                "$label: CEC nudge skipped ($why): one was sent ${ago}ms ago and the TV may still be coming on",
+            )
+            return@withLock true
+        }
+        if (!adb.connect()) return@withLock false
+        Diag.log(
+            "adb",
+            "$label: $why; cycling its Android device sleep -> wake so it announces itself to the TV over HDMI-CEC",
+        )
+        if (adb.run("input keyevent KEYCODE_SLEEP") == null) {
+            Diag.warn("adb", "$label: KEYCODE_SLEEP was not accepted, so no CEC nudge")
+            return@withLock false
+        }
+        pause(settleMs)
+        if (adb.run("input keyevent KEYCODE_WAKEUP") == null) {
+            Diag.warn("adb", "$label: KEYCODE_WAKEUP was not accepted after the sleep; the device may be left asleep")
+            return@withLock false
+        }
+        lastSentAtMs = clock()
+        Diag.log("adb", "$label: CEC nudge sent (KEYCODE_SLEEP, ${settleMs}ms, KEYCODE_WAKEUP)")
+        true
+    }
+
+    companion object {
+        const val SETTLE_MS = 6_000L
+        const val MIN_GAP_MS = 30_000L
+    }
+}
+
+internal class ShownTv(val label: String, private val display: DevicePower) {
+    suspend fun needsNudge(): Boolean {
+        val power = display.power
+        if (power == TargetPower.WAKING) return false
+        return !display.answersNow()
+    }
+
+    suspend fun signOfLife(): String? = display.signOfLife()
+}
+
+internal class CecWakeStep(
+    private val tvLabel: String,
+    private val stickLabel: String,
+    private val nudge: CecNudge,
+    override val startsAfterMs: Long,
+    private val signOfLife: suspend () -> String? = { null },
+) : WakeStep {
+    override val name: String = "wake $tvLabel over HDMI-CEC through $stickLabel (adb sleep -> wake)"
+
+    override val note: String = "📺 Waking $tvLabel through $stickLabel…"
+
+    override suspend fun run(): Boolean = nudge.announce("$tvLabel did not answer the wake-on-LAN", signOfLife)
+}
+
+internal class AdbWakeStick(
+    private val label: String,
+    private val adb: Adb,
+    private val nudge: CecNudge? = null,
+    private val shownOn: ShownTv? = null,
+) : WakeStep {
     override val name: String = "wake $label's Android device (KEYCODE_WAKEUP over adb)"
 
     override suspend fun run(): Boolean {
@@ -35,6 +122,17 @@ internal class AdbWakeStick(private val label: String, private val adb: Adb) : W
             return false
         }
         if (!power.contains(ASLEEP, ignoreCase = true) && !power.contains(DOZING, ignoreCase = true)) {
+            if (nudge != null && shownOn != null && shownOn.needsNudge()) {
+                Diag.log(
+                    "adb",
+                    "$label: its Android device is already awake ($power), but ${shownOn.label} is not on, so it " +
+                        "has sent no HDMI-CEC 'image view on'",
+                )
+                return nudge.announce(
+                    "${shownOn.label} is not on although $label's Android device is awake",
+                    shownOn::signOfLife,
+                )
+            }
             Diag.log("adb", "$label: its Android device is already awake ($power), no wake key sent")
             return true
         }

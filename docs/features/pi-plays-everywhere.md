@@ -3,7 +3,7 @@ title: 📡 The Pi plays to any TV, speaker or browser; the phone is a remote
 kind: feature
 area: casting/pi
 status: built 2026-11-07, Batch A (tests written 2026-11-07; volume rule and the YouTube relay fixed after the first run on the LG; the relay not yet seen on a real TV)
-updated: 2026-11-27
+updated: 2026-11-28
 ---
 
 # 📡 The Pi plays to any TV, speaker or browser
@@ -207,8 +207,16 @@ sound processing on the Pi). Brief: [pi-plays-everywhere.md](../todos/pi-plays-e
 - **Kodi on the Fire Stick.** `TOTUM_ADB_TARGETS=Kodi=192.168.0.211:5555|the Fire Stick`, `TOTUM_START_APPS=Kodi=org.xbmc.kodi/.Splash`
   and optionally `TOTUM_SHOWN_ON=Kodi=LG TV@HDMI_1`. A Kodi that does not answer has its stick woken (only if asleep) and Kodi
   started, again every 20 s for up to a minute; otherwise "❌ Kodi didn't start".
-- Not seen on the real LG or the real stick yet (tests use a fake SSAP server and a fake adb shell); see
-  [webos-and-kodi-power](../todos/webos-and-kodi-power.md).
+- **Seen on the real devices, 28 Nov 2026** ([ADR 177](../adr/0177-a-device-says-how-it-comes-on-and-goes-off-lg-over-webos-kodi-started-over-adb.md)):
+  the webOS switch-off worked; wake-on-LAN did not wake the LG from deep standby, but the Fire Stick's sleep-then-wake did (it
+  tells the TV over HDMI-CEC). So a paired TV is **on only while webOS says `Active`** (no fallback to the cast port when webOS
+  cannot be reached; every change logs what webOS and the port said), a TV with a stick shown on it (`TOTUM_SHOWN_ON`) is woken
+  by wake-on-LAN first and then, after 5 s of silence, by cycling the stick's sleep and wake (45 s allowed), a Kodi on an awake
+  stick whose TV is off gets the same cycle (never while webOS says Active or the cast port answers: "maybe on" sends nothing and
+  leaves the wake to wake-on-LAN), and a volume with nowhere to go is refused in words
+  (`⚠️ Couldn't set LG TV's volume to 2: …`) instead of logged as set. Kodi's refused sign-in reads
+  `🔑 Kodi refused the sign-in: check its web server password`, not "isn't connected". Built the same day against the fakes, **not
+  yet run on the real TV**; see [webos-and-kodi-power](../todos/webos-and-kodi-power.md).
 
 ## Not built (see the todo)
 
@@ -231,7 +239,7 @@ browser listed at once and renamed in place), `BluezTest` and `TargetDeckSpeaker
 `TargetStateWireTest`, `TargetRulesTest` (core/data), `TargetsRepositoryTest`, `DeviceMarksTest`, `DeviceColourRuleTest` (app),
 instrumented `PlayOnPickerTest` and `DeviceColourSurfacesTest`.
 
-ADR 177: `SteppedPowerWolTest`, `KodiStartTest`, `KodiStartThenPlayTest`, `DevicePowersTest`, `WebOsTvTest`, `PinnedTrustTest`, `WebOsPairingTest`, `TargetDeckPowerOffTest`, `CommandParsingTest`, `PlayOnTest`, `TargetsRepositoryTest`; stand-ins `FakeSsapServer` and `FakeAdb`.
+ADR 177: `SteppedPowerWolTest`, `KodiStartTest`, `KodiStartThenPlayTest`, `DevicePowersTest`, `WebOsTvTest`, `PinnedTrustTest`, `WebOsPairingTest`, `TargetDeckPowerOffTest`, `CommandParsingTest`, `PlayOnTest`, `TargetsRepositoryTest`; stand-ins `FakeSsapServer` and `FakeAdb`. Added 2026-11-28 after the real-device run: `SteppedPowerDeferredStepTest`, `ShownOnStepTest`, `CecNudgeTest`, `KodiUnreachableWordsTest`, `TargetDeckVolumeRefusalTest`, and the flapping-check, evidence and CEC tests in `DevicePowersTest`.
 
 Unit (wake, hand back, live, ADR 152 amendments of 2026-11-07): `WakeOnLanTest`, `SteppedPowerWolTest` (was `TvWakeTest`), `WakeThenPlayTest`, `YtDlpLiveHlsTest`, `LiveForSpeakersTest`, `CastWireTest`, `CastControlTest`, `ChromecastPlayerTest`, `TargetDeckTest`, `TargetDeckStartTest`, `TargetDeckVolumeSafetyTest`, `SpeakerVolumeTest`, `MpvPlayerTest` (cli), `TargetRulesTest` (core), `TargetsRepositoryTest`, `TargetChipLabelTest` (app), `server/totum-cli/chromecast_helper_test.py`.
 

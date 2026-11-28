@@ -197,6 +197,8 @@ internal class ChromecastPlayer(
 
     override fun volume(percent: Int) = control.volume(percent)
 
+    override fun volumeRefusal(): String? = control.volumeRefusal()
+
     override val volumePercent: Int? get() = control.volumePercent()
 
     override fun stop() = synchronized(itemLock) {
@@ -278,6 +280,10 @@ internal class CastLink(
         repeat(tries) { attempt ->
             if (control.reachable()) return host
             Diag.log("cast-target", "$host: receiver not connected (try ${attempt + 1} of $tries)")
+        }
+        control.whyUnreachable?.let { reason ->
+            Diag.warn("cast-target", "$host: not reachable because: $reason")
+            unreachable = TargetTrouble(TroubleKind.WONT_WAKE, reason = reason)
         }
         return null
     }

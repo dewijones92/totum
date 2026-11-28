@@ -10,6 +10,8 @@ internal class ReceiverProbe(
     private val port: Int = CAST_PORT,
     private val timeoutMs: Int = CONNECT_MS,
 ) {
+    val where: String get() = "$host:$port"
+
     suspend fun answers(): Boolean = withContext(Dispatchers.IO) {
         runCatching { Socket().use { it.connect(InetSocketAddress(host, port), timeoutMs) } }.isSuccess
     }

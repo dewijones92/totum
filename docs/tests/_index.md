@@ -1212,3 +1212,22 @@ and the webOS 1008 line ([ADR 177](../adr/0177-a-device-says-how-it-comes-on-and
 | `test_audio_ctl.py` (+2, 3 changed), `test_audio_ctl_contract.py`, `HermesAdapterContractTest` (+1) | jazz is SomaFM Sonic Universe as a plain `audio=` podcast item, id `station:jazz`, no YouTube; the golden fixtures were regenerated. Red first: `'station:jazz' != 'Dx5qFachd3A'` |
 | `YouTubeGateTest` (+1), `MpvPlayerTest` (+1) | a plain http mp3 radio address reaches the speaker's mpv as it is and never touches YouTube or yt-dlp |
 | `tools/ci/preflight_conflict_markers_test.py` (13) | the merge-conflict marker guard (a whole conflict, a Markdown underline is not a marker, an opener or closer alone, diff3, prose mid-line, CRLF, the repo is clean) and the Python suite discovery (`server/**`, `tools/handoff/**`, nested, a directory named like a test). The guard was also seen failing preflight on a marker put into `AGENTS.md` for a minute |
+
+## The LG and Kodi on the real devices (28 Nov 2026)
+
+[ADR 177](../adr/0177-a-device-says-how-it-comes-on-and-goes-off-lg-over-webos-kodi-started-over-adb.md), "Seen on the real devices". All
+`:cli`, all against the fakes; none was run on the real TV. Each was run red first against the old behaviour (the new API shaped
+but doing what the old code did).
+
+| Test | Covers |
+|---|---|
+| `DevicePowersTest` (+12; three are the sign-of-life guard: a TV with webOS down and the cast port answering, through its own CEC step and through an awake Kodi stick, and a TV webOS says is on standby with the port answering, are never sent a sleep and wake, and the log says why; red: `expected:<[]> but was:<[sleep, wake]>`) | a paired TV whose webOS cannot be reached is asleep even while its cast port answers, and never flips back (red: `expected:<ASLEEP> but was:<ON>`); a TV never paired is still judged by its port; each power change logs what webOS and the port said, once; an awake stick with its TV off has its sleep and wake cycled, with its TV on is left alone; wake-on-LAN first and then, with no answer, the CEC cycle through the stick shown on the TV, and not at all when the wake-on-LAN works; a TV that stays dark gets one cycle, not one per attempt; a TV with no MAC is woken over CEC at once (red: `expected:<[sleep, wake]> but was:<[]>`) |
+| `SteppedPowerDeferredStepTest` (3) | a step with `startsAfterMs` is held back until the device has been silent that long, never run if it answers first, and logged with the silence that led to it (red: `expected:<[cec@5000]> but was:<[cec@0]>`) |
+| `CecNudgeTest` (6) | any sign the TV is on sends nothing, logs the sign and does not start the gap; sleep key, six seconds, wake key; a second nudge inside 30 s is skipped and logged; one after the gap goes again; adb that cannot connect sends nothing; a refused sleep key sends no wake key and does not start the gap |
+| `ShownOnStepTest` (4) | a TV that did not come on is not called on, in the step's name or the log; one with no way to wake it and asleep is not counted on; the input is not asked for of a TV that is off (red: it dialled webOS anyway); a TV that is on is put on the input and the log says so |
+| `KodiUnreachableWordsTest` (4) | a refused sign-in reads `🔑 Kodi refused the sign-in: check its web server password`, no credentials file reads `🔑 Totum has no sign-in for Kodi: check TOTUM_KODI_CREDENTIALS`, a Kodi that does not answer still reads "isn't connected", the link carries the reason and a good sign-in clears it |
+| `TargetDeckVolumeRefusalTest` (4) | a volume with nowhere to go is not applied, not logged as set, and the state's `problem` says why (red: `expected:<[]> but was:<[2]>`); the next one that goes through clears it; a Chromecast helper that is not running refuses, through the player and the protocol picker; a control that can always be sent to never does |
+
+Harness trap: the first version of the flapping test passed against the old code, because its listener never accepted a connection and
+the port most likely stopped answering once the listener's backlog filled (not measured; the old code was seen answering `true` on a
+direct probe, then `false` a few probes later). The listener now accepts and closes each connection, and the test went red as it should.

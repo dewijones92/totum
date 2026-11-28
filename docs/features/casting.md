@@ -343,3 +343,12 @@ The Pi's cast of a YouTube item carries the same resolved caption tracks as a ph
 deck's own caption choice (on in English until switched off). The remote card shows a Captions tile only while the receiver lists tracks. Not seen on
 the LG: whether the receiver reports the manifest's text tracks to the helper.
 
+## Waking the LG from deep standby, and what a target says when it cannot be reached (2026-11-28, [ADR 177](../adr/0177-a-device-says-how-it-comes-on-and-goes-off-lg-over-webos-kodi-started-over-adb.md) amended)
+
+Run on the real LG and the Fire Stick on 28 November: wake-on-LAN did not wake the LG from deep standby, and the Fire Stick's
+sleep-then-wake did (the stick tells the TV over HDMI-CEC). A paired LG is now on only while webOS says `Active`, so its
+dot no longer flaps with the cast port; a TV with a stick shown on it is nudged over CEC through that stick when wake-on-LAN
+got no answer; a volume set on a target with no link is refused in words, not logged as set; and a Kodi that refuses its
+sign-in says so. The Pi's logs carry what webOS and the cast port answered at every change and each step of a wake. Fixed
+against the fakes; not yet run on the real TV.
+

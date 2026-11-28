@@ -8,11 +8,13 @@ import java.io.BufferedWriter
 import java.io.IOException
 import kotlin.concurrent.thread
 
+@Suppress("TooManyFunctions")
 internal interface CastControl {
     fun load(url: String, contentType: String, title: String, startAtMs: Long)
     fun pause(paused: Boolean)
     fun seek(positionMs: Long)
     fun volume(percent: Int)
+    fun volumeRefusal(): String? = null
     fun volumePercent(): Int?
     fun stop()
     fun release()
@@ -20,6 +22,7 @@ internal interface CastControl {
     var onEnded: (failed: Boolean) -> Unit
     var onLost: (reason: String) -> Unit
     suspend fun reachable(): Boolean
+    val whyUnreachable: String? get() = null
     val model: String? get() = null
     val screen: CastScreen? get() = null
     val keepsAddressesPrivate: Boolean get() = false
@@ -231,8 +234,16 @@ internal class PyCastControl(
     }
 
     override fun volume(percent: Int) {
-        send(CastWire.volume(percent))
+        val sent = send(CastWire.volume(percent))
+        if (!sent) Diag.warn("cast-target", "$label: volume $percent% was not sent, the helper is not running")
     }
+
+    override fun volumeRefusal(): String? =
+        if (writer != null && process?.isAlive == true) {
+            null
+        } else {
+            "no connection to $label is open, so there is nowhere to send it"
+        }
 
     override fun volumePercent(): Int? = deviceVolume
 
