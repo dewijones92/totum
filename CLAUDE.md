@@ -142,6 +142,12 @@ General (both apps):
   (`DEBUG_CAST`, `DEBUG_QUEUE_PLAY_ALL`; `tools/cast-bench/bench.sh`), a JVM test instead of a device run, the full gate
   left to CI), and fix the tooling in the same session rather than paying the cost again.
 - Commit as you go — small, coherent commits at each green state.
+- **A dependency bug we work around goes upstream, cheaply** (Dewi, 2026-11-28: *"not spend too much effort, but raise
+  like a pull request into upstream … say, oh hey, we've got it working here with this mitigation"*). When a pin, patch
+  or shim works around a bug in a library or tool (yt-dlp, Media3, pyatv, srptools …), check the upstream tracker once;
+  if nobody has reported it, draft one short issue (or a PR when the fix is small and plainly ours to give) saying what
+  we saw, the versions, and the mitigation that works here. Show Dewi the draft before posting (it is public), link it from
+  the ADR or todo, and never block our fix on it or pursue it beyond one follow-up.
 - **Say which repo files would make life easier** (Dewi, 2026-11-20: *"if there's any file in this repo … that we need to
   CRUD to make our lives easier … improve diagnostics or something, anything … let me know. This is a rule from now
   onwards"*). Whenever work shows that creating, updating or deleting a file here would help (a missing log or state
@@ -285,6 +291,9 @@ and its ADR before you touch one.
   Listen and Watch follow the picture (`Picture`), not the pillar (ADR 70).
 - **No UI work per playback tick** (ADR 61): screens read derived playback fields, players go through `SteadyPlayback`
   with the position in `LocalLivePosition`, per-row states are a `State<Map>`, nothing animates unseen.
+- **Engines and adapters**: an adapter owns transport only; warm-up, caches and counters live in the shared bridge
+  `totum_ytdlp.py` and are pinned by `YtDlpEngineContract` for every `YtDlpEngine` (ADR 189). A new engine passes that
+  suite and adds no policy.
 - **Kinds**: music and audiobooks are `MediaContentKind`s with their own rules (an audiobook never skips silence; music
   is never passed over as finished, rewound on resume or ended by a silent tail). Check the kind before adding behaviour.
 - **Pi targets**: a new protocol is one more `CastControl` behind the one cast player and `CastStreamServer`
