@@ -1,7 +1,7 @@
 ---
 title: Backlog
 kind: index
-updated: 2026-11-27
+updated: 2026-11-28
 ---
 
 # Backlog
@@ -12,6 +12,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | Item | Area | Priority | Status |
 |---|---|---|---|
 | [🔴 An infrared blaster so Totum can act as a remote, and more Bluetooth around the house](ir-blaster-and-home-bluetooth.md) | casting/pi | high | idea 2026-11-27 (Dewi: top of the next backlog, refine later; the LG in deep standby answered neither wake-on-LAN nor CEC) |
+| [🏠 The Pi cannot play or download SABR-only YouTube videos](pi-sabr-only-videos.md) | pi/video | medium | open 2026-11-28 (the Pi has no SABR route and falls back to yt-dlp's HLS through the relay; a resolve log line saying why the signed-in answer had no URLs is wanted first) |
 | [🧸 The treat button: a film on the TV for a while, then off](treat-button.md) | casting/pi | medium | built 2026-11-27, Batch C task V (ADR 196; unit tests; not run on a real TV) |
 | [Play next stacks in the order you chose it](play-next-stacks.md) | queue | medium | built 2026-11-27, Batch C task V (ADR 195; unit tests on the phone queue and a Pi target) |
 | [Playback and queue fixes from the reports of 21-24 Nov](batch-c-playback-and-queue-fixes.md) | playback/queue | high | built 2026-11-27, Batch C task U (ADR 194; unit tests; emulator screenshots; Fire tablet and Pixel 4a checks owed) |
