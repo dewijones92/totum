@@ -2,8 +2,8 @@
 title: Casting
 kind: feature
 area: playback
-status: built — in use with the LG and the Chromecast Ultra (fixed from Dewi's diagnostics of 7 to 11 November, ADR 164); the TV volume, the read-ahead, the 12 s step-down, SubRip on the LG, the Pi's casting and casting from a friend's house (ADR 182, built 2026-11-27, nginx not yet applied) are not yet seen on a real TV
-updated: 2026-11-27
+status: built — in use with the LG and the Chromecast Ultra (fixed from Dewi's diagnostics of 7 to 11 November, ADR 164); the TV volume, the read-ahead, the 12 s step-down, SubRip on the LG, the Pi's casting and casting from a friend's house, to a Chromecast or a PC screen (ADR 182, built 2026-11-27, PC screen 2026-11-28; the Pi side live since 2026-11-28) are not yet seen on a real TV
+updated: 2026-11-28
 ---
 
 # Casting
@@ -316,6 +316,26 @@ one. The simplest stand-in is a second phone's hotspot:
 
 Not seen on a real Chromecast or the real Pi. Seen: the real `totum serve`, a real nginx from the patch, and Shaka in Edge
 (`tools/cast-bench/standin/public-standin.sh`).
+
+### A PC screen at a friend's house (2026-11-28, [ADR 182](../adr/0182-a-friends-chromecast-fetches-home-items-from-the-home-server-by-a-session-link.md) amended)
+
+The PC screen (🖥️, or **▶️ Watch here** on the page) takes the same route as the friend's Chromecast: when the phone is not on the home network and the
+item is home-only (a Jellyfin film, a torrent at home, a 🏠 home copy), the page plays it from the home server's public link and the phone relays
+nothing. The decision is the same code (`PublicCastRoute.routedStream`), with the same reasons and the same phone-direct fallback; the `load` the phone
+sends the page then carries `"direct":true`, so the page hands Shaka the link as given instead of rewriting it onto the phone's address. The page is still
+served by the phone and found through the Pi bookmark, so the PC must be on the same network as the phone; only the media comes from the Pi.
+
+- **Same limits as the Chromecast:** skip silence off, YouTube and live stay phone-direct, the home network keeps the phone's own address, no setting.
+  No model is sent for a PC, so the Pi builds a VP9/H.264 stream, H.264 first, which every browser plays.
+- **Logs:** `[cast-out] … the PC's browser fetches it from the home server (session xxxxxx…, model unknown, …)` or `… the phone serves it to the PC's
+  browser, because …`; `[screen] <id>: load N sent to the screen from the home server's public link` (or `from this phone`).
+- **How Dewi tests it:** the hotspot setup above, with a PC on the same hotspot as the phone. On the PC open the Pi bookmark
+  (`https://crashlog.333133333.xyz/screen`), which goes to the phone's page on the hotspot; click ▶️ Watch here with a Jellyfin film or 🏠 home copy
+  loaded on the phone. In the phone's diagnostics look for `home network: … NOT on the home network`, then `the PC's browser fetches it from the home
+  server`, then `load 1 sent to the screen from the home server's public link`. The page's status line says `▶️ <title>`; the Pi's log shows the
+  session's `GET manifest.mpd`, segment lines, and `ended: the phone ended the cast` after 📱 Back to this phone.
+- Seen: the real page against the real gate, a stand-in for the phone's page server and headless Edge (`tools/cast-bench/screen/public-screen.sh`; with
+  `MODE=phone` it shows the old rewrite failing with Shaka error 1001). Not seen on a real phone or PC, or over the real internet.
 
 ## Captions from a cast the Pi makes (2026-11-27, [ADR 191](../adr/0191-casts-from-the-pi-carry-captions-and-a-speakers-bluetooth-link-is-measured.md))
 

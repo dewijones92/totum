@@ -45,6 +45,10 @@ page of `about:blank`, so every request is cross-origin and CORS really applies)
 ffmpeg, python3, curl and the Edge rig. TLS is nginx's job on the Pi and is not exercised; `tools/handoff/cast-out/` has the nginx patch
 that was checked with a local `nginx -c`.
 
+`screen/public-screen.sh [seconds]` does the same for a PC screen (ADR 182, amended 2026-11-28): the real `screen.html` is served by
+`screen/phone-screen-standin.py` (a stand-in for the phone's page server) and a headless Edge plays the public link from the gate on another
+origin. `MODE=phone` sends the load the old way, without `"direct":true`, and fails with Shaka error 1001.
+
 ## DLNA and AirPlay stand-ins (no device needed, silent)
 
 ADR 174. `discover-dlna.py [host]` prints `name=description-url` lines for `TOTUM_DLNA_TARGETS` (SSDP; run it on the Pi host,

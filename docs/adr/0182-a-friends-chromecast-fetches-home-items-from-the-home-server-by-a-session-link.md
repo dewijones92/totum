@@ -2,7 +2,7 @@
 title: A friend's Chromecast fetches home-only items from the home server, by a link scoped to one cast session
 kind: adr
 status: accepted
-updated: 2026-11-27
+updated: 2026-11-28
 ---
 
 # 182. A friend's Chromecast fetches home-only items from the home server, by a link scoped to one cast session
@@ -88,9 +88,9 @@ model, the boost). The Pi:
 `DELETE /fetch/cast-out/session?id=<session id>` revokes.
 
 The phone side is `PublicCastRoute` (in `:core:cast`, pure JVM), asked by the Cast converter (`CastStreams.urlForChromecast`) before the
-phone's own server. The PC screen and the debug stand-in keep `CastStreams.urlFor`, the phone's own server only: they are not a Chromecast
-and this change does not move them ([ADR 108](0108-consistent-everywhere-and-its-recorded-exceptions.md): a deliberate difference, recorded
-here). Its
+phone's own server. The PC screen did not take this route when this ADR was written (it kept `CastStreams.urlFor`); it does since the
+amendment of 2026-11-28 below. The debug stand-in still keeps `CastStreams.urlFor`, the phone's own server only: it is a test harness, not a
+cast target ([ADR 108](0108-consistent-everywhere-and-its-recorded-exceptions.md): a deliberate difference, recorded here). Its
 `HttpPublicCastApi` runs the call off the calling thread with a bound (2.5 s to connect, 4 s to read), because the Cast converter
 runs on the main thread.
 
@@ -154,6 +154,50 @@ token is still never in a link and still gates the mint. ADR 90 gets a short ame
   away. The main thread waits for it, as it waits for nothing else in the converter; a slow home server costs up to that wait once per
   item and then the phone serves the item itself. Pre-minting before the hand-over would remove the wait (a todo).
 - `:core:cast` gained the serialization plugin for the wire types.
+
+## Amended 2026-11-28: the PC screen takes the public route too
+
+Dewi, 2026-11-28: a browser at a friend's should play a home-only item (a Jellyfin film, a torrent, a home copy) through the Pi's public link,
+the way the friend's Chromecast does. The Pi side was already live (`TOTUM_CAST_PUBLIC_BASE=https://totum.333133333.xyz/cast-out`, the gate on 8773
+answering) from 2026-11-28 02:10.
+
+- **One decision, two askers.** `PublicCastRoute.routedStream(item, model, boost, audience, phoneDirect)` is the single place that turns
+  "public pick, else the phone's own address" into a `RoutedStream(url, direct)`; the Cast converter (`CastStreams.urlForChromecast`,
+  audience `CHROMECAST`) and the PC screen (`CastStreams.urlForScreen`, audience `PC_BROWSER`, handed to `ScreenPlayer` by `PcScreens`) both call it,
+  so the home-network probe (`HomeLanProbe`), the home-only test (`HomeOnly.why`), the mint call and the fallback are not written twice. A browser
+  fetches cross-origin exactly as a Chromecast does, and the gate already sends the CORS headers, so the Pi needed no change.
+- **The PC screen page had to change as well, and that was the part a route-only change would have missed.** `screen.html` rewrote every stream
+  address onto its own origin (`location.origin + pathname + search`), because the phone's address inside the manifest URL is its LAN address, which the
+  browser may reach only through `adb forward` or the Pi's tunnel relay. Handed `https://totum.<home>/cast-out/<link>/manifest.mpd` it asked the phone's
+  page server for `/cast-out/<link>/manifest.mpd`, got a 404 and Shaka error 1001. Seen on the real page against the real gate
+  (`MODE=phone tools/cast-bench/screen/public-screen.sh`: `404 /cast-out/…/manifest.mpd` twice, then `page reports error: load: Shaka Error 1001`).
+  The `load` command now carries `"direct":true` when the stream has its own origin, and the page then hands Shaka the address as given. Every other
+  load (a phone stream, the Pi's own browser target) is rewritten as before. The `load` JSON is built by one function, `loadCommand`, now shared by
+  the phone's `ScreenPlayer` and the Pi's `BrowserControl` (they had two copies); `direct` is absent, not false, when it does not apply.
+- **The page's own address flow is unchanged and still makes sense.** The page is still served by the phone at its Wi-Fi address and found through
+  the Pi bookmark (ADR 81, ADR 93); only the media moves to the Pi. At a friend's the PC must therefore be on the same network as the phone (the
+  bookmark's 302 goes to the phone's friend-LAN address, a 192.168/16 shape the Pi accepts), or the page cannot reach the phone's `/screen/*` calls.
+  A page from `http://<phone LAN address>` fetching `https://totum.<home>/…` is not mixed content (http to https), and nothing is fetched from a
+  private address by a public page, so Private Network Access does not apply. A PC on another network than the phone is not served by this.
+- **No model is sent for a PC.** The mint request's `model` is `null` for a screen, not the page's name (`PC (Edge)`): `CastScreen.of` reads a model
+  string for `webOS` and LG series names, and a PC named that way would be given the LG's profile. The Pi therefore builds the stream for an "unknown
+  Cast device" (VP9 and H.264, up to 1080p, H.264 first, ADR 179), which every browser plays. The screen's own reported codecs and height are not
+  passed to the Pi: that needs a new field on `CastOutStart` and a Pi release. Not built.
+- **Same limits as the Chromecast route:** skip silence is off, live stays with the phone, YouTube keeps the phone-direct path, home network and an
+  unknown home network keep the phone's own address, and any refusal or silence from the Pi falls back to the phone's own server with the reason logged.
+  A reload of the same item (a new `load`) mints a new link and ends the earlier one for that item; "📱 Back to this phone" ends every link
+  (`stopAll`). Moving to the next item leaves the previous item's link until the cast ends, the cap of eight, or six hours, as for a Chromecast.
+- **Logs.** The `cast-out` lines now name who fetches: `the PC's browser fetches it from the home server (session xxxxxx…, model unknown, …)`, or
+  `the phone serves it to the PC's browser, because …` (a Chromecast says `the friend's Chromecast`). `[screen]` says
+  `<id>: load N sent to the screen from the home server's public link` or `from this phone`.
+- **Evidence.** `PcScreenRouteTest` (7) and `ScreenLoadCommandTest` (3), seen failing first against a `routedStream` that always answered with the phone's
+  address and a `loadCommand` that ignored `direct` (`AssertionError: http://192.168.1.9:8765/c/phone-token/manifest.mpd` where the public link was
+  expected; `the page ignores a direct stream`). End to end, `tools/cast-bench/screen/public-screen.sh`: the real `totum serve`, the real `screen.html`
+  from a stand-in for the phone's page server, and a headless Edge on Windows: the page said hello, got a `direct` load, Shaka played the 12 s H.264/AAC
+  film at 640x360 from the gate on another origin (`time` 0.9, 3, 5, 7, 9 at 2 s steps), the gate logged manifest, both inits and the segments for
+  one session, and ending the cast revoked the link (`8 request(s), 420KB served`).
+- **Not proven.** A real phone, a real PC at a friend's house, the real Pi over the real internet with TLS (the stand-in used plain http on loopback),
+  and the Cast converter's and the screen's call on a device.
 
 ## Not proven (read before relying on it)
 

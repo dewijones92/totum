@@ -15,6 +15,28 @@ public sealed interface PublicCastPick {
     public data class Phone(val why: String) : PublicCastPick
 }
 
+public enum class PublicCastAudience(internal val phrase: String) {
+    CHROMECAST("the friend's Chromecast"),
+    PC_BROWSER("the PC's browser"),
+}
+
+public data class RoutedStream(val url: String, val direct: Boolean)
+
+public fun PublicCastRoute?.routedStream(
+    item: CastItem,
+    model: String?,
+    boost: String?,
+    audience: PublicCastAudience,
+    phoneDirect: () -> String?,
+): RoutedStream? {
+    val pick = this?.pick(item, model, boost, audience)
+    return if (pick is PublicCastPick.Public) {
+        RoutedStream(pick.url, direct = true)
+    } else {
+        phoneDirect()?.let { RoutedStream(it, direct = false) }
+    }
+}
+
 public interface PublicCastApi {
     public fun start(request: CastOutStart): CastOutAnswer?
 
@@ -31,10 +53,18 @@ public class PublicCastRoute(
 ) {
     private val minted = ConcurrentHashMap<String, String>()
 
-    public fun pick(item: CastItem, model: String?, boost: String?): PublicCastPick {
+    public fun pick(
+        item: CastItem,
+        model: String?,
+        boost: String?,
+        audience: PublicCastAudience = PublicCastAudience.CHROMECAST,
+    ): PublicCastPick {
         val phone = phoneReason(item)
         if (phone != null) {
-            Diag.log("cast-out", "dewidebug ${item.mediaId}: the phone serves it, because $phone")
+            Diag.log(
+                "cast-out",
+                "dewidebug ${item.mediaId}: the phone serves it to ${audience.phrase}, because $phone",
+            )
             return PublicCastPick.Phone(phone)
         }
         val answer = api.start(
@@ -62,7 +92,8 @@ public class PublicCastRoute(
             val why = answer?.why ?: "the home server did not answer in time"
             Diag.warn(
                 "cast-out",
-                "dewidebug ${item.mediaId}: the home server would not cast it itself ($why); the phone serves it",
+                "dewidebug ${item.mediaId}: the home server would not cast it itself ($why); " +
+                    "the phone serves it to ${audience.phrase}",
             )
             return PublicCastPick.Phone(why)
         }
@@ -71,7 +102,7 @@ public class PublicCastRoute(
         if (earlier != null && earlier != sessionId) inTheBackground { api.end(listOf(earlier)) }
         Diag.log(
             "cast-out",
-            "dewidebug ${item.mediaId}: the friend's Chromecast fetches it from the home server " +
+            "dewidebug ${item.mediaId}: ${audience.phrase} fetches it from the home server " +
                 "(session ${sessionId.take(SHOWN)}…, model ${model ?: "unknown"}, " +
                 "expires ${answer.expiresAtMs ?: "at an unstated time"}); replaced ${earlier?.take(SHOWN) ?: "none"}",
         )
