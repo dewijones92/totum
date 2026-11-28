@@ -13,8 +13,14 @@ internal class TvPowerProbe(
     @Volatile var unsure: Boolean = false
         private set
 
-    private class Look(val webos: PanelReading?, val decidedByWebOs: Boolean, val open: List<ReceiverProbe>) {
-        val portSaid: String = "cast port ${open.joinToString { it.where }}"
+    private class Look(
+        val webos: PanelReading?,
+        val decidedByWebOs: Boolean,
+        val open: List<ReceiverProbe>,
+        val probed: List<ReceiverProbe>,
+    ) {
+        val portSaid: String = "cast port " +
+            open.ifEmpty { probed }.joinToString { it.where }.ifEmpty { "(none known)" }
 
         val unknown: Boolean get() = decidedByWebOs && webos?.on == null && open.isNotEmpty()
 
@@ -23,7 +29,7 @@ internal class TvPowerProbe(
 
     private suspend fun look(): Look {
         val reading = webos?.panelReading()
-        return Look(reading, webos != null && webos.paired, ports.filter { it.answers() })
+        return Look(reading, webos != null && webos.paired, ports.filter { it.answers() }, ports)
     }
 
     suspend fun signOfLife(): String? {
