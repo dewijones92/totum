@@ -63,6 +63,7 @@ internal class SteppedPower(
     override val startsApp: Boolean = false,
     private val evidence: () -> String? = { null },
     private val signsOfLife: suspend () -> String? = { null },
+    private val unsure: () -> Boolean = { false },
     private val timeoutMs: Long = WAKE_TIMEOUT_MS,
     private val pause: suspend (Long) -> Unit = { delay(it) },
     private val clock: () -> Long = System::currentTimeMillis,
@@ -86,10 +87,24 @@ internal class SteppedPower(
 
     @Volatile private var offSettledUntil = 0L
 
+    @Volatile private var holding = false
+
     override suspend fun refresh() {
         if (!lock.tryLock()) return
         try {
             val answered = answers()
+            if (!answered && unsure()) {
+                if (!holding) {
+                    Diag.log(
+                        "cast-target",
+                        "$label: power check unsure" + evidence()?.let { " [$it]" }.orEmpty() +
+                            "; keeping ${power.name} until it is answered or its cast port goes silent",
+                    )
+                }
+                holding = true
+                return
+            }
+            holding = false
             val settling = answered && clock() < offSettledUntil
             val next = if (answered && !settling) TargetPower.ON else TargetPower.ASLEEP
             if (settling) Diag.log("cast-target", "$label: still answering, but it was switched off just now; ASLEEP")
