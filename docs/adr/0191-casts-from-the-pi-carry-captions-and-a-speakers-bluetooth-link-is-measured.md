@@ -2,7 +2,7 @@
 title: Casts from the Pi carry captions under the phone's own caption choice, and a speaker's Bluetooth link is measured and logged
 kind: adr
 status: accepted
-updated: 2026-11-27
+updated: 2026-11-28
 ---
 
 # 191. Casts from the Pi carry captions under the phone's own caption choice, and a speaker's Bluetooth link is measured and logged
@@ -46,8 +46,11 @@ Two things from Dewi's reports of 21 to 23 November (0.1.944):
 - **A CC tile on the remote card** (`RemoteCaptions`), the player's own picker tile in the device's colour, only while the device reports
   tracks (`TargetState.offersCaptions`): Off and each offered language, named by the phone's own locale. `TargetState.captions` carries
   `on`, `language`, `offered` and `shown`.
-- **Not covered:** a YouTube item already downloaded at home is cast from its file with no tracks (the file has none); a Jellyfin or
-  torrent item gets only a sidecar or an MKV's own tracks, as a phone-direct cast does (`fromTheFile`); the receiver must list the
+- **Amended 2026-11-28:** the relayed-HLS path now carries the same tracks, as an HLS subtitles group
+  ([ADR 156](0156-one-casting-brain-the-pi-casts-with-the-phones-own-code.md)), and a Jellyfin item's own text subtitle streams are offered
+  from Jellyfin ([ADR 164](0164-casting-fixes-from-the-diagnostics-of-7-to-11-november.md)). A torrent's embedded tracks are still not.
+- **Not covered:** a YouTube item already downloaded at home is cast from its file with no tracks (the file has none); a torrent
+  item gets only a sidecar or an MKV's own tracks, as a phone-direct cast does (`fromTheFile`); the receiver must list the
   manifest's text tracks as `MediaTrack`s for `tracks` to say anything, which the phone's selector relies on too, and which has not been
   seen on the LG from the Pi. If it does not, the CC tile never appears and the log says "no track offered yet".
 

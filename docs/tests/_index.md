@@ -1256,6 +1256,17 @@ which port it took instead and that addresses built for the old one reach someon
 the same release-then-bind pattern (`CastBrainTest`, `BrowserServingTest`, `CastOutEndToEndTest`) were not
 changed; none runs a second listener on `bind(0)` before the first binds.
 
+## Three real-device cast fixes of 28 November (2026-11-28, ADR 156 and 164 amended)
+
+| Test | What it proves |
+|---|---|
+| `MkvTracksBeyondTheHeadTest` (5, `:core:cast`) | an MKV with Tracks behind a 70 KB Void, or Tracks and Info after the clusters, is probed through the SeekHead with Tracks fetched by range (not the whole file) and cut into the same segments, byte for byte, as the original (red: `UnreadableLayout: MKV Tracks are not in its first 65536 bytes`); a source that will not answer the range, or a file with no SeekHead, is still refused with its reason (`… the source would not give the range at N …`, `… its SeekHead names no position for them`); a file laid out as mkvmerge does reads nothing but the Cues past the head. The fixtures are built by `MkvFixtures` from `avc.mkv`, with the SeekHead and Cues rewritten |
+| `CastStreamServerMkvTracksTest` (2, `:core:cast`) | the same two layouts served by a ranged HTTP origin reach the TV with a video AdaptationSet, init and first segment (not sound only) |
+| `HlsRelayCaptionsTest` (6, `:core:cast`) | the relayed master carries each caption track as an `EXT-X-MEDIA TYPE=SUBTITLES` group with `SUBTITLES=` on every variant (red: `expected:<2> but was:<0>`); each track's playlist is one VOD segment as long as the item and its `.vtt` is cleaned WebVTT (SubRip converted; red: 404); an item with none, a master that already offers subtitles and a media playlist are left as they were; an index never listed is a 404 and not a cast failure |
+| `HlsRelayUnlistedNameTest` (2, `:core:cast`) | Kodi's empty request (the bare session address, trailing slash, an unlisted name) is a 404 that never reaches `tvs.failed`, asks nothing of the source, and the entry still plays (red: `counted as a failure … the source answered 404 for `) |
+| `JellyfinSubtitlesTest` (4, `:cli`) | a Jellyfin item's text subtitle streams become `CastSubtitleSource`s at Jellyfin's WebVTT address (language normalised, label from the display title), a picture-based stream is skipped, and no answer, no streams, bad JSON or a bad id offers none without throwing |
+| `TargetStreamsJellyfinSubtitlesTest` (3, `:cli`) | a Jellyfin item cast to a picture-showing TV carries the tracks; a speaker is not asked; with no lookup configured it still casts with none |
+
 ## YouTube-only-HLS cast: relayed by the one stream server (2026-11-28, ADR 156 amended)
 
 | Test | What it proves |
