@@ -55,18 +55,12 @@ object DeviceRadios {
      * trail the failure now prints, which named the refusal outright.
      */
     fun goOnline() {
-        val recovery = RadioRecovery(
+        val recovery = recovery(
             enable = {
                 shell("svc wifi enable")
                 shell("svc data enable")
             },
-            disable = {
-                shell("svc wifi disable")
-                shell("svc data disable")
-            },
-            hasNetwork = ::hasNetwork,
-            pause = { Thread.sleep(it) },
-            log = { Log.w("dewidebug", "DeviceRadios: $it") },
+            ::hasNetwork,
         )
         check(recovery.bringBack()) {
             "DeviceRadios: the device's network did not come back after ${RadioRecovery.ATTEMPTS} attempts of " +
@@ -76,16 +70,24 @@ object DeviceRadios {
         }
     }
 
-    fun goUnmetered() {
-        shell("svc wifi enable")
-        shell("svc data disable")
-        runBlocking {
-            val ready = withTimeoutOrNull(ONLINE_TIMEOUT_MS) { while (!hasUnmeteredNetwork()) delay(POLL_MS) }
-            if (ready == null) {
-                println("DeviceRadios: no unmetered network within ${ONLINE_TIMEOUT_MS}ms; timings may be disturbed")
-            }
-        }
-    }
+    fun goUnmetered(): Boolean = recovery(
+        enable = {
+            shell("svc wifi enable")
+            shell("svc data disable")
+        },
+        ::hasUnmeteredNetwork,
+    ).bringBack()
+
+    private fun recovery(enable: () -> Unit, hasNetwork: () -> Boolean) = RadioRecovery(
+        enable = enable,
+        disable = {
+            shell("svc wifi disable")
+            shell("svc data disable")
+        },
+        hasNetwork = hasNetwork,
+        pause = { Thread.sleep(it) },
+        log = { Log.w("dewidebug", "DeviceRadios: $it") },
+    )
 
     private fun hasUnmeteredNetwork(): Boolean {
         val manager = instrumentation.targetContext.getSystemService(ConnectivityManager::class.java) ?: return false
@@ -104,8 +106,5 @@ object DeviceRadios {
     }
 
     private const val OFFLINE_TIMEOUT_MS = 15_000L
-
-    /** Longer than going off: a cold emulator can take a while to re-validate a network. */
-    private const val ONLINE_TIMEOUT_MS = 30_000L
     private const val POLL_MS = 200L
 }

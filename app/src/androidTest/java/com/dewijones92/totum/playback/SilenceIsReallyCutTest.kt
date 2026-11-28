@@ -17,6 +17,7 @@ import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
 import com.dewijones92.totum.domain.SourceId
+import com.dewijones92.totum.settings.PlaybackMode
 import com.dewijones92.totum.support.DeviceRadios
 import com.dewijones92.totum.support.GappedWav
 import com.dewijones92.totum.support.PlaybackWaits
@@ -51,6 +52,7 @@ class SilenceIsReallyCutTest {
     private lateinit var aac: File
     private lateinit var quiet: File
     private var autoPlayNextBefore = true
+    private var playbackModeBefore = PlaybackMode.AUTO
 
     @Before
     fun setUp() {
@@ -61,12 +63,13 @@ class SilenceIsReallyCutTest {
         mp3 = asset("gaps.mp3")
         aac = asset("gaps.m4a")
         quiet = asset("gaps-quiet.mp3")
-        DeviceRadios.goUnmetered()
         runBlocking(Dispatchers.Main) {
             withTimeoutOrNull(TIMEOUT_MS) { while (controller.player == null) delay(PlaybackWaits.POLL_MS) }
             assertNotNull("the media controller never connected", controller.player)
             autoPlayNextBefore = container.appPreferences.settings.value.autoPlayNext
             container.appPreferences.setAutoPlayNext(false)
+            playbackModeBefore = container.appPreferences.settings.value.playbackMode
+            container.appPreferences.setPlaybackMode(PlaybackMode.VIDEO)
             controller.setSpeed(1f)
             queue.clear()
             controller.player?.stop()
@@ -80,6 +83,7 @@ class SilenceIsReallyCutTest {
         controller.setVolumeBoost(VolumeBoost.OFF)
         controller.setSpeed(1f)
         container.appPreferences.setAutoPlayNext(autoPlayNextBefore)
+        container.appPreferences.setPlaybackMode(playbackModeBefore)
         queue.clear()
         controller.player?.stop()
         controller.player?.clearMediaItems()

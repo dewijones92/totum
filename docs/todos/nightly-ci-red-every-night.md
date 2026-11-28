@@ -66,6 +66,33 @@ amended 27 Nov) and nobody paused it. The test now pauses playback once all thre
 From 28 Nov a YouTube video over HLS is fetched beside its stream (ADR 186 amended), so that case no longer waits; the test keeps its pause until a
 nightly shows which route the last share takes (a SABR one is still held).
 
+## 28 Nov at v0.1.980: `SilenceIsReallyCutTest` and the network it did not need
+
+Run 46106878465 (`c845d23b`) failed `a video shows the frames of its sound and skips the frames of its pauses` with "no frame was ever drawn".
+It had passed in the 12 runs before it that name their failures; the commit before it changed only the header-drag handler, which has nothing to do
+with playback. The logcat says what happened: `setUp()` called `DeviceRadios.goUnmetered()`, which waited its 30 s, printed
+`DeviceRadios: no unmetered network within 30000ms; timings may be disturbed` to a stdout nobody reads, and carried on. The Wi-Fi validated nine
+seconds after the test (`net 105 : +VALIDATED`). With no unmetered network the playback mode AUTO means "listen", so the app routed the video as
+`listen=true` (sound only) and drew no frame. The same family as 25 Nov (the radios `goOnline` gave up on): a test state that depended on the
+emulator's network settling, with a guard that printed and carried on.
+
+Fixed in two parts, one test and one support seam:
+
+- **The test pins `PlaybackMode.VIDEO`** in `setUp` and restores it in `tearDown`, so it is about frames whatever the network is. Seen red first on
+  `totum-api35` with its Wi-Fi metered (the route line read `listen=true`), at 1080x2400 and 320x640@160; with the pin the route reads
+  `listen=false` and the picture assertions pass.
+- **`DeviceRadios.goUnmetered()` is now `RadioRecovery`** (the retry `goOnline()` already had; both build it through one private `recovery(...)`).
+  It returns whether an unmetered, validated network exists after three attempts, and no longer prints. Its one caller, this test, needed nothing
+  from the network once the mode was pinned (every file it plays is local), so the call is gone, which also removes the 30 s `setUp` wait that hid this
+  failure. Nothing calls `goUnmetered()` now; a future test that does need an unmetered network should `assumeTrue` its result (skip with a message) or
+  `fail` it, according to what it asserts. A skip there would be visible in the report, unlike the old line.
+
+The wall-clock assertions of this class (`took Nms to play 8000ms`, allowed 10000) are noisy on this local emulator: in 7 default-size runs after the pin
+the video test's frames always drew (105 to 113 of 119 to 128 drawn frames from the sound), 3 runs were fully green, and 4 had one wall-clock miss (the
+video's own `video with a picture` took 15.3 s and 15.6 s on the two runs right after an install, a podcast missed by 14 ms, the boosted quiet one by 1.3 s).
+At 320x640@160 all 14 tests of the touched classes passed. The wall-clock assertions are untouched; whether the video one holds on the CI emulator with the picture
+really decoded is not yet seen there (it never reached that assertion in the failing run).
+
 ## Still open
 
 - `AnHourLongItemDoesNotRebufferTest` has not measured anything since 6 Nov, because it died at `playNow`. Its first real result
