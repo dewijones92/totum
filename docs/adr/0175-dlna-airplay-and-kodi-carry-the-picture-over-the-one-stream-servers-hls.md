@@ -2,7 +2,7 @@
 title: DLNA, AirPlay and Kodi carry the picture over the one stream server's HLS, and Kodi is driven by its own JSON-RPC
 kind: adr
 status: accepted
-updated: 2026-11-14
+updated: 2026-11-28
 ---
 
 # 175. DLNA, AirPlay and Kodi carry the picture over the one stream server's HLS
@@ -101,6 +101,10 @@ This adds the picture, and a Kodi control of its own (the Fire Stick runs Kodi 2
 - Subtitles are not carried over HLS (the brain's WebVTT tracks are DASH adaptation sets); the master playlist's log line counts
   the tracks it left out.
 - The ADR 174 sound-only notice (`over HLS; there is no picture yet`) is gone: a device that takes pictures is offered one.
+- This HLS is the brain's own, built from a probed picture plus Totum's processed sound. A YouTube video that is offered only as
+  YouTube's HLS (muxed MPEG-TS, no picture to probe) is a different thing: it is relayed as YouTube made it at
+  `relay.m3u8` with content type `application/x-mpegURL`, for every format, and `hls.m3u8` is not involved (ADR 156, amended
+  2026-11-28).
 
 ## Not proven, and why (read before relying on it)
 

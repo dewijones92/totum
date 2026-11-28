@@ -352,3 +352,15 @@ got no answer; a volume set on a target with no link is refused in words, not lo
 sign-in says so. The Pi's logs carry what webOS and the cast port answered at every change and each step of a wake. Fixed
 against the fakes; not yet run on the real TV.
 
+## A video YouTube offers only as HLS (2026-11-28, [ADR 156](../adr/0156-one-casting-brain-the-pi-casts-with-the-phones-own-code.md) amended)
+
+When YouTube offers a video only as `manifest.googlevideo.com/…/hls_playlist/…` (muxed MPEG-TS, no stream with its own audio), the
+cast is no longer handed that address: it failed on the LG at 03:43 on 28 November with `idle (ERROR) after 0ms`, because a
+receiver cannot fetch googlevideo (no CORS). The one stream server now answers `…/c/<token>/relay.m3u8` with content type
+`application/x-mpegURL`, reads YouTube's playlist on every request and rewrites each address in it to a name on itself, then streams
+each part from YouTube with its `Range`. The phone's converter and the Pi's `ChromecastPlayer` share the same content-type rule
+(`CastFormat.mimeOf`). Picture and sound are YouTube's own, so silence cutting and the boost do not apply and a sound-only request
+still carries the picture. A third party's HLS and a googlevideo DASH manifest are unchanged. The Pi log reads `YouTube offers only an
+HLS manifest … Totum serves it and relays every playlist, segment and key itself`, then one `HLS playlist … rewritten` line per
+playlist read. Tests: `CastStreamServerHlsRelayTest`, `ChromecastHlsOnlyTest`. Fixed against a fake upstream only; not yet run on the real LG.
+

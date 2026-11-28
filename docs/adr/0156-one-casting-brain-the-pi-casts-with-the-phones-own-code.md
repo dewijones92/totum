@@ -2,7 +2,7 @@
 title: One casting brain, the Pi casts with the phone's own code
 kind: adr
 status: accepted
-updated: 2026-11-07
+updated: 2026-11-28
 ---
 
 # 156. One casting brain, the Pi casts with the phone's own code
@@ -69,7 +69,7 @@ phone's cast would have been missing from it.
   TV-facing use of `StreamRelay` for a stream the core serves. `StreamRelay` stays for exactly two things: ffmpeg and mpv
   reading a YouTube stream over loopback (the 1 MB cap, [ADR 153](0153-the-pi-runs-the-phones-sound-processing.md)),
   and the case the core declines to build a manifest for (a single muxed YouTube stream, a third party's manifest),
-  which the phone also hands over as it is.
+  which the phone also hands over as it is (a YouTube HLS manifest is no longer one of them: see the 2026-11-28 amendment).
 
 ## Amended 2026-11-07: a live stream on a speaker is YouTube's HLS manifest, not Totum's DASH
 
@@ -89,6 +89,50 @@ yt-dlp calls now share this same gate and back-off, [ADR 51](0051-a-polite-youtu
 off, and the answer is kept in memory per video until ten minutes before the address's own `expire` (30 minutes when it
 has none), so a looping station does not re-run yt-dlp; failures are not kept.
 Not verified on the Pi's speaker from here: the coordinator runs it.
+
+## Amended 2026-11-28: a YouTube video that is offered only as HLS is served and relayed, never handed over
+
+Seen on the Pi on 28 November at 03:43 (v0.1.978, target `lg-tv`, video 3Uavv96zDkM): YouTube offered six HLS formats and none
+with its own audio, so `HomeDownloads.castOf` built no ladder (`no stream with its own audio to build a ladder from (6 offered)`),
+the item's address was `manifest.googlevideo.com/api/manifest/hls_playlist/…`, and `CastStreamServer.givenAsItIs` declined it
+because it names a manifest. `ChromecastPlayer` then loaded that address on the LG as `video/mp4` (`given as it is as DASH`) and
+the receiver went `idle (ERROR) after 0ms`. A Cast receiver's web player needs CORS on a manifest and every segment, and
+googlevideo grants it only to YouTube's own pages (`cast-receiver-facts`, measured 2026-10-21), so that load could never work. The
+earlier bullet above ("a third party's manifest, which the phone also hands over as it is") was true of the case it described and
+wrong for this one; the phone's `TotumCastConverter` had the same fallback and the same hard-coded DASH content type.
+
+- **`HlsRelay` (`:core:cast`) serves YouTube's HLS from the one stream server.** `CastStreamServer.urlFor` checks, before it looks
+  for a picture to build, whether the item's address is an HLS manifest on googlevideo (`HlsRelay.needs`: `googlevideo.com` and a
+  path ending `.m3u8` or holding `/hls_playlist/` or `/hls_variant/`). If so it returns `…/c/<token>/relay.m3u8` on its own address.
+  A request for that file fetches the real playlist from YouTube, rewrites it and answers; every `http(s)` address in it, in a
+  segment line or a `URI="…"` attribute (variant playlists, alternate renditions, `EXT-X-MAP`, `EXT-X-KEY`, whatever else carries
+  one), is resolved against the playlist's own address and replaced by a short name on this server (`x<n>.<ext>`, the extension
+  kept so a receiver can still tell `.ts` from `.m4s`). A request for such a name is fetched from YouTube and streamed back with
+  the `Range` it carried, the `Content-Range` it got and CORS headers (`CastHttpServer` adds them to every answer).
+- **Why a relay and not a manifest built from the variants.** The existing brain builds DASH or HLS from a probed video stream plus
+  its own processed sound. YouTube's HLS variants are muxed MPEG-TS (picture and sound in one stream); there is no separate video
+  stream to probe, relay by range or pair with Totum's sound, so nothing of the DASH and HLS builders applies. Rewriting is the
+  smaller change: `Upstream`/`PatientUpstream` (young-URL retry), `CastHttpServer` (CORS, ranges), `CastReach` and `CastFailures` are
+  reused as they are. `StreamRelay` is not: it relays one plain `/videoplayback` file with a length it can learn, which a playlist
+  and its segments are not.
+- **Playlists are read afresh on every request, never kept.** The same code therefore serves a VOD playlist and a live
+  `hls_variant` one (a new segment appears under a new name, an old one keeps its name). The address table is bounded at 20,000
+  entries (oldest forgotten, said once in the log).
+- **The content type follows the address.** `CastFormat.mimeOf(address, format)` is `application/x-mpegURL` for a relay address and
+  the format's own for everything else; `ChromecastPlayer` (the Pi) and `TotumCastConverter` (the phone) both use it, so the
+  phone no longer says `application/dash+xml` of an HLS playlist.
+- **Every format is relayed, not only the DASH ones.** A DLNA, AirPlay or Kodi device could fetch googlevideo itself, but one rule
+  ("Totum never hands a device a googlevideo manifest address") is simpler to state, log and test than a per-device one, and the
+  relay costs the Pi one stream it was going to carry anyway. Not seen on those devices.
+- **Not changed:** a third party's HLS manifest and a googlevideo DASH `.mpd` are still given as they are; the away-from-home
+  public route (`openFor`) refuses them as before; picture and sound are YouTube's, so silence cutting and the boost do not apply to
+  a relayed HLS stream, and a sound-only request still carries the picture.
+- **Logged** (`cast`, each `dewidebug`): the decision and its reason when the address is handed out; every playlist read, with
+  its variant, segment and rewritten-address counts; any part the source refused, with the status; the first three parts and every
+  25th; and the release. A refusal counts towards `CastFailures`, so three in a minute reach the strip as the reason.
+- **Not proven:** it has been run only against a fake upstream (`CastStreamServerHlsRelayTest`, `ChromecastHlsOnlyTest`). Whether
+  the LG's receiver plays YouTube's MPEG-TS HLS through this relay, whether `manifest.googlevideo.com` answers the JVM's default
+  agent, and live `hls_variant` playlists are for the first run on the real TV.
 
 ## Consequences
 
