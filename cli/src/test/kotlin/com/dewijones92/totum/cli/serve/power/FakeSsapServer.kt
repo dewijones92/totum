@@ -33,6 +33,8 @@ internal class FakeSsapServer(
 
     @Volatile var turnOffErrorText: String? = null
 
+    @Volatile var closeNewConnectionsWith: Int? = null
+
     @Volatile var inputs: List<Triple<String, String, Boolean>> = listOf(
         Triple("HDMI_1", "Fire Stick", true),
         Triple("HDMI_2", "Games", false),
@@ -61,6 +63,7 @@ internal class FakeSsapServer(
     private val listener = object : WebSocketListener() {
         override fun onOpen(webSocket: WebSocket, response: Response) {
             connections += webSocket
+            closeNewConnectionsWith?.let { webSocket.close(it, "policy violation") }
         }
 
         override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {

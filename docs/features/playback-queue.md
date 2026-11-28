@@ -3,7 +3,7 @@ title: Playback queue
 kind: feature
 area: playback
 status: shipped
-updated: 2026-11-20
+updated: 2026-11-27
 ---
 
 # Playback queue
@@ -11,6 +11,27 @@ updated: 2026-11-20
 One up-next list for both pillars (`app/…/queue/PlaybackQueue.kt`), persisted and restored at
 launch. This doc started on 2026-09-26 with the row actions; the rest of the queue's behaviour is
 still described in the code and in `offline-queue.md`.
+
+## Play next stacks (ADR 195)
+
+Dewi, 2026-11-27: Play next on A, then B, then C plays A, B, C (it used to play C, B, A). Play next puts the item
+straight after the **last item you put next**, as long as that item is still queued, still ahead of the playing item and
+the same item is still playing; otherwise straight after the playing item. A group (an album, a playlist, a multi-select)
+goes in as one block and the next Play next lands after it. The chain starts again when the playing item changes, the last
+item is removed, or it has been dragged behind the playing item. There is no extra menu option.
+
+- **One rule** (`placingNext` in `:core:data`), used by every way in: item menus in every list, multi-select, search, Shorts,
+  pins and albums (`playNext`, `playNextAll`), "Move up" on an already-queued item, a queue group header's Play next, and a
+  Pi target's queue (`QueueMode.NEXT` on a `TargetDeck`, so Play on… behaves the same). Play now on a target still starts the
+  item at once, straight after what is playing.
+- **Remembered across a restart** in a small preferences value (`stack_tail`, `stack_behind` in `totum_queue_place`), and
+  on a Pi target in the deck's own saved state.
+- Logged: `dewidebug play-next: N item(s) [ids] at #i of size (anchor X | head: why) [place= playing= tail=]`.
+- Tests: `PlayNextStacksInOrderTest`, `PlayNextStacksOnThePhoneTest`, `PlayNextChainSurvivesARestartTest`,
+  `TargetDeckPlayNextStackTest`.
+- Seen on `totum-api35` (27 Nov 2026): three single Play nexts sent one at a time through a debug broadcast
+  (`DEBUG_PLAY_NEXT`, debug builds only) into an empty queue list A, B, C in that order, at 1080x2400 and 320x640@160
+  (screenshots are scratch: `play-next-order-big.png`, `play-next-order-small.png`).
 
 ## Gapless hand-over
 
@@ -27,7 +48,7 @@ Tap a row to jump to it: the cursor moves there and nothing is reordered. The ro
 | Action | What happens |
 |---|---|
 | **Play now, then back to what's playing** | The row takes the now-playing slot and starts; what was playing drops one place and is up next, resuming where it was. Offered on every row except the playing one, when something is playing or marked as playing |
-| Play next | Moves the row to just after the playing item |
+| Play next | Moves the row to just after the last item you put next, else just after the playing item ([ADR 195](../adr/0195-play-next-stacks-in-the-order-you-chose.md)) |
 | Remove from queue | Removes it, with Undo in a snackbar |
 | Move to top / Move to bottom | Reorders it |
 
@@ -283,3 +304,14 @@ the count, so they never sit in the queue; `route` and `QueueArming` still have 
 The player's Up next ✕ offering Undo and its long-press opening the item menu (instrumented); the empty-queue related
 fallback leaving out a Not for me item (a unit test around `playRelatedNext`'s filter); `PlaybackQueue.restoreAt` and
 `removingAt` with an anchor when the removed entry was the first or the last.
+
+## Up next says what will be passed over (2026-11-27)
+
+Report 20261121T061753: "86 queued" in the player's Up next, with most of them finished. `skipWhy` (`queue/QueuePlace.kt`)
+is the one predicate for "the advance would pass over this": `nextAfterThePlace` (so `peekNext`, gapless arming, the
+advance and the notification's Next line) and `upNextSkips` (the rows) both ask it. A skipped row is dimmed at half
+strength and says "✅ Finished · skipped", "🎵 Music · skipped while you listen to talk" or "🎙️ Talk · skipped while you
+listen to music"; the header reads "📋 86 queued · 7 will be skipped" (the plain count when none are). A tap still plays
+the row; the filter and "➕ N more" behave as before. Recomputed whenever the queue, the playing item or any play state
+changes, and logged under `[advance]` with the counts. Tests: `UpNextViewTest` (4, including that the first unskipped row
+is what the advance and `NextLine` start). At Dewi's scale (5,857 queued) the pass is one map lookup per row.

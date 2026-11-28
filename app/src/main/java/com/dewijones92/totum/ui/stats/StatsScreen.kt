@@ -61,7 +61,7 @@ fun StatsScreen(container: AppContainer, onBack: () -> Unit, modifier: Modifier 
     var topKind by rememberSaveable { mutableStateOf(TopKind.ARTISTS) }
     ListThenDetail(detail, listKey = "stats", list = {
         LazyColumn(modifier.fillMaxSize().testTag(STATS_SCREEN_TAG)) {
-            item { BackHeader(stringResource(R.string.stats_title), onBack) }
+            item { BackHeader(stringResource(R.string.stats_title), onBack, scrollsAway = false) }
             val current = page
             if (current == null) {
                 item { CircularProgressIndicator(Modifier.padding(32.dp)) }
@@ -225,7 +225,7 @@ private fun StatsDetail(
     val format = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT)
     val shield = LocalItemShield.current
     LazyColumn(modifier.fillMaxSize()) {
-        item { BackHeader(detail.title, onBack) }
+        item { BackHeader(detail.title, onBack, scrollsAway = false) }
         if (detail.listens.isEmpty() && detail.unlocks.isNullOrEmpty()) item { Hint(R.string.stats_detail_empty) }
         items(detail.unlocks.orEmpty(), key = { "unlock-${it.at}" }) { unlock ->
             StatLine(

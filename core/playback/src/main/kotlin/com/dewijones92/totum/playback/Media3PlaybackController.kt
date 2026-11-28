@@ -36,6 +36,8 @@ import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.MediaKind
 import com.dewijones92.totum.domain.NoShield
 import com.dewijones92.totum.domain.PlayReason
+import com.dewijones92.totum.domain.SegmentSkip
+import com.dewijones92.totum.domain.SegmentSkipDecider
 import com.dewijones92.totum.domain.SkipSegment
 import com.dewijones92.totum.domain.SourceId
 import com.dewijones92.totum.domain.SourceSkips
@@ -404,7 +406,9 @@ public class Media3PlaybackController(
             Diag.log("playback", "${item.id.value} starts paused: it was paused while being re-fetched")
         }
         val mergedAudio = audioUrl?.let { " + audio ${it.value.forLog()}" }.orEmpty()
-        Diag.log("playback", playBreadcrumb(item.id.value, uri.forLog(), mergedAudio, routeOf(uri, localPath != null)))
+        val route = routeOf(uri, localPath != null)
+        PlayRoutes.record(item.id.value, route)
+        Diag.log("playback", playBreadcrumb(item.id.value, uri.forLog(), mergedAudio, route))
         onPlay(item, kind)
         // Each play() claims a generation; only the latest one commits its state and
         // media item. Guards against two quick play() calls (double-tap, queue
@@ -810,6 +814,13 @@ public class Media3PlaybackController(
                         val context = ItemContext.of(item, kind, skipSegments, subtitles)
                         nextInLine.arm(NextInLine.Armed(context, uri, audioUrl?.value))
                         Diag.log("gapless", "${item.id.value} waits behind $playing, starting at ${startMs}ms")
+                        Diag.log(
+                            "gapless",
+                            "dewidebug armed ${item.id.value}: media3 item " +
+                                "title=${media3Item.mediaMetadata.title.quoted()} " +
+                                "artwork=${media3Item.mediaMetadata.artworkUri ?: "none"} " +
+                                "[queue row title=\"${item.title}\" thumbnail=${item.thumbnailUrl?.value ?: "none"}]",
+                        )
                     }
                 }
             }
@@ -864,10 +875,20 @@ public class Media3PlaybackController(
         lastDurationMs = null
         becameCurrent(next.context)
         Vitals.add("playback.gaplessHandovers")
+        val route = routeOf(next.uri, next.uri.startsWith("file:"))
+        PlayRoutes.record(next.context.id, route)
         Diag.log(
             "gapless",
             "crossed from $from to ${next.context.id} at ${old.positionMs}ms " +
-                "(${if (finished) "it ended" else "skipped to next"}) — nothing rebuilt",
+                "(${if (finished) "it ended" else "skipped to next"}) — nothing rebuilt [route=$route]",
+        )
+        val crossed = new.mediaItem?.mediaMetadata
+        val current = controller.currentMediaItem?.mediaMetadata
+        Diag.log(
+            "gapless",
+            "dewidebug crossover to ${next.context.id}: media3 item title=${crossed?.title.quoted()} " +
+                "artwork=${crossed?.artworkUri ?: "none"}; the controller's current item says " +
+                "title=${current?.title.quoted()} artwork=${current?.artworkUri ?: "none"}",
         )
         if (new.mediaItemIndex > 0) controller.removeMediaItems(0, new.mediaItemIndex)
         _events.tryEmit(PlaybackEvent.CrossedOver(MediaItemId(next.context.id), MediaItemId(from), finished))
@@ -1129,8 +1150,23 @@ public class Media3PlaybackController(
     private val mainThread = android.os.Handler(android.os.Looper.getMainLooper())
 
     private fun withController(command: (MediaController) -> Unit) {
+        if (android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) {
+            val count = offMainCommands.incrementAndGet()
+            if (count == 1 || count % OFF_MAIN_LOG_EVERY == 0) {
+                Diag.log(
+                    "playback",
+                    "dewidebug a controller command was asked on ${Thread.currentThread().name}, not the main " +
+                        "thread: moved to the main thread, where MediaController must be used " +
+                        "(command number $count since launch)",
+                )
+            }
+            mainThread.post { withController(command) }
+            return
+        }
         controller?.let(command) ?: pendingCommands.add(command)
     }
+
+    private val offMainCommands = java.util.concurrent.atomic.AtomicInteger()
 
     private fun startPositionTicker(controller: MediaController) {
         scope.launch {
@@ -1303,6 +1339,7 @@ public class Media3PlaybackController(
         endWatch.start(item.id, item.listedDurationMs)
         startLatency.played(item.id)
         skipsThisItem = 0
+        segmentSkips.reset()
         ticksSinceSave = 0
         itemStartedAtMs = SystemClock.elapsedRealtime()
         // Said per video, so a report can tell "SponsorBlock had nothing for this one" from
@@ -1318,11 +1355,39 @@ public class Media3PlaybackController(
     /** Skips this item so far — a few per video at most, so each is worth its own line. */
     private var skipsThisItem = 0
 
+    private val segmentSkips = SegmentSkipDecider()
+
     private fun applySkipSegments(controller: MediaController) {
         val from = controller.currentPosition.milliseconds
         val duration = controller.duration.takeIf { it > 0 }
         val own = itemContext.showKey?.let { sourceSkips.value[it] }?.segmentsFor(duration).orEmpty()
-        val target = (itemContext.skipSegments + own).skipTargetFor(from) ?: return
+        val skip = segmentSkips.decide(
+            itemContext.skipSegments + own,
+            from,
+            duration,
+            SystemClock.elapsedRealtime(),
+        )
+        when (skip) {
+            SegmentSkip.None -> return
+            is SegmentSkip.GivenUp -> {
+                Diag.warn(
+                    "sponsorblock",
+                    "${itemContext.id}: the same skip to ${skip.toMs}ms came up ${skip.repeats} times within " +
+                        "${skip.withinMs}ms, at ${from.inWholeMilliseconds}ms of ${duration ?: "unknown"}ms " +
+                        "[skips so far=$skipsThisItem]; giving up on skipping this item",
+                )
+            }
+            is SegmentSkip.Seek -> seekPastSegment(controller, skip, from, duration, own)
+        }
+    }
+
+    private fun seekPastSegment(
+        controller: MediaController,
+        skip: SegmentSkip.Seek,
+        from: kotlin.time.Duration,
+        duration: Long?,
+        own: List<SkipSegment>,
+    ) {
         skipsThisItem++
         endWatch.segmentSkipped(from.inWholeMilliseconds, duration)
         val whose = if (own.skipTargetFor(from) != null) {
@@ -1330,12 +1395,14 @@ public class Media3PlaybackController(
         } else {
             "SponsorBlock"
         }
+        val clamped = skip.clampedFromMs?.let { "; the segment ended at ${it}ms, past the item's ${duration}ms" }
         Diag.log(
             "sponsorblock",
-            "skipped ${from.inWholeMilliseconds}ms -> ${target.inWholeMilliseconds}ms " +
-                "(skip $skipsThisItem of this item, $whose)",
+            "skipped ${from.inWholeMilliseconds}ms -> ${skip.toMs}ms " +
+                "(skip $skipsThisItem of this item, $whose)" +
+                (if (skip.endsItem) ", which ends the item" else "") + clamped.orEmpty(),
         )
-        controller.seekTo(target.inWholeMilliseconds)
+        controller.seekTo(skip.toMs)
     }
 
     private fun noteItemEnd(
@@ -1396,6 +1463,7 @@ public class Media3PlaybackController(
         val current = currentMediaItem?.takeIf { it.mediaId.isNotBlank() }
         if (current != null) {
             castLoad.seen(current.mediaId, current, currentPosition.takeIf { !remote })
+            noteBlankTitle(current)
             return itemState(current)
         }
         if (!remote || castDeviceName == null) return null
@@ -1433,6 +1501,27 @@ public class Media3PlaybackController(
         if (deviceInfo.playbackType != DeviceInfo.PLAYBACK_TYPE_REMOTE) return null
         if (!isCommandAvailable(Player.COMMAND_GET_DEVICE_VOLUME)) return null
         return CastVolume.of(deviceVolume, deviceInfo.maxVolume, isDeviceMuted)
+    }
+
+    private var blankTitleLoggedFor: String? = null
+
+    private fun CharSequence?.quoted(): String = this?.let { "\"$it\"" } ?: "none"
+
+    private fun noteBlankTitle(current: Media3MediaItem) {
+        val blank = current.mediaMetadata.title.isNullOrBlank()
+        if (!blank) {
+            if (blankTitleLoggedFor == current.mediaId) blankTitleLoggedFor = null
+            return
+        }
+        if (blankTitleLoggedFor == current.mediaId) return
+        blankTitleLoggedFor = current.mediaId
+        Diag.warn(
+            "playback",
+            "dewidebug the session's item ${current.mediaId} has a blank title " +
+                "[artwork=${current.mediaMetadata.artworkUri ?: "none"} " +
+                "artist=${current.mediaMetadata.artist ?: "none"}]; " +
+                "the app shows the queue row's instead",
+        )
     }
 
     private fun MediaController.itemState(current: Media3MediaItem): PlaybackState =
@@ -1531,6 +1620,7 @@ public class Media3PlaybackController(
         /** Room for a burst of ends without ever suspending the player's callback thread. */
         const val EVENT_BUFFER = 8
         const val DUPLICATE_END_MS = 3_000L
+        const val OFF_MAIN_LOG_EVERY = 50
     }
 }
 

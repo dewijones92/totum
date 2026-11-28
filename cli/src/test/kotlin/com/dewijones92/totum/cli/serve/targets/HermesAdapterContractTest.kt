@@ -133,9 +133,27 @@ class HermesAdapterContractTest {
         assertEquals(false, state.playing)
         assertEquals(TroubleKind.NOT_CONNECTED, state.trouble?.kind)
         assertTrue(state.problem!!, state.problem!!.contains("isn't connected"))
-        assertEquals("Dx5qFachd3A", state.entries.single().item.itemId)
+        assertEquals("station:jazz", state.entries.single().item.itemId)
         assertTrue(soundmicPlayer.requests.isEmpty())
         checkAgainstFixture("targets-jazz-speaker-unreachable.json", call("GET", "/targets").second)
+    }
+
+    @Test
+    fun `the jazz request is a plain mp3 radio address that reaches the speaker's player`() {
+        val (path, body) = adapterRequest("jazz")
+        val onTheSoundbar = path.replace(SOUNDMIC, SOUNDBAR)
+
+        val (code, text) = call("POST", onTheSoundbar, body)
+
+        assertEquals(text, 200, code)
+        assertEquals(listOf("https://home.invalid/stream/station:jazz"), soundbarPlayer.requests.map { it.url })
+        val state = TargetsJson.decodeFromString(TargetState.serializer(), text)
+        assertTrue(state.playing)
+        val item = state.entries.single().item
+        assertEquals("audio=https://ice1.somafm.com/sonicuniverse-128-mp3", item.handle)
+        assertEquals("https://ice1.somafm.com/sonicuniverse-128-mp3", item.mediaUrl)
+        assertEquals("🏠 Home Assistant", state.entries.single().addedBy)
+        assertEquals(false, state.entries.single().loop)
     }
 
     @Test

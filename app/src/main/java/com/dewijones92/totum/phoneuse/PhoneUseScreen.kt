@@ -52,7 +52,7 @@ fun PhoneUseScreen(phoneUse: PhoneUse, onBack: () -> Unit, modifier: Modifier = 
     }
     Surface(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-            BackHeader(stringResource(R.string.phone_use_name), onBack)
+            BackHeader(stringResource(R.string.phone_use_name), onBack, scrollsAway = false)
             Text(
                 stringResource(R.string.phone_use_intro),
                 style = MaterialTheme.typography.bodyMedium,

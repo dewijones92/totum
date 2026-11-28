@@ -63,8 +63,8 @@ import com.dewijones92.totum.queue.shuffleAndPlayGroup
 import com.dewijones92.totum.queue.shuffleGroup
 import com.dewijones92.totum.queue.shuffleTogether
 import com.dewijones92.totum.stats.UseKind
+import com.dewijones92.totum.ui.common.ActionsHeader
 import com.dewijones92.totum.ui.common.BulkAction
-import com.dewijones92.totum.ui.common.CollapsingTitle
 import com.dewijones92.totum.ui.common.CountRecompositions
 import com.dewijones92.totum.ui.common.EmptyState
 import com.dewijones92.totum.ui.common.EqualiserSize
@@ -94,6 +94,7 @@ import com.dewijones92.totum.ui.common.rememberSelection
 import com.dewijones92.totum.ui.common.rememberShuffleAsk
 import com.dewijones92.totum.ui.common.rememberSnackbarOffers
 import com.dewijones92.totum.ui.common.rowFacts
+import com.dewijones92.totum.ui.common.scrollsAway
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -120,8 +121,7 @@ internal fun PhoneQueue(container: AppContainer, modifier: Modifier = Modifier) 
     val scope = rememberCoroutineScope()
     val snackbar = remember { SnackbarHostState() }
 
-    // Hoisted so the header can collapse against it — the header sits outside the list, so
-    // it cannot read a state the list owns privately.
+    // Hoisted so the header's jump button and the drag reorder act on the same list state.
     val listState = rememberLazyListState()
     val listFilter = rememberListFilter("queue")
     ForgetTheFilterWhenTheQueueEmpties(entries.isEmpty(), listFilter)
@@ -140,7 +140,6 @@ internal fun PhoneQueue(container: AppContainer, modifier: Modifier = Modifier) 
             QueueHeader(
                 entries.size,
                 onClear = onClear,
-                listState = listState,
                 listFilter = listFilter,
                 onShuffle = shuffleUpNextOrNull(container, snapshot.upNext, ask),
                 onShuffleGroups = shuffleGroupsOrNull(container, snapshot.upNext, ask),
@@ -156,7 +155,7 @@ internal fun PhoneQueue(container: AppContainer, modifier: Modifier = Modifier) 
             if (entries.isEmpty()) {
                 EmptyQueue()
             } else {
-                QueueOfflineSummary(container, entries, downloads, queueFilters)
+                QueueOfflineSummary(container, entries, downloads, queueFilters, Modifier.scrollsAway())
                 val actions = rememberQueueActions(
                     container = container,
                     queue = queue,
@@ -212,6 +211,7 @@ private fun rememberQueueActions(
     val onRemove = rememberQueueRemoveWithUndo(queue, rememberSnackbarOffers(snackbar, scope))
     val groupChoices by container.groupDownloads.choices.collectAsStateWithLifecycle()
     val homeAhead by container.homeAhead.keep.collectAsStateWithLifecycle()
+    val liveRadio by container.musicRadio.liveGroupId.collectAsStateWithLifecycle()
     val selection = rememberSelection("queue")
     val startAgain = rememberStartGroupAgain(queue, snackbar, scope)
     val itemActions = LocalItemActions.current
@@ -232,6 +232,7 @@ private fun rememberQueueActions(
         },
         groupDownloading = { groupChoices[it] == GroupDownload.YES },
         homeAheadOf = { homeAhead[it] },
+        liveRadioGroup = liveRadio,
         onKeepAtHome = if (container.homeDownloads.available) {
             { id, count -> container.homeAhead.choose(id, count, "the group's menu") }
         } else {
@@ -302,6 +303,7 @@ private data class QueueActions(
     val homeAheadOf: (String) -> Int? = { null },
     val onKeepAtHome: ((String, Int?) -> Unit)? = null,
     val onShareGroup: ((String) -> Unit)? = null,
+    val liveRadioGroup: String? = null,
 )
 
 /**
@@ -416,6 +418,7 @@ private fun androidx.compose.foundation.lazy.LazyItemScope.GroupHeadingRow(
                 draggable = row.isFirstRun && layout.blockCount > 1,
                 downloading = actions.groupDownloading(group.id),
                 timeLeft = layout.timesLeft[group.id],
+                liveRadio = actions.liveRadioGroup == group.id,
             ),
             actions = actions.forGroup(group.id),
             drag = drag,
@@ -606,7 +609,6 @@ private fun ForgetTheFilterWhenTheQueueEmpties(empty: Boolean, listFilter: ListF
 private fun QueueHeader(
     count: Int,
     onClear: () -> Unit,
-    listState: LazyListState,
     listFilter: ListFilter,
     onShuffle: (() -> Unit)? = null,
     onShuffleGroups: (() -> Unit)? = null,
@@ -617,7 +619,7 @@ private fun QueueHeader(
     filters: MutableState<ItemFilters>? = null,
     sendTo: @Composable () -> Unit = {},
 ) {
-    CollapsingTitle(title = stringResource(R.string.queue_title), listState = listState) {
+    ActionsHeader(title = stringResource(R.string.queue_title)) {
         sendTo()
         FilterToggle(listFilter, count)
         if (onSort != null || filters != null) {

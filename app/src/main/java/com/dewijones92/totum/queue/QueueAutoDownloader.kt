@@ -2,9 +2,11 @@ package com.dewijones92.totum.queue
 
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.download.DownloadManager
+import com.dewijones92.totum.data.download.StrandedDownloads
 import com.dewijones92.totum.data.queue.QueueEntry
 import com.dewijones92.totum.data.queue.QueueSnapshot
 import com.dewijones92.totum.domain.DownloadState
+import com.dewijones92.totum.domain.MediaItem
 import com.dewijones92.totum.domain.MediaItemId
 import com.dewijones92.totum.domain.PlayHandle
 import com.dewijones92.totum.domain.PlayableItem
@@ -79,6 +81,13 @@ class QueueAutoDownloader(
      * sound for 1.3 s). It is left alone until it pauses or stops, and fetched then if still queued.
      */
     private val heldWhileStreaming: Flow<MediaItemId?> = flowOf(null),
+    /**
+     * The playing item whose audio is fetched while it streams, on purpose: a YouTube video playing over an
+     * HLS playlist has no audio stream to copy, and its audio is a small fraction of the video's bytes
+     * (Dewi, 2026-11-28), so the offline copy lands while he watches rather than after.
+     */
+    private val besideItsStream: Flow<BesideStream?> = flowOf(null),
+    private val whyNotTeeable: (MediaItemId) -> String = { "" },
     private val groupAllows: (String) -> Boolean = { true },
     private val atHome: (PlayableItem) -> Boolean = { false },
     private val groupChoicesChanged: Flow<Any?> = emptyFlow(),
@@ -107,6 +116,11 @@ class QueueAutoDownloader(
 
     private var lastHeldWhileStreaming: MediaItemId? = null
 
+    @Volatile
+    private var beside: BesideStream? = null
+
+    private var lastBeside: MediaItemId? = null
+
     fun start() {
         scope.launch {
             // collectLatest, not collect: a pass over a long queue can take many minutes, and
@@ -119,8 +133,10 @@ class QueueAutoDownloader(
                 queue,
                 groupChoicesChanged.onStart { emit(null) },
                 heldWhileStreaming,
-            ) { snapshot, _, held ->
+                besideItsStream,
+            ) { snapshot, _, held, besideNow ->
                 streaming = held
+                beside = besideNow
                 snapshot
             }.collectLatest { snapshot -> pass(snapshot) }
         }
@@ -134,7 +150,7 @@ class QueueAutoDownloader(
      */
     private suspend fun pass(snapshot: QueueSnapshot) {
         if (refused()) return
-        val states = downloads.observeDownloads().first()
+        val states = statesAfterRecovery()
         // Ordering only -- nothing is skipped and no budget changes. The playing item simply
         // goes to the front of the pass.
         val playing = playingNow()
@@ -149,6 +165,7 @@ class QueueAutoDownloader(
         ordered.forEach { waiting.trySend(it) }
         waiting.close()
         val started = AtomicInteger()
+        val skipped = SkipTally()
         val passStartedAt = System.nanoTime()
         heldThisPass.clear()
         // Announced only when there is something outstanding AND the picture has changed since the
@@ -168,11 +185,12 @@ class QueueAutoDownloader(
             repeat(lanes) {
                 launch {
                     for (entry in waiting) {
-                        if (!download(entry, states, started)) return@launch
+                        if (!download(entry, states, started, skipped)) return@launch
                     }
                 }
             }
         }
+        logSkips(skipped, ordered.size, started.get())
         if (started.get() > 0) {
             Diag.log(
                 "download",
@@ -194,6 +212,46 @@ class QueueAutoDownloader(
 
     private val heldThisPass = ConcurrentHashMap<String, Int>()
     private var lastHeld: String? = null
+
+    private var lastSkips: String? = null
+
+    private fun logSkips(skipped: SkipTally, queued: Int, asked: Int) {
+        val summary = skipped.summary()
+        if (summary.isEmpty()) {
+            lastSkips = null
+            return
+        }
+        val line = "dewidebug pass skips: $summary; ${skipped.total} skipped, $asked asked for, $queued queued"
+        if (line != lastSkips) {
+            lastSkips = line
+            Diag.log("download", line)
+        }
+    }
+
+    private suspend fun statesAfterRecovery(): Map<MediaItemId, DownloadState> {
+        val states = downloads.observeDownloads().first()
+        if (states.values.none { it is DownloadState.Downloading }) return states
+        val stranded = downloads.recoverStranded()
+        if (stranded.count == 0) return states
+        logStranded(stranded)
+        return downloads.observeDownloads().first()
+    }
+
+    private fun logStranded(stranded: StrandedDownloads) {
+        Diag.warn(
+            "download",
+            "dewidebug stranded downloads: ${stranded.count} row(s) said Downloading with no download running; " +
+                "restarted ${named(stranded.restarted)}; left failed for Retry ${named(stranded.failed)}; " +
+                "dropped for want of a record ${named(stranded.dropped)}",
+        )
+    }
+
+    private fun named(ids: List<MediaItemId>): String {
+        if (ids.isEmpty()) return "0"
+        val shown = ids.take(MAX_NAMED).joinToString { it.value }
+        val more = if (ids.size > MAX_NAMED) ", +${ids.size - MAX_NAMED} more" else ""
+        return "${ids.size} [$shown$more]"
+    }
 
     /** What the last announced pass looked like, so back-to-back identical passes say it once. */
     private var lastAnnounced: Pair<Int, Int>? = null
@@ -232,7 +290,12 @@ class QueueAutoDownloader(
      * an entry. Nothing else would have asked again this session.
      */
     @Suppress("ReturnCount")
-    private suspend fun download(entry: QueueEntry, states: Map<*, DownloadState>, started: AtomicInteger): Boolean {
+    private suspend fun download(
+        entry: QueueEntry,
+        states: Map<*, DownloadState>,
+        started: AtomicInteger,
+        skipped: SkipTally,
+    ): Boolean {
         val item = entry.item.item
         var state = states[item.id]
         while (true) {
@@ -243,11 +306,12 @@ class QueueAutoDownloader(
                 // members-only videos repeated their reason on every pass and took 14% of a
                 // 387-event report (0.1.229) saying nothing new — and the report buffer is
                 // bounded, so noise like that is evidence thrown away.
-                val heldGroup = entry.group?.takeIf { skip.isNotEmpty() && !groupAllows(it.id) }
+                skipped.add(skip.label)
+                val heldGroup = entry.group?.takeIf { skip.say != null && !groupAllows(it.id) }
                 if (heldGroup != null) {
                     heldThisPass.merge(heldGroup.title, 1, Int::plus)
-                } else if (skip.isNotEmpty() && explained.add(item.id)) {
-                    Diag.log("download", "not fetching \"${item.title}\": $skip")
+                } else if (skip.say != null && explained.add(item.id)) {
+                    Diag.log("download", "not fetching \"${item.title}\": ${skip.say}")
                 }
                 return true
             }
@@ -271,11 +335,26 @@ class QueueAutoDownloader(
                 // answers 403 again immediately. His successful attempt came six seconds later.
                 delay(retryBackoffMs * retry)
             }
+            announceBeside(item)
             // The whole entry, handle included, so the video route gets its watch URL.
             downloads.download(entry.item, audioOnly = true)
             state = awaitSettled(item.id) ?: return true
             if (state !is DownloadState.Failed) return true
         }
+    }
+
+    private fun announceBeside(item: MediaItem) {
+        val now = beside?.takeIf { it.id == item.id }
+        if (now == null) {
+            if (lastBeside == item.id) lastBeside = null
+            return
+        }
+        if (lastBeside == now.id) return
+        lastBeside = now.id
+        Diag.log(
+            "download",
+            "dewidebug fetching \"${item.title}\" beside its stream, on purpose: ${now.why}",
+        )
     }
 
     /**
@@ -310,34 +389,44 @@ class QueueAutoDownloader(
     private val explained: MutableSet<MediaItemId> = ConcurrentHashMap.newKeySet()
 
     /**
-     * Null to fetch it; a reason to skip. An empty reason means "ordinary, not worth a line" —
-     * already downloaded, nothing to fetch yet — so the trail keeps only the skips that would
-     * otherwise be mysterious.
+     * Null to fetch it; otherwise why not. Every skip carries a label, which the pass counts into
+     * its one summary line; only a skip with something to say also gets a line of its own, once
+     * per item, so the trail keeps the skips that would otherwise be mysterious.
      */
-    private fun skipReason(entry: QueueEntry, state: DownloadState?): String? = when {
+    private fun skipReason(entry: QueueEntry, state: DownloadState?): Skip? = when {
         // A local file is already the point of this; nothing to fetch.
-        entry.item.handle is PlayHandle.LocalVideo -> ""
-        state is DownloadState.Downloaded || state is DownloadState.Downloading -> ""
+        entry.item.handle is PlayHandle.LocalVideo -> Skip("a local file")
+        state is DownloadState.Downloaded -> Skip("already on the phone")
+        state is DownloadState.Downloading ->
+            Skip(if (state.downloadedBytes == 0L) "downloading with 0 bytes so far" else "downloading")
         entry.item.item.id == streaming -> {
             if (lastHeldWhileStreaming != streaming) {
                 lastHeldWhileStreaming = streaming
                 Diag.log(
                     "download",
                     "dewidebug not fetching \"${entry.item.item.title}\" while it streams: its audio would cross " +
-                        "the network twice; it is fetched once it pauses or stops, if it is still queued",
+                        "the network twice; it is fetched once it pauses or stops, if it is still queued " +
+                        "[why it is not teeable: ${whyNotTeeable(entry.item.item.id)}]",
                 )
             }
-            ""
+            Skip("held while it streams")
         }
-        atHome(entry.item) -> "it is finished at home; the queue plays it from there and never copies it by itself"
+        atHome(entry.item) -> Skip(
+            "finished on the Pi",
+            "it is finished at home; the queue plays it from there and never copies it by itself",
+        )
         // Said once per item, and worth saying: silence here would read as a broken auto-download.
-        entry.group?.let { !groupAllows(it.id) } == true ->
-            "its group \"${entry.group?.title}\" is not downloaded automatically until you say yes"
-        !fetchesAudioOnly(entry.item) ->
-            "there is no audio-only fetch for it, and fetching the whole thing is not this feature"
+        entry.group?.let { !groupAllows(it.id) } == true -> Skip(
+            "in a group not downloaded automatically",
+            "its group \"${entry.group?.title}\" is not downloaded automatically until you say yes",
+        )
+        !fetchesAudioOnly(entry.item) -> Skip(
+            "no audio-only fetch",
+            "there is no audio-only fetch for it, and fetching the whole thing is not this feature",
+        )
         // Nothing to fetch yet — a feed item whose enclosure hasn't been read. Asking
         // anyway would only record a failure against it.
-        entry.item.fetchUrl == null -> ""
+        entry.item.fetchUrl == null -> Skip("no fetch address yet")
         state is DownloadState.Failed -> failureSkip(entry.item.item.id, state)
         else -> null
     }
@@ -349,12 +438,15 @@ class QueueAutoDownloader(
      * in a 59-item queue were re-attempted on every launch for days — in every diagnostics
      * report sent on 2026-07-28.
      */
-    private fun failureSkip(id: MediaItemId, state: DownloadState.Failed): String? = when {
-        state.isPermanent -> "asking again cannot help — ${state.reason.take(REASON_CHARS)}"
+    private fun failureSkip(id: MediaItemId, state: DownloadState.Failed): Skip? = when {
+        state.isPermanent -> Skip(
+            "failed for good",
+            "asking again cannot help — ${state.reason.take(REASON_CHARS)}",
+        )
         else -> {
             val used = attempts.getOrDefault(id, 0)
             if (used >= maxAttempts) {
-                "gave up after $used attempts"
+                Skip("gave up after retries", "gave up after $used attempts")
             } else {
                 attempts[id] = used + 1
                 null
@@ -397,5 +489,25 @@ class QueueAutoDownloader(
         const val REASON_CHARS = 120
 
         const val NANOS_PER_MS = 1_000_000L
+
+        const val MAX_NAMED = 5
     }
+}
+
+data class BesideStream(val id: MediaItemId, val why: String)
+
+private data class Skip(val label: String, val say: String? = null)
+
+private class SkipTally {
+    private val counts = ConcurrentHashMap<String, AtomicInteger>()
+
+    fun add(label: String) {
+        counts.computeIfAbsent(label) { AtomicInteger() }.incrementAndGet()
+    }
+
+    val total: Int get() = counts.values.sumOf { it.get() }
+
+    fun summary(): String = counts.entries
+        .sortedWith(compareByDescending<Map.Entry<String, AtomicInteger>> { it.value.get() }.thenBy { it.key })
+        .joinToString(", ") { "${it.value.get()} ${it.key}" }
 }

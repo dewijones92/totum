@@ -63,6 +63,7 @@ fun SourceHeader(
 ) {
     Column(
         modifier = Modifier
+            .scrollsAway()
             .fillMaxWidth()
             .background(Brush.verticalGradient(listOf(pillarRowTint(pillar), Color.Transparent)))
             .padding(start = 12.dp, end = 12.dp, top = 10.dp, bottom = 8.dp),

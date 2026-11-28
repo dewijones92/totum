@@ -54,6 +54,7 @@ public data class QueueSnapshot(
     public val entries: List<QueueEntry> = emptyList(),
     public val currentIndex: Int = NOTHING_PLAYING,
     public val anchor: MediaItemId? = null,
+    public val nextStack: NextStack? = null,
 ) {
     /** The entry playing now, or null when playback isn't on the queue. */
     public val current: QueueEntry? get() = entries.getOrNull(currentIndex)

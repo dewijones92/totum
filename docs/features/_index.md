@@ -1,7 +1,7 @@
 ---
 title: Features
 kind: index
-updated: 2026-11-20
+updated: 2026-11-28
 ---
 
 # Features
@@ -12,11 +12,14 @@ alone until they need more.
 
 | Feature | Area | Status | Detail |
 |---|---|---|---|
+| 🧭 Headers slide away on scrolling down and return on scrolling up, from one shared seam; the Queue's 60 dp blank gap is gone | ui | built 2026-11-28 (ADR 198; JVM and instrumented tests; screenshots on totum-api35; not yet on the Pixel 7) | [visual-language.md](visual-language.md) |
 | 📱 On this phone: videos, music and photos stored on the phone, browsed a hundred at a time and played through the one player (queue, skip silence, boost, speed, resume, casting from the phone); a photo grid and viewer with a slideshow; ☁️ Google Photos picked into it through the Picker API | library/playback | built 2026-11-14 (ADR 176; video, audio and photos checked on totum-api35; Google Photos tested against a mock only, needs Dewi's Google Cloud client; Show on the TV not built) | [phone-media.md](phone-media.md) |
 | 📡 The Pi plays to targets: speakers, TVs and Chromecasts each with their own queue, chips and colours in the Queue tab, Send to…, the phone's skip-silence and boost run on the Pi, YouTube progress reported only for the owner's phone; plus 🎞️ Jellyfin browse and play from the Library | casting/pi | built 2026-11-07 (ADRs 152-154; tests written 2026-11-07; nothing run on a real TV, speaker or Chromecast) | [pi-plays-everywhere.md](pi-plays-everywhere.md) |
 | 🧳 Trip mode: say when you leave and how many per group; on Wi-Fi the phone fetches the next few of every queue group as one strip task and copies what the Pi has ready through the Pi copy path | downloads | built 2026-11-07, Batch A (ADR 149; tests written; not run on a device) | [trip-mode.md](trip-mode.md) |
 | 🧘 Long ones: a Library tile and page of unwatched videos over 20 minutes from what you follow, newest first, 12 at most and 2 per channel, lengths found lazily and kept for good | library | built 2026-11-20 (ADR 185; unit tests; device screenshots in the doc) | [long-ones.md](long-ones.md) |
 | 👶📺 Kid TV: a Library tile casts a chosen pinned playlist to a chosen TV in kid mode with one tap (1x, no silence skipping, the playlist loops, the phone stays free); choices on a page | casting/kids | built 2026-11-07, Batch A (ADR 148; tests written; not run on a TV) | [kid-tv-button.md](kid-tv-button.md) |
+| 🧸 The treat button: a Library tile (and an app-icon shortcut) puts a chosen pinned playlist or film on a chosen TV for 5 to 90 minutes (default 15), then the home server switches the TV off, pauses or stops; saved defaults, a sheet for this-time changes, a strip entry and a countdown notification | casting/pi | built 2026-11-27, Batch C task V (ADR 196; unit tests; not run on a real TV) | [treat-button.md](treat-button.md) |
+| ▶️ Play next stacks: Play next on A, B, C plays A, B, C, on the phone's queue and on a Pi target's | queue | built 2026-11-27, Batch C task V (ADR 195; unit tests) | [playback-queue.md](playback-queue.md#play-next-stacks-adr-195) |
 | A draft post and demo-video script for an AI subreddit, in `docs/drafts/` (never posted) | publishing | built 2026-11-07, Batch A (drafts only) | [subreddit-draft.md](subreddit-draft.md) |
 | ❤️ Sponsor Totum: a Settings row that opens the sponsor page, drawn only when the build carries a usable https link (`totum.sponsorUrl`) | publishing | live 2026-11-13, Batch B (ADR 147; the link is https://ko-fi.com/totum) | [sponsor-button.md](sponsor-button.md) |
 | Licence and reporting: GPL-3.0 with third-party notices; reports go to the Pi only from a phone signed in to the home server, everyone else gets 🐙 Report on GitHub (a redacted preview, copied, the new-issue form opened) | publishing | built 2026-11-07, Batch A (ADR 146; tests written 2026-11-07; device checks owed) | [licence-and-reports.md](licence-and-reports.md) |
@@ -27,7 +30,7 @@ alone until they need more.
 | Live streams: play from the live head at 1x; one that has not started says "🔴 Starts soon", is waited for politely (progress strip, Cancel) and calls you when live; the 🔴 LIVE / ⏺️ WAS LIVE tag is the same everywhere and kept true | playback | built 2026-11-06 (ADR 69 amended, ADR 132; registry, live check, refresher and persistence tests written; parser, wait-schedule and watcher tests owed) | [live-streams.md](live-streams.md) |
 | 🎥 Totum recorder: screen, voice, face bubble and shown taps from an icon, saved to Movies/Totum with Share and Open | app | built 2026-11-06 (ADR 135; pure-rule tests written 2026-11-07, not run on a device) | [totum-recorder.md](totum-recorder.md) |
 | Live streams: play from the live head at 1x; one that has not started says "🔴 Starts soon", is waited for politely (progress strip, Cancel) and calls you when live | playback | built 2026-11-06 (ADR 69 amended, ADR 132; registry, live check, refresher and persistence tests written; parser, wait-schedule and watcher tests owed) | [live-streams.md](live-streams.md) |
-| Casting with Totum's processing (DASH from the phone: original video packets, processed audio) | playback | built (prototype 2026-10-21; in use on the LG and Chromecast Ultra since, ADR 164) — several parts not yet seen on a real TV; generic-Chromecast fixes 2026-11-20 (ADR 179) not run on one | [casting.md](casting.md) |
+| Casting with Totum's processing (DASH from the phone: original video packets, processed audio) | playback | built (prototype 2026-10-21; in use on the LG and Chromecast Ultra since, ADR 164) — several parts not yet seen on a real TV; generic-Chromecast fixes 2026-11-20 (ADR 179) not run on one; casting to a friend's Chromecast from away, with home items fetched from the home server by a per-session link (ADR 182, built 2026-11-27, PC screen too from 2026-11-28; the Pi side live since 2026-11-28, not run on a real Chromecast or PC) | [casting.md](casting.md) |
 | Stats (listens, side quests, app use) | library | built 2026-10-14 — Library → 📊 Stats from an event log, with drill-downs (ADR 44) | [stats.md](stats.md) |
 | 📱 Phone use: unlocks and screen time from Android's usage history in Stats, and an optional "still want in?" nudge when you unlock again soon | library | built 2026-11-13 (ADR 160; needs Usage access; checked on totum-api35) | [phone-use.md](phone-use.md) |
 | Downloads clean-up suggestions | downloads | built 2026-10-13 — four groups, review then delete, dequeues what it deletes | [downloads-cleanup.md](downloads-cleanup.md) |

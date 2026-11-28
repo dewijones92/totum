@@ -3,7 +3,7 @@ title: 📡 The Pi plays to any TV, speaker or browser; the phone is a remote
 kind: feature
 area: casting/pi
 status: built 2026-11-07, Batch A (tests written 2026-11-07; volume rule and the YouTube relay fixed after the first run on the LG; the relay not yet seen on a real TV)
-updated: 2026-11-20
+updated: 2026-11-28
 ---
 
 # 📡 The Pi plays to any TV, speaker or browser
@@ -24,7 +24,37 @@ sound processing on the Pi). Brief: [pi-plays-everywhere.md](../todos/pi-plays-e
   "📋 Up next on LG TV · 54" and the queue.
 - **Chips carry a connection dot** (linked, ready, waking, reconnecting, asleep, problem), hint at more chips off the edge, wear a glyph
   per kind (📱 🔈 📺 📽️ 🖥️), and a long-press opens the colour choices (48 dp swatches).
-- Not built: lock-screen and notification controls for a device ([todo](../todos/target-bar-everywhere.md)).
+
+## The lock screen and the notification shade (ADR 188, 2026-11-20)
+
+- **A second media session beside the phone's.** While the dock bar is the device's (`barDecision`: chosen, listed, something current),
+  `PlaybackService` also holds a `totum-remote-target` session fronted by `RemoteTargetPlayer`, with its own notification (id 1002). The
+  phone's session, notification (1001), Exsurge's Live Update and the foreground rules are not touched, and the app's own controller never
+  sees it. It goes when the phone is chosen or the device has nothing left.
+- **One card at a time.** The phone's own card shows when no device is shown, or when only the phone is playing; otherwise the device's
+  does (a tie goes to the chosen device), and the other's notification is withdrawn, so the shade never holds two sets of controls
+  (`NotificationCards`, `PlaybackService.onUpdateNotification`). Each move is logged with its reason.
+- **It shows** the title and art (through the spoiler shield), `📺 LG TV · ▶️ Playing · author` as the artist line, the device's name as the
+  notification's sub-text and its colour as the notification colour, and the position moving between reads.
+- **It controls** play and pause, back 10, forward 30 and next, as the same `TargetAction`s the dock bar sends. No back or forward on a live
+  item.
+- **It reads the Pi with the screen off** every 10 s while the device plays and every 30 s while it is paused, never when the screen's own
+  read is fresh (`RemoteSessionBridge`, `TargetsRepository.refreshIfOlderThan`).
+- Tapping the card opens the app, not yet the device's remote page.
+
+## One set of controls, boost under a picture, what each device is doing, and a measured link (ADRs 180 and 191, amended 2026-11-27)
+
+- **No bar over the page.** On the Queue tab the chosen device's remote card already carries its transport, so the dock draws neither the
+  device's bar nor the phone's mini player there (`dockBarFor`). On every other tab nothing changes: a tap on the bar opens that device's page.
+- **The card's tiles are the phone's, in the device's colour.** Repeat, Sleep, Skip silences, Boost, Captions (when the receiver lists
+  tracks) and Colour. Not offered, and why: playback speed (no speed stage in the Pi's sound chain or the Chromecast's stream), Listen/Watch
+  (the device's kind decides), Explore and history (phone queue features).
+- **Boost under a picture.** A TV showing a picture is offered Boost (the Pi re-encodes the audio for it anyway) but not Skip silences.
+- **Chips and the Play on picker say what the device is doing:** `▶️ Toy Story`, `⏸️ Toy Story`, `⏳ Toy Story`, `⚪ Idle`, a second line that wraps.
+- **A soundbar has a seek bar** with Skip silences or Boost on: the Pi reports the source's length (ffprobe).
+- **A wake that failed no longer outlives the start that played.** The static ARP entry is a unit (`server/systemd/totum-tv-arp.service`).
+- **A speaker's Bluetooth link is logged** (RSSI, link quality, underruns, reconnects, drops) once per 30 s while it plays, from a host
+  collector (`server/systemd/totum-bt-link.service`).
 
 ## What it does
 
@@ -115,7 +145,7 @@ sound processing on the Pi). Brief: [pi-plays-everywhere.md](../todos/pi-plays-e
   screen) shows and changes it, every item menu has "📡 Play on…" to play
   that item on a pick, and picking a switched-off device wakes it at once (a play to a sleeping one wakes it as before).
   The device's colour is on the item wherever it is playing (a "📺 LG TV" badge on rows, the queue, the mini player and the
-  full player). Peek stays on the phone; the phone's own notification is not recoloured.
+  full player). Peek stays on the phone; the phone's own notification is not recoloured (a device has its own, [ADR 188](../adr/0188-the-selected-device-is-a-second-media-session-for-the-lock-screen-and-notification.md)).
 
 ## Files
 
@@ -177,13 +207,21 @@ sound processing on the Pi). Brief: [pi-plays-everywhere.md](../todos/pi-plays-e
 - **Kodi on the Fire Stick.** `TOTUM_ADB_TARGETS=Kodi=192.168.0.211:5555|the Fire Stick`, `TOTUM_START_APPS=Kodi=org.xbmc.kodi/.Splash`
   and optionally `TOTUM_SHOWN_ON=Kodi=LG TV@HDMI_1`. A Kodi that does not answer has its stick woken (only if asleep) and Kodi
   started, again every 20 s for up to a minute; otherwise "❌ Kodi didn't start".
-- Not seen on the real LG or the real stick yet (tests use a fake SSAP server and a fake adb shell); see
-  [webos-and-kodi-power](../todos/webos-and-kodi-power.md).
+- **Seen on the real devices, 28 Nov 2026** ([ADR 177](../adr/0177-a-device-says-how-it-comes-on-and-goes-off-lg-over-webos-kodi-started-over-adb.md)):
+  the webOS switch-off worked; wake-on-LAN did not wake the LG from deep standby, but the Fire Stick's sleep-then-wake did (it
+  tells the TV over HDMI-CEC). So a paired TV is **on only while webOS says `Active`** (the cast port never makes it on; when webOS cannot be
+  asked and the port answers, the state is held as it was, "unknown, maybe on", and asleep only once the port is silent too; every
+  change logs what webOS and the port said), a TV with a stick shown on it (`TOTUM_SHOWN_ON`) is woken
+  by wake-on-LAN first and then, after 5 s of silence, by cycling the stick's sleep and wake (45 s allowed), a Kodi on an awake
+  stick whose TV is off gets the same cycle (never while webOS says Active or the cast port answers: "maybe on" sends nothing and
+  leaves the wake to wake-on-LAN), and a volume with nowhere to go is refused in words
+  (`⚠️ Couldn't set LG TV's volume to 2: …`) instead of logged as set. Kodi's refused sign-in reads
+  `🔑 Kodi refused the sign-in: check its web server password`, not "isn't connected". Built the same day against the fakes, **not
+  yet run on the real TV**; see [webos-and-kodi-power](../todos/webos-and-kodi-power.md).
 
 ## Not built (see the todo)
 
-A name typed into the browser page (a stored name is read, none is written); the browser page away from home; Home Assistant's brown noise and jazz through Totum (the Totum side is built; the dot-files adapter is in `tools/handoff/hermes-audio/`, not deployed); the mini-player pill
-and per-target notification; "Play on…" as a long press on every play button; skip silences on a picture (the phone does
+A name typed into the browser page (a stored name is read, none is written); the browser page away from home; Home Assistant's brown noise and jazz through Totum (the Totum side is built; the dot-files adapter is in `tools/handoff/hermes-audio/`, not deployed); the mini-player pill; "Play on…" as a long press on every play button; skip silences on a picture (the phone does
 not either); playback speed on a target; the phone's silence mode and speech gate on a target; TV volume in the strip.
 Not seen on a real TV or speaker yet: the manifest, the relayed picture, the Pi's segments, live on a TV and on mpv.
 
@@ -202,7 +240,7 @@ browser listed at once and renamed in place), `BluezTest` and `TargetDeckSpeaker
 `TargetStateWireTest`, `TargetRulesTest` (core/data), `TargetsRepositoryTest`, `DeviceMarksTest`, `DeviceColourRuleTest` (app),
 instrumented `PlayOnPickerTest` and `DeviceColourSurfacesTest`.
 
-ADR 177: `SteppedPowerWolTest`, `KodiStartTest`, `KodiStartThenPlayTest`, `DevicePowersTest`, `WebOsTvTest`, `PinnedTrustTest`, `WebOsPairingTest`, `TargetDeckPowerOffTest`, `CommandParsingTest`, `PlayOnTest`, `TargetsRepositoryTest`; stand-ins `FakeSsapServer` and `FakeAdb`.
+ADR 177: `SteppedPowerWolTest`, `KodiStartTest`, `KodiStartThenPlayTest`, `DevicePowersTest`, `WebOsTvTest`, `PinnedTrustTest`, `WebOsPairingTest`, `TargetDeckPowerOffTest`, `CommandParsingTest`, `PlayOnTest`, `TargetsRepositoryTest`; stand-ins `FakeSsapServer` and `FakeAdb`. Added 2026-11-28 after the real-device run: `SteppedPowerDeferredStepTest`, `ShownOnStepTest`, `CecNudgeTest`, `KodiUnreachableWordsTest`, `TargetDeckVolumeRefusalTest`, and the flapping-check, evidence and CEC tests in `DevicePowersTest`.
 
 Unit (wake, hand back, live, ADR 152 amendments of 2026-11-07): `WakeOnLanTest`, `SteppedPowerWolTest` (was `TvWakeTest`), `WakeThenPlayTest`, `YtDlpLiveHlsTest`, `LiveForSpeakersTest`, `CastWireTest`, `CastControlTest`, `ChromecastPlayerTest`, `TargetDeckTest`, `TargetDeckStartTest`, `TargetDeckVolumeSafetyTest`, `SpeakerVolumeTest`, `MpvPlayerTest` (cli), `TargetRulesTest` (core), `TargetsRepositoryTest`, `TargetChipLabelTest` (app), `server/totum-cli/chromecast_helper_test.py`.
 

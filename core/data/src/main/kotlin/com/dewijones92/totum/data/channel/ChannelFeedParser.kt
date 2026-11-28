@@ -1,6 +1,7 @@
 package com.dewijones92.totum.data.channel
 
 import com.dewijones92.totum.common.HttpUrl
+import com.dewijones92.totum.common.formatViewCount
 import com.dewijones92.totum.common.youTubeChannelUrl
 import com.dewijones92.totum.common.youTubeWatchUrl
 import com.dewijones92.totum.data.xml.childElements
@@ -29,6 +30,10 @@ public object ChannelFeedParser {
         return root.childElements("entry").mapNotNull { it.toItem(channelTitle) }
     }
 
+    private fun Element.views(): Long? =
+        firstChildElement("media:group")?.firstChildElement("media:community")
+            ?.firstChildElement("media:statistics")?.getAttribute("views")?.toLongOrNull()?.takeIf { it >= 0 }
+
     public fun latest(xml: String): MediaItem? = uploads(xml)?.maxByOrNull { it.publishedAt!! }
 
     private fun Element.toItem(channelTitle: String?): MediaItem? {
@@ -52,6 +57,7 @@ public object ChannelFeedParser {
                 ?.getAttribute("url")?.let(HttpUrl::parse),
             mediaUrl = watch,
             sourceUrl = channelUrl,
+            viewsText = views()?.let(::formatViewCount),
         )
     }
 }

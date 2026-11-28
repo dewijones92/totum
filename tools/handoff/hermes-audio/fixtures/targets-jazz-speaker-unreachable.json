@@ -30,7 +30,13 @@
             "startsApp": false,
             "canSwitchOff": false,
             "powerNote": null,
-            "plays": "ANYTHING"
+            "plays": "ANYTHING",
+            "captions": {
+                "on": true,
+                "language": "en",
+                "offered": [],
+                "shown": null
+            }
         },
         {
             "target": {
@@ -41,15 +47,15 @@
             "entries": [
                 {
                     "item": {
-                        "itemId": "Dx5qFachd3A",
+                        "itemId": "station:jazz",
                         "sourceId": "hermes-audio-stations",
                         "title": "Jazz station",
                         "author": null,
                         "thumbnailUrl": null,
-                        "mediaUrl": "https://www.youtube.com/watch?v=Dx5qFachd3A",
-                        "contentKind": "LIVE",
-                        "playbackType": "VIDEO",
-                        "handle": "https://www.youtube.com/watch?v=Dx5qFachd3A",
+                        "mediaUrl": "https://ice1.somafm.com/sonicuniverse-128-mp3",
+                        "contentKind": "MUSIC",
+                        "playbackType": "PODCAST",
+                        "handle": "audio=https://ice1.somafm.com/sonicuniverse-128-mp3",
                         "durationMs": null,
                         "sourceUrl": null,
                         "membersOnly": false,
@@ -70,7 +76,7 @@
             "at": 0,
             "playing": false,
             "positionMs": 1000,
-            "durationMs": null,
+            "durationMs": 60000,
             "volume": null,
             "volumeMode": null,
             "keepAwake": null,
@@ -81,7 +87,7 @@
                 "boost": "OFF"
             },
             "repeat": "OFF",
-            "live": true,
+            "live": false,
             "power": "ON",
             "switchedOnByHand": false,
             "starting": false,
@@ -95,7 +101,13 @@
             "startsApp": false,
             "canSwitchOff": false,
             "powerNote": null,
-            "plays": "ANYTHING"
+            "plays": "ANYTHING",
+            "captions": {
+                "on": true,
+                "language": "en",
+                "offered": [],
+                "shown": null
+            }
         }
     ],
     "browserAddress": null

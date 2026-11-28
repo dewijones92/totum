@@ -1,6 +1,8 @@
 package com.dewijones92.totum.ui.music
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -45,48 +47,48 @@ fun ArtistSongsScreen(container: AppContainer, page: MusicPage.ArtistSongs, onBa
     val tools = rememberListTools("artist songs ${page.label}")
     val everySong = (state as? ArtistSongsViewModel.State.Loaded)?.songs.orEmpty()
     val songs = tools.applyTo(everySong) { it }
-    LazyColumn(Modifier.fillMaxSize()) {
-        item {
-            BackHeader(title = stringResource(R.string.music_all_songs_of, page.artist), onBack = onBack) {
-                ListToolsActions(tools, everySong.size)
-            }
+    Column(Modifier.fillMaxSize()) {
+        BackHeader(title = stringResource(R.string.music_all_songs_of, page.artist), onBack = onBack) {
+            ListToolsActions(tools, everySong.size)
         }
-        when (val current = state) {
-            ArtistSongsViewModel.State.Loading -> item { MusicLoading() }
-            is ArtistSongsViewModel.State.Failed -> item { MusicFailed(viewModel::load) }
-            is ArtistSongsViewModel.State.Loaded -> {
-                item {
-                    val ask = rememberShuffleAsk()
-                    MusicButtons(
-                        listOf(
-                            MusicButton(
-                                R.string.music_play,
-                                Icons.Filled.PlayArrow,
-                                primary = true
-                            ) { viewModel.play() },
-                            MusicButton(R.string.music_shuffle_all_songs, Icons.Filled.Shuffle) {
-                                ask { startAtRandom -> viewModel.shuffle(startAtRandom) }
-                            },
-                        ),
-                    )
-                }
-                listToolsField(tools, songs.size, everySong.size)
-                items(songs, key = { item -> "all:" + item.id.value }) { item ->
-                    MediaItemRow(
-                        item = item,
-                        subtitleLines = rowFacts(item, MediaKind.VIDEO),
-                        pillar = MediaKind.VIDEO,
-                        onPlay = { viewModel.play(fromIndex = current.songs.indexOf(item)) },
-                        onDownload = actions?.let { a -> { a.download(item, audioOnly = true) } },
-                    )
-                }
-                if (current.hasMore) {
+        LazyColumn(Modifier.weight(1f).fillMaxWidth()) {
+            when (val current = state) {
+                ArtistSongsViewModel.State.Loading -> item { MusicLoading() }
+                is ArtistSongsViewModel.State.Failed -> item { MusicFailed(viewModel::load) }
+                is ArtistSongsViewModel.State.Loaded -> {
                     item {
-                        TextButton(
-                            onClick = viewModel::loadMore,
-                            enabled = !current.loadingMore,
-                            modifier = Modifier.padding(horizontal = 8.dp),
-                        ) { Text(stringResource(R.string.music_more_songs)) }
+                        val ask = rememberShuffleAsk()
+                        MusicButtons(
+                            listOf(
+                                MusicButton(
+                                    R.string.music_play,
+                                    Icons.Filled.PlayArrow,
+                                    primary = true
+                                ) { viewModel.play() },
+                                MusicButton(R.string.music_shuffle_all_songs, Icons.Filled.Shuffle) {
+                                    ask { startAtRandom -> viewModel.shuffle(startAtRandom) }
+                                },
+                            ),
+                        )
+                    }
+                    listToolsField(tools, songs.size, everySong.size)
+                    items(songs, key = { item -> "all:" + item.id.value }) { item ->
+                        MediaItemRow(
+                            item = item,
+                            subtitleLines = rowFacts(item, MediaKind.VIDEO),
+                            pillar = MediaKind.VIDEO,
+                            onPlay = { viewModel.play(fromIndex = current.songs.indexOf(item)) },
+                            onDownload = actions?.let { a -> { a.download(item, audioOnly = true) } },
+                        )
+                    }
+                    if (current.hasMore) {
+                        item {
+                            TextButton(
+                                onClick = viewModel::loadMore,
+                                enabled = !current.loadingMore,
+                                modifier = Modifier.padding(horizontal = 8.dp),
+                            ) { Text(stringResource(R.string.music_more_songs)) }
+                        }
                     }
                 }
             }
@@ -109,22 +111,22 @@ fun ArtistReleasesScreen(container: AppContainer, page: MusicPage.ArtistReleases
         date = { it.year?.toLongOrNull() },
         fields = { listOf(it.title, it.artist, it.year) },
     )
-    LazyColumn(Modifier.fillMaxSize()) {
-        item {
-            BackHeader(title = "$title · ${page.artist}", onBack = onBack) {
-                NamedListToolsActions(tools, everyRelease.size, RELEASE_SORTS)
-            }
+    Column(Modifier.fillMaxSize()) {
+        BackHeader(title = "$title · ${page.artist}", onBack = onBack) {
+            NamedListToolsActions(tools, everyRelease.size, RELEASE_SORTS)
         }
-        when (val current = state) {
-            ArtistReleasesViewModel.State.Loading -> item { MusicLoading() }
-            is ArtistReleasesViewModel.State.Failed -> item { MusicFailed(viewModel::load) }
-            is ArtistReleasesViewModel.State.Loaded -> {
-                namedListToolsField(tools, releases.size, current.releases.size)
-                items(releases, key = { it.browseId }) { album ->
-                    AlbumRow(album, onOpen = {
-                        Diag.log("music", "${page.label} -> album ${album.browseId} \"${album.title}\"")
-                        open?.invoke(MusicPage.Album(album.browseId, title = album.title))
-                    })
+        LazyColumn(Modifier.weight(1f).fillMaxWidth()) {
+            when (val current = state) {
+                ArtistReleasesViewModel.State.Loading -> item { MusicLoading() }
+                is ArtistReleasesViewModel.State.Failed -> item { MusicFailed(viewModel::load) }
+                is ArtistReleasesViewModel.State.Loaded -> {
+                    namedListToolsField(tools, releases.size, current.releases.size)
+                    items(releases, key = { it.browseId }) { album ->
+                        AlbumRow(album, onOpen = {
+                            Diag.log("music", "${page.label} -> album ${album.browseId} \"${album.title}\"")
+                            open?.invoke(MusicPage.Album(album.browseId, title = album.title))
+                        })
+                    }
                 }
             }
         }

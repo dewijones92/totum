@@ -2,7 +2,7 @@
 title: Groups say what's new, notify each new video, and live in the Library
 kind: adr
 status: accepted
-updated: 2026-11-20
+updated: 2026-11-27
 ---
 
 # 95. Groups say what's new, notify each new video, and live in the Library
@@ -61,6 +61,19 @@ every member's `joined` to now, so videos published between the opening and that
 missed "ai" group). When a group's state has no `joined` times, `GroupNews.settle` now takes them from the time the
 group was seen. A member added to an older group still gets its first look at the time it joined.
 Tests: `GroupNewsTest` (a video published after the opening is announced; one published before it is not).
+
+## Amended 2026-11-27: notifications judge new by video id, not by when the group was opened
+
+Report 20261124T060317: a video went public at 06:00:27 and Dewi opened the group at 06:01:14. Opening moved `seenAt`
+past it, and the hourly check counted only items newer than `seenAt`, so it was never announced. Now (`GroupNews.settle`)
+an item is announced when its id has not been announced, it was published after its member joined the group (or the group
+was first looked at) and within 48 hours of the check. Opening still clears the 🆕 count and moves `seenAt`, which stays the
+badge's and the markers' clock. Every check logs one `announce check:` line: items read, announced, and the ones not
+announced by reason (already announced, no date, before the group, older than 48 h, notifications off, could not be
+posted). `"group"` is in `Diag.KEPT_TAGS`. A saved state from before this change may announce, once, a missed video under
+48 hours old. Tests: `GroupNewsTest` (a video published 47 s before the opening is announced by a check 54 minutes later,
+once; what was announced is never announced again; a video over two days old is counted, not announced, and the log says
+why). See [ADR 192](0192-one-watch-page-parse-fills-views-everywhere.md).
 
 ## Consequences
 

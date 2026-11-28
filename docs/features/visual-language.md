@@ -3,7 +3,7 @@ title: One visual language across the app
 kind: feature
 status: shipped
 area: ui
-updated: 2026-10-22
+updated: 2026-11-28
 ---
 
 # One visual language
@@ -71,6 +71,7 @@ title**. Before/after screenshots were taken on `totum-api35` in both themes.
 | Shell | Mini player and tabs in ONE floating rounded card; the selected tab is a tangerine pill | `ui/common/Dock.kt` |
 | Tab titles | A big display title opens every tab. The Videos title is the feed you are on | `ui/common/ScreenHeader.kt` |
 | Header actions | Filter, sort and the notifications bell sit in the title row | `FilterToggle`, `SortControl` |
+| Headers on scroll | Scrolling down slides a tab's or page's header away (title, actions, the Queue's device chips and offline banner); any scroll up brings it back; the dock, the progress strip and the Play on row stay; fixed under TalkBack or with animations off ([ADR 198](../adr/0198-a-header-slides-away-on-scrolling-down-and-comes-back-on-scrolling-up.md)) | `ui/common/HeaderScroll.kt`, `TitleAndActions` |
 | Filter field | Hidden behind the ⌕ toggle in every list's header; stays open while it holds text; clearing closes it. Pickers keep it open | `FilterField(hosted = true)` — [list-filter.md](list-filter.md) |
 | Sources | Channels and shows as an avatar strip, one component for both pillars | `SourceAvatarStrip` in `SourceChip.kt` |
 | Play-state filter | Segmented buttons | `MediaFilterChips` |
@@ -130,3 +131,25 @@ Speed or Listen comes and goes.
   which is what Dewi's actually is.
 - ~~**A shared card treatment for every list.**~~ Done in the 2026-09-25 overhaul: the row's own wash
   became the card, so there is still exactly one surface per row rather than two nested ones.
+
+## Headers on scroll (2026-11-28, ADR 198)
+
+Dewi, report 20261128T021751: *"… in some apps when you scroll one direction … all the controls are visible but you scroll the
+other direction … the controls hide so there's more screen space for the items in the list."*
+
+- **One seam:** `HeaderScroll` + `Modifier.scrollsAway()` + `HeaderScrollHost` in `ui/common/HeaderScroll.kt`; `TitleAndActions`
+  and `SourceHeader` apply it, so every `ScreenHeader`, `BackHeader`, the Queue's `ActionsHeader` and the source pages slide away
+  on scrolling down and come back on any scroll up. The Queue's device chips and offline banner are pieces of the same header.
+- **Dragging the header itself** (vertical, past the touch slop) slides it too, so a small screen with a thin strip of list can still be cleared; a tap on a part-hidden header shows it all.
+- **Stays put:** the dock (mini player, a device's bar, tabs), the progress strip and every other banner, the Play on row on the
+  other four tabs, and Search's search field. **Fixed (never hidden):** with TalkBack's touch exploration on or the system
+  animator scale at 0. **A header inside a scrolling page** (Settings, Exsurge, Bedtime, Phone use, Work apps, Alarms, Trip, Kid TV,
+  the Stats pages) scrolls with its page as before.
+- **Headers moved out of their list** (Videos, Podcasts, the Library hub, Downloads, artist, album, playlist and "which artist"
+  pages) so the same slide applies; the header is no longer item 0 of those lists.
+- **Seen on `totum-api35`** (screenshots in `~/claude-tasks/header-hide-shots/`, local only): `before-queue-top.png`,
+  `before-queue-scrolled-down.png`, `before-queue-scrolled-up.png` against `after-1080-queue-top.png`,
+  `after-1080-queue-scrolled-down.png` (header gone, rows from the status bar down), `after-1080-queue-scrolled-up.png` (header
+  part-way back after a short scroll up), the same for Library, `after-320-*` at 320x640@160 and
+  `after-1080-animations-off-*` (header stays fixed).
+- **Still open:** the chip row's other blank (a tall chip off screen) and its options are in the ADR.

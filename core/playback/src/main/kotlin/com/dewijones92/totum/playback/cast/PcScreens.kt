@@ -29,7 +29,7 @@ internal class PcScreens(
 ) {
     private val main = Handler(Looper.getMainLooper())
     private val link = ScreenLink(key, page)
-    private val screen = ScreenPlayer(link, streams::urlFor)
+    private val screen = ScreenPlayer(link, streams::urlForScreen)
     val player: TimeMappedCastPlayer = TimeMappedCastPlayer(screen, streams::timelineFor)
 
     init {

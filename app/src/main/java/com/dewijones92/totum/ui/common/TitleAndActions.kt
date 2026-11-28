@@ -26,21 +26,23 @@ internal fun TitleAndActions(
     titleWidth: Dp,
     modifier: Modifier = Modifier,
     itemAlignment: Alignment.Vertical = Alignment.CenterVertically,
+    scrollsAway: Boolean = true,
     title: @Composable (Modifier) -> Unit,
     actions: @Composable () -> Unit,
+    standardActions: @Composable () -> Unit = {
+        CastingAction()
+        AskAction()
+        SearchAction()
+    },
 ) {
     FlowRow(
         horizontalArrangement = Arrangement.End,
         itemVerticalAlignment = itemAlignment,
-        modifier = modifier.fillMaxWidth(),
+        modifier = (if (scrollsAway) Modifier.scrollsAway() else Modifier).then(modifier).fillMaxWidth(),
     ) {
         title(Modifier.weight(1f).widthIn(min = titleWidth))
         actions()
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            CastingAction()
-            AskAction()
-            SearchAction()
-        }
+        Row(verticalAlignment = Alignment.CenterVertically) { standardActions() }
     }
 }
 

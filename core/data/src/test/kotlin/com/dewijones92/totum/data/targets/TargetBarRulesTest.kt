@@ -25,6 +25,18 @@ class TargetBarRulesTest {
     }
 
     @Test
+    fun `the bar decision says why, with the same four reasons the dock and the lock screen both log`() {
+        val listed = listOf(playingTv(), TargetState(bar))
+
+        assertEquals("LG TV is chosen and has 1 queued, at=0", listed.barDecision("lg-tv").why)
+        assertEquals(tv, listed.barDecision("lg-tv").state?.target)
+        assertEquals("this phone is the chosen device", listed.barDecision(null).why)
+        assertEquals("gone is chosen but the Pi does not list it", listed.barDecision("gone").why)
+        assertEquals("bar is chosen but has nothing playing or queued to show", listed.barDecision("bar").why)
+        assertNull(listed.barDecision("bar").state)
+    }
+
+    @Test
     fun `a device that is on but holds no link is ready, not linked`() {
         assertEquals(TargetConnection.READY, TargetState(tv).connection)
     }

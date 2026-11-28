@@ -1,5 +1,6 @@
 package com.dewijones92.totum.playback
 
+import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
@@ -47,6 +48,7 @@ import com.dewijones92.totum.playback.cast.TimeMappedCastPlayer
 import com.dewijones92.totum.playback.cast.TotumCastConverter
 import com.dewijones92.totum.playback.cast.TotumCastTrackSelector
 import com.dewijones92.totum.playback.cast.cachedHttpFactory
+import com.dewijones92.totum.playback.cast.publicCastRoute
 import com.dewijones92.totum.playback.cast.standInScreen
 import com.google.android.gms.cast.framework.CastContext
 import com.google.common.util.concurrent.Futures
@@ -62,6 +64,9 @@ import com.google.common.util.concurrent.ListenableFuture
 public class PlaybackService : MediaSessionService() {
 
     private var mediaSession: MediaSession? = null
+
+    @UnstableApi
+    private var remoteSession: RemoteSessionController? = null
     private val queueSkip by lazy { QueueSkipButtons(this) }
     private val switchButton by lazy { ListeningSwitchButton(this, queueSkip::buttons) }
 
@@ -130,7 +135,9 @@ public class PlaybackService : MediaSessionService() {
             ::triggerNotificationUpdate,
         ) { mediaSession?.player?.currentMediaItem?.mediaId }
         notificationProvider = contextual
-        setMediaNotificationProvider(RefusalTolerantNotificationProvider(contextual))
+        setMediaNotificationProvider(
+            RefusalTolerantNotificationProvider(RemoteTintedNotificationProvider(this, contextual)),
+        )
         // A custom audio sink whose processor chain carries the silence skipper
         // (Sonic stays for speed/pitch); skipping is off until the user turns it on.
         silenceCutter.speechWeights = { BundledSpeechModel.get() }
@@ -181,18 +188,16 @@ public class PlaybackService : MediaSessionService() {
                 }
 
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
-                    foregroundHold.playing(isPlaying)
-                    releaseCheck.removeCallbacksAndMessages(null)
-                    if (!isPlaying) {
-                        releaseCheck.postDelayed(
-                            { triggerNotificationUpdate() },
-                            foregroundHold.msUntilRelease() + RELEASE_CHECK_SLACK_MS,
-                        )
-                    }
+                    holdForeground(isPlaying)
                     Diag.log(
                         "playback",
                         "service ${if (isPlaying) "playing" else "not playing"}; in the foreground=$inForeground",
                     )
+                    reassessCards("the phone ${if (isPlaying) "started" else "stopped"} playing")
+                }
+
+                override fun onPlaybackStateChanged(playbackState: Int) {
+                    reassessCards("the phone's playback state is $playbackState")
                 }
             },
         )
@@ -202,16 +207,24 @@ public class PlaybackService : MediaSessionService() {
         setUpCast(player)
         pictureWatch.start()
         mediaSession = MediaSession.Builder(this, currentPlayer ?: player)
-            .setBitmapLoader(
-                DataSourceBitmapLoader.Builder(this)
-                    .setDataSourceFactory(homeServerAware(DefaultDataSource.Factory(this)))
-                    .build(),
-            )
+            .setBitmapLoader(bitmapLoader())
             .setCallback(SkipSilenceCallback())
             .setMediaButtonPreferences(queueSkip.buttons())
             .apply { openAppIntent()?.let { setSessionActivity(it) } }
             .build()
+        remoteSession = RemoteSessionController(
+            service = this,
+            bitmapLoader = ::bitmapLoader,
+            openApp = ::openAppIntent,
+            playingChanged = ::holdForeground,
+            changed = ::reassessCards,
+        ).also { it.start() }
     }
+
+    @UnstableApi
+    private fun bitmapLoader() = DataSourceBitmapLoader.Builder(this)
+        .setDataSourceFactory(homeServerAware(DefaultDataSource.Factory(this)))
+        .build()
 
     /**
      * The one factory, shared by the player and the preloader.
@@ -463,6 +476,7 @@ public class PlaybackService : MediaSessionService() {
             host = host,
             tvs = castStatus,
             refusals = CodecRefusals(PrefsRefusalStore(this)),
+            publicRoute = publicCastRoute(),
         )
         castStreams = streams
         screens = screensFor(streams, localPlayer)
@@ -667,7 +681,13 @@ public class PlaybackService : MediaSessionService() {
         )
     }
 
-    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = mediaSession
+    @UnstableApi
+    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? =
+        if (controllerInfo.connectionHints.getBoolean(RemoteSessionHost.HINT_REMOTE_SESSION)) {
+            remoteSession?.session
+        } else {
+            mediaSession
+        }
 
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
@@ -687,9 +707,75 @@ public class PlaybackService : MediaSessionService() {
     private val releaseCheck = Handler(Looper.getMainLooper())
 
     @UnstableApi
+    private fun holdForeground(isPlaying: Boolean) {
+        foregroundHold.playing(isPlaying)
+        releaseCheck.removeCallbacksAndMessages(null)
+        if (!isPlaying) {
+            releaseCheck.postDelayed(
+                { triggerNotificationUpdate() },
+                foregroundHold.msUntilRelease() + RELEASE_CHECK_SLACK_MS,
+            )
+        }
+    }
+
+    @UnstableApi
     private val pictureWatch = PictureWatch({ player }, { currentPlayer })
 
+    private var shownCard = Card.PHONE
+    private val cardCleanup = Handler(Looper.getMainLooper())
+
+    @UnstableApi
+    private fun cardInputs(): CardInputs {
+        val phone = mediaSession?.player
+        val phoneLive = phone != null && phone.currentMediaItem != null && phone.playbackState != Player.STATE_IDLE
+        return CardInputs(
+            deviceShown = remoteSession?.session != null,
+            devicePlaying = remoteSession?.playing == true,
+            phoneHasItem = phoneLive,
+            phonePlaying = phoneLive && phone?.playWhenReady == true && phone.playbackState != Player.STATE_ENDED,
+        )
+    }
+
+    @UnstableApi
+    private fun reassessCards(reason: String) {
+        val inputs = cardInputs()
+        val choice = NotificationCards.choose(inputs)
+        if (choice.card == shownCard) return
+        Diag.log(
+            "playback",
+            "dewidebug the notification card moves from the $shownCard to the ${choice.card} because ${choice.why} " +
+                "[$reason; $inputs]",
+        )
+        shownCard = choice.card
+        triggerNotificationUpdate()
+    }
+
+    @UnstableApi
+    private fun withdrawCard(card: Card, why: String) {
+        val id = NotificationCards.notificationIdOf(card)
+        val manager = getSystemService(NotificationManager::class.java)
+        CARD_CLEANUP_DELAYS_MS.forEach { delay ->
+            cardCleanup.postDelayed(
+                {
+                    val stillLoses = !NotificationCards.choose(cardInputs()).shows(card)
+                    if (stillLoses && manager.activeNotifications.any { it.id == id }) {
+                        manager.cancel(id)
+                        Diag.log("playback", "dewidebug removed the $card card (notification $id): $why")
+                    }
+                },
+                delay,
+            )
+        }
+    }
+
+    @UnstableApi
     override fun onUpdateNotification(session: MediaSession, startInForegroundRequired: Boolean) {
+        val mine = NotificationCards.cardOf(session.id)
+        val choice = NotificationCards.choose(cardInputs())
+        if (!choice.shows(mine)) {
+            withdrawCard(mine, choice.why)
+            return
+        }
         val player = session.player
         super.onUpdateNotification(
             session,
@@ -699,6 +785,7 @@ public class PlaybackService : MediaSessionService() {
                 stopped = player.playbackState == Player.STATE_IDLE,
             ),
         )
+        if (cardInputs().deviceShown) withdrawCard(if (mine == Card.DEVICE) Card.PHONE else Card.DEVICE, choice.why)
     }
 
     @UnstableApi
@@ -706,6 +793,9 @@ public class PlaybackService : MediaSessionService() {
         releaseCheck.removeCallbacksAndMessages(null)
         handoffTick.removeCallbacksAndMessages(null)
         silentTail.stop()
+        cardCleanup.removeCallbacksAndMessages(null)
+        remoteSession?.stop()
+        remoteSession = null
         mediaSession?.release()
         player?.release()
         pictureWatch.stop()
@@ -724,6 +814,7 @@ public class PlaybackService : MediaSessionService() {
     private companion object {
         const val FOREGROUND_AFTER_STOP_MS = 2 * 60 * 60 * 1_000L
         const val RELEASE_CHECK_SLACK_MS = 1_000L
+        val CARD_CLEANUP_DELAYS_MS = longArrayOf(0L, 1_500L, 5_000L)
         const val HANDOFF_TICK_MS = 5_000L
         val TV_MOVED_ON = setOf(
             Player.MEDIA_ITEM_TRANSITION_REASON_AUTO,

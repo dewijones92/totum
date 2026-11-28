@@ -52,6 +52,7 @@ internal data class GroupHeaderModel(
     val playing: Boolean = false,
     val downloading: Boolean = true,
     val timeLeft: TimeLeft? = null,
+    val liveRadio: Boolean = false,
 ) {
     val endless: Boolean get() = groupId.startsWith(RADIO_GROUP_PREFIX)
     val discover: Boolean get() = groupId.startsWith(DISCOVER_GROUP_PREFIX)
@@ -190,7 +191,12 @@ private fun GroupTitle(model: GroupHeaderModel, modifier: Modifier) {
         if (model.endless) {
             Text(
                 text = stringResource(
-                    if (model.discover) R.string.queue_group_discover else R.string.queue_group_endless
+                    when {
+                        model.discover && model.liveRadio -> R.string.queue_group_discover
+                        model.discover -> R.string.queue_group_discover_idle
+                        model.liveRadio -> R.string.queue_group_endless
+                        else -> R.string.queue_group_radio_idle
+                    }
                 ),
                 style = MaterialTheme.typography.bodySmall,
                 color = groupInk(model, muted = true),

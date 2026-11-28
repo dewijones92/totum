@@ -44,6 +44,7 @@ import com.dewijones92.totum.innertube.player.SignatureSolver
 import com.dewijones92.totum.playback.cast.CastItem
 import com.dewijones92.totum.playback.cast.CastRung
 import com.dewijones92.totum.playback.cast.LocalManifests
+import com.dewijones92.totum.playback.cast.TvSubtitles
 import com.dewijones92.totum.polite.Politeness
 import com.dewijones92.totum.video.EmbeddedPlayer
 import com.dewijones92.totum.video.FileLookupStore
@@ -283,6 +284,12 @@ internal class HomeDownloads(
         }
         val rewrite = { url: String -> rewrites.apply(url) }
         val video = rewrite(chosen.videoUrl.value)
+        val subtitles = TvSubtitles.from(resolved.subtitles)
+        Diag.log(
+            "targets",
+            "$id: ${resolved.subtitles.size} caption track(s) found, ${subtitles.size} the TV can read " +
+                "[${subtitles.joinToString { it.language ?: "?" }}]",
+        )
         val wait = YoungStreamUrl.retryDelayMs(video, System.currentTimeMillis(), errorCount = 1)
         Diag.log(
             "targets",
@@ -297,6 +304,7 @@ internal class HomeDownloads(
             listening = false,
             ladder = pairs.map { CastRung(rewrite(it.videoUrl.value), it.height, it.codec) },
             durationMs = item.item.duration?.inWholeMilliseconds,
+            subtitles = subtitles,
         )
     }
 

@@ -23,6 +23,23 @@ class ChannelFeedParserTest {
     }
 
     @Test
+    fun `the feed's own view counts are read, each entry its own`() {
+        val views = checkNotNull(ChannelFeedParser.uploads(realFeed)).associate { it.id.value to it.viewsText }
+
+        assertEquals("110.9K views", views.getValue("giTmBaNGaHw"))
+        assertEquals(setOf("110.9K views", "564.8K views", "489.6K views"), views.values.toSet())
+    }
+
+    @Test
+    fun `an entry whose statistics are absent or unreadable has no views, not zero`() {
+        val withoutStats = realFeed.replace(Regex("<media:statistics[^>]*/>"), "")
+        val garbled = realFeed.replace("views=\"110922\"", "views=\"lots\"")
+
+        assertEquals(listOf<String?>(null, null, null), ChannelFeedParser.uploads(withoutStats)?.map { it.viewsText })
+        assertNull(ChannelFeedParser.uploads(garbled)?.first { it.id.value == "giTmBaNGaHw" }?.viewsText)
+    }
+
+    @Test
     fun `every entry is read, not just the first`() {
         assertEquals(3, ChannelFeedParser.uploads(realFeed)?.size)
     }

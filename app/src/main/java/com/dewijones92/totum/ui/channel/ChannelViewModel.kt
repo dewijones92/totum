@@ -77,6 +77,7 @@ class ChannelViewModel(
         val innerTube: YouTubeChannel,
         val fallback: ChannelRepository,
         val accountProgress: suspend (MediaSource.VideoChannel) -> Unit,
+        val streamsListed: suspend (List<MediaItem>) -> Unit = {},
     )
 
     enum class Tab { VIDEOS, SHORTS, LIVE, PLAYLISTS, SEARCH }
@@ -423,6 +424,7 @@ class ChannelViewModel(
         reload(liveTab, refreshing, "InnerTube") {
             when (val r = reader.innerTube.streams(id)) {
                 is ChannelVideos.Success -> r.page.map { it.toMediaItem(source.id) }.listedHere().also {
+                    reader.streamsListed(it.items)
                     val verdict = if (it.items.isEmpty()) "hidden, no streams" else "shown, ${it.items.size} stream(s)"
                     Diag.log("channel", "dewidebug \"${source.title}\" Live tab $verdict (more=${it.hasMore})")
                 }
@@ -456,7 +458,9 @@ class ChannelViewModel(
         when (content.value.tab) {
             Tab.VIDEOS -> pageMore(videosTab) { after -> videoPage(reader.innerTube.videos(id, after)) }
             Tab.SHORTS -> pageMore(shortsTab) { after -> videoPage(reader.innerTube.shorts(id, after)) }
-            Tab.LIVE -> pageMore(liveTab) { after -> videoPage(reader.innerTube.streams(id, after)) }
+            Tab.LIVE -> pageMore(liveTab) { after ->
+                videoPage(reader.innerTube.streams(id, after))?.also { reader.streamsListed(it.items) }
+            }
             Tab.PLAYLISTS -> pageMore(playlistsTab) { after ->
                 (reader.innerTube.playlists(id, after) as? ChannelPlaylists.Success)?.page
             }
@@ -535,6 +539,9 @@ class ChannelViewModel(
                             container.youTubeChannel,
                             container.channelRepository,
                             ChannelAccountProgress(container.youTubeFeeds)::read,
+                            streamsListed = { items ->
+                                container.longOnes?.noteLiveStreams(items.map { it.id.value }, "Live tab")
+                            },
                         ),
                         queue = container.playbackQueue,
                         accountSubscriptions = container.accountSubscriptions,

@@ -2,6 +2,7 @@ package com.dewijones92.totum.queue
 
 import com.dewijones92.totum.data.queue.QueueEntry
 import com.dewijones92.totum.data.queue.QueueSnapshot
+import com.dewijones92.totum.data.queue.placingNext
 
 internal data class QueueBlock(val groupId: String?, val entries: List<QueueEntry>)
 
@@ -58,14 +59,13 @@ internal fun QueueSnapshot.movingGroup(groupId: String, destination: GroupDestin
         else -> entries.filter { it.group?.id == groupId }
     }
     if (moving.isEmpty()) return this
+    if (destination == GroupDestination.NEXT) {
+        return placingNext(moving.mapTo(HashSet()) { it.item.item.id }, moving)
+    }
     val others = entries.filterNot { it in moving }
     val reordered = when (destination) {
         GroupDestination.TOP -> moving + others
-        GroupDestination.BOTTOM -> others + moving
-        GroupDestination.NEXT -> {
-            val at = current?.let { others.indexOf(it) + 1 } ?: 0
-            others.take(at) + moving + others.drop(at)
-        }
+        GroupDestination.BOTTOM, GroupDestination.NEXT -> others + moving
     }
     return rebuiltFrom(reordered)
 }

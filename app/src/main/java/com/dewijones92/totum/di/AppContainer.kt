@@ -130,9 +130,13 @@ import com.dewijones92.totum.diagnostics.DiagnosticsUploader
 import com.dewijones92.totum.diagnostics.EncodedScreenshot
 import com.dewijones92.totum.diagnostics.HomeReports
 import com.dewijones92.totum.diagnostics.InstallId
+import com.dewijones92.totum.diagnostics.ReportFate
 import com.dewijones92.totum.diagnostics.ReportSink
+import com.dewijones92.totum.diagnostics.ReportSubmitter
 import com.dewijones92.totum.diagnostics.StateDumpSource
 import com.dewijones92.totum.diagnostics.UploaderHomeReports
+import com.dewijones92.totum.diagnostics.announceReport
+import com.dewijones92.totum.diagnostics.fate
 import com.dewijones92.totum.diagnostics.featureDiagnostics
 import com.dewijones92.totum.diagnostics.installAndroidLogSink
 import com.dewijones92.totum.diagnostics.installFlightRecorder
@@ -276,6 +280,7 @@ import com.dewijones92.totum.playback.Chosen
 import com.dewijones92.totum.playback.ExploreMode
 import com.dewijones92.totum.playback.MeteredAudioSwitch
 import com.dewijones92.totum.playback.NextUpPrefetcher
+import com.dewijones92.totum.playback.PlayRoutes
 import com.dewijones92.totum.playback.PlaybackController
 import com.dewijones92.totum.playback.PlaybackProgressStore
 import com.dewijones92.totum.playback.PlaybackSpeedStore
@@ -283,6 +288,7 @@ import com.dewijones92.totum.playback.PlaybackTee
 import com.dewijones92.totum.playback.SharedPrefsPlaybackSpeedStore
 import com.dewijones92.totum.playback.SleepTimer
 import com.dewijones92.totum.playback.StallWatchdog
+import com.dewijones92.totum.playback.StreamHold
 import com.dewijones92.totum.playback.activeModesFor
 import com.dewijones92.totum.playback.cast.LocalManifests
 import com.dewijones92.totum.playback.exploreModeFor
@@ -293,6 +299,7 @@ import com.dewijones92.totum.playback.startPlaybackContext
 import com.dewijones92.totum.playback.startStreamRecovery
 import com.dewijones92.totum.polite.Politeness
 import com.dewijones92.totum.polite.PrefsVisitorIdStore
+import com.dewijones92.totum.queue.BesideStream
 import com.dewijones92.totum.queue.GroupDownloads
 import com.dewijones92.totum.queue.ListeningSwitcher
 import com.dewijones92.totum.queue.MetadataLookups
@@ -312,6 +319,7 @@ import com.dewijones92.totum.queue.passOverReason
 import com.dewijones92.totum.queue.playFromTheTop
 import com.dewijones92.totum.queue.repeatGroupAfter
 import com.dewijones92.totum.queue.startSharedMetadataRepair
+import com.dewijones92.totum.queue.streamHolds
 import com.dewijones92.totum.recorder.RecorderChoiceStore
 import com.dewijones92.totum.recorder.RecorderDiagnostics
 import com.dewijones92.totum.recorder.withRecorderChoices
@@ -339,6 +347,9 @@ import com.dewijones92.totum.targets.RequesterIdentity
 import com.dewijones92.totum.targets.SendToTarget
 import com.dewijones92.totum.targets.TargetsRepository
 import com.dewijones92.totum.targets.withPlayOn
+import com.dewijones92.totum.treat.Treat
+import com.dewijones92.totum.treat.treatFor
+import com.dewijones92.totum.treat.withTreat
 import com.dewijones92.totum.trip.TripMode
 import com.dewijones92.totum.trip.tripModeFor
 import com.dewijones92.totum.ui.ask.AskLatest
@@ -365,6 +376,8 @@ import com.dewijones92.totum.video.InnerTubePlayerStreams
 import com.dewijones92.totum.video.LiveStates
 import com.dewijones92.totum.video.LiveStreamManifest
 import com.dewijones92.totum.video.PlatformVideoCodecSupport
+import com.dewijones92.totum.video.PlayedByHandReporter
+import com.dewijones92.totum.video.PlayedStateRepair
 import com.dewijones92.totum.video.ProgressOutboxDrain
 import com.dewijones92.totum.video.ReadyAhead
 import com.dewijones92.totum.video.ResolveHandOver
@@ -480,6 +493,7 @@ interface AppContainer {
     val pendingDownloadDeletes: PendingDownloadDeletes? get() = null
     val kidLock: KidLock
     val kidTv: KidTv? get() = null
+    val treat: Treat? get() = null
     val tripMode: TripMode? get() = null
     val longOnes: LongOnes? get() = null
     val downloadChooser: DownloadChooser
@@ -543,7 +557,13 @@ interface AppContainer {
      * Captures the app's current state and event trail and sends it, with no crash
      * involved — for "this behaved wrongly", which is how most bugs actually present.
      */
-    fun sendDiagnostics(note: String, screenshots: List<EncodedScreenshot> = emptyList())
+    fun sendDiagnostics(
+        note: String,
+        screenshots: List<EncodedScreenshot> = emptyList(),
+        onDone: (ReportFate) -> Unit = {},
+    )
+
+    val reportSubmitter: ReportSubmitter
 
     val homeReports: HomeReports
 
@@ -837,8 +857,35 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     }
 
     private val accountProgressStore: AccountPlaybackProgressStore by lazy {
-        AccountPlaybackProgressStore(playbackProgressStore, accountResumePositions)
+        AccountPlaybackProgressStore(playbackProgressStore, accountResumePositions, playedByHand)
     }
+
+    private val playedByHand: PlayedByHandReporter by lazy {
+        PlayedByHandReporter(
+            outbox = accountProgressOutbox,
+            drain = progressOutboxDrain,
+            durationOf = { id ->
+                playbackProgressStore.durationMs(id) ?: accountResumePositions.knownDurationMs(id)
+            },
+            accountHolds = accountResumePositions::knows,
+            held = ::reportsHeld,
+        )
+    }
+
+    private val playedStateRepair: PlayedStateRepair by lazy {
+        PlayedStateRepair(
+            watched = accountResumePositions.watched,
+            states = { localPlayStatesNow.value },
+            outbox = accountProgressOutbox,
+            drain = progressOutboxDrain,
+            reconciled = reconciledAccountProgress,
+            scope = applicationScope,
+            held = ::reportsHeld,
+        )
+    }
+
+    private fun reportsHeld(): Boolean =
+        context.getSharedPreferences(TEST_HOLDS_PREFS, Context.MODE_PRIVATE).getBoolean(HOLD_YOUTUBE_REPORTS, false)
 
     override val progressByHand: PlaybackProgressStore get() = accountProgressStore
 
@@ -1131,7 +1178,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                 pinStore
             ).withRecent(recentActions).withNotForMe(notForMe).withBedtime(bedtime).withWorkApps(workApps)
                 .withDailyAlarms(dailyAlarms).withRecorderChoices(RecorderChoiceStore(context))
-                .withKidTv(kidTv).withPhoneUse(phoneUse).withPlayOn { targets },
+                .withKidTv(kidTv).withTreat(treat).withPhoneUse(phoneUse).withPlayOn { targets },
             appVersion = BuildConfig.VERSION_NAME,
             extras = BackupService.Extras(
                 groups = sourceGroupStore,
@@ -1161,6 +1208,8 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     override val kidLock: KidLock = KidLock()
 
     override val kidTv: KidTv by lazy { kidTvFor(this, context) }
+
+    override val treat: Treat by lazy { treatFor(this, context) }
 
     override val tripMode: TripMode by lazy { tripModeFor(this, context) }
 
@@ -1556,12 +1605,13 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                 accountSync = { progressOutboxDrain.status.value to accountReportValues.pendingUpdates() },
                 reconciledAccountProgress = accountReportValues::actedOn,
                 stuckAccountUpdates = accountReportValues::stuckUpdates,
+                refusedAccountVideos = progressOutboxDrain::refusedVideos,
                 isMetered = networkStatus::isMetered,
                 exsurge = {
                     exsurge.diagnostics + ExsurgeLiveUpdate.diagnostics(context) + dailyAlarms.diagnostics +
                         workApps.diagnostics + bedtime.diagnostics + phoneUse.diagnostics +
                         RecorderDiagnostics.values(context) +
-                        listCounts() + kidTv.diagnostics + tripMode.diagnostics
+                        listCounts() + kidTv.diagnostics + treat.diagnostics + tripMode.diagnostics
                 },
                 appUpdate = { appUpdate.diagnostics() + appInstaller.diagnostics() + whatsNew.diagnostics() },
                 polite = { polite.diagnostics() + ("explore.on" to exploreMode.on.value.toString()) },
@@ -1571,6 +1621,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                 repeat = ::repeatNow,
                 modes = { activeModes.value },
                 liveStreams = liveStates::diagnostics,
+                radio = { mapOf("radio.live" to musicRadio.liveSummary()) },
                 features = {
                     featureDiagnostics(
                         morning = aiFeatures.morningStore.state.value,
@@ -1615,13 +1666,24 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
 
     override val homeReports: HomeReports by lazy { UploaderHomeReports(diagnosticsUploader, stateDumps) }
 
-    override fun sendDiagnostics(note: String, screenshots: List<EncodedScreenshot>) =
-        sendDiagnostics(crashReporter, diagnosticsUploader, note, screenshots)
+    override fun sendDiagnostics(note: String, screenshots: List<EncodedScreenshot>, onDone: (ReportFate) -> Unit) =
+        sendDiagnostics(crashReporter, diagnosticsUploader, note, screenshots, onDone)
+
+    override val reportSubmitter: ReportSubmitter by lazy {
+        ReportSubmitter(
+            scope = applicationScope,
+            send = this::sendDiagnostics,
+            operations = operations,
+            subject = context.getString(R.string.send_report_working),
+            announce = { fate -> announceReport(context, fate) },
+        )
+    }
 
     override fun startQueueAutoDownload() {
         followSkipRequests(this, context)
         announceScreens(this, httpClient, context)
         followLiveStarts(this, context)
+        treat.resume()
         liveRefresher.start()
         screenReadiness = startScreenReady(context) { playbackController.refreshScreenPage() }
         startDriveBackups(this)
@@ -1680,6 +1742,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
                     if (here) "$reason here" else "$reason on YouTube"
                 }
             },
+            liveRadioGroup = { musicRadio.activeGroupId },
             repeatOneOffForRun = RepeatOneRule(
                 chosen = { appPreferences.settings.value.repeatMode },
                 kidLocked = { kidLock.modeOn.value },
@@ -1687,6 +1750,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
             )::switchOffForRunOf,
             shield = aiFeatures.spoilerShield,
             openExternally = { item, url -> externalOpener.open(url, item.item.title) },
+            markPlayed = { id -> progressByHand.setPlayed(id, played = true) },
             seriesRun = { item -> jellyfin?.seriesRunOf(item) },
         ).also { it.destination = targets }
     }
@@ -1951,9 +2015,13 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     }
 
     private val watchHistorySync: WatchHistorySync by lazy {
-        WatchHistorySync(playbackController, accountProgressOutbox, progressOutboxDrain, applicationScope, held = {
-            context.getSharedPreferences(TEST_HOLDS_PREFS, Context.MODE_PRIVATE).getBoolean(HOLD_YOUTUBE_REPORTS, false)
-        })
+        WatchHistorySync(
+            playbackController,
+            accountProgressOutbox,
+            progressOutboxDrain,
+            applicationScope,
+            held = ::reportsHeld,
+        )
     }
 
     /** Everything the account side of a report reads, kept in memory — see the class. */
@@ -1963,6 +2031,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
 
     override fun startWatchHistorySync() {
         watchHistorySync.start()
+        playedStateRepair.start()
         accountReportValues.start(applicationScope)
         // Whatever the last run could not send goes first; then again whenever the network comes
         // back, which is the moment offline listening can finally be reported. Sampled rather than
@@ -2396,6 +2465,12 @@ private fun startQueueAutoDownloader(c: DefaultAppContainer) {
             PlayerSpot(it.positionMs, it.durationMs, playing = it.wantsToPlay && !it.hasEnded)
         }
     }
+    val holds = streamHolds(
+        c.playbackQueue.streamingNow,
+        PlaybackTee.teeableNow,
+        PlayRoutes.changes,
+        PlayRoutes::of,
+    )
     QueueAutoDownloader(
         queue = c.playbackQueue.state,
         downloads = c.downloadManager,
@@ -2411,9 +2486,10 @@ private fun startQueueAutoDownloader(c: DefaultAppContainer) {
         // arose — a Ms Rachel video 52 minutes in, first in a 47-item queue, with no download
         // event at all while the pass ground through a 403ing podcast ahead of it.
         playingNow = { c.playbackQueue.nowPlaying.value?.item?.id },
-        heldWhileStreaming = combine(c.playbackQueue.streamingNow, PlaybackTee.teeableNow) { streaming, teeable ->
-            streaming?.takeUnless { it.value in teeable }
-        }.distinctUntilChanged(),
+        heldWhileStreaming = holds.map { (it as? StreamHold.Hold)?.id?.let(::MediaItemId) }.distinctUntilChanged(),
+        besideItsStream = holds.map { (it as? StreamHold.Beside)?.let { b -> BesideStream(MediaItemId(b.id), b.why) } }
+            .distinctUntilChanged(),
+        whyNotTeeable = { PlaybackTee.whyNotTeeable(it.value) },
         groupAllows = c.groupDownloads::allows,
         atHome = { c.homeDownloads.atHome(it) != null },
         groupChoicesChanged = c.groupDownloads.choices,
@@ -2450,13 +2526,17 @@ private fun sendDiagnostics(
     uploader: DiagnosticsUploader,
     note: String,
     screenshots: List<EncodedScreenshot>,
+    onDone: (ReportFate) -> Unit,
 ) {
-    reporter.reportDiagnostics(note, screenshots)
+    if (reporter.reportDiagnostics(note, screenshots) == null) {
+        Diag.warn("diagnostics", "dewidebug the report could not be written, so there is nothing to send")
+        return onDone(ReportFate.NotWritten)
+    }
     // `sendDiagnosticsNow`, not `uploadPending`: somebody tapped a button, so the EMULATOR
     // suppression does not apply — an emulator is where this app gets debugged, and a button
     // that silently did nothing while the UI said so would be worse than the noise it avoided.
     // A test run is still suppressed either way; the flood came through this exact path.
-    uploader.sendDiagnosticsNow()
+    uploader.sendDiagnosticsNow { outcome -> onDone(outcome.fate()) }
 }
 
 private const val TEST_HOLDS_PREFS = "totum_test_holds"

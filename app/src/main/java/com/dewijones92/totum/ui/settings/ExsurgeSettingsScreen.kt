@@ -84,7 +84,7 @@ fun ExsurgeSettingsScreen(exsurge: ExsurgeController, onBack: () -> Unit, modifi
     }
     Surface(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-            BackHeader(stringResource(R.string.exsurge_name), onBack)
+            BackHeader(stringResource(R.string.exsurge_name), onBack, scrollsAway = false)
             Text(
                 stringResource(R.string.exsurge_motto),
                 style = MaterialTheme.typography.bodyMedium,

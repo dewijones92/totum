@@ -3,13 +3,14 @@ package com.dewijones92.totum.playback.cast
 import android.content.Context
 import androidx.annotation.OptIn
 import androidx.media3.common.MediaItem
-import androidx.media3.common.MimeTypes
 import androidx.media3.common.util.UnstableApi
+import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.playback.BoostingAudioProcessor
 import com.dewijones92.totum.playback.EXTRA_AUDIO_ONLY
 import com.dewijones92.totum.playback.EXTRA_AUDIO_URL
 import com.dewijones92.totum.playback.EXTRA_SKIP_SILENCE
 import com.dewijones92.totum.playback.EXTRA_VIDEO_LADDER
+import com.dewijones92.totum.playback.PlaybackCache
 import com.dewijones92.totum.playback.SilenceCuttingAudioProcessor
 import com.dewijones92.totum.playback.SpeechGate
 import com.dewijones92.totum.playback.VolumeBoost
@@ -26,7 +27,11 @@ internal class CastStreams(
     host: CastHost,
     tvs: CastTvPort,
     refusals: CodecRefusals = CodecRefusals(),
+    private val publicRoute: PublicCastRoute? = null,
 ) {
+    private val boostNow = boost
+    private val tvPort = tvs
+
     private val server = CastStreamServer(
         engines = { request ->
             MediaCodecAudioEngine(
@@ -43,7 +48,13 @@ internal class CastStreams(
         host = host,
         tvs = tvs,
         tools = context.castTools(),
-        upstream = PatientUpstream(CachedUpstream(cachedHttpFactory(context))::get)::get,
+        upstream = PatientUpstream(
+            CachedUpstream(
+                factory = cachedHttpFactory(context),
+                direct = directHttpFactory(context),
+                heldFrom = { url, position -> PlaybackCache.heldFrom(context, url, position) },
+            )::get,
+        )::get,
         refusals = refusals,
     )
 
@@ -72,7 +83,41 @@ internal class CastStreams(
         return server.urlFor(item.toCastItem(uri))
     }
 
-    fun stopAll() = server.stopAll()
+    fun urlForChromecast(item: MediaItem): String? {
+        val uri = item.localConfiguration?.uri?.toString() ?: return null
+        return publicRoute.routedStream(
+            item.toCastItem(uri),
+            tvPort.current()?.screen?.model,
+            boostNow().name,
+            PublicCastAudience.CHROMECAST,
+            onPublic = { releasePhoneServing(item.mediaId, PublicCastAudience.CHROMECAST) },
+        ) { urlFor(item) }?.url
+    }
+
+    fun urlForScreen(item: MediaItem): RoutedStream? {
+        val uri = item.localConfiguration?.uri?.toString() ?: return null
+        return publicRoute.routedStream(
+            item.toCastItem(uri),
+            model = null,
+            boost = boostNow().name,
+            audience = PublicCastAudience.PC_BROWSER,
+            onPublic = { releasePhoneServing(item.mediaId, PublicCastAudience.PC_BROWSER) },
+        ) { urlFor(item) }
+    }
+
+    private fun releasePhoneServing(mediaId: String, audience: PublicCastAudience) {
+        Diag.log(
+            "cast-out",
+            "dewidebug $mediaId: the ${audience.name} audience takes the home server's route, so the phone's own " +
+                "serving of it (and its silence timeline) is released",
+        )
+        server.release(mediaId)
+    }
+
+    fun stopAll() {
+        server.stopAll()
+        publicRoute?.endAll()
+    }
 
     companion object {
         const val PORT: Int = CastStreamServer.DEFAULT_PORT
@@ -90,7 +135,7 @@ private fun MediaItem.toCastItem(uri: String): CastItem {
         ladder = ladderIn(extras),
         durationMs = mediaMetadata.durationMs,
         subtitles = localConfiguration?.subtitleConfigurations.orEmpty()
-            .filter { it.mimeType == MimeTypes.TEXT_VTT || it.mimeType == MimeTypes.APPLICATION_SUBRIP }
+            .filter { TvSubtitles.carries(it.mimeType) }
             .map { CastSubtitleSource(it.uri.toString(), it.language, it.label?.toString()) },
     )
 }

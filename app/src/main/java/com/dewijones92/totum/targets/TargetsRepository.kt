@@ -30,6 +30,7 @@ import com.dewijones92.totum.operations.OperationEnd
 import com.dewijones92.totum.operations.OperationKind
 import com.dewijones92.totum.operations.Operations
 import com.dewijones92.totum.playback.SleepFade
+import com.dewijones92.totum.playback.cast.HomeLan
 import com.dewijones92.totum.queue.QueueDestination
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
@@ -43,6 +44,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration
+
+enum class Polled { READ, FAILED, FRESH_ENOUGH }
 
 @Suppress("TooManyFunctions")
 class TargetsRepository(
@@ -58,6 +61,7 @@ class TargetsRepository(
     private val unmetered: () -> Boolean = { true },
     private val resumePointMs: suspend (MediaItemId) -> Long? = { null },
     private val handOver: (PlayableItem) -> HandedResolve? = { null },
+    private val nowMs: () -> Long = { System.nanoTime() / NANOS_PER_MILLI },
 ) : QueueDestination {
 
     val available: Boolean get() = client != null
@@ -162,8 +166,17 @@ class TargetsRepository(
         Diag.log("targets", "$id recoloured to ${colour.toString(HEX)}")
     }
 
+    private var lastReadAtMs: Long? = null
+
+    suspend fun refreshIfOlderThan(maxAgeMs: Long, why: String): Polled {
+        val age = lastReadAtMs?.let { nowMs() - it }
+        if (age != null && age < maxAgeMs) return Polled.FRESH_ENOUGH
+        return if (refresh(why)) Polled.READ else Polled.FAILED
+    }
+
     suspend fun refresh(why: String): Boolean {
         val home = client ?: return false
+        lastReadAtMs = nowMs()
         return when (val answer = home.targets()) {
             is HomeAnswer.No -> {
                 trouble.value = describe(answer)
@@ -410,7 +423,7 @@ class TargetsRepository(
         var state = accepted
         if (state.starting) {
             progress?.report(starting = true)
-            state = awaitStart(play) ?: return fallBack(play, STOPPED_ANSWERING, removeFromPi = true)
+            state = awaitStart(play.id, play.label) ?: return fallBack(play, STOPPED_ANSWERING, removeFromPi = true)
             progress?.report(starting = false)
         }
         val asked = play.items.mapTo(HashSet()) { it.item.id.value }
@@ -429,26 +442,55 @@ class TargetsRepository(
         }
     }
 
-    private suspend fun awaitStart(play: Redirected): TargetState? {
+    suspend fun awaitStart(id: String, label: String): TargetState? {
         var waited = 0L
         var misses = 0
         while (waited < START_WATCH_CAP_MS) {
             delay(START_POLL_MS)
             waited += START_POLL_MS
-            if (refresh("watching ${play.label} start")) {
+            if (refresh("watching $label start")) {
                 misses = 0
-                val state = live.value.firstOrNull { it.target.id == play.id }
+                val state = live.value.firstOrNull { it.target.id == id }
                 if (state != null && !state.starting) {
-                    Diag.log("targets", "${play.label} finished starting after ${waited}ms: playing=${state.playing}")
+                    Diag.log("targets", "$label finished starting after ${waited}ms: playing=${state.playing}")
                     return state
                 }
             } else if (++misses >= START_WATCH_MISSES) {
-                Diag.warn("targets", "${play.label}: $misses reads in a row failed while it was starting; giving up")
+                Diag.warn("targets", "$label: $misses reads in a row failed while it was starting; giving up")
                 return null
             }
         }
-        Diag.warn("targets", "${play.label} was still starting after ${waited}ms; giving up on it")
-        return live.value.firstOrNull { it.target.id == play.id }
+        Diag.warn("targets", "$label was still starting after ${waited}ms; giving up on it")
+        return live.value.firstOrNull { it.target.id == id }
+    }
+
+    suspend fun playOnly(
+        id: String,
+        items: List<PlayableItem>,
+        group: QueueGroup?,
+        why: String,
+    ): HomeAnswer<TargetState> {
+        Diag.log(
+            "targets",
+            "$id: ${items.size} item(s) sent to play and nothing else, with no fall back to the phone ($why)",
+        )
+        val request = TargetQueueRequest(
+            items = items.map { it.toBackup() },
+            mode = QueueMode.REPLACE,
+            groupId = group?.id,
+            groupTitle = group?.title,
+            from = requester(),
+            startItemId = items.firstOrNull()?.item?.id?.value,
+        )
+        return queue(id, request)
+    }
+
+    suspend fun endPlayback(id: String): HomeAnswer<TargetState> {
+        val cancelled = control(id, TargetControl(TargetAction.SLEEP, sleep = TargetSleepAsk(SleepKind.OFF)))
+        if (cancelled is HomeAnswer.No) {
+            Diag.warn("targets", "$id: its timer could not be cancelled before stopping it: ${cancelled.reason}")
+        }
+        return control(id, TargetControl(TargetAction.STOP))
     }
 
     private suspend fun fallBack(play: Redirected, why: String, removeFromPi: Boolean): OperationEnd {
@@ -494,7 +536,7 @@ class TargetsRepository(
 
     fun cancelSleep(id: String) = sleep(id, TargetSleepAsk(SleepKind.OFF))
 
-    private fun fadeSeconds(): Int = sleepFade().inWholeSeconds.toInt()
+    fun fadeSeconds(): Int = sleepFade().inWholeSeconds.toInt()
 
     private fun sleep(id: String, ask: TargetSleepAsk) {
         Diag.log(
@@ -558,6 +600,7 @@ class TargetsRepository(
     }
 
     private fun noteAddress(found: String?) {
+        found?.let(HomeLan::remember)
         if (found == address.value) return
         Diag.log(
             "targets",
@@ -572,6 +615,7 @@ class TargetsRepository(
         PlayOn.options(live.value, homeNow.value).firstOrNull { it.id == id }
 
     private fun replace(state: TargetState) {
+        lastReadAtMs = nowMs()
         listedAny.value = true
         live.update { all ->
             if (all.any { it.target.id == state.target.id }) {
@@ -608,6 +652,7 @@ class TargetsRepository(
         const val SIGN_IN_AGAIN = "🔑 Sign in to the home server again"
         const val STOPPED_ANSWERING = "the home server stopped answering while it started"
         const val HEX = 16
+        const val NANOS_PER_MILLI = 1_000_000L
     }
 }
 

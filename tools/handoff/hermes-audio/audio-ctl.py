@@ -18,7 +18,7 @@ SPEAKERS = {
 }
 DEFAULT_SPEAKER = "soundbar"
 SOUNDS = {"brown-noise": "brown-noise.opus"}
-STATIONS = {"jazz": "https://www.youtube.com/watch?v=Dx5qFachd3A"}
+STATIONS = {"jazz": "https://ice1.somafm.com/sonicuniverse-128-mp3"}
 STATUS_TTL = 4
 TOTUM_TIMEOUT = 90
 START_POLL = 1
@@ -40,10 +40,14 @@ def sound_item(name):
             "contentKind": "MUSIC", "playbackType": "PODCAST", "handle": f"path=file:///sounds/{SOUNDS[name]}"}
 
 
+def station_id(name):
+    return f"station:{name}"
+
+
 def station_item(name):
     url = STATIONS[name]
-    return {"itemId": video_id(url), "sourceId": "hermes-audio-stations", "title": f"{name.capitalize()} station",
-            "contentKind": "LIVE", "playbackType": "VIDEO", "handle": url, "mediaUrl": url}
+    return {"itemId": station_id(name), "sourceId": "hermes-audio-stations", "title": f"{name.capitalize()} station",
+            "contentKind": "MUSIC", "playbackType": "PODCAST", "handle": f"audio={url}", "mediaUrl": url}
 
 
 def show_item(show):
@@ -99,7 +103,7 @@ def holder(targets_json, selected):
 def media_of(entry):
     item = entry["item"]
     for name, url in STATIONS.items():
-        if item.get("itemId") == video_id(url):
+        if item.get("itemId") == station_id(name):
             return {"station": name, "title": name, "url": url}
     if item.get("itemId", "").startswith("sound:"):
         return None

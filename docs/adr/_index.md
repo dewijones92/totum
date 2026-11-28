@@ -1,7 +1,7 @@
 ---
 title: Architecture decision records
 kind: index
-updated: 2026-11-27
+updated: 2026-11-28
 ---
 
 # Architecture decision records
@@ -191,9 +191,20 @@ one-line summary of every standing decision; a row whose decision has an ADR lin
 | 179 | [A TV that goes quiet is moved to the next codec, an unmeasured model gets H.264 first, and the receiver's own words are logged](0179-a-silent-cast-moves-to-the-next-codec-and-an-unmeasured-tv-gets-h264-first.md) | Accepted |
 | 180 | [The selected device owns the dock's now-playing bar on every tab, and its remote page is one scrolling list with a compact card on top](0180-the-selected-device-owns-the-dock-bar-and-the-remote-page-is-a-card-over-its-list.md) | Accepted |
 | 181 | [Exsurge lengths are sliders at the summons, a walk says it is a walk, and five steady minutes of walking finish a break](0181-exsurge-lengths-are-sliders-a-walk-says-so-and-steady-walking-counts.md) | Accepted |
+| 182 | [A friend's Chromecast fetches home-only items from the home server, by a link scoped to one cast session (amends ADR 90)](0182-a-friends-chromecast-fetches-home-items-from-the-home-server-by-a-session-link.md) | Accepted |
 | 183 | [Search shows what you already have, first, in a 📥 Yours tab: the phone's downloads, the Pi's finished downloads and the Jellyfin library, one row each](0183-search-shows-what-you-already-have-first.md) | Accepted |
 | 184 | [BBC programmes are followable sources whose episodes open in iPlayer](0184-bbc-programmes-are-followable-sources-that-open-in-iplayer.md) | Accepted |
 | 185 | [Long ones are built from what is cached, and fill in lengths lazily](0185-long-ones-are-built-from-what-is-cached-and-fill-in-lengths-lazily.md) | Accepted |
 | 186 | [One fetch per item: a playing stream is its own download, and nothing swaps a healthy stream for a file](0186-one-fetch-per-item-a-playing-stream-is-its-own-download.md) | Accepted |
 | 187 | [A running Jellyfin app is a target the Pi drives by item id, and it takes only Jellyfin items](0187-a-running-jellyfin-app-is-a-target-the-pi-drives-by-item-id.md) | Accepted |
+| 188 | [The selected device is a second media session beside the phone's, so the lock screen and the notification control it](0188-the-selected-device-is-a-second-media-session-for-the-lock-screen-and-notification.md) | Accepted |
 | 189 | [An adapter owns transport only; policy is shared and pinned by the contract suite](0189-an-adapter-owns-transport-only-policy-is-shared-and-pinned-by-the-contract-suite.md) | Accepted |
+| 190 | [Hold the top-right corner to send a report, and one report never blocks the next](0190-hold-the-top-right-corner-to-send-a-report-and-a-report-never-blocks-the-next.md) | Accepted |
+| 191 | [Casts from the Pi carry captions under the phone's own caption choice, and a speaker's Bluetooth link is measured and logged](0191-casts-from-the-pi-carry-captions-and-a-speakers-bluetooth-link-is-measured.md) | Accepted |
+| 192 | [One watch-page parse fills views, date and description everywhere, group news judges new by video id, a day-only date never says hours](0192-one-watch-page-parse-fills-views-everywhere.md) | Accepted |
+| 193 | [Totum's played state is pushed to the account, and repaired there when the account disagrees](0193-totums-played-state-is-pushed-to-and-repaired-on-the-account.md) | Accepted |
+| 194 | ["Best" means the best this device decodes, and a playback failure says why and offers a way out](0194-best-means-the-best-this-device-decodes-and-a-failure-says-why-and-offers-a-way-out.md) | Accepted |
+| 195 | [Play next stacks in the order you chose it, behind the last play next](0195-play-next-stacks-in-the-order-you-chose.md) | Accepted |
+| 196 | [The treat button puts a chosen film or playlist on a TV for a while, and the Pi ends it](0196-the-treat-button-puts-a-film-on-the-tv-for-a-while-and-the-pi-ends-it.md) | Accepted |
+| 197 | [The auto-downloader counts every skip, and restarts a download that says it is running when nothing is](0197-the-auto-downloader-counts-every-skip-and-restarts-a-download-nothing-is-running.md) | Accepted |
+| 198 | [A header slides away on scrolling down and comes back on scrolling up, from one place](0198-a-header-slides-away-on-scrolling-down-and-comes-back-on-scrolling-up.md) | Accepted |

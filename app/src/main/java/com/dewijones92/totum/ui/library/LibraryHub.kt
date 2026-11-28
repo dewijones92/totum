@@ -60,8 +60,8 @@ internal fun LibraryHub(
     kidTv: @Composable () -> Unit = {},
 ) {
     Column(modifier = modifier.fillMaxSize()) {
+        ScreenHeader(stringResource(R.string.destination_library))
         LazyColumn(modifier = Modifier.weight(1f)) {
-            item { ScreenHeader(stringResource(R.string.destination_library)) }
             carryOnSection(carryOn)
             item { GroupTiles(groups) }
             item { kidTv() }

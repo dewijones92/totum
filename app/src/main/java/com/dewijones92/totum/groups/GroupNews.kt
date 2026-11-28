@@ -125,24 +125,29 @@ class GroupNews(
         val joining = group.members.filter { it.id.value !in state.joined }
         val joinedAt = if (state.joined.isEmpty()) seen else now
         val joined = state.joined + joining.associate { it.id.value to joinedAt }
-        val freshItems = mutableListOf<MediaItem>()
         val freshBy = read.mapValues { (member, items) ->
             if (items == null) return@mapValues state.freshBy[member].orEmpty()
             val since = Instant.ofEpochMilli(maxOf(seen, joined[member] ?: seen))
-            items.filter { it.publishedAt?.isAfter(since) == true }.also { freshItems += it }.map { it.id.value }
+            items.filter { it.publishedAt?.isAfter(since) == true }.map { it.id.value }
         }.filterValues { it.isNotEmpty() }
         val told = state.notified.toMutableList()
-        val unannounced = freshItems.distinctBy { it.id }.filter { it.id.value !in told }
         val quiet = muted(group)
-        unannounced.sortedByDescending { it.publishedAt }.forEach { item ->
+        val tally = AnnounceTally()
+        val candidates = read.flatMap { (member, items) ->
+            val floor = Instant.ofEpochMilli(joined[member] ?: seen)
+            items.orEmpty().filter { tally.judge(it, floor, Instant.ofEpochMilli(now), it.id.value in told) }
+        }.distinctBy { it.id }
+        candidates.sortedByDescending { it.publishedAt }.forEach { item ->
             val delivered = quiet || notify(group, item)
             Diag.log(
                 TAG,
                 "\"${group.name}\": new \"${item.title}\" (${item.publishedAt}) " +
                     if (quiet) "not notified: this group's notifications are off" else "notified=$delivered",
             )
+            tally.delivered(delivered, quiet)
             if (delivered) told += item.id.value
         }
+        Diag.log(TAG, "\"${group.name}\": announce check: ${tally.summary(read.values.sumOf { it?.size ?: 0 })}")
         val next = state.copy(freshBy = freshBy, notified = told.takeLast(KEEP), joined = joined)
         put(states() + (group.id.value to next))
         val unreadable = read.count { it.value == null }
@@ -174,11 +179,52 @@ class GroupNews(
         runCatching { store.save(states) }.onFailure { Diag.warn(TAG, "group news could not be saved", it) }
     }
 
+    private class AnnounceTally {
+        private var told = 0
+        private var undated = 0
+        private var beforeJoin = 0
+        private var tooOld = 0
+        private var announced = 0
+        private var quiet = 0
+        private var declined = 0
+
+        fun judge(item: MediaItem, floor: Instant, now: Instant, alreadyTold: Boolean): Boolean {
+            val at = item.publishedAt
+            when {
+                alreadyTold -> told++
+                at == null -> undated++
+                !at.isAfter(floor) -> beforeJoin++
+                at.isBefore(now.minus(WINDOW)) -> tooOld++
+                else -> return true
+            }
+            return false
+        }
+
+        fun delivered(delivered: Boolean, mutedGroup: Boolean) {
+            when {
+                mutedGroup -> quiet++
+                delivered -> announced++
+                else -> declined++
+            }
+        }
+
+        fun summary(read: Int): String {
+            val notAnnounced = told + undated + beforeJoin + tooOld + quiet + declined
+            return "read $read item(s): $announced announced, $notAnnounced not announced " +
+                "(already announced $told, no date $undated, published before the group or member was first " +
+                "looked at $beforeJoin, older than 48 h $tooOld, group's notifications off $quiet, " +
+                "notification could not be posted $declined)"
+        }
+    }
+
     private companion object {
         const val TAG = "group"
         const val KEEP = 500
+        val WINDOW: java.time.Duration = java.time.Duration.ofHours(ANNOUNCE_WINDOW_HOURS)
     }
 }
+
+private const val ANNOUNCE_WINDOW_HOURS = 48L
 
 fun GroupNews.diagnostics(): Map<String, String> = states.value.mapKeys { "groups.news.${it.key}" }
     .mapValues { (_, s) ->

@@ -20,6 +20,10 @@ internal interface DevicePower {
 
     suspend fun refresh()
 
+    suspend fun answersNow(): Boolean
+
+    suspend fun signOfLife(): String?
+
     fun markAsleep()
 
     suspend fun ensureAwake(): Boolean
@@ -37,6 +41,7 @@ internal interface WakeStep {
     val name: String
     val note: String? get() = null
     val repeatsEveryMs: Long? get() = null
+    val startsAfterMs: Long get() = 0L
 
     suspend fun run(): Boolean
 }
@@ -56,6 +61,9 @@ internal class SteppedPower(
     private val readySteps: List<WakeStep> = emptyList(),
     private val off: PowerOff? = null,
     override val startsApp: Boolean = false,
+    private val evidence: () -> String? = { null },
+    private val signsOfLife: suspend () -> String? = { null },
+    private val unsure: () -> Boolean = { false },
     private val timeoutMs: Long = WAKE_TIMEOUT_MS,
     private val pause: suspend (Long) -> Unit = { delay(it) },
     private val clock: () -> Long = System::currentTimeMillis,
@@ -79,19 +87,42 @@ internal class SteppedPower(
 
     @Volatile private var offSettledUntil = 0L
 
+    @Volatile private var holding = false
+
     override suspend fun refresh() {
         if (!lock.tryLock()) return
         try {
             val answered = answers()
+            if (!answered && unsure()) {
+                if (!holding) {
+                    Diag.log(
+                        "cast-target",
+                        "$label: power check unsure" + evidence()?.let { " [$it]" }.orEmpty() +
+                            "; keeping ${power.name} until it is answered or its cast port goes silent",
+                    )
+                }
+                holding = true
+                return
+            }
+            holding = false
             val settling = answered && clock() < offSettledUntil
             val next = if (answered && !settling) TargetPower.ON else TargetPower.ASLEEP
             if (settling) Diag.log("cast-target", "$label: still answering, but it was switched off just now; ASLEEP")
-            if (next != power) Diag.log("cast-target", "$label: ${power.name} -> ${next.name} (power check)")
+            if (next != power) {
+                Diag.log(
+                    "cast-target",
+                    "$label: ${power.name} -> ${next.name} (power check)" + evidence()?.let { " [$it]" }.orEmpty(),
+                )
+            }
             power = next
         } finally {
             lock.unlock()
         }
     }
+
+    override suspend fun answersNow(): Boolean = answers()
+
+    override suspend fun signOfLife(): String? = signsOfLife()
 
     override fun markAsleep() {
         if (power == TargetPower.ASLEEP) return
@@ -108,28 +139,46 @@ internal class SteppedPower(
             runReady()
             return@withLock true
         }
-        if (wakeSteps.isEmpty()) {
-            power = TargetPower.ASLEEP
-            Diag.log("cast-target", "$label: not answering and Totum has no way to wake it, so nothing was tried")
-            return@withLock true
-        }
+        withoutWaiting()?.let { return@withLock it }
         power = TargetPower.WAKING
         failure = null
         val startedAt = clock()
         val lastRun = LongArray(wakeSteps.size) { startedAt }
-        Diag.log("cast-target", "$label: not answering, waking it (${wakeSteps.joinToString { it.name }})")
+        val begun = BooleanArray(wakeSteps.size) { wakeSteps[it].startsAfterMs <= 0 }
+        Diag.log(
+            "cast-target",
+            "$label: not answering, waking it (" + wakeSteps.joinToString {
+                it.name + if (it.startsAfterMs > 0) " after ${it.startsAfterMs}ms of silence" else ""
+            } + ")" + evidence()?.let { " [$it]" }.orEmpty(),
+        )
         sentWake = true
-        wakeSteps.forEach { step -> runStep(step, "the wake") }
+        wakeSteps.forEachIndexed { index, step -> if (begun[index]) runStep(step, "the wake") }
         while (clock() - startedAt < timeoutMs) {
             pause(POLL_MS)
             if (answers()) {
                 power = TargetPower.ON
                 note = null
-                Diag.log("cast-target", "$label: answered ${clock() - startedAt}ms after the wake")
+                Diag.log(
+                    "cast-target",
+                    "$label: answered ${clock() - startedAt}ms after the wake" + evidence()?.let { " [$it]" }.orEmpty(),
+                )
                 runReady()
                 return@withLock true
             }
             wakeSteps.forEachIndexed { index, step ->
+                if (!begun[index]) {
+                    if (clock() - startedAt >= step.startsAfterMs) {
+                        begun[index] = true
+                        lastRun[index] = clock()
+                        Diag.log(
+                            "cast-target",
+                            "$label: silent ${lastRun[index] - startedAt}ms after the wake, now trying ${step.name}" +
+                                evidence()?.let { " [$it]" }.orEmpty(),
+                        )
+                        runStep(step, "the wake")
+                    }
+                    return@forEachIndexed
+                }
                 val every = step.repeatsEveryMs ?: return@forEachIndexed
                 if (clock() - lastRun[index] >= every) {
                     lastRun[index] = clock()
@@ -175,6 +224,28 @@ internal class SteppedPower(
                 Thread.sleep(everyMs)
             }
         }
+    }
+
+    private suspend fun withoutWaiting(): Boolean? {
+        if (unsure()) return sendImmediateWakeAndGoOn()
+        if (wakeSteps.isNotEmpty()) return null
+        power = TargetPower.ASLEEP
+        Diag.log("cast-target", "$label: not answering and Totum has no way to wake it, so nothing was tried")
+        return true
+    }
+
+    private suspend fun sendImmediateWakeAndGoOn(): Boolean {
+        val immediate = wakeSteps.filter { it.startsAfterMs <= 0 }
+        val sending = if (immediate.isEmpty()) "no wake is sent" else "sending ${immediate.joinToString { it.name }}"
+        Diag.log(
+            "cast-target",
+            "$label: webOS could not be asked but the device may be on (unknown, maybe on)" +
+                evidence()?.let { " [$it]" }.orEmpty() +
+                "; $sending (harmless to a device that is on) and connecting at once, without waiting for webOS",
+        )
+        immediate.forEach { runStep(it, "the wake") }
+        sentWake = immediate.isNotEmpty()
+        return true
     }
 
     private suspend fun runReady() {

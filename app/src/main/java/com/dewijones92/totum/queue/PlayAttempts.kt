@@ -23,6 +23,7 @@ data class RefusedTap(
     val videoId: String? = null,
     val problem: PlaybackProblem? = null,
     val listen: PlayableItem? = null,
+    val item: PlayableItem? = null,
 )
 
 data class Starting(val id: MediaItemId, val title: String, val sinceMs: Long)
@@ -76,17 +77,36 @@ internal class PlayAttempts(
         emitted.tryEmit(RefusedTap(shield.titleOf(item), last, videoIdOf(item.id)))
     }
 
-    fun announceProblem(title: String, id: MediaItemId, problem: PlaybackProblem, listen: PlayableItem?) {
+    fun announceProblem(
+        title: String,
+        id: MediaItemId,
+        problem: PlaybackProblem,
+        listen: PlayableItem?,
+        item: PlayableItem? = null,
+    ) {
+        val sinceLast = lastProblem?.takeIf { (lastId, _) -> lastId == id }?.let { (_, at) -> now() - at }
+        lastProblem = id to now()
+        if (sinceLast != null && sinceLast < DUPLICATE_PROBLEM_MS) {
+            Diag.warn(
+                "queue",
+                "dewidebug not telling the user again that \"${title.take(TITLE_CHARS)}\" could not play: " +
+                    "the same item said so ${sinceLast}ms ago ($problem)",
+            )
+            return
+        }
         Diag.warn(
             "queue",
             "told the user \"${title.take(TITLE_CHARS)}\" could not play ($problem), " +
                 if (listen != null) "offering 🎧 Listen" else "no Listen offered",
         )
-        emitted.tryEmit(RefusedTap(title, null, videoIdOf(id), problem, listen))
+        emitted.tryEmit(RefusedTap(title, null, videoIdOf(id), problem, listen, item))
     }
+
+    private var lastProblem: Pair<MediaItemId, Long>? = null
 
     private companion object {
         const val BUFFER = 4
+        const val DUPLICATE_PROBLEM_MS = 1_000L
         const val TITLE_CHARS = 60
     }
 }

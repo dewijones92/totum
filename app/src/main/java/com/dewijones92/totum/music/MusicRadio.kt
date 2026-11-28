@@ -3,6 +3,8 @@ package com.dewijones92.totum.music
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.PoliteGate
 import com.dewijones92.totum.data.discover.DiscoverArtist
+import com.dewijones92.totum.data.discover.DiscoverPick
+import com.dewijones92.totum.data.discover.DiscoverStep
 import com.dewijones92.totum.data.discover.DiscoverWalk
 import com.dewijones92.totum.data.notforme.NotForMe
 import com.dewijones92.totum.data.queue.QueueGroup
@@ -27,6 +29,9 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -54,13 +59,30 @@ class MusicRadio(
         val walk: DiscoverWalk? = null,
     )
 
+    private val liveGroup = MutableStateFlow<String?>(null)
+    val liveGroupId: StateFlow<String?> = liveGroup.asStateFlow()
+
     @Volatile
     private var station: Station? = null
+        set(value) {
+            field = value
+            liveGroup.value = value?.group?.id
+        }
     private var fetching: Job? = null
 
     val isActive: Boolean get() = station != null
 
     val activeGroupId: String? get() = station?.group?.id
+
+    fun liveSummary(snapshot: QueueSnapshot = queue.state.value): String {
+        val live = station ?: return "none (no radio is topping up; every radio block left in the queue is just songs)"
+        val ahead = snapshot.entries.drop((snapshot.currentIndex + 1).coerceAtLeast(0))
+            .count { it.group?.id == live.group.id }
+        val playingIt = snapshot.current?.group?.id == live.group.id
+        val toppingUp = !live.reachedPlayhead || playingIt
+        return "${live.group.id} \"${live.group.title}\" topping up=$toppingUp ahead=$ahead " +
+            "playingIt=$playingIt continuation=${live.continuation != null} offered=${live.offered.size}"
+    }
 
     fun describe(): String = station?.let {
         "radio \"${it.group.title}\" seed=${it.seed.playlistId} offered=${it.offered.size} " +
@@ -75,7 +97,9 @@ class MusicRadio(
         }
     }
 
-    suspend fun start(seed: RadioSeed, title: String): Boolean {
+    suspend fun start(seed: RadioSeed, title: String): Boolean = startCounting(seed, title) > 0
+
+    private suspend fun startCounting(seed: RadioSeed, title: String): Int {
         val group = QueueGroup(id = "$RADIO_GROUP_PREFIX${seed.playlistId}", title = "Radio · $title")
         Diag.log(
             "radio",
@@ -84,13 +108,13 @@ class MusicRadio(
         val batch = when (val result = catalogue.radio(seed)) {
             is MusicResult.Failure -> {
                 Diag.warn("radio", "could not start \"${group.title}\": ${result.detail}")
-                return false
+                return 0
             }
             is MusicResult.Success -> result.value
         }
         if (batch.songs.isEmpty()) {
             Diag.warn("radio", "\"${group.title}\" came back with no songs; nothing queued")
-            return false
+            return 0
         }
         val source = MusicSources.radio(seed.playlistId)
         fetching?.cancel()
@@ -115,7 +139,7 @@ class MusicRadio(
             ),
             from = "radio",
         )
-        return true
+        return batch.songs.size
     }
 
     suspend fun startMix(chosen: List<Pair<String, String>>): Boolean {
@@ -180,7 +204,11 @@ class MusicRadio(
         operations.tracking(key, OperationKind.DISCOVER, seed.title) { progress ->
             when (val begun = beginDiscover(engine, seed, progress)) {
                 is DiscoverStart.Started -> OperationEnd.Done(begun.count).also { started = true }
-                DiscoverStart.NoneFound -> OperationEnd.Nothing
+                is DiscoverStart.RadioInstead -> OperationEnd.Done(
+                    begun.count,
+                    note = "📻 ${begun.why}, so this song's radio started instead",
+                ).also { started = true }
+                is DiscoverStart.NoneFound -> OperationEnd.NothingBecause(begun.why)
                 is DiscoverStart.Unreachable -> OperationEnd.Failed("couldn't reach YouTube Music (${begun.why})")
             }
         }
@@ -189,7 +217,8 @@ class MusicRadio(
 
     private sealed interface DiscoverStart {
         data class Started(val count: Int) : DiscoverStart
-        data object NoneFound : DiscoverStart
+        data class NoneFound(val why: String) : DiscoverStart
+        data class RadioInstead(val count: Int, val why: String) : DiscoverStart
         data class Unreachable(val why: String) : DiscoverStart
     }
 
@@ -204,32 +233,30 @@ class MusicRadio(
             delay(DISCOVER_RETRY_PAUSE_MS)
             resolved = engine.resolve(seed)
         }
-        val artist = when (resolved) {
+        val first = when (resolved) {
             is Discover.Resolved.Found -> resolved.artist
-            Discover.Resolved.NotFound -> return DiscoverStart.NoneFound
+            Discover.Resolved.NotFound -> return DiscoverStart.NoneFound("no artist found to start from")
             is Discover.Resolved.Unreachable -> return DiscoverStart.Unreachable(resolved.why)
+        }
+        val begun = firstWalk(engine, seed, first, progress)
+        val artist = begun.artist
+        val walk = begun.walk
+        val step = begun.step
+        if (step.picks.isEmpty() && step.failure == null && walk.seedSimilarCount == 0) {
+            songRadioInstead(seed, artist, step)?.let { return it }
         }
         val group = QueueGroup(
             id = "$DISCOVER_GROUP_PREFIX${artist.id}",
             title = "$DISCOVER_MARK from ${seed.title}",
         )
-        val walk = engine.walkFrom(artist, seed.title)
-        var found = 0
-        var step = engine.step(walk, DiscoverWalk.PAGES_PER_TOP_UP) { progress?.report(found = ++found) }
-        if (step.picks.isEmpty() && step.failure != null) {
-            Diag.warn(
-                "discover",
-                "\"${group.title}\": YouTube Music did not answer (${step.failure}); trying once more",
-            )
-            delay(DISCOVER_RETRY_PAUSE_MS)
-            step = engine.step(walk, DiscoverWalk.PAGES_PER_TOP_UP) { progress?.report(found = ++found) }
-        }
         if (step.picks.isEmpty()) {
             Diag.warn(
                 "discover",
-                "\"${group.title}\": nothing queued near ${artist.name} (dry=${step.dry}, failure=${step.failure})",
+                "\"${group.title}\": nothing queued near ${artist.name} (dry=${step.dry}, failure=${step.failure}, " +
+                    "reason=${step.reason})",
             )
-            return step.failure?.let { DiscoverStart.Unreachable(it) } ?: DiscoverStart.NoneFound
+            return step.failure?.let { DiscoverStart.Unreachable(it) }
+                ?: DiscoverStart.NoneFound(step.reason ?: "nothing new near ${artist.name}")
         }
         val songs = step.picks.map { it.song }
         fetching?.cancel()
@@ -253,6 +280,63 @@ class MusicRadio(
             from = "discover",
         )
         return DiscoverStart.Started(songs.size)
+    }
+
+    private class CreditedWalk(val artist: DiscoverArtist, val walk: DiscoverWalk, val step: DiscoverStep)
+
+    private suspend fun firstWalk(
+        engine: Discover,
+        seed: DiscoverSeed,
+        first: DiscoverArtist,
+        progress: Operations.Progress?,
+    ): CreditedWalk {
+        val walk = engine.walkFrom(first, seed.title)
+        var found = 0
+        val onPick: (DiscoverPick) -> Unit = { progress?.report(found = ++found) }
+        var step = engine.step(walk, DiscoverWalk.PAGES_PER_TOP_UP, onPick)
+        if (step.picks.isEmpty() && step.failure != null) {
+            Diag.warn(
+                "discover",
+                "\"$DISCOVER_MARK from ${seed.title}\": YouTube Music did not answer (${step.failure}); " +
+                    "trying once more",
+            )
+            delay(DISCOVER_RETRY_PAUSE_MS)
+            step = engine.step(walk, DiscoverWalk.PAGES_PER_TOP_UP, onPick)
+        }
+        val seedListsNobody = step.picks.isEmpty() && step.failure == null && walk.seedSimilarCount == 0
+        if (seedListsNobody) creditedArtistWalk(engine, seed, first, onPick)?.let { return it }
+        return CreditedWalk(first, walk, step)
+    }
+
+    private suspend fun creditedArtistWalk(
+        engine: Discover,
+        seed: DiscoverSeed,
+        tried: DiscoverArtist,
+        onPick: (DiscoverPick) -> Unit,
+    ): CreditedWalk? {
+        for (other in engine.otherCredits(seed, tried)) {
+            val walk = engine.walkFrom(other, seed.title)
+            val step = engine.step(walk, DiscoverWalk.PAGES_PER_TOP_UP, onPick)
+            Diag.log(
+                "discover",
+                "\"${seed.title}\": credited artist ${other.name} (${other.id}) gave ${step.picks.size} " +
+                    "song(s), reason=${step.reason}",
+            )
+            if (step.picks.isNotEmpty()) return CreditedWalk(other, walk, step)
+        }
+        return null
+    }
+
+    private suspend fun songRadioInstead(
+        seed: DiscoverSeed,
+        artist: DiscoverArtist,
+        step: DiscoverStep,
+    ): DiscoverStart.RadioInstead? {
+        val songId = seed.songId ?: return null
+        val why = step.reason ?: "no similar artists for ${artist.name}"
+        val count = startCounting(RadioSeed.forSong(songId), seed.title)
+        Diag.log("discover", "\"${seed.title}\": $why; started the song's own radio instead ($count song(s))")
+        return if (count > 0) DiscoverStart.RadioInstead(count, why) else null
     }
 
     private fun onQueueChanged(snapshot: QueueSnapshot) {

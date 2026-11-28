@@ -97,7 +97,7 @@ class AnHourLongItemDoesNotRebufferTest {
     @Test
     fun anHourLongItemPlaysOnAsAudioWithoutRebuffering() = playOn(PlaybackMode.AUDIO, "audio-only")
 
-    private fun playOn(mode: PlaybackMode, what: String) = runBlocking {
+    private fun playOn(mode: PlaybackMode, what: String) = runBlocking(Dispatchers.Main) {
         container.appPreferences.setPlaybackMode(mode)
         queue.playNow(item())
         val itemId = MediaItemId(VIDEO_ID)

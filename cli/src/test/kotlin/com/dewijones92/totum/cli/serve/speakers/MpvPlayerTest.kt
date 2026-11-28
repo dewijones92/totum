@@ -47,9 +47,10 @@ class MpvPlayerTest {
         body: String,
         ffmpeg: String? = null,
         locally: (String, String) -> String = { _, url -> url },
+        lengthMsOf: (String) -> Long? = { null },
     ): MpvPlayer {
         val processed = ffmpeg?.let { ProcessedSound(it) { null } } ?: ProcessedSound("ffmpeg-not-used") { null }
-        return MpvPlayer("bar", dir, script("mpv.sh", body), processed, locally).also {
+        return MpvPlayer("bar", dir, script("mpv.sh", body), processed, locally, lengthMsOf).also {
             it.onEnded = { failed ->
                 ended += failed
                 latch.countDown()
@@ -264,6 +265,19 @@ class MpvPlayerTest {
     }
 
     @Test
+    fun `an internet radio address with no file name is played straight, with no relay and no processing`() {
+        val radio = "https://ice1.somafm.com/sonicuniverse-128-mp3"
+        val p = mpv("""printf '%s\n' "${'$'}@" > "${dir.path}/argv.txt"""")
+
+        p.play(request(url = radio))
+
+        val args = argv("argv.txt")
+        assertEquals(listOf("--", radio), args.takeLast(2))
+        assertTrue(args.toString(), args.contains("--audio-device=pulse/bluez_output.AA_BB.1"))
+        assertFalse(args.toString(), args.any { it.startsWith("--demuxer") || it.startsWith("--volume") })
+    }
+
+    @Test
     fun `stopping kills mpv and does not count as the item ending`() {
         val p = mpv("sleep 30")
         p.play(request())
@@ -305,5 +319,67 @@ class MpvPlayerTest {
         const val WAIT_TICKS = 200
         const val TICK_MS = 50L
         const val SETTLE_MS = 400L
+    }
+
+    @Test
+    fun `a processed item reports its source's length, which mpv cannot see through the pipeline`() {
+        val ffmpeg = script("ffmpeg.sh", "sleep 5")
+        val asked = CopyOnWriteArrayList<String>()
+        val p = mpv(
+            "sleep 5",
+            ffmpeg,
+            locally = { _, _ -> "http://127.0.0.1:8771/y/relayed.mp4" },
+            lengthMsOf = { url ->
+                asked += url
+                5_400_000L
+            },
+        )
+
+        p.play(request(sound = SoundSettings(boost = VolumeBoost.AUTO)))
+
+        waitFor { p.durationMs != null }
+        assertEquals(5_400_000L, p.durationMs)
+        assertEquals(listOf("http://127.0.0.1:8771/y/relayed.mp4"), asked.toList())
+    }
+
+    @Test
+    fun `a length that ffprobe could not give leaves the duration unknown`() {
+        val ffmpeg = script("ffmpeg.sh", "sleep 5")
+        val p = mpv("sleep 5", ffmpeg, lengthMsOf = { null })
+
+        p.play(request(sound = SoundSettings(boost = VolumeBoost.AUTO)))
+        Thread.sleep(300)
+
+        assertNull(p.durationMs)
+    }
+
+    @Test
+    fun `the link report counts the underruns mpv logged and says what the host measured`() {
+        val sample = LinkSample(atSeconds = 2_000, rssi = -13, linkQuality = 255, txPower = 12)
+        val processed = ProcessedSound("ffmpeg-not-used") { null }
+        val p = MpvPlayer(
+            "bar",
+            dir,
+            script("mpv.sh", "echo '[ao/pulse] Audio device underrun detected.'; echo again underrun; sleep 5"),
+            processed,
+            link = LinkProbe { sample },
+            nowSeconds = { 2_006 },
+        ).also { player = it }
+
+        p.play(request())
+        waitFor {
+            val text = File(dir, "mpv-bar.log").takeIf { it.isFile }?.readText().orEmpty()
+            text.lines().count { "underrun" in it } >= 2
+        }
+        val report = p.linkReport()
+
+        assertTrue(report.toString(), report!!.startsWith("rssi=-13 lq=255 tx=12 (host sample 6s old"))
+        assertTrue(report, "underruns=2 since the last line (2 in this play)" in report)
+        assertTrue(p.linkReport()!!.contains("underruns=0 since the last line (2 in this play)"))
+    }
+
+    @Test
+    fun `with nothing playing there is no link report`() {
+        assertNull(mpv("sleep 5").linkReport())
     }
 }

@@ -35,6 +35,7 @@ internal class DeckSleep(
     private val playback: () -> SleepPlayback,
     private val pause: suspend () -> Unit,
     private val switchOff: suspend () -> Unit = {},
+    private val stop: suspend () -> Unit = {},
 ) {
     private class Armed(
         val kind: SleepKind,
@@ -43,6 +44,8 @@ internal class DeckSleep(
         val title: String?,
         val ramp: FadeRamp,
         val switchOff: Boolean,
+        val stop: Boolean,
+        val treat: Boolean,
     ) {
         var job: Job? = null
         var fade: VolumeFade? = null
@@ -69,13 +72,16 @@ internal class DeckSleep(
             title = ask.title,
             ramp = FadeRamp(if (timed) minOf(fade, total) else fade),
             switchOff = ask.switchOff,
+            stop = ask.stop,
+            treat = ask.treat,
         )
         armed = sleep
         Diag.log(
             "sleep",
             "dewidebug sleep timer armed on $label: ${ask.kind} " +
                 (if (timed) "in $total" else "after ${ask.itemIds.size} item(s) ending ${ask.itemIds.lastOrNull()}") +
-                ", fade ${sleep.ramp.length}" + if (sleep.switchOff) ", then switch it off" else "",
+                ", fade ${sleep.ramp.length}" +
+                if (sleep.switchOff) ", then switch it off" else if (sleep.stop) ", then stop it" else "",
         )
         sleep.job = scope.launch { if (timed) countDown(sleep) else watchItems(sleep) }
     }
@@ -90,6 +96,19 @@ internal class DeckSleep(
     }
 
     fun switchesOff(): Boolean = armed?.switchOff == true
+
+    suspend fun takeTreat(): Boolean? {
+        val sleep = armed?.takeIf { it.treat } ?: return null
+        armed = null
+        sleep.job?.cancel()
+        restore(sleep, "the treat's last item ended before its countdown")
+        Diag.log(
+            "sleep",
+            "dewidebug treat timer on $label taken early: the last item ended with the countdown still running " +
+                "(switchOff=${sleep.switchOff} stop=${sleep.stop})",
+        )
+        return sleep.switchOff
+    }
 
     fun endsWith(itemId: String): Boolean =
         armed?.takeIf { it.kind == SleepKind.AFTER_ITEMS }?.itemIds?.lastOrNull() == itemId
@@ -218,6 +237,9 @@ internal class DeckSleep(
         if (sleep.switchOff) {
             Diag.log("sleep", "dewidebug sleep timer on $label: the volume is back, now switching it off")
             switchOff()
+        } else if (sleep.stop) {
+            Diag.log("sleep", "dewidebug sleep timer on $label: the volume is back, now stopping it")
+            stop()
         }
     }
 

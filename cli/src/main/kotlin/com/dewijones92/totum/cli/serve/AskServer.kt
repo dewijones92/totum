@@ -12,6 +12,7 @@ import com.dewijones92.totum.cli.serve.cast.CastPlaces
 import com.dewijones92.totum.cli.serve.cast.PiStreams
 import com.dewijones92.totum.cli.serve.cast.PowerConfig
 import com.dewijones92.totum.cli.serve.cast.YtDlpLiveHls
+import com.dewijones92.totum.cli.serve.cast.castOutFromEnv
 import com.dewijones92.totum.cli.serve.cast.knownCastsFrom
 import com.dewijones92.totum.cli.serve.cast.knownDevicesFrom
 import com.dewijones92.totum.cli.serve.cast.piMediaTools
@@ -311,6 +312,7 @@ internal suspend fun serveAsk(port: Int, out: (String) -> Unit, polite: Politene
     val targetRoutes = TargetRoutes(targets, browserAddress = { browserAddress }, acceptHanded = home::acceptHanded)
     val routes = listOfNotNull(
         targetRoutes,
+        castOutFromEnv(this, streams, jellyfin, home::fileOf),
         jellyfin?.let { JellyfinRoutes(JellyfinBrowse(it)) } ?: JellyfinNotSetUp(),
         AskStateRoutes(states),
     ) + aiTaskRoutesFrom(this)

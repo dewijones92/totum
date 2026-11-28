@@ -78,7 +78,7 @@ class QueueBulkEditsTest {
                 batch.forEach { single.enqueueMoving(it, group) }
             } else {
                 bulk.playNextAll(batch)
-                batch.asReversed().forEach { single.playNextMoving(it) }
+                batch.distinctBy { it.item.id }.forEach { single.playNextMoving(it) }
             }
             advanceUntilIdle()
             assertEquals(

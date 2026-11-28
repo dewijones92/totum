@@ -45,6 +45,7 @@ internal class DiagnosticSnapshot(
         val reconciledAccountProgress: () -> Map<MediaItemId, Long>,
         /** The outbox rows that keep failing, worst first — the one risk the new design carries. */
         val stuckAccountUpdates: () -> String,
+        val refusedAccountVideos: () -> String = { "" },
         val isMetered: () -> Boolean,
         val exsurge: () -> Map<String, String> = { emptyMap() },
         val appUpdate: () -> Map<String, String> = { emptyMap() },
@@ -55,6 +56,7 @@ internal class DiagnosticSnapshot(
         val repeat: () -> RepeatMode = { RepeatMode.OFF },
         val modes: () -> List<ActiveMode> = { emptyList() },
         val liveStreams: () -> Map<String, String> = { emptyMap() },
+        val radio: () -> Map<String, String> = { emptyMap() },
         val features: () -> Map<String, String> = { emptyMap() },
     )
 
@@ -81,7 +83,11 @@ internal class DiagnosticSnapshot(
             // different situations producing the same line is the thing this field exists to stop.
             put(
                 "playing.route",
-                if (state == null) "-" else runCatching { pathTaken() }.getOrElse { "unknown" },
+                if (state == null) {
+                    "-"
+                } else {
+                    runCatching { pathTaken(state.itemId.value) }.getOrElse { "unknown (${it.javaClass.simpleName})" }
+                },
             )
             put("playing.speed", state?.speed?.toString() ?: "-")
             put("playing.skipSilence", state?.skipSilence?.toString() ?: "-")
@@ -113,6 +119,7 @@ internal class DiagnosticSnapshot(
         runCatching { putAll(live.backup()) }
         runCatching { putAll(live.screen()) }
         runCatching { putAll(live.liveStreams()) }
+        runCatching { putAll(live.radio()) }
         runCatching { putAll(live.features()) }
         runCatching { putAll(PlaybackCacheReport.state()) }
     }
@@ -126,6 +133,7 @@ internal class DiagnosticSnapshot(
         put("settings.silenceMode", settings.silenceMode.name)
         put("settings.autoPlayNext", settings.autoPlayNext.toString())
         put("settings.repeatMode", settings.repeatMode.name)
+        put("settings.reportGesture", settings.reportGesture.toString())
         put("settings.autoDownloadQueue", settings.autoDownloadQueue.toString())
         put("settings.autoDownloadWifiOnly", settings.autoDownloadWifiOnly.toString())
         put("settings.wifiMaxHeight", settings.wifiMaxHeight.toString())
@@ -192,6 +200,7 @@ internal class DiagnosticSnapshot(
         // Nothing is dropped from the outbox any more, so the question a report has to answer is
         // no longer "what was lost" but "what is stuck, and which". A count alone cannot say.
         put("yt-sync.stuck", live.stuckAccountUpdates().ifEmpty { "nothing" })
+        put("yt-sync.refused", live.refusedAccountVideos().ifEmpty { "none" })
         put("account.subscriptions", subs.size.toString())
         put("account.subscriptionTitles", subs.joinToString(" | ") { it.title })
     }

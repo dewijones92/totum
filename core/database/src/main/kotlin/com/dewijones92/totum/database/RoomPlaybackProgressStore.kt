@@ -36,6 +36,8 @@ public class RoomPlaybackProgressStore(
     override suspend fun playState(itemId: MediaItemId): PlayState =
         dao.get(itemId.value)?.playState() ?: PlayState.Unplayed
 
+    override suspend fun durationMs(itemId: MediaItemId): Long? = dao.get(itemId.value)?.durationMs
+
     override suspend fun lastSavedAtEpochMs(itemId: MediaItemId): Long? = dao.get(itemId.value)?.updatedAtEpochMs
 
     /**

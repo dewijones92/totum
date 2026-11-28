@@ -58,7 +58,13 @@
             "startsApp": false,
             "canSwitchOff": false,
             "powerNote": null,
-            "plays": "ANYTHING"
+            "plays": "ANYTHING",
+            "captions": {
+                "on": true,
+                "language": "en",
+                "offered": [],
+                "shown": null
+            }
         },
         {
             "target": {
@@ -90,7 +96,13 @@
             "startsApp": false,
             "canSwitchOff": false,
             "powerNote": null,
-            "plays": "ANYTHING"
+            "plays": "ANYTHING",
+            "captions": {
+                "on": true,
+                "language": "en",
+                "offered": [],
+                "shown": null
+            }
         }
     ],
     "browserAddress": null

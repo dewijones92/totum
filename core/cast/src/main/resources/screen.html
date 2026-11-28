@@ -238,7 +238,8 @@
     bar.classList.add('on');
     document.getElementById('wait').style.display = 'none';
     const given = new URL(command.url);
-    await player.load(location.origin + given.pathname + given.search, (command.pos || 0) / 1000);
+    const address = command.direct ? command.url : location.origin + given.pathname + given.search;
+    await player.load(address, (command.pos || 0) / 1000);
     video.playbackRate = command.rate || 1;
     if (command.subs) player.selectTextLanguage(command.subs), player.setTextTrackVisibility(true);
     else player.setTextTrackVisibility(false);

@@ -36,6 +36,8 @@ public data class CastItem(
 
 public fun CastItem.soundOnly(): CastItem = copy(listening = true, ladder = emptyList())
 
+public class OpenedCast(public val token: String, public val file: String)
+
 public interface CastHostPort {
     public val vpnInTheWay: Boolean
     public fun baseUrl(port: Int): String?
@@ -74,7 +76,7 @@ public class CastStreamServer(
 
     private val server = CastHttpServer(
         handle = { request ->
-            alsoServes(request) ?: live.replyTo(request) ?: pictures.replyTo(request)
+            alsoServes(request) ?: live.replyTo(request) ?: relayedHls(request) ?: pictures.replyTo(request)
                 ?: screens?.replyTo(request) ?: handle(request)
         },
     )
@@ -90,6 +92,7 @@ public class CastStreamServer(
     private val order = ConcurrentLinkedDeque<String>()
     private val latest = ConcurrentHashMap<String, Session>()
     private val live = LiveCasts()
+    private val hlsCasts = HlsCasts(upstream)
     private val pictures = SharedPictures()
 
     public fun sharePicture(file: File): String? {
@@ -640,6 +643,7 @@ public class CastStreamServer(
             Diag.log("cast", "${item.mediaId}: a live manifest cannot be given as ${format.name}; given as it is")
             return null
         }
+        if (manifest == null && HlsRelay.needs(item.uri)) return relayHls(item)
         val sources = if (manifest == null) sourcesFor(item) ?: return null else null
         val base = host.baseUrl(port) ?: run {
             Diag.warn("cast", "${item.mediaId}: no address the TV can reach (not on Wi-Fi?); given as it is")
@@ -651,8 +655,19 @@ public class CastStreamServer(
             host.hold(true)
             return manifest?.let { live.open(item.mediaId, it, base, random.token()) }
         }
-        return open(item, sources, base, format)
+        return "$base/c/${open(item, sources, base, format)}/${format.file}"
     }
+
+    public fun openFor(item: CastItem, format: CastFormat = CastFormat.DASH): OpenedCast? {
+        if (LocalManifests.manifestAt(item.uri) != null) {
+            Diag.log("cast", "${item.mediaId}: a live manifest is not opened for a session another host serves")
+            return null
+        }
+        val sources = sourcesFor(item) ?: return null
+        return OpenedCast(open(item, sources, "(session)", format), format.file)
+    }
+
+    public fun serve(request: HttpRequest): HttpReply = handle(request)
 
     public fun relayLive(item: CastItem, base: String): String? {
         val manifest = LocalManifests.manifestAt(item.uri) ?: return null
@@ -660,7 +675,53 @@ public class CastStreamServer(
         return live.open(item.mediaId, manifest, base, random.token())
     }
 
+    private fun relayHls(item: CastItem): String? {
+        val base = host.baseUrl(port) ?: run {
+            Diag.warn("cast", "${item.mediaId}: no address the TV can reach (not on Wi-Fi?); given as it is")
+            reach.noAddress()
+            return null
+        }
+        server.start(port)
+        host.hold(true)
+        val token = random.token()
+        hlsCasts.open(item.mediaId, token, item.uri)
+        reach.handedOver(item.mediaId, token)
+        val url = "$base/c/$token/${HlsRelay.ENTRY}"
+        Diag.log(
+            "cast",
+            "dewidebug ${item.mediaId} -> $url: YouTube offers only an HLS manifest (${HlsRelay.hostOf(item.uri)}), " +
+                "which a receiver cannot fetch (googlevideo sends no CORS for anything but YouTube's own pages); " +
+                "Totum serves it and relays every playlist, segment and key itself " +
+                "[listening=${item.listening} separateAudio=${item.separateAudioUrl != null} " +
+                "ladder=${item.ladder.size}; the picture and sound are YouTube's, so silence cutting and the " +
+                "boost do not apply and a sound-only request still carries the picture]",
+        )
+        return url
+    }
+
+    private fun relayedHls(request: HttpRequest): HttpReply? {
+        val parts = request.path.substringBefore('?').trim('/').split('/')
+        val (mediaId, relay) = parts.getOrNull(1)?.let(hlsCasts::relayFor) ?: return null
+        val what = parts.drop(2).joinToString("/")
+        reach.reached(mediaId, request.from)
+        val reply = try {
+            relay.reply(what, request.header("range"))
+        } catch (e: IOException) {
+            failures.failed(mediaId, what, e)
+            throw e
+        }
+        val status = replyStatus(reply)
+        when {
+            status >= Http.CLIENT_ERROR ->
+                failures.failed(mediaId, what, IOException("the source answered $status for $what"))
+            what == HlsRelay.ENTRY -> failures.worked(mediaId)
+        }
+        return reply
+    }
+
     public fun release(mediaId: String) {
+        val relayed = hlsCasts.release(mediaId)
+        if (relayed > 0) Diag.log("cast", "$mediaId: released $relayed relayed HLS stream(s)")
         val mine = sessions.entries.filter { it.value.item.mediaId == mediaId }
         mine.forEach { (token, session) ->
             sessions.remove(token)
@@ -694,7 +755,7 @@ public class CastStreamServer(
                 "listening=${sources.listening}, " +
                 "silences ${if (session.audio.timeline.cutsSilences) "cut" else "kept"})",
         )
-        return url
+        return token
     }
 
     private fun sessionFor(token: String, item: CastItem, sources: Sources, format: CastFormat): Session {
@@ -725,6 +786,7 @@ public class CastStreamServer(
         codecSteps.clear()
         triedAfterwards.clear()
         live.clear()
+        hlsCasts.clear()
         sessions.values.forEach { it.close() }
         sessions.clear()
         ceilings.clear()

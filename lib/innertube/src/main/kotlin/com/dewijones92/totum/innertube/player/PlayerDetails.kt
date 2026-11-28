@@ -32,6 +32,7 @@ public data class PlayerDetails(
     public val publishedOn: java.time.LocalDate? = null,
     public val publishedAgo: String? = null,
     public val publishedAt: java.time.Instant? = null,
+    public val viewsText: String? = null,
 )
 
 /**

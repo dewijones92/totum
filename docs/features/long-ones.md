@@ -3,7 +3,7 @@ title: Long ones: unwatched videos over 20 minutes from what you follow
 kind: feature
 area: library
 status: built 2026-11-20 (unit tests green; seen on totum-api35 with the real account, not yet on a phone)
-updated: 2026-11-20
+updated: 2026-11-27
 ---
 
 # 🧘 Long ones
@@ -21,7 +21,9 @@ Follow-ups: [todos/long-ones-follow-ups](../todos/long-ones-follow-ups.md).
   the item menu, Play on…). Tapping plays it. While lengths are still being looked up it says "⏳ N video lengths are still being
   looked up"; on mobile data "📶 Waiting for Wi-Fi: N more video lengths to look up". Empty: "📭 Nothing long and unwatched yet. It
   looks again whenever you open this page."
-- Left out: anything under 20 minutes, Shorts, a live stream that is on (or not started), anything you have started or finished
+- Left out: anything under 20 minutes, Shorts, **any live stream: on now, not started, or ended** (since 2026-11-27, ADR 185: by
+  kind, by the live registry, by the length check, and by a channel's Live tab; kept for good in `files/known_streams.json`),
+  **any video over 4 hours** (a podcast episode has no upper limit), anything you have started or finished
   (on this phone or on YouTube), anything 🙅 Not for me, and anything from a channel you do not follow.
 
 ## How it works
@@ -30,9 +32,10 @@ Follow-ups: [todos/long-ones-follow-ups](../todos/long-ones-follow-ups.md).
 
 1. **Pool, from caches only** (`longOnesPoolOf`): the newest upload per followed channel (`ChannelLatestUploads`' Room table), the
    cached Subscriptions feed, the stored episodes of followed shows. Merged by video id, keeping any known length.
-2. **Eligibility:** not in `rowPlayStates` (any progress), through `NotForMe`, not live now by the registry (`liveTagOf`).
-3. **Pick** (`pickLongOnes`, `:core:domain`): newest first, ≥ 20 min, ≤ 2 per source, ≤ 12; hands back the unknown-length
-   items that could still change the answer.
+2. **Eligibility:** not in `rowPlayStates` (any progress), through `NotForMe`, not a live stream in any phase by the registry
+   (`liveTagOf`) and not in `KnownStreams`; a look-up that finds a stream drops it from the same refresh.
+3. **Pick** (`pickLongOnes`, `:core:domain`): newest first, ≥ 20 min, a video ≤ 4 h (`tooLong`), ≤ 2 per source, ≤ 12; hands back
+   the unknown-length items that could still change the answer.
 4. **Lengths**, cheapest first: the item; `VideoLengths` (kept for good, `files/video_lengths.json`, the feed's lengths too);
    the lookup store (`VideoResolver.knownLength`); then `VideoResolver.lengthCheck`, a lean anonymous `player` ask with no `n`
    solve, sharing the second opinion's back-off. 4 at a time in the polite gate's background lane, 40 asks a refresh, never on
@@ -56,7 +59,8 @@ counts and the time. Report vitals `longones.lastRefresh` and `longones.chosen`.
   ordinary rows, with lengths on the thumbnails and the "✅ subscribed" mark. At 320x640 the header title wraps over three lines
   beside its three icons (the sort, filter and refresh buttons and the cast button take the width), the same as other list
   headers; nothing is cut.
-- A 9-hour "practice cam" stream that had ended is listed as an ordinary video; the two streams still on were left out.
+- A 9-hour "practice cam" stream that had ended was listed on 20 Nov as an ordinary video; that was reversed on 27 Nov (ended
+  streams and anything over 4 hours are left out, ADR 185). Not yet seen on the emulator after the change.
 - Screenshots (scratch, not kept in the repo): `library-tile.png`, `long-ones-page.png`, `long-ones-320x640.png`,
   `tile-320-step2.png` under the session scratchpad `longones/` folder.
 

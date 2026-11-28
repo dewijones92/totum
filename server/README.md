@@ -119,6 +119,44 @@ The watchdog's and the warmer's units are symlinked from here into `/etc/systemd
 
 Moved here from `dot-files` on 2026-10-23 ([ADR 85](../docs/adr/0085-the-pi-back-end-lives-in-this-repo.md)).
 
+## A pinned ARP entry for each wake-on-LAN TV (2026-11-27)
+
+A sleeping TV does not answer ARP, and the wake packet a container sends never leaves Docker, so a cold wake needs a
+permanent ARP entry for the TV on the Pi **host**. `server/systemd/totum-tv-arp.service` is a oneshot that, at boot,
+reads every `name=address@mac` entry in `TOTUM_CAST_TARGETS` from `/var/lib/totum-fetch/fetch.env` (root-only, which is why
+a unit and not `pi` runs it) and runs `ip neigh replace <address> lladdr <mac> nud permanent dev <the route's device,
+else eth0>` for each; entries with no `@mac` are skipped and named in the journal. Install it once:
+
+```bash
+sudo systemctl link /home/pi/code/totum/server/systemd/totum-tv-arp.service
+sudo systemctl enable --now totum-tv-arp.service
+journalctl -u totum-tv-arp -n 20 --no-pager   # "pinned 192.168.0.219 -> 20:28:... on eth0"
+ip neigh show 192.168.0.219                    # ... lladdr 20:28:... PERMANENT
+```
+
+After a change to `TOTUM_CAST_TARGETS`, run `sudo systemctl restart totum-tv-arp.service`. The unit's own test is
+`python3 server/systemd/totum_tv_arp_test.py` (a fake `ip`; nothing is changed on the machine that runs it).
+
+## The Bluetooth link of a speaker, measured on the host (2026-11-27)
+
+The `totum-fetch` container cannot read a Bluetooth link's quality: `hcitool` is installed there but its network namespace sees no HCI
+device (`hcitool con` and `hcitool dev` list nothing), and BlueZ's D-Bus `RSSI` is empty for a connected speaker. The host can:
+`hcitool rssi|lq|tpl <mac>` work as `pi`. `server/systemd/totum-bt-link.service` runs `totum-bt-link.sh` as `pi`, which every 15 s writes
+`at=<epoch> rssi=<n> lq=<n> tx=<n>` for each connected device to `/var/lib/totum-fetch/home/.totum/bt-link/<MAC with _>.txt` (the
+container sees it as `/home/totum/.totum/bt-link/`; `TOTUM_BT_LINK_DIR` moves it for both). While a speaker plays, the deck logs one line per 30 s
+with those numbers, mpv's underruns and the keep-awake reconnects ([ADR 191](../docs/adr/0191-casts-from-the-pi-carry-captions-and-a-speakers-bluetooth-link-is-measured.md)). Install once:
+
+```bash
+sudo systemctl link /home/pi/code/totum/server/systemd/totum-bt-link.service
+sudo systemctl enable --now totum-bt-link.service
+ls -l /var/lib/totum-fetch/home/.totum/bt-link/ && cat /var/lib/totum-fetch/home/.totum/bt-link/*.txt
+journalctl -u totum-bt-link -n 5 --no-pager
+```
+
+The test is `python3 server/systemd/totum_bt_link_test.py` (a fake `hcitool`). Reading the line in a report: `rssi` is hcitool's, 0 inside the
+receiver's best range and more negative the further out; `lq` is 255 at best; underruns that arrive with a falling `rssi` or a low `lq` point at
+range, underruns with a steady strong link point at the Pi's load or the stream instead.
+
 ## The cast relay route (hand-managed, 2026-10-31)
 
 `/var/lib/totum-auth/snippets/totum-guard.partial` (root, not in git, mounted into nginx) carries, after the guard,
@@ -127,3 +165,13 @@ the `wg-home` relay to a phone on the VPN (dot-files ADR 7; Totum ADR 68). A TV 
 per-session cast paths pass. A backup of the snippet before the change is beside it (`.bak-2026-10-31`). Edit it in
 place (nginx pins the file's inode), `docker exec nginx_dewi nginx -t`, then `nginx -s reload`.
 
+
+## Casting away from home: the public gate (2026-11-27, ADR 182)
+
+`totum-fetch` can open a second listener, **8773**, that serves only `/cast-out/<64 hex>/<file>` (a cast session's own files), so a friend's
+Chromecast can fetch a cast the Pi built. It is off unless `fetch.env` has `TOTUM_CAST_PUBLIC_BASE=https://totum.<home>/cast-out` (the
+phone's home-server host, scheme https; `TOTUM_CAST_PUBLIC_PORT` moves it). The compose file publishes nothing for it: nginx reaches
+`totum-fetch:8773` over `bin_private`. The phone mints a link with `POST /fetch/cast-out/session` behind the device token and ends it with
+`DELETE /fetch/cast-out/session?id=<session id>`; the Pi's `8771` also answers `GET /lan-check` (`totum-home`) so a phone can tell it is on the
+home network. The nginx patch, the snippet and the steps are in `tools/handoff/cast-out/`; the snippet goes into the same hand-managed
+`totum-guard.partial` as the cast relay above, after it, and follows the same edit-in-place rule.

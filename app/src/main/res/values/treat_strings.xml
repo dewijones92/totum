@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="treat_title">🧸 Treat</string>
+    <string name="treat_subject">%1$s on %2$s</string>
+    <string name="treat_set_up_description">Treat settings</string>
+    <string name="treat_tile_set_up">⚙️ Choose a TV and what to play</string>
+    <string name="treat_tile_ready">▶️ %1$s on %2$s · %3$d min, %4$s</string>
+    <string name="treat_tile_starting">⏳ Starting %1$s on %2$s…</string>
+    <string name="treat_tile_on">✅ %1$s on %2$s · %3$d min left · tap to stop</string>
+    <string name="treat_then_switch_off">then it switches off</string>
+    <string name="treat_then_pause">then it pauses</string>
+    <string name="treat_then_stop">then it stops</string>
+
+    <string name="treat_failed_gone">❌ The chosen treat is no longer pinned</string>
+    <string name="treat_failed_nothing">❌ %1$s has nothing to play: %2$s</string>
+    <string name="treat_failed_tv_none">❌ %1$s isn\'t listed by the home server. Is it reachable?</string>
+    <string name="treat_failed_tv">❌ %1$s isn\'t listed by the home server (it lists %2$s)</string>
+    <string name="treat_failed_wont">❌ %1$s wouldn\'t play it: %2$s</string>
+    <string name="treat_failed_timer">❌ The timer on %1$s couldn\'t be set (%2$s), so it was stopped</string>
+    <string name="treat_toast_on">🧸 %1$s is on %2$s for %3$d min</string>
+    <string name="treat_toast_fell_back">ℹ️ %1$s can\'t be switched off from here, so it will stop playing instead</string>
+
+    <string name="treat_detail_switch_off">⏳ %1$d min left, then it switches off</string>
+    <string name="treat_detail_pause">⏳ %1$d min left, then it pauses</string>
+    <string name="treat_detail_stop">⏳ %1$d min left, then it stops</string>
+
+    <string name="treat_channel_name">Treat button</string>
+    <string name="treat_notice_text">⏳ The timer runs on the home server, so it carries on if the phone is locked</string>
+
+    <string name="treat_sheet_title">🧸 Treat button</string>
+    <string name="treat_sheet_tv">📺 TV</string>
+    <string name="treat_sheet_tv_none">🏠 No TV found. Is the home server reachable?</string>
+    <string name="treat_sheet_tv_remembered">%1$s (not reachable now)</string>
+    <string name="treat_sheet_what">🎞️ What to play</string>
+    <string name="treat_sheet_what_none">📭 Pin a playlist or a film first: long-press it and choose Pin</string>
+    <string name="treat_sheet_minutes">⏱️ How long: %1$d min</string>
+    <string name="treat_sheet_end">🔚 Then</string>
+    <string name="treat_end_switch_off">📴 Switch the TV off</string>
+    <string name="treat_end_pause">⏸️ Pause</string>
+    <string name="treat_end_stop">⏹️ Stop</string>
+    <string name="treat_sheet_cannot_switch_off">⚠️ %1$s can\'t be switched off from here, so it will stop playing instead</string>
+    <string name="treat_sheet_fade">🔉 Fade the sound out at the end</string>
+    <string name="treat_sheet_start">▶️ Start now</string>
+    <string name="treat_sheet_save">💾 Save as default</string>
+    <string name="treat_sheet_saved">✅ Saved as the default</string>
+    <string name="treat_sheet_this_time">ℹ️ Start now uses these settings this once. Save as default keeps them for the tile.</string>
+
+    <string name="treat_shortcut_short">Treat</string>
+    <string name="treat_shortcut_long">🧸 Treat on the TV</string>
+
+    <string name="ops_treat">🧸 %1$s</string>
+    <string name="ops_stop">Stop</string>
+    <string name="ops_stop_what">Stop %1$s</string>
+    <string name="ops_treat_stopped">⏹️ %1$s stopped</string>
+    <plurals name="ops_treat_done">
+        <item quantity="one">✅ %2$s is over</item>
+        <item quantity="other">✅ %2$s is over</item>
+    </plurals>
+</resources>

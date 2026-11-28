@@ -25,6 +25,11 @@
 # itself, so it has to be able to turn the build red.
 set -uo pipefail
 
+WG_MTU=${WG_MTU:-1380}
+HEARTBEAT_SECONDS=${HEARTBEAT_SECONDS:-30}
+INSTRUMENTED_LIVE_TIMEOUT=${INSTRUMENTED_LIVE_TIMEOUT:-25m}
+JVM_LIVE_TIMEOUT=${JVM_LIVE_TIMEOUT:-15m}
+
 if [ -z "${WG_CI_CONF:-}" ]; then
   echo "[live-test] no tunnel configured — skipping the live YouTube test"
   exit 0
@@ -81,6 +86,62 @@ for TARGET in 192.168.0.1 192.168.0.19; do
 done
 echo "[live-test] LAN unreachable from the CI peer, as intended"
 
+WG_AUTO_MTU=$(cat /sys/class/net/wg0/mtu 2>/dev/null || echo unknown)
+if sudo ip link set dev wg0 mtu "$WG_MTU"; then
+  echo "[live-test] tunnel MTU set to $WG_MTU (wg-quick had chosen $WG_AUTO_MTU from the runner's own interface)"
+else
+  echo "[live-test] could not set the tunnel MTU to $WG_MTU; it stays at $WG_AUTO_MTU"
+fi
+
+exempt_runner_control_plane() {
+  local default_via default_dev meta ranges count probe probe_dev
+  default_via=$(ip -4 route show default table main | awk '{for (i = 1; i < NF; i++) if ($i == "via") {print $(i+1); exit}}')
+  default_dev=$(ip -4 route show default table main | awk '{for (i = 1; i < NF; i++) if ($i == "dev") {print $(i+1); exit}}')
+  if [ -z "$default_dev" ]; then
+    echo "[live-test] no default route in the main table; GitHub's runner service stays inside the tunnel"
+    return 0
+  fi
+  meta=$(curl -fsS --max-time 20 https://api.github.com/meta) || {
+    echo "[live-test] could not read https://api.github.com/meta; GitHub's runner service stays inside the tunnel"
+    return 0
+  }
+  ranges=$(printf '%s' "$meta" | python3 "$(dirname "$0")/github_runner_routes.py") || ranges=""
+  if [ -z "$ranges" ]; then
+    echo "[live-test] no runner-service ranges found in the meta answer; they stay inside the tunnel"
+    return 0
+  fi
+  count=$(printf '%s\n' "$ranges" | wc -l)
+  printf '%s\n' "$ranges" | while read -r cidr; do
+    if [ -n "$default_via" ]; then
+      echo "route add $cidr via $default_via dev $default_dev"
+    else
+      echo "route add $cidr dev $default_dev"
+    fi
+  done | sudo ip -force -batch - 2>/dev/null
+  probe=$(printf '%s\n' "$ranges" | head -1 | cut -d/ -f1)
+  probe_dev=$(ip -4 route get "$probe" | awk '{for (i = 1; i < NF; i++) if ($i == "dev") {print $(i+1); exit}}')
+  echo "[live-test] $count GitHub runner-service ranges offered to the main route table via $default_dev; $probe now leaves by ${probe_dev:-unknown}"
+}
+exempt_runner_control_plane
+
+heartbeat() {
+  local tick=0 previous_rx=0 previous_tx=0 rx tx handshake github
+  while sleep "$HEARTBEAT_SECONDS"; do
+    tick=$((tick + 1))
+    read -r rx tx < <(sudo wg show wg0 transfer | awk '{print $2, $3}')
+    handshake=$(sudo wg show wg0 latest-handshakes | awk '{print $2}')
+    github=$(curl -s -o /dev/null -w '%{http_code} in %{time_total}s' --max-time 10 https://api.github.com/zen || echo "no answer")
+    echo "[live-test] heartbeat $(date -u +%T) tick=$tick tunnel received=$(( ${rx:-0} - previous_rx ))B sent=$(( ${tx:-0} - previous_tx ))B" \
+      "since the last one, last handshake $(( $(date +%s) - ${handshake:-0} ))s ago; github=$github;" \
+      "load=$(cut -d' ' -f1 /proc/loadavg) free_memory_mb=$(awk '/MemAvailable/ {print int($2 / 1024)}' /proc/meminfo)"
+    previous_rx=${rx:-0}
+    previous_tx=${tx:-0}
+  done
+}
+heartbeat &
+HEARTBEAT_PID=$!
+trap 'kill "$HEARTBEAT_PID" 2>/dev/null; sudo wg-quick down wg0 >/dev/null 2>&1 || true' EXIT
+
 # Every live test, for the same reason: they need a residential IP. SabrPlaybackTest proves SABR
 # playback; LiveDownloadedVideoOfflineTest proves a real yt-dlp download plays with the radios off;
 # LiveStreamPlaysToItsEndTest plays a real stream to its actual END, which the deterministic
@@ -114,17 +175,23 @@ fi
 # commit and never granted anything.
 
 echo "running live instrumented tests: $LIVE"
-./gradlew :app:connectedDebugAndroidTest --no-daemon \
+timeout --kill-after=60 "$INSTRUMENTED_LIVE_TIMEOUT" ./gradlew :app:connectedDebugAndroidTest --no-daemon \
   -Pandroid.testInstrumentationRunnerArguments.class="$LIVE"
 
 INSTRUMENTED_STATUS=$?
+if [ "$INSTRUMENTED_STATUS" -eq 124 ]; then
+  echo "[live-test] the instrumented live tests were STOPPED after $INSTRUMENTED_LIVE_TIMEOUT; the heartbeat lines above say whether the tunnel, the runner or a test was the one not moving"
+fi
 
 # The FAST live tests: plain JVM, no emulator, seconds rather than minutes. These are the ones that
 # fetch real bytes and insist on getting most of a real stream — the guard that was missing when
 # YouTube capped every stream at its first megabyte and the suite stayed green.
 echo "[live-test] running the JVM live tests (real bytes, real YouTube)"
-./gradlew test -Ptotum.liveTests --no-daemon
+timeout --kill-after=60 "$JVM_LIVE_TIMEOUT" ./gradlew test -Ptotum.liveTests --no-daemon
 JVM_STATUS=$?
+if [ "$JVM_STATUS" -eq 124 ]; then
+  echo "[live-test] the JVM live tests were STOPPED after $JVM_LIVE_TIMEOUT"
+fi
 
 # Say whether they actually RAN or merely skipped. Without this the log shows "BUILD SUCCESSFUL"
 # either way, so the one question this whole tunnel exists to answer — did YouTube serve us? —

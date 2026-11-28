@@ -1,7 +1,7 @@
 ---
 title: Backlog
 kind: index
-updated: 2026-11-20
+updated: 2026-11-28
 ---
 
 # Backlog
@@ -11,10 +11,16 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 
 | Item | Area | Priority | Status |
 |---|---|---|---|
+| [🔴 An infrared blaster so Totum can act as a remote, and more Bluetooth around the house](ir-blaster-and-home-bluetooth.md) | casting/pi | high | idea 2026-11-27 (Dewi: top of the next backlog, refine later; the LG in deep standby answered neither wake-on-LAN nor CEC) |
+| [🏠 The Pi cannot play or download SABR-only YouTube videos](pi-sabr-only-videos.md) | pi/video | medium | open 2026-11-28 (the Pi has no SABR route and falls back to yt-dlp's HLS through the relay; a resolve log line saying why the signed-in answer had no URLs is wanted first) |
+| [🧸 The treat button: a film on the TV for a while, then off](treat-button.md) | casting/pi | medium | built 2026-11-27, Batch C task V (ADR 196; unit tests; not run on a real TV) |
+| [Play next stacks in the order you chose it](play-next-stacks.md) | queue | medium | built 2026-11-27, Batch C task V (ADR 195; unit tests on the phone queue and a Pi target) |
+| [Playback and queue fixes from the reports of 21-24 Nov](batch-c-playback-and-queue-fixes.md) | playback/queue | high | built 2026-11-27, Batch C task U (ADR 194; unit tests; emulator screenshots; Fire tablet and Pixel 4a checks owed) |
 | [One fetch per item, the stream is the download](one-fetch-per-item.md) | downloads/playback | high | built 2026-11-20 (ADR 186; instrumented evidence, not yet seen on the phone) |
 | [📺 BBC programmes follow-ups](bbc-programmes-follow-ups.md) | search | low | open 2026-11-20 (iPlayer app route unseen, BBC Sounds, more than 50 episodes) |
 | [📱 On this phone follow-ups](phone-media-follow-ups.md) | library | medium | open 2026-11-14 (Show on the TV, phone files to the Pi, search hits) |
 | [Batch A, November 2026: the plan and its order](batch-a-2026-11.md) | batch | high | decided 2026-11-06 |
+| [📡 Cast from a friend's house, home items fetched from the home server](cast-from-friends-house.md) | casting | medium | built 2026-11-27, Batch C task G (ADR 182; unit and end-to-end tests, real nginx and Shaka run; the Pi's nginx and a real Chromecast not done) |
 | [📺 Video casts to the generic Chromecasts go silent](generic-chromecast-goes-silent.md) | casting | high | built 2026-11-20, Batch C (ADR 179; unit tests; not run on a real generic Chromecast) |
 | [Consistency leftovers (ADR 108)](consistency-leftovers.md) | ui | medium | swept 2026-11-13: 3 fixed, 8 open |
 | [🎥 Totum recorder](totum-recorder.md) | app | medium | built 2026-11-06, Batch A (tests written 2026-11-07: the pure rules and the stores; not run on a device) |
@@ -24,11 +30,11 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [A live stream that hasn't started says so](live-starts-soon.md) | playback | medium | built 2026-11-06, Batch A (tests owed for the parser, the wait schedule and the watcher; the registry and the refused-tap toast have tests; not seen on a device) |
 | [📡 The Pi plays to any TV, browser or speaker](pi-plays-everywhere.md) | casting/pi | high | built 2026-11-07, Batch A (tests written 2026-11-07; device checks owed) |
 | [▶️ Play on… on every play and queue action](play-on-device-picker.md) | casting/pi | high | built 2026-11-13, Batch B P4 (unit tests green; instrumented tests written and compiled; nothing run on a real TV, soundbar or the Soundmic) |
-| [🎛️ Control the selected Pi device from every tab](target-bar-everywhere.md) | casting/pi | high | built 2026-11-20, Batch C task D (screenshots at two sizes; lock-screen controls not built) |
+| [🎛️ Control the selected Pi device from every tab](target-bar-everywhere.md) | casting/pi | high | built 2026-11-20, Batch C tasks D and M (screenshots at two sizes; lock-screen and notification controls built, ADR 188, emulator only) |
 | [🖥️ A browser is a Play on… target (open the Pi's address in any browser)](browser-target.md) | casting/pi | high | built 2026-11-13, Batch B P9 (home network only; away from home decided, not built; real-device checks owed) |
 | [📺 Cast to Apple TV (AirPlay) and DLNA players too](cast-to-airplay-and-dlna.md) | casting/pi | medium | built 2026-11-14 (ADRs 174 and 175, picture and a Kodi control); real LG and Kodi tests owed |
 | [⏻ Switch the LG off, put it on an input, start Kodi when Android has killed it](webos-and-kodi-power.md) | casting/pi | medium | built 2026-11-20 (ADR 177, fakes only); real LG and Fire Stick checks owed |
-| [🔊 Home Assistant's sounds play through Totum](home-assistant-sounds-through-totum.md) | casting/pi | high | adapter live since 2026-11-07, contract-tested and one change owed to the Pi 2026-11-20; no real HA-driven play seen yet; jazz source open (Dewi) |
+| [🔊 Home Assistant's sounds play through Totum](home-assistant-sounds-through-totum.md) | casting/pi | high | adapter live since 2026-11-07; jazz is SomaFM, redeployed 2026-11-27 and played on the soundbar through the adapter; HA's own switches and the Soundmic still unseen |
 | [🎞️ Drive a running Jellyfin app from Totum](jellyfin-remote-control.md) | casting/pi | medium | built 2026-11-20, Batch C (ADR 187; unit tests against a fake Jellyfin; not run against a real client) |
 | [A daily 🤖 For you feed](for-you-feed.md) | ai | medium | built 2026-11-07, Batch A (tests written 2026-11-07; device checks owed) |
 | [TL;DR and chapters for long items](tldr-and-chapters.md) | ai | medium | built 2026-11-07, Batch A (tests written 2026-11-07; device checks owed) |
@@ -68,6 +74,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [The mini player shows every mode that is on](sticky-modes-row.md) | player | high | built 2026-11-06, Batch A (ADR 125); tests to follow |
 | [Why is this playing?](why-is-this-playing.md) | player | medium | built 2026-11-06, Batch A (tests written 2026-11-07; emulator look owed) |
 | [What's new after an update](whats-new-card.md) | app | medium | built 2026-11-06, Batch A (ADR 130); first card needs a CI release carrying the notes; tests to follow |
+| [Hold the top-right corner to send a report](corner-hold-report.md) | diagnostics | high | built 2026-11-27, Batch C; a phone run over live video to follow |
 | [A Quick Settings tile sends a Totum report](send-report-tile.md) | diagnostics | medium | built 2026-11-06, Batch A; tests and a device run to follow |
 | [Search in Settings](settings-search.md) | settings | low | built 2026-11-06, Batch A; tests to follow |
 | [Update straight from the banner](in-app-updater.md) | app | high | built 2026-11-06, Batch A (ADR 130); tests and a device run to follow |
@@ -157,6 +164,7 @@ to `shipped` and migrate it to `../features/` once it's a real feature on `main`
 | [YouTube refuses subtitles with 429; the app hammered it and said nothing](subtitles-refused-429.md) | playback | high | back-off shipped 2026-10-14; on-screen message and a second caption source open |
 | [The learned fresh-URL window aims at the earliest acceptance](young-url-window-aims-too-early.md) | playback | medium | fixed 2026-11-14 offline from the emulator numbers (aims past the latest refusal when acceptances are all earlier); phone start time not yet seen |
 | [an-hour-long-item-stalls-early-in-ci](an-hour-long-item-stalls-early-in-ci.md) | playback | high | cause found 2026-10-14: one request opened at play start drips (280 KB in 21.9 s); re-ask fix pushed (ADR 33, 3aadcf7a on origin/main); no CI run confirmed to prove it yet |
+| [nightly-ci-red-every-night](nightly-ci-red-every-night.md) | ci | high | four causes found and fixed 2026-11-27 (a test off the main thread, a share that opened the chooser, a Wi-Fi that never came back, a runner lost inside the home tunnel); fully green with the live phase running on 2026-11-28 (run 46083657361), after `wg-home` on the Pi was found attached to no network since the reboot and the shared-links test was brought in line with ADR 186 |
 | [stalls-near-the-end-of-an-item](stalls-near-the-end-of-an-item.md) | playback | high | not seen since 0.1.477 (10 phone reports, mostly local files); cause not established; its detector cried wolf on every seek and is fixed |
 | [Explore channel content](../features/channel-browse.md) | channel | high | shipped |
 | [Views and dates everywhere](../features/upload-dates.md) | video/search/playback | high | shipped (incl. the video page, 2026-08-06) |

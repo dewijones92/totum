@@ -2,6 +2,10 @@ package com.dewijones92.totum.playback
 
 import com.dewijones92.totum.playback.cast.LocalManifests
 import com.dewijones92.totum.sabr.SabrSessions
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 
 /**
  * Which route a URI is HANDED TO, decided from the URI itself at the moment of play.
@@ -30,6 +34,29 @@ public fun routeOf(uri: String, fromDisk: Boolean): String = when {
     LocalManifests.servesManifest(uri) -> "a live manifest Totum built"
     uri.startsWith("http://127.0.0.1") || uri.startsWith("http://localhost") -> "the torrent server"
     else -> "a direct url"
+}
+
+public object PlayRoutes {
+    private const val KEPT = 64
+    private val routes = object : LinkedHashMap<String, String>(KEPT, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String>?): Boolean = size > KEPT
+    }
+
+    private val version = MutableStateFlow(0)
+
+    public val changes: StateFlow<Int> = version.asStateFlow()
+
+    public fun record(itemId: String, route: String) {
+        synchronized(routes) { routes[itemId] = route }
+        version.update { it + 1 }
+    }
+
+    public fun of(itemId: String): String? = synchronized(routes) { routes[itemId] }
+
+    public fun forget(itemId: String) {
+        val had = synchronized(routes) { routes.remove(itemId) != null }
+        if (had) version.update { it + 1 }
+    }
 }
 
 /**

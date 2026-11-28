@@ -42,7 +42,7 @@ internal object KodiCredentials {
 
 internal class KodiFault(val code: Int?, message: String) : IOException(message)
 
-internal class KodiRefusedLogin(message: String) : IOException(message)
+internal class KodiRefusedLogin(message: String, val noCredentials: Boolean = false) : IOException(message)
 
 internal interface KodiRpc {
     fun call(method: String, params: JsonObject = JsonObject(emptyMap())): JsonElement
@@ -64,7 +64,7 @@ internal class JdkKodiRpc(
     private var nextId = 0
 
     override fun call(method: String, params: JsonObject): JsonElement {
-        val login = logins.read() ?: throw KodiRefusedLogin(KodiCredentials.NONE)
+        val login = logins.read() ?: throw KodiRefusedLogin(KodiCredentials.NONE, noCredentials = true)
         val body = buildJsonObject {
             put("jsonrpc", JsonPrimitive("2.0"))
             put("id", JsonPrimitive(synchronized(this@JdkKodiRpc) { ++nextId }))

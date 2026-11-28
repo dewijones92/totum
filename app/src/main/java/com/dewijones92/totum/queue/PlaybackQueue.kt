@@ -3,6 +3,7 @@ package com.dewijones92.totum.queue
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.common.HttpUrl
 import com.dewijones92.totum.data.home.JellyfinSeriesRun
+import com.dewijones92.totum.data.queue.NextStack
 import com.dewijones92.totum.data.queue.QueueEntry
 import com.dewijones92.totum.data.queue.QueueGroup
 import com.dewijones92.totum.data.queue.QueueSnapshot
@@ -13,8 +14,9 @@ import com.dewijones92.totum.data.queue.appendingAll
 import com.dewijones92.totum.data.queue.fake.InMemoryQueueStore
 import com.dewijones92.totum.data.queue.inserted
 import com.dewijones92.totum.data.queue.insertingAllNext
+import com.dewijones92.totum.data.queue.placingNext
 import com.dewijones92.totum.data.queue.regrouping
-import com.dewijones92.totum.data.queue.relocating
+import com.dewijones92.totum.data.queue.relocatingNext
 import com.dewijones92.totum.data.queue.removing
 import com.dewijones92.totum.data.queue.removingAt
 import com.dewijones92.totum.data.queue.shuffledAfterCurrent
@@ -41,6 +43,7 @@ import com.dewijones92.totum.domain.pictureForSwitching
 import com.dewijones92.totum.domain.routeNow
 import com.dewijones92.totum.domain.titleOf
 import com.dewijones92.totum.music.labelledForPlay
+import com.dewijones92.totum.playback.PlayRoutes
 import com.dewijones92.totum.playback.PlaybackController
 import com.dewijones92.totum.playback.PlaybackEvent
 import com.dewijones92.totum.playback.PlaybackState
@@ -53,7 +56,6 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filterIsInstance
@@ -149,9 +151,11 @@ class PlaybackQueue(
     private val audioPreferred: () -> Boolean = { false },
     private val sourceArtwork: () -> Map<SourceId, HttpUrl> = { emptyMap() },
     internal val passOver: (PlayableItem) -> String? = { null },
+    private val liveRadioGroup: () -> String? = { null },
     private val repeatOneOffForRun: (String) -> Boolean = { false },
     private val shield: ItemShield = NoShield,
     private val openExternally: (PlayableItem, HttpUrl) -> Boolean = { _, _ -> false },
+    private val markPlayed: suspend (MediaItemId) -> Unit = {},
     seriesRun: suspend (MediaItem) -> JellyfinSeriesRun? = { null },
 ) {
     private val seriesRuns = SeriesRuns(seriesRun, offline)
@@ -198,12 +202,9 @@ class PlaybackQueue(
 
     private val rescueIntent = RescueIntent(controller)
 
-    private val _streaming = MutableStateFlow<MediaItemId?>(null)
+    private val streamingIntent = StreamingIntent(controller.state.map(::playingWantedId).distinctUntilChanged())
 
-    val streamingNow: Flow<MediaItemId?> = combine(
-        _streaming,
-        controller.state.map(::playingWantedId).distinctUntilChanged(),
-    ) { streaming, wanted -> streaming?.takeIf { it == wanted } }.distinctUntilChanged()
+    val streamingNow: Flow<MediaItemId?> = streamingIntent.now
 
     private fun playingWantedId(state: PlaybackState?): MediaItemId? =
         state?.takeIf { it.wantsToPlay && !it.hasEnded }?.itemId
@@ -269,7 +270,7 @@ class PlaybackQueue(
         val listen = queued?.takeIf {
             event.problem.isPicture && event.hasSound && !audioPreferred() && !pictures.soundOnly(it)
         }
-        refusals.announceProblem(title, event.itemId, event.problem, listen)
+        refusals.announceProblem(title, event.itemId, event.problem, listen, queued)
     }
 
     @Volatile
@@ -298,7 +299,7 @@ class PlaybackQueue(
         withoutExternal(listOf(item), "play-next").isNotEmpty() && (
             redirected(listOf(item), QueueMode.NEXT, group, local = local) ||
                 addingUnlessQueued("play-next", item) { snapshot, kept ->
-                    snapshot.inserted(listOf(QueueEntry(kept, group)))
+                    snapshot.placingNext(setOf(kept.item.id), listOf(QueueEntry(kept, group)))
                 }
             )
 
@@ -324,8 +325,13 @@ class PlaybackQueue(
         Diag.log(
             "playback",
             "dewidebug external $why: \"${item.item.title.take(TITLE_CHARS)}\" ${external.url} -> " +
-                if (opened) "handed to the other app" else "nothing could open it",
+                if (opened) {
+                    "handed to the other app, marked played"
+                } else {
+                    "nothing could open it, not marked played"
+                },
         )
+        if (opened) scope.launch { markPlayed(item.item.id) }
         return opened
     }
 
@@ -347,7 +353,7 @@ class PlaybackQueue(
                 snapshot
             } else {
                 moved = snapshot.current?.item?.item?.id != item.item.id
-                snapshot.relocating(item) { without, kept -> without.inserted(listOf(QueueEntry(kept, old.group))) }
+                snapshot.relocatingNext(item, old.group)
             }
         }
         return moved
@@ -441,9 +447,7 @@ class PlaybackQueue(
         noteAlreadyQueued(items, "play-next x${items.size}$label")
         mutate("play-next x${items.size}$label") { snapshot ->
             if (snapshot.anchor != null && items.any { it.item.id == snapshot.anchor }) {
-                items.asReversed().fold(snapshot) { acc, item ->
-                    acc.relocating(item) { without, kept -> without.inserted(listOf(QueueEntry(kept, group))) }
-                }
+                items.fold(snapshot) { acc, item -> acc.relocatingNext(item, group) }
             } else {
                 snapshot.insertingAllNext(items, group)
             }
@@ -593,6 +597,12 @@ class PlaybackQueue(
 
     fun restorePlace(id: MediaItemId) = _state.value.takeIf { it.currentIndex < 0 && it.anchor == null }
         ?.let { mutate("the queue's place restored after a restart: after ${id.value}") { s -> s.copy(anchor = id) } }
+
+    fun restoreNextStack(stack: NextStack) = _state.value.takeIf { it.nextStack == null }?.let {
+        mutate("the play-next chain restored after a restart: tail ${stack.tail.value}") { s ->
+            s.copy(nextStack = stack)
+        }
+    }
 
     /** Plays the entry at [index]; nothing before it is discarded. */
     fun jumpTo(index: Int, byYou: Boolean = true, reason: PlayReason = PlayReason.Chosen(ChosenWay.QUEUE_ROW)) {
@@ -796,7 +806,8 @@ class PlaybackQueue(
         }
 
     suspend fun armNext(allowStream: Boolean): Boolean {
-        val queued = (peekNext() ?: return false).withSourceArtwork(sourceArtwork()).labelledForPlay(_state.value)
+        val queued = (peekNext() ?: return false).withSourceArtwork(sourceArtwork())
+            .labelledForPlay(_state.value, liveRadioGroup())
         val decision = decide(queued)
         armedAtPlay = plays
         return QueueArming(controller, launcher).arm(
@@ -913,6 +924,16 @@ class PlaybackQueue(
                 "facts",
                 "$why: ${undated.size} item(s) entered the queue with no date: " +
                     undated.take(UNDATED_SHOWN).joinToString { "${it.id.value} (source=${it.sourceId.value})" },
+            )
+        }
+        val viewless = now.entries.map { it.item }.filter { it.item.id !in earlier && it.saysNoViews }
+        if (viewless.isNotEmpty()) {
+            Diag.log(
+                "facts",
+                "$why: ${viewless.size} item(s) entered the queue with no views, by source: " +
+                    viewless.groupingBy { it.item.sourceId.value }.eachCount().entries
+                        .joinToString { "${it.key}=${it.value}" } +
+                    "; first: " + viewless.take(UNDATED_SHOWN).joinToString { it.item.id.value },
             )
         }
         // The title is labelled, because it is the CURRENT entry and not whatever was just
@@ -1308,7 +1329,7 @@ class PlaybackQueue(
         forceAudio: Boolean = false,
         forceVideo: Boolean = false,
     ): Boolean {
-        val queued = listed.withSourceArtwork(sourceArtwork()).labelledForPlay(_state.value)
+        val queued = listed.withSourceArtwork(sourceArtwork()).labelledForPlay(_state.value, liveRadioGroup())
         // Claimed for EVERY route, before anything is chosen. A route to a file reaches the
         // controller directly, so without claiming it here a streaming resolve still in flight
         // would land later and take playback back to the network — which is exactly what report
@@ -1338,7 +1359,33 @@ class PlaybackQueue(
         Diag.log("playback", routeLine)
         recentRoutes.remember(routeLine)
         lastRoute = queued.item.id to route
-        _streaming.value = queued.item.id.takeIf { route is PlayRoute.VideoStream || route is PlayRoute.AudioStream }
+        val streams = route is PlayRoute.VideoStream || route is PlayRoute.AudioStream
+        if (streams) {
+            PlayRoutes.forget(queued.item.id.value)
+            Diag.log(
+                "download",
+                "dewidebug ${queued.item.id.value} is about to stream; the auto-download is told now, " +
+                    "not when the player has it"
+            )
+        }
+        streamingIntent.decided(queued.item.id.takeIf { streams })
+        try {
+            return startRoute(decision, queued, startPositionMs, request, forceVideo)
+        } finally {
+            streamingIntent.handedOver(queued.item.id)
+        }
+    }
+
+    private suspend fun startRoute(
+        decision: Decision,
+        queued: PlayableItem,
+        startPositionMs: Long,
+        request: Long,
+        forceVideo: Boolean,
+    ): Boolean {
+        val route = decision.route
+        val onDisk = decision.onDisk
+        val audioNow = decision.audio
         return when (route) {
             is PlayRoute.File -> {
                 val audioOnly = route.audioOnly

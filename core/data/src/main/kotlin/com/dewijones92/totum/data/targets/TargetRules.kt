@@ -14,6 +14,15 @@ import com.dewijones92.totum.domain.picture
 public val TargetState.showsPicture: Boolean
     get() = target.kind.hasPicture && current?.toQueueEntry()?.item?.picture.let { it != null && it != Picture.NO }
 
+public val TargetState.offersSkipSilence: Boolean
+    get() = !showsPicture
+
+public val TargetState.offersBoost: Boolean
+    get() = true
+
+public val TargetState.offersCaptions: Boolean
+    get() = captions.offered.isNotEmpty()
+
 public val TargetState.isLive: Boolean
     get() = live || current?.toQueueEntry()?.item?.item?.contentKind == MediaContentKind.LIVE
 
@@ -133,3 +142,50 @@ public val TargetState.connection: TargetConnection
 
 public fun List<TargetState>.barFor(selected: String?): TargetState? =
     firstOrNull { it.target.id == selected }?.takeIf { it.current != null }
+
+public sealed interface DockBar {
+    public data class Remote(val state: TargetState) : DockBar
+
+    public data object Phone : DockBar
+
+    public data object Hidden : DockBar
+}
+
+public fun List<TargetState>.dockBarFor(selected: String?, onQueueTab: Boolean): DockBar {
+    val remote = barFor(selected) ?: return DockBar.Phone
+    return if (onQueueTab) DockBar.Hidden else DockBar.Remote(remote)
+}
+
+public enum class Doing { STARTING, PLAYING, PAUSED, IDLE }
+
+public val TargetState.doing: Doing
+    get() = when {
+        starting -> Doing.STARTING
+        current == null -> Doing.IDLE
+        playing -> Doing.PLAYING
+        power != TargetPower.ON -> Doing.IDLE
+        else -> Doing.PAUSED
+    }
+
+public fun TargetState.doingLine(title: String?): String {
+    val named = title?.takeIf { it.isNotBlank() }
+    return when (doing) {
+        Doing.STARTING -> "⏳ ${named ?: "Starting"}"
+        Doing.PLAYING -> "▶️ ${named ?: "Playing"}"
+        Doing.PAUSED -> "⏸️ ${named ?: "Paused"}"
+        Doing.IDLE -> "⚪ Idle"
+    }
+}
+
+public data class BarDecision(val state: TargetState?, val why: String)
+
+public fun List<TargetState>.barDecision(selected: String?): BarDecision {
+    val state = barFor(selected)
+    val why = when {
+        selected == null -> "this phone is the chosen device"
+        state != null -> "${state.target.label} is chosen and has ${state.entries.size} queued, at=${state.at}"
+        none { it.target.id == selected } -> "$selected is chosen but the Pi does not list it"
+        else -> "$selected is chosen but has nothing playing or queued to show"
+    }
+    return BarDecision(state, why)
+}

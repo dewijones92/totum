@@ -56,55 +56,57 @@ fun MusicArtistScreen(container: AppContainer, page: MusicPage.Artist, onBack: (
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val actions = LocalItemActions.current
-    LazyColumn(Modifier.fillMaxSize()) {
-        item { BackHeader(title = stringResource(R.string.music_kind_artist), onBack = onBack) }
-        when (val current = state) {
-            MusicArtistViewModel.State.Loading -> item { MusicLoading() }
-            is MusicArtistViewModel.State.Failed -> item { ArtistFailed(current, page, viewModel) }
-            is MusicArtistViewModel.State.Loaded -> {
-                val artist = current.artist
-                item { ArtistHeader(artist) }
-                item {
-                    val ask = rememberShuffleAsk()
-                    val follow = rememberArtistFollow(
-                        container.musicFavourites,
-                        container.applicationScope,
-                        artist.browseId,
-                        artist.name
-                    )
-                    MusicButtons(
-                        artistButtons(artist, viewModel, context, ask) +
-                            listOfNotNull(follow?.followButton()) +
-                            pinButtons(artist.asPin()),
-                    )
-                }
-                item { AboutText(artist.description) }
-                if (current.topSongs.isNotEmpty()) {
+    Column(Modifier.fillMaxSize()) {
+        BackHeader(title = stringResource(R.string.music_kind_artist), onBack = onBack)
+        LazyColumn(Modifier.weight(1f).fillMaxWidth()) {
+            when (val current = state) {
+                MusicArtistViewModel.State.Loading -> item { MusicLoading() }
+                is MusicArtistViewModel.State.Failed -> item { ArtistFailed(current, page, viewModel) }
+                is MusicArtistViewModel.State.Loaded -> {
+                    val artist = current.artist
+                    item { ArtistHeader(artist) }
                     item {
-                        MusicSectionTitle("${FactEmoji.SONG} " + stringResource(R.string.section_top_songs))
+                        val ask = rememberShuffleAsk()
+                        val follow = rememberArtistFollow(
+                            container.musicFavourites,
+                            container.applicationScope,
+                            artist.browseId,
+                            artist.name
+                        )
+                        MusicButtons(
+                            artistButtons(artist, viewModel, context, ask) +
+                                listOfNotNull(follow?.followButton()) +
+                                pinButtons(artist.asPin()),
+                        )
                     }
-                }
-                itemsIndexed(current.topSongs, key = { _, item -> "top:" + item.id.value }) { index, item ->
-                    MediaItemRow(
-                        item = item,
-                        subtitleLines = rowFacts(item, MediaKind.VIDEO),
-                        pillar = MediaKind.VIDEO,
-                        onPlay = { viewModel.playTop(fromIndex = index) },
-                        onDownload = actions?.let { a -> { a.download(item, audioOnly = true) } },
+                    item { AboutText(artist.description) }
+                    if (current.topSongs.isNotEmpty()) {
+                        item {
+                            MusicSectionTitle("${FactEmoji.SONG} " + stringResource(R.string.section_top_songs))
+                        }
+                    }
+                    itemsIndexed(current.topSongs, key = { _, item -> "top:" + item.id.value }) { index, item ->
+                        MediaItemRow(
+                            item = item,
+                            subtitleLines = rowFacts(item, MediaKind.VIDEO),
+                            pillar = MediaKind.VIDEO,
+                            onPlay = { viewModel.playTop(fromIndex = index) },
+                            onDownload = actions?.let { a -> { a.download(item, audioOnly = true) } },
+                        )
+                    }
+                    seeAll(R.string.music_see_all_songs, MusicPage.ArtistSongs.of(artist))
+                    releases("${FactEmoji.ALBUM} ", R.string.section_albums, artist.albums, "album")
+                    seeAll(
+                        R.string.music_see_all_albums,
+                        artist.allAlbums?.let { MusicPage.ArtistReleases(it, artist.name, singles = false) },
                     )
+                    releases("${FactEmoji.ALBUM} ", R.string.section_singles, artist.singles, "single")
+                    seeAll(
+                        R.string.music_see_all_singles,
+                        artist.allSingles?.let { MusicPage.ArtistReleases(it, artist.name, singles = true) },
+                    )
+                    similarArtists(artist)
                 }
-                seeAll(R.string.music_see_all_songs, MusicPage.ArtistSongs.of(artist))
-                releases("${FactEmoji.ALBUM} ", R.string.section_albums, artist.albums, "album")
-                seeAll(
-                    R.string.music_see_all_albums,
-                    artist.allAlbums?.let { MusicPage.ArtistReleases(it, artist.name, singles = false) },
-                )
-                releases("${FactEmoji.ALBUM} ", R.string.section_singles, artist.singles, "single")
-                seeAll(
-                    R.string.music_see_all_singles,
-                    artist.allSingles?.let { MusicPage.ArtistReleases(it, artist.name, singles = true) },
-                )
-                similarArtists(artist)
             }
         }
     }

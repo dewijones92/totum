@@ -3,7 +3,7 @@ title: What's next, in the notification
 kind: feature
 status: built 2026-11-06 (tests written 2026-11-07; device check owed)
 area: player
-updated: 2026-11-07
+updated: 2026-11-27
 ---
 
 # What's next, in the notification
@@ -60,3 +60,8 @@ badge then next, a refresh once per change, the context bundle round trip; reads
 Seen failing with the sleep-timer rule inverted.
 
 Still owed: a device check that reordering the queue changes the line within a second and that the lock screen shows it.
+
+## Up next uses the same rule (2026-11-27)
+
+The player's Up next list now dims what `nextAfterThePlace` would pass over (`skipWhy`), so the list, the advance and this
+line agree; see [playback-queue](playback-queue.md).

@@ -36,6 +36,7 @@ public object PlaybackCacheReport {
 }
 
 @UnstableApi
+@Suppress("TooManyFunctions")
 internal object PlaybackCache {
 
     private const val MB_SHIFT = PlaybackCacheReport.MB_SHIFT
@@ -45,6 +46,9 @@ internal object PlaybackCache {
     private const val LOG_KEY_EVERY_MS = 5_000L
     private const val KEYS_REMEMBERED = 256
     private const val KEY_CHARS = 60
+    private const val NOT_CACHEABLE = -1L
+    private const val NON_BLOCKING_FLAGS = CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR
+    private const val BLOCKING_FLAGS = NON_BLOCKING_FLAGS or CacheDataSource.FLAG_BLOCK_ON_CACHE
 
     @Volatile private var cache: SimpleCache? = null
 
@@ -70,13 +74,37 @@ internal object PlaybackCache {
         factory(get(context), upstream)
 
     internal fun factory(store: Cache, plainUpstream: DataSource.Factory): DataSource.Factory {
+        val upstream = counted(plainUpstream)
+        val cached = cacheSource(store, upstream, BLOCKING_FLAGS)
+        PlaybackTee.install({ store }) { cached.createDataSource() }
+        return DataSource.Factory { Router(store, cached.createDataSource(), upstream.createDataSource()) }
+    }
+
+    fun relayFactory(context: Context, plainUpstream: DataSource.Factory): DataSource.Factory =
+        relayFactory(get(context), plainUpstream)
+
+    internal fun relayFactory(store: Cache, plainUpstream: DataSource.Factory): DataSource.Factory {
+        val upstream = counted(RelayOpenTimes.timed(plainUpstream))
+        val cached = cacheSource(store, upstream, NON_BLOCKING_FLAGS)
+        return DataSource.Factory { Router(store, cached.createDataSource(), upstream.createDataSource()) }
+    }
+
+    fun heldFrom(context: Context, url: String, position: Long): Long {
+        val key = PlaybackCacheKeys.key(url) ?: return NOT_CACHEABLE
+        return get(context).getCachedBytes(key, position, Long.MAX_VALUE)
+    }
+
+    private fun counted(plainUpstream: DataSource.Factory): DataSource.Factory {
         val counter = PlaybackTee.countingListener { spec -> PlaybackCacheKeys.key(spec.uri.toString()) }
-        val upstream = DataSource.Factory { plainUpstream.createDataSource().also { it.addTransferListener(counter) } }
-        val cached = CacheDataSource.Factory()
+        return DataSource.Factory { plainUpstream.createDataSource().also { it.addTransferListener(counter) } }
+    }
+
+    private fun cacheSource(store: Cache, upstream: DataSource.Factory, flags: Int): CacheDataSource.Factory =
+        CacheDataSource.Factory()
             .setCache(store)
             .setUpstreamDataSourceFactory(upstream)
             .setCacheKeyFactory { spec -> keyOf(spec.uri.toString()) }
-            .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR or CacheDataSource.FLAG_BLOCK_ON_CACHE)
+            .setFlags(flags)
             .setEventListener(
                 object : CacheDataSource.EventListener {
                     override fun onCachedBytesRead(cacheSizeBytes: Long, cachedBytesRead: Long) {
@@ -98,9 +126,6 @@ internal object PlaybackCache {
                     }
                 },
             )
-        PlaybackTee.install({ store }) { cached.createDataSource() }
-        return DataSource.Factory { Router(store, cached.createDataSource(), upstream.createDataSource()) }
-    }
 
     private fun sizeOf(bytes: Long): String =
         if (bytes >= 1L shl MB_SHIFT) "${bytes shr MB_SHIFT} MB" else "${bytes shr KB_SHIFT} KB"

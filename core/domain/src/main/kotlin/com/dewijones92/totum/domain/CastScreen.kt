@@ -13,6 +13,15 @@ public enum class VideoCodecFamily(public val prefixes: List<String>) {
             val c = codec?.lowercase()?.trim() ?: return null
             return entries.firstOrNull { family -> family.prefixes.any(c::startsWith) }
         }
+
+        public fun ofMime(mimeType: String?): VideoCodecFamily? = when (mimeType?.lowercase()) {
+            "video/avc" -> AVC
+            "video/hevc", "video/dolby-vision" -> HEVC
+            "video/x-vnd.on2.vp9" -> VP9
+            "video/x-vnd.on2.vp8" -> VP8
+            "video/av01" -> AV1
+            else -> null
+        }
     }
 }
 

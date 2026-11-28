@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import androidx.test.platform.app.InstrumentationRegistry
+import com.dewijones92.totum.MainActivity
 import com.dewijones92.totum.TotumApplication
 import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.domain.DownloadState
@@ -106,6 +107,8 @@ class SeveralSharedLinksAllLandTest {
             queued != null,
         )
 
+        instrumentation.runOnMainSync { container.playbackController.setPlaying(false) }
+
         val fetched = withTimeoutOrNull(DOWNLOAD_TIMEOUT_MS) {
             container.downloadManager.observeDownloads().first { states ->
                 SHARED.all { states[MediaItemId(it)] is DownloadState.Downloaded }
@@ -125,7 +128,7 @@ class SeveralSharedLinksAllLandTest {
     private fun shareOf(videoId: String) = Intent(Intent.ACTION_SEND).apply {
         type = "text/plain"
         putExtra(Intent.EXTRA_TEXT, "https://www.youtube.com/watch?v=$videoId")
-        setPackage(context.packageName)
+        setClass(context, MainActivity::class.java)
         // NEW_TASK because this is sent from the application context, and SINGLE_TOP so the second
         // and third arrive at the running activity as onNewIntent — which is how a share sheet
         // delivers them, and the path where one can be lost.

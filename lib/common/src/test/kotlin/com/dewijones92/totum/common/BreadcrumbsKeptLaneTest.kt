@@ -19,10 +19,21 @@ class BreadcrumbsKeptLaneTest {
 
     @Test
     fun `the side-quest and cast tags are the ones kept longer`() {
-        listOf("Exsurge", "DailyAlarm", "reminders", "cast", "home", "kidlock", "targets", "uploads", "queue").forEach {
+        listOf(
+            "Exsurge", "DailyAlarm", "reminders", "cast", "home", "kidlock", "targets", "uploads", "queue", "group",
+        ).forEach {
             assertTrue(it, it in Breadcrumbs.KEPT_TAGS)
         }
+        assertTrue("the per-item account sync lines", "yt-sync-item" in Breadcrumbs.KEPT_TAGS)
+        assertFalse("the routine ping lines stay chatty", "yt-sync" in Breadcrumbs.KEPT_TAGS)
         listOf("playback", "resolve", "gesture").forEach { assertFalse(it, it in Breadcrumbs.KEPT_TAGS) }
+    }
+
+    @Test
+    fun `the radio, discover, download, fullscreen, codec and advance tags are kept longer too`() {
+        listOf("radio", "discover", "download", "fullscreen", "codec", "advance").forEach {
+            assertTrue(it, it in Breadcrumbs.KEPT_TAGS)
+        }
     }
 
     @Test

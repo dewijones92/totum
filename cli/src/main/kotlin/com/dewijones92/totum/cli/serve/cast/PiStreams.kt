@@ -5,11 +5,18 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.targets.SoundSettings
 import com.dewijones92.totum.playback.cast.CastFormat
 import com.dewijones92.totum.playback.cast.CastItem
+import com.dewijones92.totum.playback.cast.CastOutPaths
 import com.dewijones92.totum.playback.cast.CastStreamServer
 import com.dewijones92.totum.playback.cast.CastTimeline
+import com.dewijones92.totum.playback.cast.Http
+import com.dewijones92.totum.playback.cast.HttpReply
+import com.dewijones92.totum.playback.cast.HttpRequest
 import com.dewijones92.totum.playback.cast.LocalManifests
 import com.dewijones92.totum.playback.cast.MediaTools
+import com.dewijones92.totum.playback.cast.OpenedCast
+import com.dewijones92.totum.playback.cast.PatientUpstream
 import com.dewijones92.totum.playback.cast.ScreenLink
+import com.dewijones92.totum.playback.cast.UpstreamReply
 import java.util.concurrent.ConcurrentHashMap
 
 internal class PiStreams(
@@ -19,6 +26,7 @@ internal class PiStreams(
     private val relay: StreamRelay = StreamRelay(),
     tools: MediaTools? = null,
     private val liveHls: LiveHls? = null,
+    upstream: (String, String?) -> UpstreamReply = PatientUpstream()::get,
 ) {
     private class Playing(val sound: SoundSettings, val durationUs: Long?)
 
@@ -42,15 +50,18 @@ internal class PiStreams(
         tvs = tvs,
         tools = tools,
         port = port,
-        alsoServes = relay::handle,
+        alsoServes = { request -> lanCheck(request) ?: relay.handle(request) },
+        upstream = upstream,
     )
 
     val available: Boolean get() = base != null
 
+    fun start(): Int = server.start()
+
     fun serveScreens(screens: ScreenLink): Boolean {
         if (base == null) return false
         server.screens = screens
-        val port = server.start()
+        val port = start()
         Diag.log("cast-target", "the browser page is served at ${base.trimEnd('/')}/ (listening on $port)")
         return true
     }
@@ -63,13 +74,36 @@ internal class PiStreams(
         return server.urlFor(item, format).also {
             Diag.log(
                 "cast-target",
-                "${tv.label}: ${item.mediaId} -> ${it ?: "given as it is"} as ${format.name} " +
+                "${tv.label}: ${item.mediaId} -> ${it ?: "given as it is"} as " +
+                    "${if (it == null) format.name else CastFormat.mimeOf(it, format)} " +
                     "(uri=${hostOf(item.uri)} " +
                     "separateAudio=${item.separateAudioUrl != null} ladder=${item.ladder.size} " +
                     "listening=${item.listening})",
             )
         }
     }
+
+    fun openForAnotherHost(tv: PiCastTv, item: CastItem, sound: SoundSettings): OpenedCast? {
+        tvs.expect(item.mediaId, tv)
+        playing[item.mediaId] = Playing(sound, item.durationMs?.let { it * MICROS_PER_MS })
+        return server.openFor(item, CastFormat.DASH).also {
+            Diag.log(
+                "cast-out",
+                "dewidebug ${item.mediaId}: ${if (it == null) "no session opened" else "session opened"} " +
+                    "for ${tv.label} (uri=${hostOf(item.uri)} separateAudio=${item.separateAudioUrl != null} " +
+                    "listening=${item.listening} sound=$sound)",
+            )
+        }
+    }
+
+    fun serveSession(request: HttpRequest): HttpReply = server.serve(request)
+
+    private fun lanCheck(request: HttpRequest): HttpReply? =
+        if (request.path.substringBefore('?') == CastOutPaths.LAN_CHECK) {
+            HttpReply.Bytes(Http.OK, "text/plain", CastOutPaths.LAN_CHECK_ANSWER.toByteArray())
+        } else {
+            null
+        }
 
     fun timelineFor(mediaId: String): CastTimeline? = server.timelineFor(mediaId)
 

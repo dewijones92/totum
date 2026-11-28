@@ -2,8 +2,8 @@
 title: Casting
 kind: feature
 area: playback
-status: built — in use with the LG and the Chromecast Ultra (fixed from Dewi's diagnostics of 7 to 11 November, ADR 164); the TV volume, the read-ahead, the 12 s step-down, SubRip on the LG and the Pi's casting are not yet seen on a real TV
-updated: 2026-11-27
+status: built — in use with the LG and the Chromecast Ultra (fixed from Dewi's diagnostics of 7 to 11 November, ADR 164); the TV volume, the read-ahead, the 12 s step-down, SubRip on the LG, the Pi's casting and casting from a friend's house, to a Chromecast or a PC screen (ADR 182, built 2026-11-27, PC screen 2026-11-28; the Pi side live since 2026-11-28) are not yet seen on a real TV
+updated: 2026-11-28
 ---
 
 # Casting
@@ -277,4 +277,105 @@ of a downloaded file offers them; `EmbeddedSubtitleWarmer` prepares every downlo
   logs "the tail is not coming" for the TV's buffer.
 - **Needs a real TV:** the read-ahead on a throttled link, the 12 s step-down, the SubRip captions on the LG, and the seek
   bar in Edge against a real phone.
+
+## A relay that never waits on a locked cache span (2026-11-27, [ADR 186](../adr/0186-one-fetch-per-item-a-playing-stream-is-its-own-download.md) amended)
+
+Reports 20261123T123853, 124440 and 171635 (0.1.944): a phone-direct cast hung for 28 to 90 s on a deep range at the resume position and the TV
+gave up (`receiver error 321`). The relay read upstream through the playback cache's blocking data source (added with the tee on 20 November), which waits
+without a timeout on a span another reader holds. The relay now has a data source of its own that reads around a locked span, and a 6 s
+budget on the open as a second line of defence. Each open logs its wait, split into the cache's and upstream's first byte, and
+anything over 3 s is a warning (`dewidebug relay open #N …`). Who holds a locked span cannot be known (the cache does not say). Tests:
+`ARelayReadWaitsForNoLockedSpanTest` (instrumented), `BudgetedOpenTest`. Not seen on a real TV: whether the resume-position cast now starts.
+
+## A crossover with nothing casting is quiet (2026-11-27, [ADR 164](../adr/0164-casting-fixes-from-the-diagnostics-of-7-to-11-november.md) amended)
+
+`RemoteEndWatch` no longer logs "Totum never saw X play there" for a phone gapless crossover while nothing casts.
+
+## At a friend's house: home items come from the home server (2026-11-27, [ADR 182](../adr/0182-a-friends-chromecast-fetches-home-items-from-the-home-server-by-a-session-link.md))
+
+Cast to a friend's Chromecast from the Cast button, as anywhere: the phone finds it on the friend's Wi-Fi and drives it. What changes is
+**where the stream comes from** for an item only home can serve (a Jellyfin film, a torrent at home, a 🏠 home copy), when the phone is
+**not on the home network**: the home server builds the stream with the same brain it uses for its own TVs and the Chromecast fetches
+it from `https://totum.<home>/cast-out/<link>/manifest.mpd` over the internet, so the phone relays nothing.
+
+- **The link** is a random 256-bit secret the home server minted for that one cast, valid six hours, ended when the cast ends (the Cast
+  session closing, or the same item being cast again). It reaches that session's files and nothing else, and it is the one exception
+  to "no link carries a token" ([ADR 90](../adr/0090-a-token-per-device-and-none-in-links.md)); the device token still gates the minting.
+- **Which route** is decided per item and logged with its reason (`cast-out` lines): a YouTube stream, a podcast, a file on the phone, or
+  anything that does not come from the home server stays phone-direct; on the home network (the Pi answers on its own LAN address) the
+  phone serves it as before; signed out, an unknown home network, a home server that refuses or does not answer within 7 s: phone-direct,
+  with the reason. There is no setting.
+- **Left off on this route:** skip silence (the phone could not map the TV's clock back), live streams. The boost applies.
+- **Setup** is on the Pi, by hand: the nginx patch and `TOTUM_CAST_PUBLIC_BASE`, in `tools/handoff/cast-out/README.md`. Until then the home
+  server answers "not set up" and every cast is phone-direct, as before.
+- **Logs to read in a report:** `[cast-out]` lines on the phone say which route and why, the session (six characters), the model and the
+  expiry; on the Pi they say what each session was asked for, how many bytes it served, why it ended, and every refusal (the first few,
+  then every fiftieth).
+
+### How Dewi tests it away from home
+
+The home Wi-Fi plus mobile data is not enough: a Chromecast has to be on the network the phone is on, and a phone on mobile data cannot see
+one. The simplest stand-in is a second phone's hotspot:
+
+1. Make the hotspot on a second phone (mobile data on). Put a Chromecast on it (set it up from the Google Home app on the hotspot) and join
+   Dewi's phone to the same hotspot. That network has no route to `192.168.0.x`, which is what "away" means here.
+2. On Dewi's phone open Totum and play a Jellyfin film or a 🏠 home copy; tap Cast and pick the Chromecast.
+3. In Totum's diagnostics (or `adb logcat -s dewidebug | grep cast-out`) look for: `home network: asked 192.168.0.x:8771/lan-check ... so the
+   phone is NOT on the home network`, then `the friend's Chromecast fetches it from the home server (session xxxxxx…)`. The Chromecast
+   should start within a few seconds; seek with the Totum bar.
+4. Stop casting and check the Pi's log: `session xxxxxx ended: the phone ended the cast; N request(s), … KB served`. The link itself is
+   never shown whole, so ending is proved by that line; `tools/cast-bench/standin/public-standin.sh` does the mint, the play and the end
+   with the 404 check, against a local `totum serve`.
+5. For the opposite check, join the home Wi-Fi: the same film should log `the phone is on the home network, where it serves home items as
+   before` and cast phone-direct.
+
+Not seen on a real Chromecast or the real Pi. Seen: the real `totum serve`, a real nginx from the patch, and Shaka in Edge
+(`tools/cast-bench/standin/public-standin.sh`).
+
+### A PC screen at a friend's house (2026-11-28, [ADR 182](../adr/0182-a-friends-chromecast-fetches-home-items-from-the-home-server-by-a-session-link.md) amended)
+
+The PC screen (🖥️, or **▶️ Watch here** on the page) takes the same route as the friend's Chromecast: when the phone is not on the home network and the
+item is home-only (a Jellyfin film, a torrent at home, a 🏠 home copy), the page plays it from the home server's public link and the phone relays
+nothing. The decision is the same code (`PublicCastRoute.routedStream`), with the same reasons and the same phone-direct fallback; the `load` the phone
+sends the page then carries `"direct":true`, so the page hands Shaka the link as given instead of rewriting it onto the phone's address. The page is still
+served by the phone and found through the Pi bookmark, so the PC must be on the same network as the phone; only the media comes from the Pi.
+
+- **Same limits as the Chromecast:** skip silence off, YouTube and live stay phone-direct, the home network keeps the phone's own address, no setting.
+  No model is sent for a PC, so the Pi builds a VP9/H.264 stream, H.264 first, which every browser plays.
+- **Logs:** `[cast-out] … the PC's browser fetches it from the home server (session xxxxxx…, model unknown, …)` or `… the phone serves it to the PC's
+  browser, because …`; `[screen] <id>: load N sent to the screen from the home server's public link` (or `from this phone`).
+- **How Dewi tests it:** the hotspot setup above, with a PC on the same hotspot as the phone. On the PC open the Pi bookmark
+  (`https://crashlog.333133333.xyz/screen`), which goes to the phone's page on the hotspot; click ▶️ Watch here with a Jellyfin film or 🏠 home copy
+  loaded on the phone. In the phone's diagnostics look for `home network: … NOT on the home network`, then `the PC's browser fetches it from the home
+  server`, then `load 1 sent to the screen from the home server's public link`. The page's status line says `▶️ <title>`; the Pi's log shows the
+  session's `GET manifest.mpd`, segment lines, and `ended: the phone ended the cast` after 📱 Back to this phone.
+- Seen: the real page against the real gate, a stand-in for the phone's page server and headless Edge (`tools/cast-bench/screen/public-screen.sh`; with
+  `MODE=phone` it shows the old rewrite failing with Shaka error 1001). Not seen on a real phone or PC, or over the real internet.
+
+## Captions from a cast the Pi makes (2026-11-27, [ADR 191](../adr/0191-casts-from-the-pi-carry-captions-and-a-speakers-bluetooth-link-is-measured.md))
+
+The Pi's cast of a YouTube item carries the same resolved caption tracks as a phone-direct cast (`TvSubtitles`, `CaptionPick`), under the
+deck's own caption choice (on in English until switched off). The remote card shows a Captions tile only while the receiver lists tracks. Not seen on
+the LG: whether the receiver reports the manifest's text tracks to the helper.
+
+## Waking the LG from deep standby, and what a target says when it cannot be reached (2026-11-28, [ADR 177](../adr/0177-a-device-says-how-it-comes-on-and-goes-off-lg-over-webos-kodi-started-over-adb.md) amended)
+
+Run on the real LG and the Fire Stick on 28 November: wake-on-LAN did not wake the LG from deep standby, and the Fire Stick's
+sleep-then-wake did (the stick tells the TV over HDMI-CEC). A paired LG is now on only while webOS says `Active`, so its
+dot no longer flaps with the cast port; a TV with a stick shown on it is nudged over CEC through that stick when wake-on-LAN
+got no answer; a volume set on a target with no link is refused in words, not logged as set; and a Kodi that refuses its
+sign-in says so. The Pi's logs carry what webOS and the cast port answered at every change and each step of a wake. Fixed
+against the fakes; not yet run on the real TV.
+
+## A video YouTube offers only as HLS (2026-11-28, [ADR 156](../adr/0156-one-casting-brain-the-pi-casts-with-the-phones-own-code.md) amended)
+
+When YouTube offers a video only as `manifest.googlevideo.com/…/hls_playlist/…` (muxed MPEG-TS, no stream with its own audio), the
+cast is no longer handed that address: it failed on the LG at 03:43 on 28 November with `idle (ERROR) after 0ms`, because a
+receiver cannot fetch googlevideo (no CORS). The one stream server now answers `…/c/<token>/relay.m3u8` with content type
+`application/x-mpegURL`, reads YouTube's playlist on every request and rewrites each address in it to a name on itself, then streams
+each part from YouTube with its `Range`. The phone's converter and the Pi's `ChromecastPlayer` share the same content-type rule
+(`CastFormat.mimeOf`). Picture and sound are YouTube's own, so silence cutting and the boost do not apply and a sound-only request
+still carries the picture. A third party's HLS and a googlevideo DASH manifest are unchanged. The Pi log reads `YouTube offers only an
+HLS manifest … Totum serves it and relays every playlist, segment and key itself`, then one `HLS playlist … rewritten` line per
+playlist read. Tests: `CastStreamServerHlsRelayTest`, `ChromecastHlsOnlyTest`. Fixed against a fake upstream only; not yet run on the real LG.
 

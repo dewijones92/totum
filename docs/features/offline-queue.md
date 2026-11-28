@@ -3,7 +3,7 @@ title: Offline queue
 kind: feature
 status: shipped
 area: downloads
-updated: 2026-11-20
+updated: 2026-11-28
 ---
 
 # Offline queue
@@ -27,7 +27,29 @@ download: the audio is completed from the cache's bytes (only the ranges the pla
 with no player swap. An item that streams and cannot be teed is left alone until it pauses, ends or another item takes over,
 and is then fetched if it is still queued. A finished download never replaces a healthy stream: the switch waits for a pause, a
 stall or a seek. The log says which (`tee`, `download`, `playback` lines) and the completion line gives the network bytes as a
-multiple of the file.
+multiple of the file. Podcast enclosures, SABR, live streams and torrents that cannot be teed are still held, and the hold line says why
+(`TeeVerdict`: SABR, live, torrent, local file, or no audio stream opened through the cache).
+
+**A video playing over HLS gets its audio while it plays (2026-11-28, ADR 186 amended).** A YouTube video that plays as one HLS playlist
+(`route=hls`, the default for a shared link that opens as a video) has no audio stream to copy, so by Dewi's decision its audio is
+fetched **beside the stream**, about 8% of the bytes the stream carries (35 MB beside 435 MB in the nightly's case), and the offline
+copy lands while he watches. The line says so: `fetching "<title>" beside its stream, on purpose: it plays as a YouTube HLS playlist …
+[route=hls]`. Nothing else changes: the finished copy still never replaces a healthy stream, and an audio-only copy does not stand in for a
+video being watched.
+
+**The hold starts when the play is decided (2026-11-28).** The queue told the downloader an item was streaming only once the player had it,
+several seconds after the play began, so the playing item (first in the pass) was fetched by yt-dlp beside its own stream before the hold or
+the tee existed (`ttiLcMUQq80`: download at 23:15:34.740, `PLAY wanted` at 23:15:35.379). It is now told when the route is decided
+(`StreamingIntent`; log `<id> is about to stream; the auto-download is told now`), and released a moment after the call that plays it
+returns if the player never took it, or 1.5 s after a pause or the end, so nothing flickers it off between the call and the player.
+
+**Every skip is counted (2026-11-27, [ADR 197](../adr/0197-the-auto-downloader-counts-every-skip-and-restarts-a-download-nothing-is-running.md)).**
+A pass ends with one `dewidebug pass skips:` line giving a count per reason (already on the phone, a local file, downloading
+with or without bytes, held while it streams, no fetch address yet, in a group not downloaded automatically, finished on
+the Pi, no audio-only fetch, failed for good, gave up after retries), logged only when it differs from the last pass's line, so
+a 6,164-item queue is one line. A `Downloading` row with no download running behind it (a *stranded* one) is restarted at the
+start of a pass through `DownloadManager.recoverStranded()`, the start-up resume made callable at any time (at most two fresh
+starts, then Failed for Retry), and named in a `dewidebug stranded downloads:` line.
 
 **Audio only, video on request.** Small, quick, and it matches how a queue is used. A full video
 stays a deliberate per-item choice from the row menu.
@@ -174,6 +196,11 @@ tidy is not the app's call.
   interrupted by the app stopping is left retryable with its request intact. The first needs a
   store that commits a moment late, as Room does; against a synchronous one the race is unreachable
   and the test passes against broken code.
+- `QueueAutoDownloaderSkipsAreCountedTest` (6) — one summary line per pass with a count per reason, 6,164 finished items
+  as one line, the same picture not said twice, and a stranded row recovered and named while a really running one is left
+  alone. `StrandedDownloadsTest` (5, `:core:data`) — a row with nothing running it is started again as asked, a running
+  download and one being cancelled are left alone, two recoveries at once start it once, and a metered network leaves it
+  failed for Retry.
 - `AnInterruptedDownloadResumesTest` — resume against a real HTTP server: the range asked for,
   progress counted from what is already on disk, a server that ignores the range, a 416, a dropped
   connection keeping its bytes, and the non-resumable route never sending a range.
@@ -181,7 +208,8 @@ tidy is not the app's call.
   *foreground* service and is released afterwards. Nothing on the JVM can prove that.
 - `AutoDownloadFetchesTheAudioTest.severalQueuedItemsAreFetchedAtOnce` and
   `SeveralSharedLinksAllLandTest` (both live) — several really do run at once in the real graph,
-  and three links shared in quick succession all land and are each fetched exactly once.
+  and three links shared in quick succession all land and are each fetched exactly once (the last share plays as a
+  video, so the test pauses it once all three are queued: a video streaming as HLS is held until it pauses, ADR 186).
 - `PlayRouteTest` + `OfflineSkipsUnavailableTest` — the routing decision itself, per pillar, per
   copy variant, online and off. Reverting the 2026-08-06 fix turns 9 of them red.
 - `OfflineQueuePlaybackTest` and `LiveDownloadedVideoOfflineTest` (instrumented, radios genuinely

@@ -26,13 +26,13 @@
     "body": {
       "items": [
         {
-          "itemId": "Dx5qFachd3A",
+          "itemId": "station:jazz",
           "sourceId": "hermes-audio-stations",
           "title": "Jazz station",
-          "contentKind": "LIVE",
-          "playbackType": "VIDEO",
-          "handle": "https://www.youtube.com/watch?v=Dx5qFachd3A",
-          "mediaUrl": "https://www.youtube.com/watch?v=Dx5qFachd3A"
+          "contentKind": "MUSIC",
+          "playbackType": "PODCAST",
+          "handle": "audio=https://ice1.somafm.com/sonicuniverse-128-mp3",
+          "mediaUrl": "https://ice1.somafm.com/sonicuniverse-128-mp3"
         }
       ],
       "mode": "PLAY",

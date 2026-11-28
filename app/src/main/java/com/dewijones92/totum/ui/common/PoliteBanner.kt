@@ -22,12 +22,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dewijones92.totum.R
+import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.update.UpdateStatus
 import com.dewijones92.totum.di.AppContainer
 import com.dewijones92.totum.navigation.TopLevelDestination
 import com.dewijones92.totum.polite.Politeness
 import com.dewijones92.totum.ui.queue.PlayOnRow
+import com.dewijones92.totum.video.PlatformVideoCodecSupport
+import com.dewijones92.totum.video.reach
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -83,7 +87,8 @@ fun ShellBanners(container: AppContainer, selected: TopLevelDestination) {
     val all by container.operations.running.collectAsStateWithLifecycle()
     val running = rememberLongRunning(all)
     val homeProblems by container.homeDownloads.problems.collectAsStateWithLifecycle()
-    RefusedTapToasts(container.playbackQueue, signedIn)
+    val ways = remember(container) { refusalWaysOf(container) }
+    RefusedTapToasts(container.playbackQueue, signedIn, ways)
     QueueNoticeToasts(container.playbackQueue)
     OperationResultToasts(container.operations)
     WhatsNewCardHost(container.whatsNew)
@@ -98,4 +103,27 @@ fun ShellBanners(container: AppContainer, selected: TopLevelDestination) {
             PlayOnRow(container.targets, padStatusBar = first && aboveIsEmpty && homeProblems.isEmpty())
         }
     }
+}
+
+private fun refusalWaysOf(container: AppContainer): RefusalWays {
+    val codecs by lazy { PlatformVideoCodecSupport() }
+    return RefusalWays(
+        options = { container.targets.options.value },
+        heldAtHome = { item -> container.homeDownloads.atHome(item) != null },
+        reach = { family -> codecs.reach(family) },
+        playOn = { item, option ->
+            container.targets.choose(option)
+            container.applicationScope.launch { container.playbackQueue.playNow(item) }
+        },
+        fetchCopy = { item, maxHeight ->
+            container.applicationScope.launch {
+                Diag.log(
+                    "download",
+                    "replacing the copy of ${item.item.id.value} this device cannot decode, up to ${maxHeight}p",
+                )
+                container.downloadManager.delete(item.item.id)
+                container.downloadManager.download(item, audioOnly = false, maxHeight = maxHeight)
+            }
+        },
+    )
 }

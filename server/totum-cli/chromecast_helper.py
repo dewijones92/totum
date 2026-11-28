@@ -97,6 +97,44 @@ def now_of(status):
     return adjusted if adjusted is not None else status.current_time
 
 
+def text_tracks(status):
+    offered = getattr(status, "subtitle_tracks", None)
+    if not isinstance(offered, (list, tuple)):
+        return []
+    return [
+        {"id": track.get("trackId"), "language": track.get("language"), "name": track.get("name")}
+        for track in offered
+        if isinstance(track, dict) and track.get("type") == "TEXT" and track.get("trackId") is not None
+    ]
+
+
+class TrackReporter:
+    def __init__(self):
+        self.last = None
+
+    def report(self, status):
+        now = (
+            status.content_id,
+            tuple((t["id"], t["language"]) for t in text_tracks(status)),
+            tuple(getattr(status, "current_subtitle_tracks", None) or ()),
+        )
+        if now == self.last:
+            return
+        first = self.last is None
+        self.last = now
+        if first and not now[1]:
+            return
+        say(
+            event="tracks",
+            contentId=status.content_id,
+            tracks=text_tracks(status),
+            active=list(now[2]),
+        )
+
+
+TRACKS = TrackReporter()
+
+
 class Listener:
     def __init__(self, cast):
         self.cast = cast
@@ -110,6 +148,16 @@ class Listener:
             durationMs=int(status.duration * MS) if status.duration else None,
             contentId=status.content_id,
         )
+        TRACKS.report(status)
+
+
+def choose_captions(media, track_id):
+    if track_id is None:
+        media.disable_subtitle()
+        note("captions switched off on the receiver")
+    else:
+        media.enable_subtitle(int(track_id))
+        note("captions track %s switched on on the receiver" % track_id)
 
 
 class Connection:
@@ -178,6 +226,7 @@ def main():
             name = command["cmd"]
             if name == "load":
                 handback.loading(cast)
+                TRACKS.last = None
                 load(media, command)
             elif name == "pause":
                 media.pause()
@@ -187,6 +236,8 @@ def main():
                 media.seek(command["positionMs"] / MS)
             elif name == "volume":
                 cast.set_volume(command["percent"] / 100)
+            elif name == "captions":
+                choose_captions(media, command.get("trackId"))
             elif name == "stop":
                 if media.status is not None and media.status.media_session_id is not None:
                     media.stop()

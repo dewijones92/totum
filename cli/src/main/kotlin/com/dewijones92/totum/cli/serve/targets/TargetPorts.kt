@@ -31,6 +31,8 @@ internal interface TargetPlayer {
     fun pause(paused: Boolean)
     fun seek(positionMs: Long)
     fun volume(percent: Int)
+
+    fun volumeRefusal(): String? = null
     val volumePercent: Int?
     val fadeBasePercent: Int? get() = volumePercent
     fun stop()
@@ -45,6 +47,12 @@ internal interface TargetPlayer {
     val live: Boolean get() = false
     val power: TargetPower get() = TargetPower.ON
     val plays: TargetPlays get() = TargetPlays.ANYTHING
+    val captionsOffered: List<String> get() = emptyList()
+    val captionsShown: String? get() = null
+
+    fun showCaptions(language: String?) = Unit
+
+    fun linkReport(): String? = null
 
     fun refuses(item: PlayableItem): String? = plays.refusal(item)
 }
@@ -118,6 +126,10 @@ private class SetFade(private val volume: TargetVolume, override val basePercent
 
 internal interface TargetKeeper {
     val state: KeepAwake?
+
+    val reconnectsDone: Int get() = 0
+
+    val reconnectsFailed: Int get() = 0
 
     suspend fun beat(busy: Boolean): Boolean
 }

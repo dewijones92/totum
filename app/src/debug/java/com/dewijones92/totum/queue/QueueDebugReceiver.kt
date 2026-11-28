@@ -91,6 +91,10 @@ class QueueDebugReceiver : BroadcastReceiver() {
                     placeholderFor(url, SourceId("debug"))?.let { PlayableItem(it, PlayHandle.Video(url)) }
                 }.forEach { container.downloadManager.download(it, audioOnly) }
             }
+            ACTION_PLAY_NEXT -> directItems(intent.getStringExtra("urls")).forEach { item ->
+                Diag.log("queue", "dewidebug DEBUG play-next of ${item.item.title}, one tap at a time")
+                container.playbackQueue.playNext(item)
+            }
         }
     }
 
@@ -121,6 +125,7 @@ class QueueDebugReceiver : BroadcastReceiver() {
         const val ACTION_DOWNLOAD = "com.dewijones92.totum.DEBUG_DOWNLOAD"
         const val ACTION_KID_LOCK = "com.dewijones92.totum.DEBUG_KID_LOCK"
         const val ACTION_PLAY_TORRENT = "com.dewijones92.totum.DEBUG_PLAY_TORRENT"
+        const val ACTION_PLAY_NEXT = "com.dewijones92.totum.DEBUG_PLAY_NEXT"
         const val BYTES_PER_MB = 1_048_576L
         const val DEFAULT_BEFORE_END_MS = 35_000L
     }

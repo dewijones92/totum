@@ -18,7 +18,7 @@ import com.google.common.util.concurrent.ListenableFuture
 @UnstableApi
 internal class ScreenPlayer(
     private val link: ScreenLink,
-    private val urlFor: (MediaItem) -> String?,
+    private val urlFor: (MediaItem) -> RoutedStream?,
     private val now: () -> Long = System::currentTimeMillis,
 ) : SimpleBasePlayer(Looper.getMainLooper()) {
 
@@ -176,8 +176,8 @@ internal class ScreenPlayer(
 
     private fun sendLoad() {
         val item = items.getOrNull(index) ?: return
-        val url = urlFor(item)
-        if (url == null) {
+        val stream = urlFor(item)
+        if (stream == null) {
             Diag.warn(
                 TAG,
                 "${item.mediaId}: nothing the screen can play (not on Wi-Fi, or no stream yet) [load=$loads]"
@@ -185,10 +185,15 @@ internal class ScreenPlayer(
             return
         }
         val title = item.mediaMetadata.title?.toString().orEmpty()
+        Diag.log(
+            TAG,
+            "${item.mediaId}: load $loads sent to the screen from " +
+                if (stream.direct) "the home server's public link" else "this phone",
+        )
         tell(
-            """{"do":"load","load":$loads,"url":${quoted(url)},"pos":${positionNow()},"play":$wantsToPlay,""" +
-                """"rate":${parameters.speed},"title":${quoted(title)},""" +
-                """"subs":${captionsWanted(tracks)?.let(::quoted)}}""",
+            loadCommand(
+                ScreenLoad(loads, stream, positionNow(), wantsToPlay, parameters.speed, title, captionsWanted(tracks)),
+            ),
         )
     }
 

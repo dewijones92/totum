@@ -35,6 +35,8 @@ import java.util.EnumMap
 import kotlin.coroutines.CoroutineContext
 import kotlin.math.pow
 
+internal class WatchFacts(val publishedAt: Instant?, val viewsText: String?)
+
 internal class SharedMetadataRepair(
     private val queue: StateFlow<QueueSnapshot>,
     private val downloads: DownloadManager,
@@ -44,7 +46,7 @@ internal class SharedMetadataRepair(
     private val scope: CoroutineScope,
     private val retryDelayMs: Long = 30_000,
     private val now: () -> Long = System::currentTimeMillis,
-    private val dateOf: suspend (MediaItemId) -> Instant? = { null },
+    private val factsOf: suspend (MediaItemId) -> WatchFacts? = { null },
     private val artistOf: suspend (PlayableItem) -> String? = { null },
     private val posterOf: suspend (PlayableItem) -> HttpUrl? = { null },
     private val io: CoroutineContext = Dispatchers.IO,
@@ -64,9 +66,10 @@ internal class SharedMetadataRepair(
                 val titles = (snapshot.entries.map { it.item } + records.map { it.item })
                     .filter { it.item.hasPlaceholderTitle && it.handle is PlayHandle.Video }
                 val dates = (near + records.map { it.item }).filter { it.needsADate }
+                val views = (near + records.map { it.item }).filter { it.needsViews }
                 val artists = (snapshot.entries.map { it.item } + records.map { it.item }).filter { it.needsAnArtist }
                 val posters = (snapshot.entries.map { it.item } + records.map { it.item }).filter { it.needsAPoster }
-                (titles + dates + artists + posters).distinctBy { it.item.id }
+                (titles + dates + views + artists + posters).distinctBy { it.item.id }
             }.distinctUntilChanged().collectLatest { candidates -> repairAll(candidates) }
         }
     }
@@ -120,9 +123,17 @@ internal class SharedMetadataRepair(
 
     private suspend fun <T> off(block: suspend () -> T): T = withContext(io) { block() }
 
-    private suspend fun learnDate(item: PlayableItem): MediaItem? {
-        val day = off { dateOf(item.item.id) } ?: return null
-        return item.item.copy(publishedAt = day)
+    private suspend fun learnWatchFacts(item: PlayableItem, tally: PassTally): MediaItem? {
+        val facts = off { factsOf(item.item.id) } ?: return null
+        val row = item.item
+        val dated = if (row.saysNoDate && facts.publishedAt != null) row.copy(publishedAt = facts.publishedAt) else row
+        val viewed = if (dated.viewsText == null && facts.viewsText != null) {
+            dated.copy(viewsText = facts.viewsText)
+        } else {
+            dated
+        }
+        tally.watchPage(gaveDate = dated !== row, gaveViews = viewed !== dated)
+        return viewed.takeIf { it != row }
     }
 
     private suspend fun learnArtist(item: PlayableItem): MediaItem? {
@@ -169,7 +180,7 @@ internal class SharedMetadataRepair(
                     ?.takeIf { it.id == item.item.id && it.title.isNotBlank() && !it.hasPlaceholderTitle }
                 Need.ARTIST -> learnArtist(item)
                 Need.POSTER -> learnPoster(item, posters, tally)
-                Need.DATE -> learnDate(item)
+                Need.DATE, Need.VIEWS -> learnWatchFacts(item, tally)
             }
             currentCoroutineContext().ensureActive()
             if (resolved == null) {
@@ -209,6 +220,13 @@ private class PassTally(private val due: Int, private val candidates: Int) {
     var posterLookups = 0
     var posterReused = 0
     var batches = 0
+    private var watchPageDates = 0
+    private var watchPageViews = 0
+
+    fun watchPage(gaveDate: Boolean, gaveViews: Boolean) {
+        if (gaveDate) watchPageDates++
+        if (gaveViews) watchPageViews++
+    }
 
     fun learned(need: Need, resolved: MediaItem) {
         repaired.merge(need, 1, Int::plus)
@@ -249,6 +267,7 @@ private class PassTally(private val due: Int, private val candidates: Int) {
             append("none=${nothing.values.sum()} failed=${broken.values.sum()} ")
             append("[${byNeed.joinToString("; ")}] ")
             append("poster lookups=$posterLookups reused=$posterReused ")
+            append("watch page gave dates=$watchPageDates views=$watchPageViews ")
             append("gave up=$gaveUp retrying=$retrying")
             nextRetryMs?.let { append(" (next in ${it}ms)") }
             append(" reasons=$reasons ")
@@ -286,8 +305,10 @@ internal fun startSharedMetadataRepair(
         onResolved = queue::adoptFacts,
         awaitNetwork = network::awaitOnline,
         scope = scope,
-        dateOf = { id ->
-            (lookups.related.relatedTo(id.value) as? RelatedResult.Success)?.publishedOn?.let(PublishedAge::ofDay)
+        factsOf = { id ->
+            (lookups.related.relatedTo(id.value) as? RelatedResult.Success)?.let {
+                WatchFacts(PublishedAge.best(it.publishedOn, it.publishedAgo, Instant.now()), it.viewsText)
+            }
         },
         artistOf = ArtistLookup(lookups.music)::of,
         posterOf = { item -> item.item.author?.let { lookups.torrents()?.posterFor(it) } },
@@ -300,6 +321,12 @@ internal val MediaItem.saysNoDate: Boolean
 private val PlayableItem.needsADate: Boolean
     get() = handle is PlayHandle.Video && item.saysNoDate && !item.hasPlaceholderTitle
 
+internal val PlayableItem.saysNoViews: Boolean
+    get() = handle is PlayHandle.Video && item.viewsText == null && !item.hasPlaceholderTitle
+
+private val PlayableItem.needsViews: Boolean
+    get() = saysNoViews
+
 private val MediaItem.saysNoArtist: Boolean
     get() = author == null && (contentKind == MediaContentKind.MUSIC || sourceId.value.startsWith("music:"))
 
@@ -310,14 +337,21 @@ private val PlayableItem.needsAPoster: Boolean
     get() = item.sourceId == TorrentIds.SOURCE && item.contentKind != MediaContentKind.AUDIOBOOK &&
         item.thumbnailUrl == null && !item.author.isNullOrBlank()
 
-private enum class Need(val label: String) { TITLE("title"), DATE("date"), ARTIST("artist"), POSTER("poster") }
+private enum class Need(val label: String) {
+    TITLE("title"),
+    DATE("date"),
+    VIEWS("views"),
+    ARTIST("artist"),
+    POSTER("poster"),
+}
 
 private val PlayableItem.need: Need
     get() = when {
         item.hasPlaceholderTitle -> Need.TITLE
         needsAnArtist -> Need.ARTIST
         needsAPoster -> Need.POSTER
-        else -> Need.DATE
+        needsADate -> Need.DATE
+        else -> Need.VIEWS
     }
 
 private val PlayableItem.maxTries: Int get() = if (need == Need.TITLE) MAX_TRIES else DATE_TRIES

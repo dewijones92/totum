@@ -3,7 +3,7 @@ title: Text wraps — nothing in the app ends in three dots
 kind: feature
 status: shipped
 area: ui
-updated: 2026-09-21
+updated: 2026-11-28
 ---
 
 # Text wraps, everywhere
@@ -36,7 +36,7 @@ A cap that clips is still not wrapping, so each remaining one is declared, with 
 | Where | Cap | Why it is not truncation |
 |---|---|---|
 | `MediaThumbnail` duration chip | 1 | The content is a clock (`1:02:45`) and can never need a second line |
-| `CollapsingTitle` | 1 | A fixed string resource in a header whose height is animated, so it cannot grow |
+| `ActionsHeader` | 1 | A fixed string resource (the Queue title), kept at least its own width by `TitleAndActions`, so it cannot need a second line |
 | `SettingsScreen` diagnostics note | 6 | `minLines`/`maxLines` on a text **input**, which scrolls rather than truncating |
 | `FullPlayer` description | 4 collapsed | Collapses behind an explicit "Show more"; **clips** rather than dotting |
 

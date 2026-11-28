@@ -3,7 +3,7 @@ title: Managing downloads — cancel, retry, sort, and see what failed
 kind: feature
 status: shipped
 area: downloads
-updated: 2026-11-20
+updated: 2026-11-27
 ---
 
 # Managing downloads
@@ -231,7 +231,9 @@ Download the sound only" while fetching the film (report 0.1.709).
 A queue group's ⋮ → ⬇️ Choose episodes to download…, or a torrent result's ⬇️, opens one sheet listing every episode
 (already on the phone unticked), the sound / video choice for YouTube items, and "Download N". A download the app died
 during starts again by itself at the next launch, with its height, at most twice
-([ADR 80](../adr/0080-choose-episodes-to-download-and-resume-interrupted-ones.md)).
+([ADR 80](../adr/0080-choose-episodes-to-download-and-resume-interrupted-ones.md)). Since 2026-11-27 the same resume runs
+at any time, through `DownloadManager.recoverStranded()`, for a row left `Downloading` with no download running it, and
+the queue's automatic pass calls it ([ADR 197](../adr/0197-the-auto-downloader-counts-every-skip-and-restarts-a-download-nothing-is-running.md)).
 
 ## Sound or video, and which quality (2026-10-23)
 
@@ -274,3 +276,12 @@ unchanged for clean-up cards, failed rows and "clear failed", which are already 
 `PendingDownloadDeletes`: a burst of deletes spread over longer than the window commits nothing before the batch's
 offer, one commit for the whole batch, a second batch waiting for the first window, an Undo inside the window, start-up
 commit of leftovers (virtual time with the `now` parameter).
+
+## "Best" is the best this device decodes (2026-11-27)
+
+Report 20261123T094934: the Fire tablet downloaded 4K VP9 (2.7 GB) it decodes only to 1080p. "Video best" now has a
+ceiling, `VideoCodecSupport.bestHeight()` (the highest rung of 4320…144 that a usable codec reaches; null when the top is
+reachable, so a Pixel is unchanged), and the yt-dlp selector takes the capped form an explicit height builds. The
+selector log carries `deviceBestHeight=`. The same code runs for "At home" through `PhoneCodecs`. A refused home
+download logs that nothing falls back to the phone by itself. [ADR 194](../adr/0194-best-means-the-best-this-device-decodes-and-a-failure-says-why-and-offers-a-way-out.md).
+Test: `ABestDownloadIsTheBestThisDeviceDecodesTest`.

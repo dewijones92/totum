@@ -209,48 +209,48 @@ private fun SubscriptionsAndEpisodes(
     val itemFilters = rememberItemFilters("podcasts")
     val shown = listFilter.filter(state.episodes.filteredByItems(itemFilters.value) { it }, { it.searchableText })
     SelectableMediaList("podcasts", state.episodes, shown, { it }, modifier.fillMaxSize()) {
-        LazyColumn(modifier = Modifier.fillMaxSize()) {
-            item {
-                ScreenHeader(
-                    title = stringResource(R.string.destination_podcasts),
-                    supporting = stringResource(R.string.latest_episodes),
-                ) {
-                    FilterToggle(listFilter, state.episodes.size)
-                    SortControl(
-                        options = MediaSort.offered(addedKnown = false),
-                        current = state.sort,
-                        label = { it.labelRes },
-                        onSelect = onSetSort,
-                        filters = itemFilters.value,
-                        onFilters = { itemFilters.value = it },
+        Column(Modifier.fillMaxSize()) {
+            ScreenHeader(
+                title = stringResource(R.string.destination_podcasts),
+                supporting = stringResource(R.string.latest_episodes),
+            ) {
+                FilterToggle(listFilter, state.episodes.size)
+                SortControl(
+                    options = MediaSort.offered(addedKnown = false),
+                    current = state.sort,
+                    label = { it.labelRes },
+                    onSelect = onSetSort,
+                    filters = itemFilters.value,
+                    onFilters = { itemFilters.value = it },
+                )
+            }
+            LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                if (state.refreshFailures.isNotEmpty()) {
+                    item { RefreshFailureNotice(state.refreshFailures, onDismissRefreshFailures) }
+                }
+                item {
+                    SourceAvatarStrip(
+                        state.subscriptions.map { it.source },
+                        onClick = { source -> (source as? MediaSource.PodcastFeed)?.let(onOpenFeed) },
                     )
                 }
-            }
-            if (state.refreshFailures.isNotEmpty()) {
-                item { RefreshFailureNotice(state.refreshFailures, onDismissRefreshFailures) }
-            }
-            item {
-                SourceAvatarStrip(
-                    state.subscriptions.map { it.source },
-                    onClick = { source -> (source as? MediaSource.PodcastFeed)?.let(onOpenFeed) },
-                )
-            }
-            filterField(listFilter, shown.size, state.episodes.size, hosted = true)
-            items(shown, key = { it.id.value }) { episode ->
-                MediaItemRow(
-                    item = episode,
-                    subtitleLines = rowFacts(episode, MediaKind.PODCAST),
-                    downloadState = state.downloadStates[episode.id] ?: DownloadState.NotDownloaded,
-                    pillar = MediaKind.PODCAST,
-                    onPlay = { onPlayEpisode(episode) },
-                    onDownload = { onDownload(episode) },
-                    onDeleteDownload = { onDeleteDownload(episode) },
-                    onPlayNext = { onPlayNext(episode) },
-                    onAddToQueue = { onEnqueue(episode) },
-                    onAddToPlaylist = { onAddToPlaylist(episode) },
-                    onPeek = { onPeek(episode) },
-                    onGoToSource = { onGoToPodcast(episode) },
-                )
+                filterField(listFilter, shown.size, state.episodes.size, hosted = true)
+                items(shown, key = { it.id.value }) { episode ->
+                    MediaItemRow(
+                        item = episode,
+                        subtitleLines = rowFacts(episode, MediaKind.PODCAST),
+                        downloadState = state.downloadStates[episode.id] ?: DownloadState.NotDownloaded,
+                        pillar = MediaKind.PODCAST,
+                        onPlay = { onPlayEpisode(episode) },
+                        onDownload = { onDownload(episode) },
+                        onDeleteDownload = { onDeleteDownload(episode) },
+                        onPlayNext = { onPlayNext(episode) },
+                        onAddToQueue = { onEnqueue(episode) },
+                        onAddToPlaylist = { onAddToPlaylist(episode) },
+                        onPeek = { onPeek(episode) },
+                        onGoToSource = { onGoToPodcast(episode) },
+                    )
+                }
             }
         }
     }

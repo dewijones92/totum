@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
@@ -347,17 +348,6 @@ private fun VideosEmpty() {
 }
 
 @Suppress("LongParameterList")
-private fun LazyListScope.videosHeader(
-    state: VideosViewModel.UiState,
-    newUploadsCount: Int,
-    onOpenNotifications: () -> Unit,
-    onSetSort: (MediaSort) -> Unit,
-    itemFilters: MutableState<ItemFilters>,
-    filterToggle: @Composable () -> Unit,
-) {
-    item { VideosHeader(state, newUploadsCount, onOpenNotifications, onSetSort, itemFilters, filterToggle) }
-}
-
 @Composable
 private fun VideosHeader(
     state: VideosViewModel.UiState,
@@ -441,37 +431,39 @@ private fun ChannelsAndVideos(
         modifier.fillMaxSize(),
         key = state.selected?.cacheKey()
     ) {
-        LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
-            videosHeader(state, newUploadsCount, onOpenNotifications, onSetSort, itemFilters) {
+        Column(Modifier.fillMaxSize()) {
+            VideosHeader(state, newUploadsCount, onOpenNotifications, onSetSort, itemFilters) {
                 if (!feedHidden) FilterToggle(listFilter, unwatchedFiltered.size)
             }
-            feedHeader(state, onChannelClick, showChannels = !feedHidden, groupAction = groupAction) {
-                FeedSelector(state, onSelectFeed, onOpenPlaylists, onOpenShorts) { groupAction(it, false) }
-            }
-            if (!feedStandIn(state, feedHidden, onShowFeed)) {
-                playStateFilter(filter, onSetFilter)
-                filterField(listFilter, shown.size, unwatchedFiltered.size, hosted = true) {
-                    ListMessage(stringResource(R.string.filter_hides_everything))
+            LazyColumn(state = listState, modifier = Modifier.weight(1f).fillMaxWidth()) {
+                feedHeader(state, onChannelClick, showChannels = !feedHidden, groupAction = groupAction) {
+                    FeedSelector(state, onSelectFeed, onOpenPlaylists, onOpenShorts) { groupAction(it, false) }
                 }
-                items(shown, key = { it.id.value }) { video ->
-                    MediaItemRow(
-                        item = video,
-                        subtitleLines = rowFacts(video, MediaKind.VIDEO),
-                        downloadState = state.downloadStates[video.id] ?: DownloadState.NotDownloaded,
-                        pillar = MediaKind.VIDEO,
-                        onPlay = { onPlay(video) },
-                        onDownload = { onDownload(video) },
-                        onDeleteDownload = { onDeleteDownload(video) },
-                        onPlayNext = { actions.playNext(video) },
-                        onAddToQueue = { actions.addToQueue(video) },
-                        onAddToPlaylist = { actions.addToPlaylist(video) },
-                        onPeek = { actions.peek(video) },
-                        onSwitchMode = { onSwitchMode(video) },
-                        audioMode = actions.audioMode,
-                        onGoToSource = { onGoToChannel(video) },
-                    )
+                if (!feedStandIn(state, feedHidden, onShowFeed)) {
+                    playStateFilter(filter, onSetFilter)
+                    filterField(listFilter, shown.size, unwatchedFiltered.size, hosted = true) {
+                        ListMessage(stringResource(R.string.filter_hides_everything))
+                    }
+                    items(shown, key = { it.id.value }) { video ->
+                        MediaItemRow(
+                            item = video,
+                            subtitleLines = rowFacts(video, MediaKind.VIDEO),
+                            downloadState = state.downloadStates[video.id] ?: DownloadState.NotDownloaded,
+                            pillar = MediaKind.VIDEO,
+                            onPlay = { onPlay(video) },
+                            onDownload = { onDownload(video) },
+                            onDeleteDownload = { onDeleteDownload(video) },
+                            onPlayNext = { actions.playNext(video) },
+                            onAddToQueue = { actions.addToQueue(video) },
+                            onAddToPlaylist = { actions.addToPlaylist(video) },
+                            onPeek = { actions.peek(video) },
+                            onSwitchMode = { onSwitchMode(video) },
+                            audioMode = actions.audioMode,
+                            onGoToSource = { onGoToChannel(video) },
+                        )
+                    }
+                    if (state.loadingMore) item { LoadingMoreFooter() }
                 }
-                if (state.loadingMore) item { LoadingMoreFooter() }
             }
         }
     }

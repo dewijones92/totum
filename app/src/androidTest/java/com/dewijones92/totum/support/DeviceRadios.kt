@@ -3,6 +3,7 @@ package com.dewijones92.totum.support
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import android.util.Log
 import androidx.test.platform.app.InstrumentationRegistry
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
@@ -54,29 +55,39 @@ object DeviceRadios {
      * trail the failure now prints, which named the refusal outright.
      */
     fun goOnline() {
-        shell("svc wifi enable")
-        shell("svc data enable")
-        runBlocking {
-            val back = withTimeoutOrNull(ONLINE_TIMEOUT_MS) { while (!hasNetwork()) delay(POLL_MS) }
-            // Said out loud rather than left silent: if the network never comes back, EVERY later
-            // test fails for a reason that has nothing to do with them, and this line is the only
-            // place that would know why.
-            if (back == null) {
-                println("DeviceRadios: network did not come back within ${ONLINE_TIMEOUT_MS}ms")
-            }
+        val recovery = recovery(
+            enable = {
+                shell("svc wifi enable")
+                shell("svc data enable")
+            },
+            ::hasNetwork,
+        )
+        check(recovery.bringBack()) {
+            "DeviceRadios: the device's network did not come back after ${RadioRecovery.ATTEMPTS} attempts of " +
+                "${RadioRecovery.WAIT_MS}ms, so every later test that needs one would fail for this reason, " +
+                "not its own (2026-11-25: Wi-Fi switched back on 1.3 s after being switched off never reconnected; " +
+                "six later tests failed and none of them said why)"
         }
     }
 
-    fun goUnmetered() {
-        shell("svc wifi enable")
-        shell("svc data disable")
-        runBlocking {
-            val ready = withTimeoutOrNull(ONLINE_TIMEOUT_MS) { while (!hasUnmeteredNetwork()) delay(POLL_MS) }
-            if (ready == null) {
-                println("DeviceRadios: no unmetered network within ${ONLINE_TIMEOUT_MS}ms; timings may be disturbed")
-            }
-        }
-    }
+    fun goUnmetered(): Boolean = recovery(
+        enable = {
+            shell("svc wifi enable")
+            shell("svc data disable")
+        },
+        ::hasUnmeteredNetwork,
+    ).bringBack()
+
+    private fun recovery(enable: () -> Unit, hasNetwork: () -> Boolean) = RadioRecovery(
+        enable = enable,
+        disable = {
+            shell("svc wifi disable")
+            shell("svc data disable")
+        },
+        hasNetwork = hasNetwork,
+        pause = { Thread.sleep(it) },
+        log = { Log.w("dewidebug", "DeviceRadios: $it") },
+    )
 
     private fun hasUnmeteredNetwork(): Boolean {
         val manager = instrumentation.targetContext.getSystemService(ConnectivityManager::class.java) ?: return false
@@ -95,8 +106,5 @@ object DeviceRadios {
     }
 
     private const val OFFLINE_TIMEOUT_MS = 15_000L
-
-    /** Longer than going off: a cold emulator can take a while to re-validate a network. */
-    private const val ONLINE_TIMEOUT_MS = 30_000L
     private const val POLL_MS = 200L
 }

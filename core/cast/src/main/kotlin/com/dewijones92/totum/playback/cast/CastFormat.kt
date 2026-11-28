@@ -28,6 +28,11 @@ public enum class CastFormat(
 
     public companion object {
         public const val HLS_MIME: String = HLS_MIME_TYPE
+        public const val HLS_RELAY_MIME: String = Http.HLS_PLAYLIST
+
+        public fun mimeOf(address: String, format: CastFormat): String =
+            if (HlsRelay.serves(address)) HLS_RELAY_MIME else format.mime
+
         internal const val HLS_VIDEO: String = "hls-video.m3u8"
         internal const val HLS_SOUND: String = "hls-audio.m3u8"
 

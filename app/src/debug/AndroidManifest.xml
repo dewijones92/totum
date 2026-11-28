@@ -59,6 +59,7 @@
                 <action android:name="com.dewijones92.totum.DEBUG_DOWNLOAD" />
                 <action android:name="com.dewijones92.totum.DEBUG_KID_LOCK" />
                 <action android:name="com.dewijones92.totum.DEBUG_PLAY_TORRENT" />
+                <action android:name="com.dewijones92.totum.DEBUG_PLAY_NEXT" />
             </intent-filter>
         </receiver>
     </application>

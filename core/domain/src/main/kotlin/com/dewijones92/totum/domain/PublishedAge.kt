@@ -2,6 +2,10 @@ package com.dewijones92.totum.domain
 
 import java.time.Duration
 import java.time.Instant
+import java.time.LocalTime
+import java.time.ZoneId
+import java.time.ZoneOffset
+import java.time.temporal.ChronoUnit
 
 /**
  * When a thing was published, as a relative age — the one rule that reads YouTube's wording and the
@@ -44,7 +48,24 @@ public object PublishedAge {
     private val WORDING_BEATS_THE_DAY = Duration.ofDays(2)
 
     /** "2 hours ago" for [publishedAt] as seen from [now], in YouTube's own words and units. */
-    public fun text(publishedAt: Instant, now: Instant): String {
+    public fun text(publishedAt: Instant, now: Instant, zone: ZoneId = ZoneId.systemDefault()): String =
+        if (isDayOnly(publishedAt)) dayText(publishedAt, now, zone) else ageText(publishedAt, now)
+
+    public fun isDayOnly(publishedAt: Instant): Boolean =
+        publishedAt.atOffset(ZoneOffset.UTC).toLocalTime() == LocalTime.NOON
+
+    private fun dayText(publishedAt: Instant, now: Instant, zone: ZoneId): String {
+        val day = publishedAt.atOffset(ZoneOffset.UTC).toLocalDate()
+        val today = now.atZone(zone).toLocalDate()
+        val days = ChronoUnit.DAYS.between(day, today)
+        return when {
+            days <= 0 -> "Today"
+            days == 1L -> "Yesterday"
+            else -> ageText(now.minus(Duration.ofDays(days)), now)
+        }
+    }
+
+    private fun ageText(publishedAt: Instant, now: Instant): String {
         val elapsed = Duration.between(publishedAt, now).coerceAtLeast(Duration.ZERO)
         val seconds = elapsed.seconds
         return when {

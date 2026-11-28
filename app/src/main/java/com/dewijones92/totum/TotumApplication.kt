@@ -1,6 +1,7 @@
 package com.dewijones92.totum
 
 import android.app.Application
+import androidx.core.content.edit
 import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.SingletonImageLoader
@@ -22,12 +23,14 @@ import com.dewijones92.totum.jobs.MorningWorker
 import com.dewijones92.totum.jobs.QueueTidyWorker
 import com.dewijones92.totum.jobs.TripWorker
 import com.dewijones92.totum.notifications.NewContentWorker
+import com.dewijones92.totum.playback.cast.HomeLan
 import com.dewijones92.totum.playback.startGapless
 import com.dewijones92.totum.recorder.cleanUpAfterAKilledRecording
 import com.dewijones92.totum.settings.AppPreferences
 import com.dewijones92.totum.settings.NetworkStatus
 import com.dewijones92.totum.stats.ListenRecorder
 import com.dewijones92.totum.stats.recordFinishedDownloads
+import com.dewijones92.totum.targets.startRemoteSession
 import com.dewijones92.totum.ui.common.homeServerAwareImageLoader
 import com.dewijones92.totum.uploads.NewUploadsWorker
 import kotlinx.coroutines.delay
@@ -42,6 +45,7 @@ class TotumApplication : Application(), SingletonImageLoader.Factory {
     override fun onCreate() {
         super.onCreate()
         signHomeServerRequests(container.appPreferences)
+        rememberTheHomeNetwork(this)
         ItemShields.use(container.aiFeatures.spoilerShield)
         // First thing, so a crash during the rest of startup is still captured.
         container.installCrashReporting()
@@ -69,6 +73,7 @@ class TotumApplication : Application(), SingletonImageLoader.Factory {
         container.listeningSwitcher.start()
         startGapless(container, NetworkStatus(this)::isMetered)
         startCastScreens(container, this)
+        startRemoteSession(container, this)
         // Periodically check every subscription (both pillars) and notify on new content.
         NewContentWorker.schedule(this)
         NewUploadsWorker.schedule(this)
@@ -150,6 +155,14 @@ class TotumApplication : Application(), SingletonImageLoader.Factory {
      * rest of the app uses. Crossfade so images fade in rather than pop.
      */
     override fun newImageLoader(context: PlatformContext): ImageLoader = homeServerAwareImageLoader(context)
+}
+
+private fun rememberTheHomeNetwork(context: android.content.Context) {
+    val prefs = context.getSharedPreferences("totum_home_lan", android.content.Context.MODE_PRIVATE)
+    HomeLan.use(
+        load = { prefs.getString("address", null) },
+        save = { address -> prefs.edit { putString("address", address) } },
+    )
 }
 
 private fun signHomeServerRequests(prefs: AppPreferences) {

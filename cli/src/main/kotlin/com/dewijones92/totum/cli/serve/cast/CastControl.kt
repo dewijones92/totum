@@ -8,11 +8,13 @@ import java.io.BufferedWriter
 import java.io.IOException
 import kotlin.concurrent.thread
 
+@Suppress("TooManyFunctions")
 internal interface CastControl {
     fun load(url: String, contentType: String, title: String, startAtMs: Long)
     fun pause(paused: Boolean)
     fun seek(positionMs: Long)
     fun volume(percent: Int)
+    fun volumeRefusal(): String? = null
     fun volumePercent(): Int?
     fun stop()
     fun release()
@@ -20,11 +22,18 @@ internal interface CastControl {
     var onEnded: (failed: Boolean) -> Unit
     var onLost: (reason: String) -> Unit
     suspend fun reachable(): Boolean
+    val whyUnreachable: String? get() = null
     val model: String? get() = null
     val screen: CastScreen? get() = null
     val keepsAddressesPrivate: Boolean get() = false
     val format: CastFormat get() = CastFormat.DASH
     val showsPictures: Boolean get() = true
+    fun captions(trackId: Int?) = Unit
+    val captionTracks: List<CastTrack> get() = emptyList()
+    val activeCaption: Int? get() = null
+    var onTracks: () -> Unit
+        get() = {}
+        set(value) {}
 }
 
 @Suppress("TooManyFunctions")
@@ -61,6 +70,14 @@ internal class PyCastControl(
     @Volatile private var deviceVolume: Int? = null
 
     @Volatile private var pictures = true
+
+    @Volatile override var captionTracks: List<CastTrack> = emptyList()
+        private set
+
+    @Volatile override var activeCaption: Int? = null
+        private set
+
+    override var onTracks: () -> Unit = {}
 
     @Volatile override var model: String? = null
         private set
@@ -110,6 +127,7 @@ internal class PyCastControl(
                     "$label: handed back, ${if (event.quit) "receiver app quit" else "left open"}: ${event.why}",
                 )
                 is CastEvent.Note -> Diag.log("cast-target", "$label: helper note: ${event.message}")
+                is CastEvent.Tracks -> tracks(event)
                 is CastEvent.Connection -> connection(event.state)
                 is CastEvent.Failure -> {
                     problem = event.message
@@ -120,6 +138,18 @@ internal class PyCastControl(
         }
         Diag.log("cast-target", "$label: helper ${started.pid()} ended, exit ${started.waitFor()}")
         if (process === started) process = null
+    }
+
+    private fun tracks(event: CastEvent.Tracks) {
+        captionTracks = event.tracks
+        activeCaption = event.active.firstOrNull()
+        val offered = event.tracks.joinToString { "${it.id}=${it.language ?: "?"}" }
+        Diag.log(
+            "cast-target",
+            "dewidebug $label: the receiver offers ${event.tracks.size} caption track(s) [$offered], " +
+                "showing ${activeCaption ?: "none"}",
+        )
+        onTracks()
     }
 
     private fun connection(state: String) {
@@ -182,6 +212,8 @@ internal class PyCastControl(
 
     override fun load(url: String, contentType: String, title: String, startAtMs: Long) {
         latest = null
+        captionTracks = emptyList()
+        activeCaption = null
         loadedUrl = url
         loaded = true
         problem = null
@@ -202,10 +234,23 @@ internal class PyCastControl(
     }
 
     override fun volume(percent: Int) {
-        send(CastWire.volume(percent))
+        val sent = send(CastWire.volume(percent))
+        if (!sent) Diag.warn("cast-target", "$label: volume $percent% was not sent, the helper is not running")
     }
 
+    override fun volumeRefusal(): String? =
+        if (writer != null && process?.isAlive == true) {
+            null
+        } else {
+            "no connection to $label is open, so there is nowhere to send it"
+        }
+
     override fun volumePercent(): Int? = deviceVolume
+
+    override fun captions(trackId: Int?) {
+        val sent = send(CastWire.captions(trackId))
+        Diag.log("cast-target", "dewidebug $label: captions ${trackId ?: "off"} sent=$sent")
+    }
 
     override fun stop() {
         val wasLoaded = loaded

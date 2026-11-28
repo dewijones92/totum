@@ -1,10 +1,10 @@
 ---
 title: Consistency leftovers (ADR 108)
 kind: todo
-status: swept 2026-11-13, 3 fixed, 8 open
+status: swept 2026-11-13, 3 fixed, 8 open; 3 more opened 2026-11-27 (views on the latest-upload line, views on saved rows, day-only sentinel)
 area: ui
 priority: medium
-updated: 2026-11-20
+updated: 2026-11-27
 ---
 
 # Consistency leftovers
@@ -30,6 +30,9 @@ Effort: S under an hour, M a few hours, L a day or a schema change.
 | Follow-up of finding 95: Shorts tab, later pages and handle-only channels still lack the account's marks | 🔓 open | `ChannelAccountProgress.read` browses one TV page of the channel's Videos tiles and logs `no channel id` for a `/@handle` URL; `ChannelViewModel.loadShorts` and `pageMore` ask nothing | S |
 | Handle-only channels (a `/@handle` URL with no `UC…` id) have no Live tab and no Shorts tab | 🔓 open, found 2026-11-20 | `ChannelViewModel.loadLive` and `loadShorts` mark the tab loaded and empty when `channelId` is null; the yt-dlp fallback resolves the id (`resolvedChannelId`) only for Videos, so resolving it and then loading both tabs would be the fix ([ADR 178](../adr/0178-a-channels-past-streams-are-its-live-tab-found-through-its-tab-list.md)) | S |
 | Search results and related videos show only the marks the history and feeds happened to carry | 🔓 open, needs a decision | their rows come from the web InnerTube, which carries no resume overlay (`HttpYouTubeFeeds.kt:43` and `HttpYouTubePlaylists.kt:45` are the only parsers that feed `SeenProgress`); there is no per-video progress call to ask, so this is a product call, not a bug fix | M |
+| The All subscriptions latest-upload line has no views (a Room table of title, author, picture, date) | open 2026-11-27, recorded in [ADR 192](../adr/0192-one-watch-page-parse-fills-views-everywhere.md) | `ChannelLatestEntities.kt` `RoomChannelLatestStore`; the line shows no facts block, so only a column would be added | L (schema bump) |
+| Starred, playlist and History rows saved with no views stay without until played or queued | open 2026-11-27 | `SharedMetadataRepair` covers queue rows near the playhead and downloads only | S |
+| A day-only date is the noon-UTC sentinel, not a field | open 2026-11-27 | `PublishedAge.isDayOnly`; an explicit "date only" flag on `MediaItem` would be a schema bump across five tables | L |
 
 ## What was checked and is still fixed
 

@@ -26,6 +26,10 @@ Checks, cheapest first:
 9. No Compose test builds a coroutine scope on `Dispatchers.Default` or `IO`. The test rule resumes
    Compose's collectors on whichever thread emits, so a worker-thread scope puts composition on that
    worker; the race is rare locally and fatal in CI.
+10. No tracked text file holds a leftover merge-conflict marker (`<<<<<<< `, `=======` inside a conflict,
+    `>>>>>>> `). One slipped into docs/adr/_index.md on 2026-11-27 and nothing in the Gradle gate reads
+    markdown. The Python suites of check 6 are discovered, including `server/**/*_test.py` and
+    `tools/handoff/**/test_*.py`, so a nested suite is not skipped.
 """
 import fnmatch
 import pathlib
@@ -140,9 +144,71 @@ def check_no_cross_line_variables(workflow: dict) -> int:
 PYTHON_TEST_GLOBS = [
     "tools/ci/*_test.py",
     "**/src/test/python/*_test.py",
-    "server/*/*_test.py",
-    "tools/handoff/*/test_*.py",
+    "server/**/*_test.py",
+    "tools/handoff/**/test_*.py",
 ]
+
+
+def discover_python_tests(root: pathlib.Path) -> list:
+    return sorted({p for pattern in PYTHON_TEST_GLOBS for p in root.glob(pattern) if p.is_file()})
+
+
+CONFLICT_OPEN = re.compile(r"^<{7}(?: |$)")
+CONFLICT_SPLIT = re.compile(r"^={7}$")
+CONFLICT_CLOSE = re.compile(r"^>{7}(?: |$)")
+CONFLICT_BASE = re.compile(r"^\|{7}(?: |$)")
+MAX_SCANNED_BYTES = 2_000_000
+
+
+def conflict_markers(text: str) -> list:
+    """(line number, marker) for every leftover merge-conflict marker.
+
+    `=======` alone is a legitimate Markdown underline and a legitimate ruler, so it counts only between
+    an opener and a closer; `<<<<<<< ` and `>>>>>>> ` count wherever they start a line.
+    """
+    found = []
+    inside = False
+    for number, line in enumerate(text.splitlines(), start=1):
+        if CONFLICT_OPEN.match(line):
+            found.append((number, "<<<<<<<"))
+            inside = True
+        elif CONFLICT_CLOSE.match(line):
+            found.append((number, ">>>>>>>"))
+            inside = False
+        elif inside and CONFLICT_SPLIT.match(line):
+            found.append((number, "======="))
+        elif inside and CONFLICT_BASE.match(line):
+            found.append((number, "|||||||"))
+    return found
+
+
+def repo_text_files() -> list:
+    listed = subprocess.run(
+        ["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"],
+        cwd=ROOT, capture_output=True, text=True, check=True,
+    ).stdout.split("\0")
+    paths = []
+    for name in sorted({n for n in listed if n}):
+        path = ROOT / name
+        if not path.is_file() or path.stat().st_size > MAX_SCANNED_BYTES:
+            continue
+        if b"\0" in path.read_bytes()[:8000]:
+            continue
+        paths.append(path)
+    return paths
+
+
+def check_no_conflict_markers() -> int:
+    """A merge that was committed half-resolved: one reached docs/adr/_index.md locally on 2026-11-27."""
+    problems = 0
+    scanned = 0
+    for path in repo_text_files():
+        scanned += 1
+        for number, marker in conflict_markers(path.read_text(errors="replace")):
+            problems += fail(f"{path.relative_to(ROOT)}:{number} is a leftover merge-conflict marker ({marker})")
+    if not problems:
+        print(f"  ok: no leftover merge-conflict markers in {scanned} text files")
+    return problems
 
 
 def check_python_tests() -> int:
@@ -153,7 +219,7 @@ def check_python_tests() -> int:
     resolve, flooding a bounded report buffer. Sub-second, so it belongs here rather than in the gate.
     """
     problems = 0
-    found = sorted({p for pattern in PYTHON_TEST_GLOBS for p in ROOT.glob(pattern)})
+    found = discover_python_tests(ROOT)
     if not found:
         return fail("no python test suites found — the globs no longer match anything")
     for path in found:
@@ -265,12 +331,15 @@ ALLOWED_MAXLINES = {
     "app/src/main/java/com/dewijones92/totum/ui/common/MediaThumbnail.kt": (
         ["maxLines = 1"], "the duration chip is a clock ('1:02:45') and can never need a second line",
     ),
-    "app/src/main/java/com/dewijones92/totum/ui/common/CollapsingTitle.kt": (
+    "app/src/main/java/com/dewijones92/totum/ui/common/ActionsHeader.kt": (
         ["maxLines = 1"],
-        "a one-word screen title (its caller passes a string resource) that shrinks as the list scrolls; "
+        "a one-word screen title (its caller passes a string resource) beside its actions; "
         "TitleAndActions keeps it at least its own width, so it never needs a second line",
     ),
     "app/src/main/java/com/dewijones92/totum/ui/settings/DiagnosticsNoteDialog.kt": (
+        ["maxLines = 6"], "minLines/maxLines on a text INPUT, which scrolls rather than truncating",
+    ),
+    "app/src/main/java/com/dewijones92/totum/ui/report/QuickReportSheet.kt": (
         ["maxLines = 6"], "minLines/maxLines on a text INPUT, which scrolls rather than truncating",
     ),
     "app/src/main/java/com/dewijones92/totum/ui/player/FullPlayer.kt": (
@@ -484,6 +553,7 @@ def main() -> int:
         problems += 1
     else:
         print("  ok: all live instrumented tests are registered")
+    problems += check_no_conflict_markers()
     problems += check_live_list_expands()
     problems += check_manual_tests_are_marked()
     problems += check_live_tests_skip_when_youtube_refuses()

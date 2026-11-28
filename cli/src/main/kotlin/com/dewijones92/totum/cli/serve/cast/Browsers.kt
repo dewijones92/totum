@@ -7,13 +7,15 @@ import com.dewijones92.totum.common.Diag
 import com.dewijones92.totum.data.targets.Target
 import com.dewijones92.totum.data.targets.TargetKind
 import com.dewijones92.totum.domain.CastScreen
+import com.dewijones92.totum.playback.cast.RoutedStream
 import com.dewijones92.totum.playback.cast.Screen
 import com.dewijones92.totum.playback.cast.ScreenHost
 import com.dewijones92.totum.playback.cast.ScreenLink
+import com.dewijones92.totum.playback.cast.ScreenLoad
 import com.dewijones92.totum.playback.cast.ScreenPage
 import com.dewijones92.totum.playback.cast.ScreenReport
 import com.dewijones92.totum.playback.cast.StaleReports
-import com.dewijones92.totum.playback.cast.quoted
+import com.dewijones92.totum.playback.cast.loadCommand
 import com.dewijones92.totum.playback.cast.reportIsCurrent
 import com.dewijones92.totum.playback.cast.screenProfile
 import kotlinx.coroutines.CoroutineScope
@@ -167,8 +169,9 @@ internal class BrowserControl(
         val now = wanted ?: return
         screens.send(
             screenId,
-            """{"do":"load","load":$loads,"url":${quoted(now.url)},"pos":${now.startAtMs},"play":true,""" +
-                """"rate":1,"title":${quoted(now.title)},"subs":null}""",
+            loadCommand(
+                ScreenLoad(loads, RoutedStream(now.url, direct = false), now.startAtMs, true, 1f, now.title, null)
+            ),
         )
     }
 

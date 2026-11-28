@@ -279,7 +279,11 @@ class SharedMetadataRepairTest {
         assertTrue(learned.isEmpty())
     }
 
-    private fun dated(n: Int, kind: MediaContentKind = MediaContentKind.STANDARD): PlayableItem {
+    private fun dated(
+        n: Int,
+        kind: MediaContentKind = MediaContentKind.STANDARD,
+        views: String? = "1K views",
+    ): PlayableItem {
         val vid = MediaItemId("video-%05d".format(n))
         val link = HttpUrl.of("https://www.youtube.com/watch?v=${vid.value}")
         return PlayableItem(
@@ -290,6 +294,7 @@ class SharedMetadataRepairTest {
                 publishedAt = null,
                 duration = null,
                 mediaUrl = link,
+                viewsText = views,
                 contentKind = kind
             ),
             PlayHandle.Video(link),
@@ -312,7 +317,7 @@ class SharedMetadataRepairTest {
             {},
             backgroundScope,
             io = EmptyCoroutineContext,
-            dateOf = { if (it == undated.item.id) day else null },
+            factsOf = { if (it == undated.item.id) WatchFacts(day, null) else null },
         ).start()
         runCurrent()
 
@@ -338,7 +343,7 @@ class SharedMetadataRepairTest {
             {},
             backgroundScope,
             io = EmptyCoroutineContext,
-            dateOf = {
+            factsOf = {
                 asked += it.value
                 null
             },
@@ -404,9 +409,9 @@ class SharedMetadataRepairTest {
                     },
                     {},
                     scope,
-                    dateOf = {
+                    factsOf = {
                         here()
-                        Instant.parse("2026-10-30T12:00:00Z")
+                        WatchFacts(Instant.parse("2026-10-30T12:00:00Z"), null)
                     },
                     artistOf = {
                         here()
@@ -544,7 +549,7 @@ class SharedMetadataRepairTest {
                 {},
                 backgroundScope,
                 io = EmptyCoroutineContext,
-                dateOf = {
+                factsOf = {
                     dateAsked += it.value
                     null
                 },
@@ -565,6 +570,104 @@ class SharedMetadataRepairTest {
             val summary = lines.single { it.startsWith("pass:") }
             assertTrue(summary, "due=150 of 150 candidate(s)" in summary)
             assertTrue(summary, "poster lookups=8 reused=106" in summary)
+        }
+    }
+
+    @Test
+    fun `a queued row with no views learns them from its watch page, with its date from the same read`() = runTest {
+        val day = Instant.parse("2026-11-23T12:00:00Z")
+        val bare = dated(1, views = null)
+        val learned = mutableListOf<MediaItem>()
+        var asked = 0
+        SharedMetadataRepair(
+            MutableStateFlow(QueueSnapshot(entries = listOf(QueueEntry(bare)), currentIndex = 0)),
+            FakeDownloadManager(),
+            { error("a title is known, so nothing is resolved") },
+            learned::add,
+            {},
+            backgroundScope,
+            io = EmptyCoroutineContext,
+            factsOf = {
+                asked++
+                WatchFacts(day, "24K views")
+            },
+        ).start()
+        runCurrent()
+
+        assertEquals(1, asked)
+        assertEquals(listOf("24K views"), learned.map { it.viewsText })
+        assertEquals(listOf(day), learned.map { it.publishedAt })
+    }
+
+    @Test
+    fun `a row that has a date but no views is asked for its views alone and keeps its own date`() = runTest {
+        val own = Instant.parse("2026-11-01T12:00:00Z")
+        val row = dated(1, views = null).let { it.copy(item = it.item.copy(publishedAt = own)) }
+        val learned = mutableListOf<MediaItem>()
+        SharedMetadataRepair(
+            MutableStateFlow(QueueSnapshot(entries = listOf(QueueEntry(row)), currentIndex = 0)),
+            FakeDownloadManager(),
+            { null },
+            learned::add,
+            {},
+            backgroundScope,
+            io = EmptyCoroutineContext,
+            factsOf = { WatchFacts(Instant.parse("2026-11-23T12:00:00Z"), "9K views") },
+        ).start()
+        runCurrent()
+
+        assertEquals(listOf("9K views"), learned.map { it.viewsText })
+        assertEquals(listOf(own), learned.map { it.publishedAt })
+    }
+
+    @Test
+    fun `a song learns its plays from the same read, and never a date`() = runTest {
+        val song = dated(7, MediaContentKind.MUSIC, views = null)
+            .let { it.copy(item = it.item.copy(author = "An artist")) }
+        val learned = mutableListOf<MediaItem>()
+        SharedMetadataRepair(
+            MutableStateFlow(QueueSnapshot(entries = listOf(QueueEntry(song)), currentIndex = 0)),
+            FakeDownloadManager(),
+            { null },
+            learned::add,
+            {},
+            backgroundScope,
+            io = EmptyCoroutineContext,
+            factsOf = { WatchFacts(Instant.parse("2012-01-01T12:00:00Z"), "3.1M views") },
+        ).start()
+        runCurrent()
+
+        assertEquals(listOf("3.1M views"), learned.map { it.viewsText })
+        assertEquals(listOf<Instant?>(null), learned.map { it.publishedAt })
+    }
+
+    @Test
+    fun `views are asked only near what is playing and of downloads, in batches, at Dewi's scale`() = runTest {
+        val rows = (0 until 5_857).map { dated(it, views = null) }
+        val asked = mutableListOf<String>()
+        capturingMetadataLines { lines ->
+            SharedMetadataRepair(
+                MutableStateFlow(QueueSnapshot(entries = rows.map { QueueEntry(it) }, currentIndex = 3_000)),
+                FakeDownloadManager(),
+                { null },
+                {},
+                {},
+                backgroundScope,
+                io = EmptyCoroutineContext,
+                factsOf = {
+                    asked += it.value
+                    WatchFacts(Instant.parse("2026-11-23T12:00:00Z"), "1K views")
+                },
+            ).start()
+            runCurrent()
+            advanceTimeBy(10_000)
+            runCurrent()
+
+            assertEquals((2_995..3_030).map { "video-%05d".format(it) }.toSet(), asked.toSet())
+            assertEquals(36, asked.size)
+            val summaries = lines.filter { it.startsWith("pass:") }
+            assertEquals(lines.toString(), 1, summaries.size)
+            assertTrue(summaries.single(), "watch page gave dates=36 views=36" in summaries.single())
         }
     }
 }

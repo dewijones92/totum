@@ -1,0 +1,19 @@
+--- a/serverconfig/code/server_docker/data/nginx/nginx.conf
++++ b/serverconfig/code/server_docker/data/nginx/nginx.conf
+@@ -14,6 +14,16 @@
+ http {
+     # Rate-limit zone for the UniApp crash sink's open /ingest path (see app.conf).
+     limit_req_zone $binary_remote_addr zone=crashlog_ingest:1m rate=10r/m;
++    # Totum cast-out (totum repo ADR 182): the open /cast-out/<link>/ path a friend's Chromecast fetches. A rate limit
++    # per client, and its own access log in which a link is cut to its first six characters, because the default
++    # log would otherwise hold every whole link.
++    limit_req_zone $binary_remote_addr zone=castout:1m rate=30r/s;
++    map $request_uri $castout_logged {
++        "~^(?<head>/cast-out/[0-9a-f]{6})[0-9a-f]{58}(?<tail>/.*)$" "${head}...${tail}";
++        default "-";
++    }
++    log_format castout '$remote_addr [$time_local] "$request_method $castout_logged" $status $body_bytes_sent '
++                       '"$http_user_agent"';
+     server_names_hash_bucket_size 256;
+     include       /etc/nginx/mime.types;
+     default_type  application/octet-stream;

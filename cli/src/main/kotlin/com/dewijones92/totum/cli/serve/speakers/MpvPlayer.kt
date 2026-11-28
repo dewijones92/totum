@@ -29,14 +29,19 @@ import java.nio.channels.SocketChannel
 import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
 
+@Suppress("LongParameterList")
 internal class MpvPlayer(
     private val id: String,
     private val dir: File,
     private val mpv: String = System.getenv("TOTUM_MPV") ?: "mpv",
     private val processed: ProcessedSound = ProcessedSound(),
     private val locally: (label: String, url: String) -> String = { _, url -> url },
+    private val lengthMsOf: (url: String) -> Long? = { url -> processed.durationUs(url)?.let { it / US_PER_MS } },
+    private val link: LinkProbe? = null,
+    private val nowSeconds: () -> Long = { System.currentTimeMillis() / US_PER_MS },
 ) : TargetPlayer {
     private val socket = File(dir, "mpv-$id.sock")
+    private val underruns = UnderrunCounter(File(dir, "mpv-$id.log"))
 
     @Volatile
     private var process: Process? = null
@@ -54,6 +59,9 @@ internal class MpvPlayer(
 
     @Volatile
     private var chosenVolume: Int? = null
+
+    @Volatile
+    private var sourceLengthMs: Long? = null
 
     @Volatile
     override var failure: String? = null
@@ -78,6 +86,9 @@ internal class MpvPlayer(
         pipelineFailed = false
         failure = null
         offsetMs = request.startAtMs
+        sourceLengthMs = null
+        underruns.reset()
+        learnLength(started, address, piped, live)
         pipeline = if (piped) {
             processed.toSink(
                 SoundJob(id, address, request.sound, request.startAtMs),
@@ -115,6 +126,17 @@ internal class MpvPlayer(
         }
     }
 
+    private fun learnLength(started: Process, address: String, piped: Boolean, live: Boolean) {
+        if (!piped || live) return
+        thread(name = "mpv-length-$id", isDaemon = true) {
+            val ms = lengthMsOf(address)
+            if (process !== started) return@thread
+            sourceLengthMs = ms
+            val said = ms?.let { "${it}ms long" } ?: "of a length ffprobe could not tell"
+            Diag.log("speakers", "$id: the source is $said (asked of ffprobe: mpv sees only the processed sound)")
+        }
+    }
+
     private fun failureOf(code: Int, pipelineFailed: Boolean, tail: String): String =
         "the player exited with code $code" + (if (pipelineFailed) " and the sound pipeline failed" else "") +
             (if (tail.isNotBlank()) ": ${tail.takeLast(FAILURE_CHARS)}" else "")
@@ -131,6 +153,12 @@ internal class MpvPlayer(
 
     override fun seek(positionMs: Long) {
         ipc(JsonPrimitive("seek"), JsonPrimitive(positionMs / MS_PER_S.toDouble()), JsonPrimitive("absolute"))
+    }
+
+    override fun linkReport(): String? {
+        if (process == null) return null
+        val fresh = underruns.newSinceLast()
+        return LinkWords.line(link?.sample(), nowSeconds(), fresh, underruns.total)
     }
 
     override val volumePercent: Int? get() = chosenVolume
@@ -154,7 +182,7 @@ internal class MpvPlayer(
 
     override val positionMs: Long? get() = seconds("time-pos")?.let { offsetMs + it + (pipeline?.skippedMs ?: 0) }
 
-    override val durationMs: Long? get() = if (pipeline == null) seconds("duration") else null
+    override val durationMs: Long? get() = if (pipeline == null) seconds("duration") else sourceLengthMs
 
     private fun seconds(property: String): Long? = process?.let {
         ipc(
@@ -203,6 +231,7 @@ internal class MpvPlayer(
 
     private companion object {
         const val MS_PER_S = 1_000
+        const val US_PER_MS = 1_000L
         const val MPV_OWN_VOLUME = 100
         val PIPED_SOURCE = listOf(
             "--demuxer=rawaudio",
