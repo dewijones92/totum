@@ -1253,3 +1253,10 @@ The fake upstream now re-binds until it is not on the Pi's port, and `CastHttpSe
 which port it took instead and that addresses built for the old one reach someone else. Other fixtures with
 the same release-then-bind pattern (`CastBrainTest`, `BrowserServingTest`, `CastOutEndToEndTest`) were not
 changed; none runs a second listener on `bind(0)` before the first binds.
+
+## YouTube-only-HLS cast: relayed by the one stream server (2026-11-28, ADR 156 amended)
+
+| Test | What it proves |
+|---|---|
+| `CastStreamServerHlsRelayTest` (9, `:core:cast`) | a googlevideo HLS master given to `urlFor` is answered with `…/c/<token>/relay.m3u8`, never a googlevideo address (red: `the TV was handed nothing but the raw manifest, which it cannot fetch`); master, variant, `EXT-X-KEY` and segments are served from a fake upstream by the real HTTP server with every address rewritten, `.ts` typed `video/mp2t`, and the content type `application/x-mpegURL`; a `Range` is passed on and answered 206 with its `Content-Range`; a playlist is read afresh each time so a live stream lists new segments and old ones keep their names; a refused segment is passed on and three refusals reach `tvs.failed`; release makes the relay answer 404 and a name it never listed is never fetched; a third-party `.m3u8`, a googlevideo `.mpd` and a googlevideo muxed stream are still given as they are; no address means given as it is; `CastFormat.mimeOf`; `HlsRelay.resolve` |
+| `ChromecastHlsOnlyTest` (4, `:cli`) | the real failure replayed: a resolved item whose only address is the YouTube HLS manifest, played on the LG, loads a relay address (red: `the LG was handed https://manifest.googlevideo.com/… as video/mp4`) with `application/x-mpegURL`, nothing is asked of YouTube until the TV asks, and the playlist, variant and segments come back through the Pi's server; an HLS-format device gets the same; stop withdraws the relay; a non-YouTube manifest is loaded as before. Ports: the Pi server is bound first (`PiStreams.start()`) and the fixture retries until it holds the port it named, and the fake upstream is a function, so no second listener can take it |
