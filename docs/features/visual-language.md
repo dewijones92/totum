@@ -140,6 +140,7 @@ other direction … the controls hide so there's more screen space for the items
 - **One seam:** `HeaderScroll` + `Modifier.scrollsAway()` + `HeaderScrollHost` in `ui/common/HeaderScroll.kt`; `TitleAndActions`
   and `SourceHeader` apply it, so every `ScreenHeader`, `BackHeader`, the Queue's `ActionsHeader` and the source pages slide away
   on scrolling down and come back on any scroll up. The Queue's device chips and offline banner are pieces of the same header.
+- **Dragging the header itself** (vertical, past the touch slop) slides it too, so a small screen with a thin strip of list can still be cleared; a tap on a part-hidden header shows it all.
 - **Stays put:** the dock (mini player, a device's bar, tabs), the progress strip and every other banner, the Play on row on the
   other four tabs, and Search's search field. **Fixed (never hidden):** with TalkBack's touch exploration on or the system
   animator scale at 0. **A header inside a scrolling page** (Settings, Exsurge, Bedtime, Phone use, Work apps, Alarms, Trip, Kid TV,

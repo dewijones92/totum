@@ -29,15 +29,19 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.Measurable
 import androidx.compose.ui.layout.MeasureResult
 import androidx.compose.ui.layout.MeasureScope
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.node.LayoutModifierNode
 import androidx.compose.ui.node.ModifierNodeElement
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Constraints
 import com.dewijones92.totum.common.Diag
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 internal fun hiddenAfter(hidden: Float, dy: Float, travelPx: Float): Float =
@@ -47,7 +51,7 @@ internal fun headersFixed(touchExploration: Boolean, animatorScale: Float): Bool
     touchExploration || animatorScale == 0f
 
 @Stable
-internal class HeaderScroll(private val name: String) {
+internal class HeaderScroll(val name: String) {
     var hidden by mutableFloatStateOf(0f)
         private set
 
@@ -155,14 +159,37 @@ internal fun RevealHeaderWhen(key: Any?, why: String) {
 @Composable
 internal fun Modifier.scrollsAway(): Modifier {
     val scroll = LocalHeaderScroll.current ?: return this
+    val box = remember { arrayOfNulls<LayoutCoordinates>(1) }
     return clipToBounds()
+        .onGloballyPositioned { box[0] = it }
+        .pointerInput(scroll) { dragHeader(scroll) { point -> box[0]?.takeIf { it.isAttached }?.localToRoot(point) } }
         .then(ScrollsAwayElement(scroll))
-        .pointerInput(scroll) {
-            awaitEachGesture {
-                awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-                scroll.reveal("the header was touched")
+}
+
+private suspend fun PointerInputScope.dragHeader(scroll: HeaderScroll, toRoot: (Offset) -> Offset?) {
+    awaitEachGesture {
+        val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+        var dragged = false
+        var travelled = Offset.Zero
+        var last = toRoot(down.position) ?: down.position
+        do {
+            val change = awaitPointerEvent(PointerEventPass.Initial).changes
+                .firstOrNull { it.id == down.id } ?: break
+            val now = toRoot(change.position) ?: change.position
+            travelled += now - last
+            val vertical = abs(travelled.y) > viewConfiguration.touchSlop && abs(travelled.y) > abs(travelled.x)
+            if (!dragged && vertical && !scroll.fixed) {
+                dragged = true
+                Diag.log("header", "dewidebug ${scroll.name} header dragged on the header itself")
             }
-        }
+            if (dragged) {
+                scroll.scrolled(now.y - last.y)
+                change.consume()
+            }
+            last = now
+        } while (change.pressed)
+        if (!dragged) scroll.reveal("the header was touched")
+    }
 }
 
 private data class ScrollsAwayElement(val scroll: HeaderScroll) : ModifierNodeElement<ScrollsAwayNode>() {

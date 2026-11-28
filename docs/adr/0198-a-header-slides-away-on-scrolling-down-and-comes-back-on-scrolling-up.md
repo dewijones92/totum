@@ -49,8 +49,10 @@ a second row of actions and the offline banner.
 - **`Modifier.scrollsAway()`** puts a piece of a header on that state. It is a layout modifier, so the fraction is read in
   the layout pass: scrolling relayouts the header and the list under it and **recomposes nothing** (ADR 61). Each piece
   slides up inside its own clipped box and the box shrinks by the same fraction, so the list gains the height; pieces move
-  together. A `pointerInput` on the piece (Initial pass, never consumes) **shows the whole header when it is touched while
-  part-hidden**, so a control that opens a sheet or a dialog is never left half off screen.
+  together. A `pointerInput` on the piece (Initial pass) does two things. **A tap on a part-hidden header shows all of it**, so
+  a control that opens a sheet or a dialog is never left half off screen. **A vertical drag that starts on the header itself
+  slides it too** (amended 2026-11-28, below). Its position is read in root coordinates, because the header's own box moves
+  while it hides and a local position would cancel the finger's movement.
 - **Reused, not rebuilt:** `TitleAndActions`, which every `ScreenHeader`, `BackHeader` and the Queue's title already went
   through ("so no header squeezes its title"), now applies `scrollsAway()` itself. So every existing header, and every future
   one, slides away without its screen asking. `SourceHeader` (channel and podcast pages, which draws its own column) applies
@@ -136,6 +138,26 @@ place, fixing starting).
   `detekt` and `preflight` green.
 - At 320x640@160 the Queue's header and the mini player together fill almost the whole screen, so no row is visible at the top
   and a swipe has to start in the thin strip of list that shows; once it scrolls the header goes and rows 2 to 4 appear (seen).
+
+## Amended 2026-11-28: CI's 320x640@160 failure, and dragging the header itself
+
+CI's instrumented job failed `theQueueTabHidesItsChipsTitleAndActionsOnScrollingDownAndShowsThemOnScrollingUp` with "the queue's
+list moved up by the whole header: 0.0dp" after v0.1.978. Reproduced on `totum-api35` at 320x640@160 (list top 296 dp, unchanged
+by the swipe) and traced to two things:
+
+- **The test.** It swiped from 70% to 30% of the screen height. At 320x640 the list is a strip from 296 dp to about 385 dp and
+  the mini player and tabs take the rest, so the swipe began on the dock (at 1080x1920@480 the strip is bigger, which is why it
+  passed on a bigger screen). The tests now start every swipe 8 dp under the list's own top and read that top from the semantics
+  tree, so they work at any geometry; the assertion is the same. With only that change the old test passes at both geometries
+  (296 dp to 34 dp at 320x640, 248 dp to 34 dp at 1080x1920).
+- **A real gap.** A drag that starts on the header did nothing, and on a screen this small the only place to grab the list is a
+  strip under the header, so the header could not be dismissed by a thumb on the header. A vertical drag that starts on the
+  header (it must pass the touch slop and be more vertical than horizontal, so the chip row still scrolls sideways) now moves
+  the same `hidden` fraction, consumes the drag so a button under the finger is not clicked, and is ignored while headers are
+  fixed. New test `draggingTheHeaderItselfSlidesItAwayWhateverStripOfListShows`, seen red first at both geometries
+  ("dragging the header itself moved the list up by the header: 0.0dp", list top 296 dp to 296 dp and 248 dp to 248 dp after 5 drags),
+  green after (296 dp to 47 dp in 5 drags at 320x640@160, 248 dp to 69 dp at 1080x1920@480, then a swipe on the list brings it back
+  in full). All three tests in the class pass at both geometries.
 - Tests: `HeaderScrollTest` (JVM, 10 cases: scrolling down consumes the header's height before the list moves, any scroll up
   gives it back first, a piece leaving, fixed headers never move; seen red with the consumption switched off, "expected:<-100.0>
   but was:<0.0>" and "expected:<60> but was:<150>"); `HeaderSlidesAwayOnScrollTest` (instrumented: a plain header block, and the
