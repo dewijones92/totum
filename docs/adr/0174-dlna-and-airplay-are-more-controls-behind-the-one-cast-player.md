@@ -188,3 +188,5 @@ phone knows, a kind it does not, pairing command), `ChromecastPlayerTest` (HLS f
 `CommandParsingTest`, `:cli`; `airplay_helper_test.py` (a fake device: the commands, the stopping that is not a finish,
 credentials mode 600 and never printed; and a whole pairing against pyatv's own pair-setup server, which guards the pinned
 packages); `tools/cast-bench/discover_dlna_test.py`.
+
+**Upstream (checked 2026-11-28):** already reported as [pyatv#2934](https://github.com/postlund/pyatv/issues/2934) and [pyatv#2940](https://github.com/postlund/pyatv/issues/2940), with the fix open as [pyatv#2947](https://github.com/postlund/pyatv/pull/2947) ("Support srptools 2.0"). Nothing posted by us. When a pyatv release includes #2947, the `srptools==1.0.1` pin in `server/totum-cli/requirements.txt` can go; the pairing smoke test will say whether it is safe.
