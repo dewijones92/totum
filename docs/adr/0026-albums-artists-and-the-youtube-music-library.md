@@ -2,7 +2,7 @@
 title: Albums, artists and your library come from YouTube Music; Play inserts after what is playing
 kind: adr
 status: accepted
-updated: 2026-10-09
+updated: 2026-11-28
 ---
 
 # 26. Albums, artists and your library come from YouTube Music; Play inserts after what is playing
@@ -46,3 +46,24 @@ Asked what Play on an album should do to the queue, Dewi chose **insert after cu
 - The renderers change without notice; `LiveMusicCatalogueTest` (`RUN_LIVE_MUSIC=1`) is the canary and
   cannot run in CI.
 - Premium-only tracks will not play, as before.
+
+## Amended 2026-11-28: when a shuffled album ends, the queue carries on in queue order
+
+Dewi asked whether an album shuffle had ever played other albums. Checked end to end (`MusicAlbumViewModel.shuffle`,
+`PlaybackQueue.playAll`, `AutoAdvancer`, `step`/`peekNext`, gapless arming, Explore, radio and Discover top-ups):
+
+- **While the album has songs left, only its own songs play.** `playAll` puts the whole shuffled run in as one contiguous
+  block after the place, and the advance, gapless arming and the notification's Next line all walk the queue entry by
+  entry. The only thing that can step outside the run is Explore, which is off by default and was off in Dewi's state
+  dump. Pinned by `ShufflingAnAlbumKeepsItsRunTogetherTest`.
+- **When the album ends, the queue continues with the next music in queue order** (talk is passed over, [ADR 64](0064-auto-play-stays-in-music-or-talk.md)),
+  whichever group it belongs to: an older radio block, an artist's "All songs" shuffle, another album. It never starts
+  Explore, Discover or a radio of its own; a radio tops up only its own group, and only while it is the playing group.
+  **Decision (Dewi, 2026-11-28): carry on as today.** No stop at the album's end, no album-only shuffle mode, no new
+  setting. The same rule applies to every run, so a run started while another is playing sits inside it and the rest of
+  the earlier run waits behind it (Dewi's queue had a Rodrigo album split around a 3,618-song Chopin shuffle this way).
+- **An album already queued and shuffled again** is moved, not duplicated: its copies are taken out of their old slots
+  and the whole album goes in as one new run after the place. The "already queued" log line says "kept as the queue's
+  own rule has it", which means moved.
+- A run that re-adds the entry the place is anchored on used to lose the place and land at the head of the queue; fixed
+  in [ADR 56](0056-player-tabs-and-explore-mode.md)'s 2026-11-28 amendment.
