@@ -20,6 +20,8 @@ internal interface DevicePower {
 
     suspend fun refresh()
 
+    suspend fun answersNow(): Boolean
+
     fun markAsleep()
 
     suspend fun ensureAwake(): Boolean
@@ -37,6 +39,7 @@ internal interface WakeStep {
     val name: String
     val note: String? get() = null
     val repeatsEveryMs: Long? get() = null
+    val startsAfterMs: Long get() = 0L
 
     suspend fun run(): Boolean
 }
@@ -56,6 +59,7 @@ internal class SteppedPower(
     private val readySteps: List<WakeStep> = emptyList(),
     private val off: PowerOff? = null,
     override val startsApp: Boolean = false,
+    private val evidence: () -> String? = { null },
     private val timeoutMs: Long = WAKE_TIMEOUT_MS,
     private val pause: suspend (Long) -> Unit = { delay(it) },
     private val clock: () -> Long = System::currentTimeMillis,
@@ -86,12 +90,19 @@ internal class SteppedPower(
             val settling = answered && clock() < offSettledUntil
             val next = if (answered && !settling) TargetPower.ON else TargetPower.ASLEEP
             if (settling) Diag.log("cast-target", "$label: still answering, but it was switched off just now; ASLEEP")
-            if (next != power) Diag.log("cast-target", "$label: ${power.name} -> ${next.name} (power check)")
+            if (next != power) {
+                Diag.log(
+                    "cast-target",
+                    "$label: ${power.name} -> ${next.name} (power check)" + evidence()?.let { " [$it]" }.orEmpty(),
+                )
+            }
             power = next
         } finally {
             lock.unlock()
         }
     }
+
+    override suspend fun answersNow(): Boolean = answers()
 
     override fun markAsleep() {
         if (power == TargetPower.ASLEEP) return
@@ -117,19 +128,41 @@ internal class SteppedPower(
         failure = null
         val startedAt = clock()
         val lastRun = LongArray(wakeSteps.size) { startedAt }
-        Diag.log("cast-target", "$label: not answering, waking it (${wakeSteps.joinToString { it.name }})")
+        val begun = BooleanArray(wakeSteps.size) { wakeSteps[it].startsAfterMs <= 0 }
+        Diag.log(
+            "cast-target",
+            "$label: not answering, waking it (" + wakeSteps.joinToString {
+                it.name + if (it.startsAfterMs > 0) " after ${it.startsAfterMs}ms of silence" else ""
+            } + ")" + evidence()?.let { " [$it]" }.orEmpty(),
+        )
         sentWake = true
-        wakeSteps.forEach { step -> runStep(step, "the wake") }
+        wakeSteps.forEachIndexed { index, step -> if (begun[index]) runStep(step, "the wake") }
         while (clock() - startedAt < timeoutMs) {
             pause(POLL_MS)
             if (answers()) {
                 power = TargetPower.ON
                 note = null
-                Diag.log("cast-target", "$label: answered ${clock() - startedAt}ms after the wake")
+                Diag.log(
+                    "cast-target",
+                    "$label: answered ${clock() - startedAt}ms after the wake" + evidence()?.let { " [$it]" }.orEmpty(),
+                )
                 runReady()
                 return@withLock true
             }
             wakeSteps.forEachIndexed { index, step ->
+                if (!begun[index]) {
+                    if (clock() - startedAt >= step.startsAfterMs) {
+                        begun[index] = true
+                        lastRun[index] = clock()
+                        Diag.log(
+                            "cast-target",
+                            "$label: silent ${lastRun[index] - startedAt}ms after the wake, now trying ${step.name}" +
+                                evidence()?.let { " [$it]" }.orEmpty(),
+                        )
+                        runStep(step, "the wake")
+                    }
+                    return@forEachIndexed
+                }
                 val every = step.repeatsEveryMs ?: return@forEachIndexed
                 if (clock() - lastRun[index] >= every) {
                     lastRun[index] = clock()

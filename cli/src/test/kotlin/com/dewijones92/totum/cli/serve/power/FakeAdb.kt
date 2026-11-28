@@ -15,6 +15,10 @@ internal class FakeAdb(private val address: String = "192.168.0.211:5555") : She
 
     @Volatile var onWakeKey: () -> Unit = {}
 
+    @Volatile var onSleepKey: () -> Unit = {}
+
+    @Volatile var keyEventSays: String? = ""
+
     @Volatile var onStart: () -> Unit = {}
 
     val commands: MutableList<List<String>> = Collections.synchronizedList(mutableListOf())
@@ -31,7 +35,11 @@ internal class FakeAdb(private val address: String = "192.168.0.211:5555") : She
             line.startsWith("dumpsys power") -> wakefulness
             line == "input keyevent KEYCODE_WAKEUP" -> {
                 onWakeKey()
-                ""
+                keyEventSays
+            }
+            line == "input keyevent KEYCODE_SLEEP" -> {
+                onSleepKey()
+                keyEventSays
             }
             line.startsWith("pidof ") -> runningPid
             line.startsWith("am start ") -> {
